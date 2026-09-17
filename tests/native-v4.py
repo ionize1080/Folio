@@ -22,4 +22,4 @@ for i in range(4):
  assert '测试标题' in ''.join(b[i].get_text().split());assert a[i].get_pixmap().samples==b[i].get_pixmap().samples
 check('Four-page hidden text output searchable; original scan pixels unchanged')
 r=worker.run({'command':'inspect','input':str(root/'assets/Folio-Sample.pdf'),'page':1});obj=next(o for o in r['objects'] if o['type']=='text' and o['editable']);worker.run({'command':'apply','input':str(root/'assets/Folio-Sample.pdf'),'output':str(out/'v4-edit.pdf'),'edits':[{**obj,'page':1,'text':'中文内容修改'}]});assert '中文内容修改' in fitz.open(out/'v4-edit.pdf')[0].get_text();check('Existing object editing remains functional')
-(out/'v4-native-report.json').write_text(json.dumps({'checks':checks,'timing':times,'environment':'Linux CPU; RapidOCR 3.9.2 / ONNX Runtime 1.30.0 / pypdfium2 5.3.0; no Windows launch validation'},ensure_ascii=False,indent=2))
+(out/'v4-native-report.json').write_text(json.dumps({'checks':checks,'timing':times,'environment':{'platform':sys.platform,'python':sys.version.split()[0],'scope':'native PDF/OCR regression'}},ensure_ascii=False,indent=2))

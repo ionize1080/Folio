@@ -3,8 +3,9 @@ const fs=require('node:fs'),path=require('node:path'),assert=require('node:asser
 const root=path.resolve(__dirname,'..'),out=path.join(root,'tests/output'),checks=[];
 (async()=>{
  const app=await _electron.launch({args:process.env.FOLIO_EXE?[]:[root],executablePath:process.env.FOLIO_EXE,timeout:60000});
+ let page;
  try{
-  const page=await app.firstWindow(),errors=[];page.on('pageerror',e=>errors.push(e.message));
+  page=await app.firstWindow();const errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.waitForSelector('[data-action="open"]');
   await page.evaluate(()=>{localStorage.setItem('folio-settings',JSON.stringify({saveSummary:false}));});await page.reload();
   const fixture=path.join(out,'v11-fixture.pdf'),saved=path.join(out,'v12-electron-saved.pdf');
@@ -19,6 +20,7 @@ const root=path.resolve(__dirname,'..'),out=path.join(root,'tests/output'),check
   await page.locator('[data-action="save"]').click();await page.waitForFunction(()=>!document.querySelector('#dirty-dot').classList.contains('changed') && document.querySelector('#doc-name').textContent.includes('saved'),null,{timeout:60000});
   assert(fs.statSync(saved).size>100);checks.push('Real Windows native edit and atomic PDF save');
   assert.deepEqual(errors,[]);await page.screenshot({path:path.join(out,'v12-electron.png')});
-  fs.writeFileSync(path.join(out,'v12-electron-report.json'),JSON.stringify({platform:process.platform,checks,errors},null,2));console.log(checks);
- }finally{await app.close();}
+  const exe=await app.evaluate(()=>process.execPath),hash=p=>require('node:crypto').createHash('sha256').update(fs.readFileSync(p)).digest('hex');
+  fs.writeFileSync(path.join(out,'v12-electron-report.json'),JSON.stringify({platform:process.platform,checks,errors,exe_sha256:hash(exe),asar_sha256:process.env.FOLIO_EXE?hash(path.join(path.dirname(exe),'resources/app.asar')):null},null,2));console.log(checks);
+ }catch(e){if(page){console.error(await page.locator('body').innerText().catch(()=>''));await page.screenshot({path:path.join(out,'v12-electron-failure.png')}).catch(()=>{});}throw e;}finally{await page?.evaluate(()=>window.desktop?.setDirty(false)).catch(()=>{});await app.close();}
 })().catch(e=>{console.error(e);process.exitCode=1});

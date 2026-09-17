@@ -33,7 +33,7 @@ assert.equal(
 );
 assert(RE.Resource.IconGroupEntry.fromEntries(res.entries).length > 0);
 const archive = path.join(out, "resources/app.asar"),
-  packed = asar.listPackage(archive);
+  packed = asar.listPackage(archive).map((name) => name.split(path.sep).join("/"));
 for (const f of [
   "native-bridge.cjs",
   "flow-layout.cjs",
@@ -97,7 +97,7 @@ for (const f of [
 ]) {
   assert(packed.includes("/" + f), `missing ${f}`);
   assert.equal(
-    createHash("sha256").update(asar.extractFile(archive, f)).digest("hex"),
+    createHash("sha256").update(asar.extractFile(archive, path.normalize(f))).digest("hex"),
     createHash("sha256")
       .update(await fs.readFile(path.join(root, f)))
       .digest("hex"),
@@ -112,7 +112,7 @@ for (const f of packed) {
   const st = await fs.stat(local).catch(() => null);
   if (!st?.isFile()) continue;
   assert.equal(
-    createHash("sha256").update(asar.extractFile(archive, rel)).digest("hex"),
+    createHash("sha256").update(asar.extractFile(archive, path.normalize(rel))).digest("hex"),
     createHash("sha256")
       .update(await fs.readFile(local))
       .digest("hex"),
