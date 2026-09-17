@@ -1,10 +1,12 @@
 """Publish only the verified RC1 deliverables using the Actions GITHUB_TOKEN."""
 import hashlib
+import base64
 import json
 import os
 from pathlib import Path
 import subprocess
 import zipfile
+import zlib
 from restore import restore, digest
 
 REPO = 'ionize1080/Folio'
@@ -22,6 +24,31 @@ def api(path):
     return json.loads(gh('api', f'repos/{REPO}/{path}'))
 
 
+def finalize(release):
+    if (release['tag_name'] != TAG or release['target_commitish'] != TARGET
+            or not release['draft'] or not release['prerelease']):
+        raise RuntimeError('Unexpected draft identity')
+    recipe = json.loads(zlib.decompress(base64.b64decode(Path(__file__).with_name('recipe.zlib.b64').read_text())))
+    assets = {asset['name']: asset for asset in release['assets']}
+    if len(release['assets']) != len(recipe['outputs']) or set(assets) != {item['name'] for item in recipe['outputs']}:
+        raise RuntimeError('Uploaded asset list mismatch; left draft unpublished')
+    for item in recipe['outputs']:
+        asset = assets[item['name']]
+        if (asset['state'] != 'uploaded' or asset['size'] != item['size']
+                or asset.get('digest') != 'sha256:' + item['sha256']):
+            raise RuntimeError('Uploaded asset digest mismatch; left draft unpublished')
+    print('All uploaded asset digests match; publishing verified draft', flush=True)
+    gh('api', '--method', 'PATCH', f'repos/{REPO}/releases/{release["id"]}',
+       '-F', 'draft=false', '-F', 'prerelease=true', '-f', 'make_latest=false')
+    result = api(f'releases/{release["id"]}')
+    if result['draft'] or not result['prerelease']:
+        raise RuntimeError('Unexpected release state')
+    ref = api(f'git/ref/tags/{TAG}')
+    if ref['object']['sha'] != TARGET:
+        raise RuntimeError('Unexpected release tag target')
+    print('Published ' + result['html_url'], flush=True)
+
+
 def main():
     if os.environ.get('GITHUB_REPOSITORY') != REPO:
         raise RuntimeError('Unexpected repository')
@@ -30,8 +57,13 @@ def main():
         raise RuntimeError('Source validation is not the expected successful run')
     # Never overwrite an existing release, tag or uploaded asset.
     existing = api('releases?per_page=100')
-    if any(item['tag_name'] == TAG for item in existing):
-        raise RuntimeError('RC1 release already exists; review it manually')
+    matched = [item for item in existing if item['tag_name'] == TAG]
+    if matched:
+        # Resume only the exact draft created by the first publication run.
+        if len(matched) != 1 or matched[0]['id'] != 390649849:
+            raise RuntimeError('Unexpected existing RC1 release')
+        finalize(api(f'releases/{matched[0]["id"]}'))
+        return
     refs = api(f'git/matching-refs/tags/{TAG}')
     if any(item['ref'] == f'refs/tags/{TAG}' for item in refs):
         raise RuntimeError('RC1 tag already exists; review it manually')
@@ -70,19 +102,10 @@ def main():
        '--title', 'Folio PDF Studio 1.2.0 RC1', '--draft', '--prerelease',
        '--latest=false', '--notes-file', str(Path(__file__).with_name('NOTES.md')))
     subprocess.run(['gh', 'release', 'upload', TAG, '--repo', REPO, *map(str, paths)], check=True)
-    release = api(f'releases/tags/{TAG}')
-    assets = {asset['name']: asset for asset in release['assets']}
-    if set(assets) != {path.name for path in paths}:
-        raise RuntimeError('Uploaded asset list mismatch; left draft unpublished')
-    for path in paths:
-        asset = assets[path.name]
-        if asset['size'] != path.stat().st_size or asset.get('digest') != 'sha256:' + digest(path):
-            raise RuntimeError('Uploaded asset digest mismatch; left draft unpublished')
-    gh('release', 'edit', TAG, '--repo', REPO, '--draft=false', '--prerelease', '--latest=false')
-    release = api(f'releases/tags/{TAG}')
-    if release['draft'] or not release['prerelease']:
-        raise RuntimeError('Unexpected release state')
-    print('Published ' + release['html_url'], flush=True)
+    matches = [item for item in api('releases?per_page=100') if item['tag_name'] == TAG]
+    if len(matches) != 1:
+        raise RuntimeError('Expected one draft release')
+    finalize(api(f'releases/{matches[0]["id"]}'))
 
 
 if __name__ == '__main__':
