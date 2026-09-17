@@ -1,0 +1,31 @@
+name: Publish verified Folio 1.2 RC1
+
+on:
+  push:
+    branches: [codex/publish-1.2-rc1]
+    paths:
+      - '.github/workflows/publish-rc1.yml'
+      - 'scripts/release-rc1/**'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: publish-folio-1.2-rc1
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify tested artifacts and publish prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python scripts/release-rc1/publish.py
