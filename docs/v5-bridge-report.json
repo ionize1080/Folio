@@ -1,0 +1,8 @@
+{
+  "events": 1,
+  "checks": [
+    "native progress",
+    "cancel preserves input",
+    "restart succeeds"
+  ]
+}

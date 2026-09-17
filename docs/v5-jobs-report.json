@@ -1,0 +1,16 @@
+{
+  "checks": [
+    "Concurrent pages finish with stable sorted result order",
+    "Completed pages and corrections resume without repeated inference",
+    "Cancel terminates workers and retains readable completed results"
+  ],
+  "plan": {
+    "workers": 2,
+    "desired": 2,
+    "threads": 2,
+    "cores": 8,
+    "freeGB": 20.12,
+    "memoryLimited": false,
+    "reserveGB": 2.5827337646484376
+  }
+}

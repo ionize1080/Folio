@@ -1,0 +1,8 @@
+{
+  "checks": [
+    "Existing text edit plus two independent additions through actual property controls",
+    "Combined structural/native save succeeds after repeated additions",
+    "Independent rendering of saved output preserves untouched text and other page; all three edits searchable"
+  ],
+  "errors": []
+}

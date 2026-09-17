@@ -1,0 +1,2 @@
+[console_scripts]
+rapid_layout = rapid_layout.main:main

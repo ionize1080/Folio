@@ -1,0 +1,9 @@
+node_modules/
+native/vendor/
+native/models/
+native/build-wheels/
+native/vcredist/
+__pycache__/
+tests/output/
+docs/validation*/
+dist/

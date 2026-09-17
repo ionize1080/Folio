@@ -1,0 +1,19 @@
+{
+  "checks": [
+    "Open desktop-capability test PDF",
+    "Continuous zoom retains painted frames and DPR 2 sharp tiles",
+    "Visual whitespace, arithmetic report, before/after page preview",
+    "Native text modification appears in PDF preview",
+    "Native content participates in undo and redo",
+    "Bookmarks and content save together",
+    "Offline OCR, native-coordinate correction and positional preview",
+    "OCR preview switch and final searchable PDF save"
+  ],
+  "zoom": {
+    "frames": 73,
+    "gaps": 0,
+    "tiles": 9,
+    "ratio": 2
+  },
+  "errors": []
+}

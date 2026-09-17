@@ -1,0 +1,35 @@
+{
+  "checks": [
+    "Four Chinese scan pages recognized using actual bundled ONNX models",
+    "Warm model and PDF reused across pages",
+    "Four-page hidden text output searchable; original scan pixels unchanged",
+    "Existing object editing remains functional"
+  ],
+  "timing": [
+    {
+      "load": 0.6382320930006244,
+      "render": 0.07450219199927233,
+      "recognize": 2.056091813000421,
+      "total": 2.7697349210002358
+    },
+    {
+      "load": 0.0022537780005222885,
+      "render": 0.06164425199949619,
+      "recognize": 1.522464411999863,
+      "total": 1.5867498440002237
+    },
+    {
+      "load": 0.0013281439996717381,
+      "render": 0.05532187599965255,
+      "recognize": 1.4230423590006467,
+      "total": 1.479826948999289
+    },
+    {
+      "load": 0.0011856489991259878,
+      "render": 0.05200215400054731,
+      "recognize": 1.3794961100002183,
+      "total": 1.433061345999704
+    }
+  ],
+  "environment": "Linux CPU; RapidOCR 3.9.2 / ONNX Runtime 1.30.0 / pypdfium2 5.3.0; no Windows launch validation"
+}

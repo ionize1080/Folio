@@ -1,0 +1,43 @@
+
+> folio-pdf-studio@0.5.0 test
+> node --test tests/*.test.mjs
+
+✔ all eight destination types and null / zero roundtrip (63.116018ms)
+✔ original chained actions, named destinations and unknown keys survive rename and move (17.67428ms)
+✔ visible descendant counts, open flags, unicode and style (8.559382ms)
+✔ repeat save does not accumulate annotations; extraction and rotation (26.968769ms)
+✔ invalid ranges and coordinates reject transactionally (1.089792ms)
+✔ subtree moves cannot introduce cycles and maintain contiguous preorder (0.382155ms)
+✔ TOC nesting, numbering, regex captures and JSON import (0.713375ms)
+✔ undo history restores complete document state (0.322296ms)
+BENCHMARK {"batch_ms":69.803767,"save_ms":456.810439}
+✔ 10,000 bookmark benchmark, batch update and save (1180.937553ms)
+✔ multilevel boundaries, missing ancestors, conflicts and rotated offsets (2.545033ms)
+✔ range parity and subtree insertion (1.443554ms)
+✔ parameter keep/relative/absolute/null and explicit preservation conversion (1.195211ms)
+✔ default shortcut context conflict validation (0.591721ms)
+✔ save protection, active copy, Save As, cancel and atomic failure (38.532907ms)
+✔ visual whitespace follows four page rotations without changing page or zoom (1.763336ms)
+✔ null and preserved actions are not silently rewritten (0.257368ms)
+✔ batch report includes original value, arithmetic and final value (1.047808ms)
+✔ Save As overwrites an existing file and replacement failure preserves its bytes (12.071351ms)
+✔ same-page dedupe merges children into surviving parent and preserves preorder (3.372179ms)
+✔ dedupe scopes, alternate keeper, ancestor protection and page distinction (0.689589ms)
+✔ style patch changes only requested fields, leaves source untouched (0.338169ms)
+✔ unbounded business layers and explicit conflict policy; repeated parents retain child mapping (2.884906ms)
+✔ calibration uses ordered first occurrence, excludes headers, handles rotation and no-match (1.187329ms)
+✔ range compaction, subtree multi-move, resource limits (0.653214ms)
+✔ repeated generation protects existing duplicates while absorbing new duplicate parent (0.679303ms)
+✔ OCR data over 32 MiB remains undoable without per-bookmark copies (674.948767ms)
+✔ language preference preserves confidence and original text; conversion explicit (0.469507ms)
+✔ font preflight blocks application, explicit exclusion does not mutate history (24.524448ms)
+✔ resource planning honors thread and CPU bounds without a fixed two-process limit (0.603589ms)
+✔ different OCR versions obey their separate history budget (0.271779ms)
+ℹ tests 30
+ℹ suites 0
+ℹ pass 30
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1415.59059

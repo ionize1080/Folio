@@ -1,0 +1,13 @@
+{
+  "native_compared_files": 3149,
+  "pe_machine": "AMD64",
+  "format": "PE32+",
+  "product": "Folio PDF Studio",
+  "version": "1.1.0.0",
+  "packed_files": 329,
+  "compared_source_files": 311,
+  "asar_sha256": "b55cb3fbc61eacd8a40ecc0e5bf80b2264398fbe3a2c7432d3bf5a78acc4174b",
+  "exe_sha256": "61e86150d3c85a92030a523253e40a876ce0c567521876bf21ec91ce142f0bfe",
+  "checked": "Resource metadata, runtime files, app.asar source hashes",
+  "windows_launch_tested": false
+}

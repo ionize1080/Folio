@@ -1,0 +1,26 @@
+{
+  "reference": "20_WD_2025002892_国民经济行业分类-original.pdf",
+  "checks": [
+    "Reference opens: 258 pages; continuous default",
+    "Jump physical page and selectable text",
+    "Ctrl+wheel document zoom",
+    "Five layouts and content anchor",
+    "Multilevel reference generation: 61 项 · 0 个冲突 · 0 个缺失父级 · 40 行忽略（预览前 200 项）",
+    "F2 inline rename",
+    "Tab focus traversal",
+    "Context menu decoded dictionary",
+    "Relative parameter batch preview",
+    "Page shortcut and view history",
+    "Native input keys and temporary rotation",
+    "Selection-to-bookmark actual page target",
+    "Exact search hits",
+    "Save generated PDF",
+    "Undo/redo saved baseline",
+    "Shortcut settings conflict detection",
+    "Sidebar modes",
+    "Crash recovery restores source bytes and pending edits",
+    "TextLayer alignment and transparent glyphs at DPR 1 / 1.5 / 2"
+  ],
+  "errors": [],
+  "platform": "Linux Chromium; native Windows launch not tested"
+}

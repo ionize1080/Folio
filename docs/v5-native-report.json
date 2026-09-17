@@ -1,0 +1,17 @@
+{
+  "checks": [
+    "Same-page untouched spaced text and other-page pixels remain exact; replaced text removed",
+    "Two new text blocks use distinct positions without inherited text spacing",
+    "Combined replacement and additions retain the edited stream and untouched same-page text",
+    "Simple text box wraps and enforces its height",
+    "Original-object replacement succeeds at four page rotations",
+    "Unsupported glyph fails before writing; no partial output",
+    "300-page / 2400-line application searchable on every page; all original pixels exact; 129.9s, 16.9 MiB"
+  ],
+  "application_seconds": 129.89403384900015,
+  "pages": 300,
+  "lines": 2400,
+  "output_bytes": 17761542,
+  "process_peak_rss_mib": 1316.30078125,
+  "environment": "Linux; PDFium via pypdfium2 5.3.0; pypdf 6.10.0; render verification with MuPDF. Windows launch untested."
+}

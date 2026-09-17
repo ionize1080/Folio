@@ -1,0 +1,38 @@
+
+> folio-pdf-studio@0.4.0 test
+> node --test tests/*.test.mjs
+
+✔ all eight destination types and null / zero roundtrip (85.250847ms)
+✔ original chained actions, named destinations and unknown keys survive rename and move (33.228147ms)
+✔ visible descendant counts, open flags, unicode and style (12.565789ms)
+✔ repeat save does not accumulate annotations; extraction and rotation (24.233171ms)
+✔ invalid ranges and coordinates reject transactionally (1.204123ms)
+✔ subtree moves cannot introduce cycles and maintain contiguous preorder (0.602422ms)
+✔ TOC nesting, numbering, regex captures and JSON import (0.951362ms)
+✔ undo history restores complete document state (0.323623ms)
+BENCHMARK {"batch_ms":55.561961,"save_ms":691.902071}
+✔ 10,000 bookmark benchmark, batch update and save (1528.232535ms)
+✔ multilevel boundaries, missing ancestors, conflicts and rotated offsets (4.498399ms)
+✔ range parity and subtree insertion (1.684438ms)
+✔ parameter keep/relative/absolute/null and explicit preservation conversion (0.749396ms)
+✔ default shortcut context conflict validation (0.774854ms)
+✔ save protection, active copy, Save As, cancel and atomic failure (18.878267ms)
+✔ visual whitespace follows four page rotations without changing page or zoom (3.320105ms)
+✔ null and preserved actions are not silently rewritten (0.481046ms)
+✔ batch report includes original value, arithmetic and final value (2.238841ms)
+✔ Save As overwrites an existing file and replacement failure preserves its bytes (21.165658ms)
+✔ same-page dedupe merges children into surviving parent and preserves preorder (4.907041ms)
+✔ dedupe scopes, alternate keeper, ancestor protection and page distinction (1.514081ms)
+✔ style patch changes only requested fields, leaves source untouched (0.75732ms)
+✔ unbounded business layers and explicit conflict policy; repeated parents retain child mapping (5.897926ms)
+✔ calibration uses ordered first occurrence, excludes headers, handles rotation and no-match (1.455651ms)
+✔ range compaction, subtree multi-move, resource limits (0.867255ms)
+✔ repeated generation protects existing duplicates while absorbing new duplicate parent (0.471178ms)
+ℹ tests 25
+ℹ suites 0
+ℹ pass 25
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1888.247381

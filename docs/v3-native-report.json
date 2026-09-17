@@ -1,0 +1,14 @@
+{
+  "checks": [
+    "Native text/path edit; unchanged page pixel preservation",
+    "Stale object identity rejected",
+    "Existing searchable text skipped",
+    "Offline OCR: 31 lines, 3.0s",
+    "Dual-layer search works and scan pixels are unchanged",
+    "Searchable text aligns with native OCR coordinates",
+    "Corrected text written into hidden layer"
+  ],
+  "ocr_seconds": 3.0385416990000067,
+  "ocr_lines": 31,
+  "environment": "Linux CPU, PDFium 5.13.0, RapidOCR 3.9.2, ORT 1.30.0"
+}

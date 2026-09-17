@@ -1,0 +1,20 @@
+{
+  "checks": [
+    "Document opens and renders",
+    "Repeated zoom retains completed page frames",
+    "Generic rules add/delete and generation with live page preview",
+    "Title calibration finds text and displays target preview",
+    "Multi-select styles preserve mixed attributes",
+    "Same-page dedupe preserves and reparents children",
+    "Drag left gutter promotes a child to root without losing nodes",
+    "Unified range presets and thumbnail page selection",
+    "Delayed old-page reply cannot overwrite the current correction page",
+    "Actual offline OCR with a pending correction draft",
+    "Missing glyph report stays visible in the OCR dialog before any application",
+    "Corrected hidden text layer applied and searchable",
+    "Reopened OCR corrections survive page navigation without rerunning recognition",
+    "OCR-derived bookmarks and repeated generation do not duplicate",
+    "Combined bookmark/OCR save succeeds"
+  ],
+  "errors": []
+}

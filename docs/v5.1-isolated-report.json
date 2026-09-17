@@ -1,0 +1,10 @@
+{
+  "isolated_ocr_blocks": 29,
+  "isolated_inspect": "passed",
+  "isolated_apply_and_search": "passed",
+  "missing_memory_module": {
+    "count": 29,
+    "rss": 0
+  },
+  "environment": "Linux Python -I with unrelated CWD; reproduces excluded-script-path condition, not actual Windows launch"
+}

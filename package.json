@@ -1,0 +1,30 @@
+{
+  "name": "folio-pdf-studio",
+  "productName": "Folio PDF Studio",
+  "version": "1.1.0",
+  "description": "Offline PDF editing, bookmark rules and OCR review for Windows",
+  "type": "module",
+  "main": "main.cjs",
+  "author": "Folio contributors",
+  "license": "(MIT AND AGPL-3.0-or-later)",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test tests/*.test.mjs",
+    "build:win": "node scripts/package-win.mjs",
+    "test:ui": "python3 tests/fixture-v9.py && node tests/ui-v9.cjs && node tests/ui-v9-details.cjs",
+    "test:native": "python3 tests/native-v9.py",
+    "test:v1": "node --test tests/*.test.mjs && python3 tests/native-v10.py && node tests/ui-v10.cjs && node tests/ui-v10-all.cjs",
+    "test:v11": "node --test tests/*.test.mjs && python tests/native-v11.py && node tests/ui-v11.cjs"
+  },
+  "devDependencies": {
+    "@electron/asar": "^3.4.1",
+    "electron": "44.3.0",
+    "extract-zip": "2.0.1",
+    "prettier": "^3.6.2",
+    "resedit": "^2.0.3"
+  },
+  "dependencies": {
+    "opencc-js": "^1.0.5"
+  },
+  "releaseChannel": "rc1"
+}
