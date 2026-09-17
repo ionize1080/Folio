@@ -1,8 +1,8 @@
 # Folio PDF Studio 1.2.0 RC1 验证记录
 
-日期：2026-09-17。当前状态：本地回归完成，Windows 平台验收未完成；本版本为候选构建，尚不作为正式交付。
+日期：2026-09-17。当前状态：Linux 本地回归与 Windows 自动验收均完成，交付 1.2.0 RC1 源码和便携包。真实用户环境的人工输入法验收仍未覆盖。
 
-## 已完成
+## Linux 本地验证
 
 | 检查 | 结果与范围 |
 |---|---|
@@ -28,13 +28,28 @@
 
 撤销压力测试测量小状态与共享片段复用，打包耗时单次约 2.55 ms（基线约 517 ms）。它不代表连续生成 40 份不同 PDF 片段的成本，资源预算也不是进程内存硬上限。
 
-## 未完成的发布门槛
+## Windows 自动验收
 
-- Windows x64 下真实 Electron 启动、沙箱 preload / IPC、嵌入式 Python、原子替换及取消行为。测试脚本和 Windows Actions 工作流已准备，但未执行。
-- 实际 Windows 中文输入法、不同系统缩放的人工验收。已跑的是组合输入事件和视口/缩放模拟，不能替代真机输入法。
-- 候选 Windows 包的执行验证。PE 架构、资源完整性和源码哈希一致性属于静态包验证；即使通过也不等于已运行 Windows EXE。
+[GitHub Actions 第 4 次运行](https://github.com/ionize1080/Folio/actions/runs/35211609385) 已成功完成。测试源码提交为 `233db28ec1fbecf7c052564ef4a1cd3ca5d7f8ba`，位于 `codex/folio-1.2` 分支。
 
-远程执行目前受阻：自动审批拒绝向 `ionize1080/Folio` 创建提交，原因是缺少对该目标仓库的明确授权。未创建版本分支，未启动 Windows Actions，也未合并主分支。取得授权后，应在独立分支验证并记录结果，再决定正式交付。
+环境：Windows Server 2025 x64（10.0.26100），Python 3.12.10，Chromium 153.0.8010.12，随包 Electron 44.3.0。
+
+- `npm test` 完整执行成功：90 项 JS 测试、原生 PDF/OCR、OCR 任务回归，以及 50 组界面检查。界面报告的页面错误数组均为空。
+- `npm run build:win` 和 `npm run test:package` 成功：AMD64 / PE32+，322 个源码文件、3,142 个原生资源文件与构建输入哈希一致。
+- 直接启动构建后的 `Folio.exe`：真实 Electron 沙箱/preload/文件打开 IPC、随包 Windows Python 的源句柄检查、原生文字编辑及 PDF 原子保存均通过。
+- 实际运行的 EXE 和 app.asar 哈希与下载产物一致。交付封装仅更新本文和补入验收记录，不修改已测试的可执行文件、应用代码或原生资源。
+- 复核实际 Electron 窗口与窄窗口截图：两条工具栏、书签侧栏、保存反馈均可见，保存后的修改文字正确显示。
+
+首次运行发现 OCR 测试环境缺少 ONNX Runtime，已补齐测试依赖。同步修复测试入口与 ASAR 校验的 Windows 路径处理，补齐字体许可文件。最终通过的是完整重跑结果，没有以跳过失败用例代替修复。
+
+静态 `package-report.json` 生成于启动测试之前，其中 `windows_launch_tested: false` 保留原始时间顺序；后续 `v12-electron-report.json` 记录实际启动结果，综合结果见 `release-verification.json`。
+
+## 验证边界
+
+- Windows 环境为云端 Windows Server，未声称逐一测试 Windows 10/11 的所有版本、显卡、杀毒软件和文件系统配置。
+- 中文输入法已覆盖组合输入事件回归，未进行真实微软拼音/第三方输入法的人工验收；缩放模拟也不能替代所有物理显示器组合。
+- 系统字体集合不同；TTC 多字面测试在 Linux 上执行通过，Windows 原生脚本中的该系统字体案例按条件未执行。
+- 200 MiB 压力数据来自上述 Linux 合成样本，不是 Windows 大型扫描书的性能保证。
 
 ## 复现入口
 
@@ -43,6 +58,6 @@
 - `FOLIO_CHROMIUM` 可指定现有 Chromium，`FOLIO_PYTHON` 可指定测试 Python。
 - `tests/fixture-stress-v12.py` 与 `tests/stress-v12.cjs`：合成大文件案例。
 - `npm run build:win` 后运行 `npm run test:package`：构建与静态包核对。
-- Windows 上 `node tests/electron-v12.cjs`；设置 `FOLIO_EXE` 可指定打包后的 EXE。尚待平台执行确认。
+- Windows 上 `node tests/electron-v12.cjs`；设置 `FOLIO_EXE` 可指定打包后的 EXE。本次已对打包后的 EXE 执行通过。
 
 真实用户测试文档不加入源码和测试证据包；原始文件未被修改。
