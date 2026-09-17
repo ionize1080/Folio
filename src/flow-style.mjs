@@ -3,14 +3,27 @@ const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 export function sourceStyles(model, objects) {
   const sources = new Set(model.sources.map((s) => s.index));
   let cursor = 0;
-  const runs = [], glyphs = [];
+  const runs = [],
+    glyphs = [];
   const src = objects
     .filter((o) => sources.has(o.index))
     .sort((a, b) => b.matrix[5] - a.matrix[5] || a.bounds[0] - b.bounds[0]);
   for (const o of src) {
-    const text = o.text.replace(/[\r\n]+/g, ""),
-      start = model.text.indexOf(text, cursor);
-    if (start < 0 || !text) continue;
+    const text = o.text.replace(/[\r\n]+/g, "");
+    if (!text) continue;
+    while (
+      cursor < model.text.length &&
+      /\s/.test(model.text[cursor]) &&
+      !model.text.startsWith(text, cursor)
+    )
+      cursor++;
+    const start = cursor;
+    if (!model.text.startsWith(text, start)) {
+      model.runs = [];
+      delete model.originalLayout;
+      model.styleMappingWarning = "原文对象顺序与文字不一致，请检查字体";
+      return model;
+    }
     const fill = o.fill || [32, 32, 32];
     const style = {
       fontKey: o.fontKey || null,
@@ -24,13 +37,25 @@ export function sourceStyles(model, objects) {
           .join(""),
       charSpacing: o.charSpacing || 0,
       wordSpacing: o.wordSpacing || 0,
-      horizontalScale: (o.horizontalScale || 100) * o.matrix[0] / o.matrix[3],
+      horizontalScale: ((o.horizontalScale || 100) * o.matrix[0]) / o.matrix[3],
     };
-    let glyphOffset=start;
-    if ((o.glyphs || []).map(g=>g.text).join("").replace(/[\r\n]+/g, "") === text) {
-      for (const g of o.glyphs || []) if (!/[\r\n]/.test(g.text)) {
-        glyphs.push({...g,start:glyphOffset,end:glyphOffset+g.text.length,style:{...style}});glyphOffset+=g.text.length;
-      }
+    let glyphOffset = start;
+    if (
+      (o.glyphs || [])
+        .map((g) => g.text)
+        .join("")
+        .replace(/[\r\n]+/g, "") === text
+    ) {
+      for (const g of o.glyphs || [])
+        if (!/[\r\n]/.test(g.text)) {
+          glyphs.push({
+            ...g,
+            start: glyphOffset,
+            end: glyphOffset + g.text.length,
+            style: { ...style },
+          });
+          glyphOffset += g.text.length;
+        }
     }
     runs.push({ start, end: start + text.length, ...style });
     cursor = start + text.length;
@@ -43,22 +68,62 @@ export function sourceStyles(model, objects) {
     model.charSpacing = main.charSpacing;
     model.wordSpacing = main.wordSpacing;
   }
-  const byOffset=new Map(glyphs.map(g=>[g.start,g]));
-  let position=0, prev=null;
-  const complete=[];
+  const byOffset = new Map(glyphs.map((g) => [g.start, g]));
+  let position = 0,
+    prev = null;
+  const complete = [];
   for (const ch of model.text) {
-    let g=byOffset.get(position);
+    let g = byOffset.get(position);
     if (!g && ch === " " && prev) {
-      const next=glyphs.find(g=>g.start>position), x=prev.x+prev.w;
-      g={text:ch,start:position,end:position+1,originX:x,baseline:prev.baseline,x,y:prev.y,w:next && Math.abs(next.baseline-prev.baseline)<.5 ? Math.max(0,next.originX-x) : 0,h:prev.h,style:{...prev.style},synthetic:true};
+      const next = glyphs.find((g) => g.start > position),
+        x = prev.x + prev.w;
+      g = {
+        text: ch,
+        start: position,
+        end: position + 1,
+        originX: x,
+        baseline: prev.baseline,
+        x,
+        y: prev.y,
+        w:
+          next && Math.abs(next.baseline - prev.baseline) < 0.5
+            ? Math.max(0, next.originX - x)
+            : 0,
+        h: prev.h,
+        style: { ...prev.style },
+        synthetic: true,
+      };
     }
-    if (g)complete.push(g);
-    prev=g || prev;position+=ch.length;
+    if (g) complete.push(g);
+    prev = g || prev;
+    position += ch.length;
   }
-  glyphs.splice(0,glyphs.length,...complete);
-  if (glyphs.length && src.every(o => o.renderMode === 0 && (!o.fill || o.fill[3] === 255)) && glyphs.map(g=>g.text).join("") === model.text) {
-    model.layoutMode="preserve";
-    model.originalLayout={text:model.text,glyphs,frame:{...model.frame},settings:Object.fromEntries(["size","align","lineHeight","charSpacing","wordSpacing","bold","italic","firstIndent","paragraphBefore","paragraphGap"].map(k=>[k,model[k]]))};
+  glyphs.splice(0, glyphs.length, ...complete);
+  if (
+    glyphs.length &&
+    src.every((o) => o.renderMode === 0 && (!o.fill || o.fill[3] === 255)) &&
+    glyphs.map((g) => g.text).join("") === model.text
+  ) {
+    model.layoutMode = "preserve";
+    model.originalLayout = {
+      text: model.text,
+      glyphs,
+      frame: { ...model.frame },
+      settings: Object.fromEntries(
+        [
+          "size",
+          "align",
+          "lineHeight",
+          "charSpacing",
+          "wordSpacing",
+          "bold",
+          "italic",
+          "firstIndent",
+          "paragraphBefore",
+          "paragraphGap",
+        ].map((k) => [k, model[k]]),
+      ),
+    };
   }
   return model;
 }

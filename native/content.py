@@ -87,6 +87,8 @@ def compose(data,edits,blocks,inspect,fragment,progress=None):
             # Preserve intentional outside-page text in the form; the page itself remains the visible crop.
             x[NameObject('/BBox')]=ArrayObject([FloatObject(v) for v in [-14400,-14400,28800,28800]])
             x[NameObject('/Matrix')]=ArrayObject([FloatObject(v) for v in [1,0,0,1,0,float(page.mediabox.top)-float(p.mediabox.top)]])
+        x[NameObject("/FolioLayerVersion")]=NumberObject(2)
+        x[NameObject("/FolioLayerKind")]=NameObject("/OCR" if ocr_layer else "/Content")
         if ocr_layer:x[NameObject("/FolioOCRVersion")]=NumberObject(1)
         ref=writer._add_object(x)
         resources=DictionaryObject(dict(page['/Resources']));page[NameObject('/Resources')]=resources
@@ -104,7 +106,7 @@ def compose(data,edits,blocks,inspect,fragment,progress=None):
         flows=sorted([e for e in es if e.get('type')=='flow' and not e.get('delete')],key=lambda e:float((e.get('model') or {}).get('layerOrder',0)))
         replace=[e for e in es if e.get('index') is not None]
         appended=[e for e in es if e.get('index') is None and not e.get('delete') and e.get('type')!='flow']
-        flow_indices=set(); flow_blobs=[]
+        flow_indices=set(); flow_blobs=[]; original_patches={}
         if flows:
             desc=inspect(number);mapped=check_editable(page,desc)
             for flow in flows:
@@ -116,7 +118,16 @@ def compose(data,edits,blocks,inspect,fragment,progress=None):
                     if mapped is None or not isinstance(idx,int) or not 0<=idx<len(desc):raise ValueError('段落对象映射不可靠')
                     d=desc[idx];m=mapped[idx]
                     if not d.get('flowEditable') or d['signature']!=source.get('signature'):raise ValueError('段落包含不可安全替换或已变化的对象')
-                    replace.append({**source,'delete':True,'_flowDelete':True})
+                patch=None
+                if len(sources)==1:
+                    from original_patch import correction
+                    original_stream,_=map_objects(page)
+                    patch=correction(page,original_stream,mapped[sources[0]['index']],desc[sources[0]['index']],flow)
+                if patch is not None:
+                    original_patches[mapped[sources[0]['index']]['at']]=patch
+                    flow_indices.update(indices)
+                    continue
+                for source in sources:replace.append({**source,'delete':True,'_flowDelete':True})
                 flow_indices.update(indices)
                 blob=base64.b64decode(flow.get('fragment',''),validate=True)
                 if len(blob)>32*1024*1024:raise ValueError('排版片段过大')
@@ -142,7 +153,8 @@ def compose(data,edits,blocks,inspect,fragment,progress=None):
             table_before,table_after=transform(stream,mapped,desc,height,growths) or ({},{})
             from text_advance import advances
             safe=advances(page,stream)
-            replacements={}
+            replacements=dict(original_patches)
+            omit.update(original_patches)
             for e in replace:
                 idx=e['index']
                 if idx in used or not isinstance(idx,int) or not 0<=idx<len(desc):raise ValueError('对象编号无效或重复')
@@ -191,6 +203,10 @@ def compose(data,edits,blocks,inspect,fragment,progress=None):
                 operations.extend(replacements.get(i,[]))
                 operations.extend(after.get(i,[]))
                 operations.extend(table_after.get(i,[]))
+            stream.operations=operations;page[NameObject('/Contents')]=writer._add_object(stream)
+        if original_patches and not replace:
+            stream,_=map_objects(page);operations=[]
+            for i,(args,op) in enumerate(stream.operations):operations.extend(original_patches.get(i,[(args,op)]))
             stream.operations=operations;page[NameObject('/Contents')]=writer._add_object(stream)
         if bs:
             # Replace only our own identified layer. Unknown third-party hidden

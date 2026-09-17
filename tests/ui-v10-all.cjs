@@ -30,7 +30,7 @@ let browser,server,activePage;const errors=[],checks=[];
  });
  await page.addInitScript(()=>{
   const call=async(url,data)=>{const r=await fetch(url,{method:'POST',body:JSON.stringify(data)});const v=await r.json();if(v.error)throw Error(v.error);if(v.bytes)v.bytes=new Uint8Array(v.bytes);return v;};
-  window.desktop={native:d=>call('/__native',{...d,bytes:Array.from(d.bytes)}),flowLayout:d=>call('/__flow',d),setDirty(){},onClose(){},onNativeProgress(){},graphics:async()=>false,copyText:async()=>{},ocrJob:async d=>d.action==='history'?[]:{}};
+  window.desktop={native:d=>call('/__native',{...d,...(d.bytes?{bytes:Array.from(d.bytes)}:{})}),flowLayout:d=>call('/__flow',d),setDirty(){},onClose(){},onNativeProgress(){},graphics:async()=>false,copyText:async()=>{},ocrJob:async d=>d.action==='history'?[]:{}};
  });
  await page.goto('http://localhost');console.log('app loaded');await page.waitForFunction(()=>window.__qa);
 

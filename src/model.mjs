@@ -1,3 +1,4 @@
+import { EditAssets } from "./edit-assets.mjs";
 // Flat preorder outline model. Parent references avoid recursive traversal limits.
 export const MODES = {
   XYZ: 3,
@@ -44,6 +45,12 @@ export function validate(nodes, pageCount = Infinity) {
     const t = n.target;
     if (!t || !["dest", "preserve"].includes(t.kind))
       throw Error("跳转目标无效");
+    if (
+      t.kind === "preserve" &&
+      t.page != null &&
+      (!Number.isInteger(t.page) || t.page < 1 || t.page > pageCount)
+    )
+      throw Error("原始目标页码无效");
     if (t.kind === "dest") {
       if (!Number.isInteger(t.page) || t.page < 1 || t.page > pageCount)
         throw Error(`「${n.title}」的页码超出文档范围`);
@@ -326,6 +333,7 @@ export class History {
     budget = 32 * 1024 * 1024,
     assetBudget = 256 * 1024 * 1024,
   ) {
+    this.assets = new EditAssets();
     this.assetBudget = assetBudget;
     this.limit = limit;
     this.budget = budget;
@@ -334,30 +342,43 @@ export class History {
   }
   pack(value) {
     if (value && !Array.isArray(value) && Array.isArray(value.ocr)) {
-      const { ocr, ...small } = value;
-      return { json: JSON.stringify(small), ocr: shareOCR(ocr) };
+      const { ocr, nativeEdits, ...small } = value;
+      return {
+        json: JSON.stringify(small),
+        ocr: shareOCR(ocr),
+        ...(nativeEdits ? { editId: this.assets.put(nativeEdits) } : {}),
+      };
     }
     return { json: JSON.stringify(value) };
   }
   unpack(entry) {
     const v = JSON.parse(entry.json);
     if (entry.ocr) v.ocr = entry.ocr;
+    if (entry.editId) v.nativeEdits = this.assets.get(entry.editId);
     return v;
   }
   trim() {
     let bytes = this.past.reduce((n, e) => n + e.json.length * 2, 0);
     const assetBytes = () =>
-      [...new Set(this.past.map((e) => e.ocr))].reduce(
+      [...new Set([...this.past, ...this.future].map((e) => e.ocr))].reduce(
         (n, ocr) => n + ocrSize(ocr),
         0,
       );
     // Keep at least the most recent operation, even for an unusually large node tree.
     while (
       this.past.length > Math.max(1, this.limit) ||
-      ((bytes > this.budget || assetBytes() > this.assetBudget) &&
+      ((bytes > this.budget ||
+        assetBytes() +
+          this.assets.bytes(
+            [...this.past, ...this.future].map((e) => e.editId).filter(Boolean),
+          ) >
+          this.assetBudget) &&
         this.past.length > 1)
     )
       bytes -= this.past.shift().json.length * 2;
+    this.assets.retain(
+      [...this.past, ...this.future].map((e) => e.editId).filter(Boolean),
+    );
   }
   push(value) {
     this.past.push(this.pack(value));
@@ -378,5 +399,6 @@ export class History {
   clear() {
     this.past = [];
     this.future = [];
+    this.assets.retain([]);
   }
 }

@@ -1,3 +1,4 @@
+const { cleanupTemps } = require("./temp-store.cjs");
 const {
   app,
   BrowserWindow,
@@ -36,15 +37,30 @@ let win,
   allowClose = false;
 const { FileStore } = require("./file-store.cjs");
 const { NativeBridge } = require("./native-bridge.cjs");
+const { SourceStore } = require("./source-store.cjs");
+const sourceStore = new SourceStore();
+cleanupTemps().catch(() => {});
 const native = new NativeBridge(
   app.isPackaged
     ? path.join(process.resourcesPath, "native")
     : path.join(__dirname, "native"),
+  undefined,
+  sourceStore,
 );
 const qpdfNative = new NativeBridge(native.root, native.python);
 app.on("before-quit", () => qpdfNative.cancel());
 const fontNative = new NativeBridge(native.root, native.python);
 app.on("before-quit", () => fontNative.cancel());
+const backgroundNative = new NativeBridge(
+  native.root,
+  native.python,
+  sourceStore,
+);
+app.on("before-quit", () => {
+  backgroundNative.cancel();
+  backgroundNative.clearCache();
+  sourceStore.close();
+});
 let fileStore;
 const root = path.join(__dirname, "src");
 function check(e) {
@@ -142,7 +158,8 @@ app.whenReady().then(() => {
     if (r.canceled) return null;
     const file = r.filePaths[0],
       s = await fs.stat(file);
-    if (s.size > 768 * 1024 * 1024) throw Error("当前版本单文件上限为 768 MB");
+    if (s.size > (/\.folio$/i.test(file) ? 1024 : 768) * 1024 * 1024)
+      throw Error("当前版本单文件上限为 768 MB");
     const bytes = await fs.readFile(file);
     return { name: path.basename(file), bytes, handle: fileStore.grant(file) };
   });
@@ -174,20 +191,39 @@ app.whenReady().then(() => {
   ipc("ocr-job", (data) => ocrJobs.run(data));
   app.on("before-quit", () => ocrJobs.stop());
   ipc("qpdf", (data) => {
-    if (!["qpdf-status", "qpdf-decrypt"].includes(data?.command)) throw Error("无效的 qpdf 请求");
-    return qpdfNative.run({command:data.command, bytes:data.bytes, password:data.password});
+    if (!["qpdf-status", "qpdf-decrypt"].includes(data?.command))
+      throw Error("无效的 qpdf 请求");
+    return qpdfNative.run({
+      command: data.command,
+      bytes: data.bytes,
+      password: data.password,
+    });
   });
   ipc("qpdf-cancel", () => qpdfNative.cancel());
+  ipc("save-stream-begin", (data) => fileStore.beginStream(data));
+  ipc("save-stream-append", (data) => fileStore.appendStream(data));
+  ipc("save-stream-finish", (id) => fileStore.finishStream(id));
+  ipc("save-stream-abort", (id) => fileStore.abortStream(id));
+  app.on("before-quit", () => fileStore.close());
+  ipc("source-register", (bytes) => sourceStore.register(bytes));
+  ipc("source-release", (handle) => sourceStore.release(handle));
   ipc("native", (data) => {
     const options = { ...data };
-    if (["font-catalog", "font-select", "font-data", "font-recommend"].includes(options.command)) return fontNative.run(options);
+    if (
+      ["font-catalog", "font-select", "font-data", "font-recommend"].includes(
+        options.command,
+      )
+    )
+      return fontNative.run(options);
     delete options.ocrFile;
     if (options.ocrReference) {
       options.ocrFile = ocrJobs.resolveReference(options.ocrReference);
       delete options.ocr;
     }
     delete options.ocrReference;
-    return native.run(options, (progress) => {
+    return (
+      options.command === "flow-background" ? backgroundNative : native
+    ).run(options, (progress) => {
       if (!win.isDestroyed()) win.webContents.send("native-progress", progress);
     });
   });

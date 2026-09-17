@@ -1,3 +1,4 @@
+import { nativeRequest, releaseSource } from "./native-source.mjs";
 import { pageCandidates, topBounds } from "./flow-page-model.mjs";
 import { gridOperation, cellFrames, validateGrid } from "./table-model.mjs";
 import { editStyles } from "./flow-style.mjs";
@@ -18,7 +19,7 @@ export async function tableDialog(ctx) {
   await S.flowEdit?.finish?.(true);
   const page = S.page,
     source = S.bytes,
-    result = await window.desktop.native({
+    result = await nativeRequest({
       command: "inspect",
       bytes: source,
       page,
@@ -117,13 +118,26 @@ export async function tableDialog(ctx) {
     document.querySelector("#modal").classList.remove("table-dialog");
   });
   const $ = (q) => document.querySelector(q);
-  document.querySelectorAll("[data-table-export]").forEach(button=>button.onclick=()=>guarded(async()=>{
-    const format=button.dataset.tableExport, captured=structuredClone(table);
-    const r=await window.desktop.native({command:"table-export",table:captured,format});
-    if (closed || source!==S.bytes)return;
-    const saved=await writeFile(S.name.replace(/\.pdf$/i,"")+`-p${page}-table.${format}`,Uint8Array.from(atob(r.base64),c=>c.charCodeAt(0)),format);
-    if (saved)toast("表格已导出");
-  }));
+  document.querySelectorAll("[data-table-export]").forEach(
+    (button) =>
+      (button.onclick = () =>
+        guarded(async () => {
+          const format = button.dataset.tableExport,
+            captured = structuredClone(table);
+          const r = await nativeRequest({
+            command: "table-export",
+            table: captured,
+            format,
+          });
+          if (closed || source !== S.bytes) return;
+          const saved = await writeFile(
+            S.name.replace(/\.pdf$/i, "") + `-p${page}-table.${format}`,
+            Uint8Array.from(atob(r.base64), (c) => c.charCodeAt(0)),
+            format,
+          );
+          if (saved) toast("表格已导出");
+        })),
+  );
   function inside(b, t) {
     return (
       b[0] >= t[0] - 1 &&
@@ -286,7 +300,7 @@ export async function tableDialog(ctx) {
     $("#table-status").textContent = "正在校验文字与边界…";
     timer = setTimeout(async () => {
       try {
-        const r = await window.desktop.native({
+        const r = await nativeRequest({
           command: "table-render",
           bytes: source,
           table,

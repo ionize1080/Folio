@@ -27,7 +27,7 @@ def render(m):
     if not original or m.get('layoutMode')=='reflow' or m.get('frames') or m.get('columns',1)!=1:return None
     fields=('size','align','lineHeight','charSpacing','wordSpacing','bold','italic','firstIndent','paragraphBefore','paragraphGap')
     if any(m.get(k)!=original.get('settings',{}).get(k) for k in fields):return None
-    if any(abs(m['frame'][k]-original['frame'][k])>.01 for k in ('x','y','width')):return None
+    if any(abs(m['frame'][k]-original['frame'][k])>.01 for k in ('x','y')) or m['frame']['width']<original['frame']['width']-.01:return None
     text=m['text'];old=original['text'];gs=original['glyphs']
     if not text or any(c in text for c in '\n\r\t'):return None
     if any(unicodedata.combining(c) or unicodedata.bidirectional(c) in ('R','AL','AN') or 0x900<=ord(c)<=0x109f for c in text):return None

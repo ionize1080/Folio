@@ -1,3 +1,4 @@
+import { nativeRequest, releaseSource } from "./native-source.mjs";
 import { bindUnit } from "./units.mjs";
 import { installFlowUI } from "./flow-ui.mjs";
 import { ocrPage } from "./ocr-data.mjs";
@@ -25,7 +26,7 @@ export function installNativeUI(ctx) {
   const native = async (command, options = {}) => {
     if (!window.desktop?.native)
       throw Error("此功能需要完整 Windows 桌面运行包");
-    return window.desktop.native({
+    return nativeRequest({
       command,
       bytes: command === "ocr" ? await S.pdf.getData() : S.bytes,
       ...options,

@@ -63,6 +63,14 @@ export class PdfEngine {
     this.sources = new Map();
     this.named = this.readNames();
     const nodes = this.readOutlines();
+    this.sourceSignatures = [...this.sources.values()].map((d) => {
+      try {
+        return this.outlineSignature(d);
+      } catch (e) {
+        this.warnings.push(e.message);
+        return null;
+      }
+    });
     return {
       nodes,
       pageCount: this.pages.length,
@@ -213,6 +221,44 @@ export class PdfEngine {
     }
     return out;
   }
+  outlineSignature(dict) {
+    const seen = new Map();
+    let count = 0;
+    const visit = (object, depth = 0) => {
+      if (depth > 64 || ++count > 10000)
+        throw Error("原始书签动作过于复杂，无法安全核对来源");
+      if (object instanceof PDFRef && this.refs.has(object.toString()))
+        return ["page", this.refs.get(object.toString())];
+      const value = this.lookup(object);
+      if (value instanceof PDFDict || value instanceof PDFArray) {
+        if (seen.has(value)) return ["cycle", seen.get(value)];
+        seen.set(value, seen.size);
+        if (value instanceof PDFArray)
+          return value.asArray().map((v) => visit(v, depth + 1));
+        return value
+          .entries()
+          .sort(([a], [b]) => a.toString().localeCompare(b.toString()))
+          .map(([k, v]) => [k.toString(), visit(v, depth + 1)]);
+      }
+      if (value instanceof PDFString || value instanceof PDFHexString)
+        return ["bytes", Array.from(value.asBytes())];
+      if (value === undefined && object !== undefined)
+        throw Error("原始书签包含失效引用，无法安全核对来源");
+      return value?.toString() ?? null;
+    };
+    return JSON.stringify(
+      dict
+        .entries()
+        .filter(
+          ([k]) =>
+            !["Parent", "Next", "Prev", "First", "Last", "Count"].includes(
+              k.decodeText(),
+            ),
+        )
+        .sort(([a], [b]) => a.toString().localeCompare(b.toString()))
+        .map(([k, v]) => [k.toString(), visit(v)]),
+    );
+  }
   writeOutlines(nodes) {
     validate(nodes, this.pages.length);
     const ctx = this.doc.context;
@@ -317,7 +363,12 @@ export class PdfEngine {
     if (contentBytes) {
       const keys = [...this.sources.keys()],
         values = [...working.sources.values()];
-      if (keys.length !== values.length)
+      if (
+        keys.length !== values.length ||
+        this.sourceSignatures.some(
+          (key, i) => key === null || key !== working.sourceSignatures[i],
+        )
+      )
         throw Error("内容预览的原始书签来源发生变化，请重新打开文档");
       working.sources = new Map(keys.map((key, i) => [key, values[i]]));
     }

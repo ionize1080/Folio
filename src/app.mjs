@@ -1,3 +1,8 @@
+import DOMPurify from "./vendor/purify.es.mjs";
+import { nativeRequest, releaseSource } from "./native-source.mjs";
+import { DocumentSession, readSettings, safeJSON } from "./session-state.mjs";
+import { editIdentity, immutableEdits } from "./edit-assets.mjs";
+import { preparePDFOpen, decryptForOpen } from "./encrypted-open.mjs";
 import { decryptDialog } from "./decrypt-ui.mjs";
 import { RuleMemory, captureFields, restoreFields } from "./rule-memory.mjs";
 import { tableDialog } from "./table-ui.mjs";
@@ -20,7 +25,7 @@ import {
   industryRules,
   insertGenerated,
 } from "./generation.mjs";
-import { recoveryStore, recoveryRead } from "./recovery.mjs";
+import { recoveryStore, recoveryRead, recoveryList } from "./recovery.mjs";
 import { installShortcuts, shortcutDialog } from "./shortcuts.mjs";
 import * as pdfjs from "./vendor/pdf.mjs";
 import {
@@ -59,7 +64,7 @@ const $ = (s) => document.querySelector(s),
           "'": "&#39;",
         })[c],
     );
-const settings = Object.assign(
+const settings = readSettings(
   {
     whitespaceUnit: "mm",
     saveSummary: false,
@@ -81,9 +86,11 @@ const settings = Object.assign(
     undo: 40,
     showBookmarks: true,
   },
-  JSON.parse(localStorage.getItem("folio-settings") || "{}"),
+  localStorage.getItem("folio-settings"),
 );
+const documentSession = new DocumentSession();
 const S = {
+  sessionId: documentSession.id,
   pdf: null,
   bytes: null,
   name: "",
@@ -170,14 +177,20 @@ function setBusy(value, label = "处理中…") {
   S.busy = value;
   $("#busy").hidden = !value;
   $("#busy-text").textContent = label;
-  $$("[data-doc]").forEach((b) => (b.disabled = value || !S.pdf));
+  $$("[data-doc]").forEach(
+    (b) => (b.disabled = (value && !b.hasAttribute("data-cancel")) || !S.pdf),
+  );
 }
 const ocrIdentities = new WeakMap();
 function stateKey(v = snapshot()) {
   const blocks = v.ocr || [];
   if (!ocrIdentities.has(blocks))
     ocrIdentities.set(blocks, crypto.randomUUID());
-  return JSON.stringify({ ...v, ocr: ocrIdentities.get(blocks) });
+  return JSON.stringify({
+    ...v,
+    nativeEdits: editIdentity(v.nativeEdits || []),
+    ocr: ocrIdentities.get(blocks),
+  });
 }
 function snapshot() {
   return {
@@ -197,6 +210,8 @@ function commit(nodes, extra = {}) {
   S.history.push(snapshot());
   S.nodes = nodes;
   if (extra.ocr) extra.ocr = shareOCR(extra.ocr);
+  if (extra.nativeEdits) extra.nativeEdits = immutableEdits(extra.nativeEdits);
+  documentSession.change();
   Object.assign(S, extra);
   setDirty(stateKey() !== S.baseline);
   rebuild();
@@ -204,15 +219,30 @@ function commit(nodes, extra = {}) {
 async function restore(v) {
   if (!v) return;
   if (
-    JSON.stringify(v.nativeEdits || []) !== JSON.stringify(S.nativeEdits) ||
+    v.nativeEdits !== S.nativeEdits ||
     (v.ocr || []).length !== S.ocr.length ||
     v.ocr !== S.ocr
   )
     await refreshNative(v.nativeEdits || [], v.ocr || [], v.ocrReference);
   Object.assign(S, v);
+  documentSession.change();
   setDirty(stateKey() !== S.baseline);
   rebuild();
   renderPage();
+}
+async function restoreHistory(direction) {
+  if (S.busy) return;
+  const past = [...S.history.past],
+    future = [...S.history.future],
+    assets = new Map(S.history.assets.values);
+  try {
+    await restore(S.history[direction](snapshot()));
+  } catch (e) {
+    S.history.past = past;
+    S.history.future = future;
+    S.history.assets.values = assets;
+    throw e;
+  }
 }
 function error(err) {
   console.error(err);
@@ -258,7 +288,19 @@ function modal(title, body, buttons = []) {
   $("#modal-title").textContent = title;
   $("#modal-body").innerHTML =
     `<div id="modal-error" class="callout error" role="alert" hidden></div>` +
-    body;
+    DOMPurify.sanitize(body, {
+      USE_PROFILES: { html: true },
+      FORBID_TAGS: [
+        "style",
+        "link",
+        "meta",
+        "base",
+        "iframe",
+        "object",
+        "embed",
+      ],
+      FORBID_ATTR: ["srcdoc", "formaction"],
+    });
   $("#modal-footer").replaceChildren();
   for (const b of buttons) {
     const el = document.createElement("button");
@@ -311,8 +353,8 @@ async function confirmDiscard() {
         text: "保存并继续",
         primary: true,
         run: async () => {
-          await savePDF(false, true);
-          if (!S.dirty) done(true);
+          const result = await savePDF(false, true);
+          done(result?.status === "saved" && !S.dirty);
         },
       },
     ]);
@@ -340,6 +382,31 @@ async function choose(kind) {
   });
 }
 async function writeFile(name, bytes, kind) {
+  if (bytes instanceof Blob && window.desktop?.beginSaveStream) {
+    const ticket = await window.desktop.prepareSave({ name, kind });
+    if (!ticket) return null;
+    const id = await window.desktop.beginSaveStream({
+      ticket,
+      kind,
+      total: bytes.size,
+    });
+    try {
+      for (let offset = 0; offset < bytes.size; offset += 2 * 1024 ** 2)
+        await window.desktop.appendSaveStream({
+          id,
+          offset,
+          bytes: new Uint8Array(
+            await bytes.slice(offset, offset + 2 * 1024 ** 2).arrayBuffer(),
+          ),
+        });
+      return await window.desktop.finishSaveStream(id);
+    } catch (e) {
+      await window.desktop.abortSaveStream(id);
+      throw e;
+    }
+  }
+  if (bytes instanceof Blob && window.desktop)
+    bytes = new Uint8Array(await bytes.arrayBuffer());
   if (window.desktop) return window.desktop.save({ name, bytes, kind });
   const u = URL.createObjectURL(
     new Blob([bytes], {
@@ -358,76 +425,96 @@ async function openFile() {
   const f = await choose("pdf");
   if (f) await openIncoming(f);
 }
-async function loadPDF(bytes, name, handle = null) {
-  S.flowEdit?.destroy();
+let loadEpoch = 0;
+async function loadPDF(
+  bytes,
+  name,
+  handle = null,
+  restoredState = null,
+  composedBytes = null,
+  requestEpoch = ++loadEpoch,
+) {
   if (/\.folio$/i.test(name)) {
-    setBusy(true, "正在恢复工作工程…");
+    setBusy(true, "正在校验工作工程…");
+    let project;
     try {
-      const project = await decodeProject(bytes);
-      // Validate PDF and bookmark model before replacing the current document.
-      const check = new Worker(new URL("./pdf-worker.mjs", import.meta.url), {
-        type: "module",
-      });
-      try {
-        const info = await new Promise((resolve, reject) => {
-          check.onmessage = (e) =>
-            e.data.error ? reject(Error(e.data.error)) : resolve(e.data.result);
-          check.onerror = (e) => reject(Error(e.message));
-          check.postMessage({ id: 0, method: "open", args: project.bytes });
-        });
-        validate(project.state.nodes, info.pageCount);
-        if (project.state.nativeEdits.length || project.state.ocr.length)
-          await window.desktop.native({
-            command: "apply",
-            bytes: project.bytes,
-            edits: project.state.nativeEdits,
-            ocr: project.state.ocr,
-          });
-      } finally {
-        check.terminate();
+      project = await decodeProject(bytes);
+      let composed = null;
+      if (project.state.nativeEdits.length || project.state.ocr.length) {
+        if (!window.desktop?.native)
+          throw Error("此工程含内容编辑，需要完整桌面运行包");
+        composed = new Uint8Array(
+          (
+            await nativeRequest({
+              command: "apply",
+              bytes: project.bytes,
+              edits: project.state.nativeEdits,
+              ocr: project.state.ocr,
+            })
+          ).bytes,
+        );
       }
-      await loadPDF(project.bytes, project.name, null);
-      setBusy(true, "正在恢复编辑状态…");
-      if (project.state.nativeEdits.length || project.state.ocr.length)
-        await refreshNative(project.state.nativeEdits, project.state.ocr, null);
-      commit(project.state.nodes, {
-        ...project.state,
-        ocr: shareOCR(project.state.ocr),
-      });
-      toast("已恢复工作工程，流式段落可继续编辑；保存 PDF 时请选择输出位置");
+      const opened = await loadPDF(
+        project.bytes,
+        project.name,
+        null,
+        project.state,
+        composed,
+        requestEpoch,
+      );
+      if (opened) toast("工程已恢复；保存 PDF 时请选择输出位置");
+      return opened;
     } finally {
-      setBusy(false);
+      if (project && S.bytes !== project.bytes)
+        void releaseSource(project.bytes);
+      if (requestEpoch === loadEpoch) setBusy(false);
     }
-    return;
   }
   saveView();
   setBusy(true, "正在解析 PDF 与书签…");
-  findToken++;
-  renderToken++;
-  renderTask?.cancel();
-  textTask?.cancel();
   try {
     if (bytes.length > 768 * 1024 * 1024)
       throw Error("当前版本单文件上限为 768 MB");
-    // Parse into temporary state; a failed open does not discard the current document.
-    const temp = new Worker(new URL("./pdf-worker.mjs", import.meta.url), {
-      type: "module",
+    const prepared = await preparePDFOpen(bytes, {
+      parse: (data) => {
+        const temp = new Worker(new URL("./pdf-worker.mjs", import.meta.url), {
+          type: "module",
+        });
+        return new Promise((resolve, reject) => {
+          temp.onmessage = (e) => {
+            if (e.data.error) {
+              temp.terminate();
+              reject(Object.assign(Error(e.data.error), { code: e.data.code }));
+            } else resolve({ temp, info: e.data.result });
+          };
+          temp.onerror = (e) => {
+            temp.terminate();
+            reject(Error(e.message));
+          };
+          const copy = new Uint8Array(data);
+          temp.postMessage({ id: 0, method: "open", args: copy }, [
+            copy.buffer,
+          ]);
+        });
+      },
+      unlock: (data) =>
+        decryptForOpen({
+          bytes: data,
+          name,
+          modal,
+          closeModal,
+          setBusy,
+          setCleanup: (fn) => (modalCleanup = fn),
+        }),
     });
-    const info = await new Promise((resolve, reject) => {
-      temp.onmessage = (e) => {
-        e.data.error ? reject(Error(e.data.error)) : resolve(e.data.result);
-      };
-      temp.onerror = (e) => reject(Error(e.message));
-      const copy = new Uint8Array(bytes);
-      temp.postMessage({ id: 0, method: "open", args: copy }, [copy.buffer]);
-    }).catch((e) => {
-      temp.terminate();
-      throw e;
-    });
+    if (!prepared) return false;
+    const { temp, info, openedEncrypted } = prepared;
+    bytes = prepared.bytes;
+    setBusy(true, "正在加载页面与书签…");
     let pdf;
     try {
       pdf = await pdfjs.getDocument({
-        data: new Uint8Array(bytes),
+        data: new Uint8Array(composedBytes || bytes),
         cMapUrl: new URL("./vendor/cmaps/", import.meta.url).href,
         cMapPacked: true,
         standardFontDataUrl: new URL(
@@ -442,10 +529,33 @@ async function loadPDF(bytes, name, handle = null) {
       temp.terminate();
       throw e;
     }
+    if (restoredState) {
+      try {
+        validate(restoredState.nodes, info.pageCount);
+      } catch (e) {
+        temp.terminate();
+        await pdf.destroy();
+        throw e;
+      }
+    }
+    if (requestEpoch !== loadEpoch) {
+      temp.terminate();
+      await pdf.destroy();
+      return false;
+    }
+    void releaseSource(S.bytes);
+    documentSession.replace();
+    S.sessionId = documentSession.id;
+    S.flowEdit?.destroy();
+    findToken++;
+    renderToken++;
+    renderTask?.cancel();
+    textTask?.cancel();
     surface.cancel();
     await S.pdf?.destroy();
     worker?.terminate();
     worker = temp;
+    pending.forEach((p) => p.reject(Error("文档已切换")));
     pending.clear();
     worker.onmessage = (e) => {
       const p = pending.get(e.data.id);
@@ -459,10 +569,11 @@ async function loadPDF(bytes, name, handle = null) {
     };
     Object.assign(S, {
       pdf,
-      bytes: new Uint8Array(bytes),
+      bytes,
       name,
       handle,
       working: false,
+      openedEncrypted,
       nodes: info.nodes,
       selected: new Set(),
       collapsed: new Set(info.nodes.filter((n) => !n.open).map((n) => n.id)),
@@ -496,16 +607,20 @@ async function loadPDF(bytes, name, handle = null) {
     S.labels = await pdf.getPageLabels().catch(() => null);
     S.fingerprint = pdf.fingerprints[0];
     S.baseline = stateKey();
+    if (restoredState)
+      Object.assign(S, restoredState, {
+        nativeEdits: immutableEdits(restoredState.nativeEdits),
+        ocr: shareOCR(restoredState.ocr),
+      });
+    document.body.classList.add("has-document");
     surface.reset();
     surface.layout = settings.layout;
     surface.cover = settings.cover;
     surface.gaps = settings.gaps;
-    setDirty(false);
+    setDirty(!!restoredState);
     rebuild();
     const remembered = settings.restoreView
-      ? JSON.parse(
-          localStorage.getItem("folio-view-" + S.fingerprint) || "null",
-        )
+      ? safeJSON(localStorage.getItem("folio-view-" + S.fingerprint))
       : null;
     if (remembered) {
       S.page = Math.min(info.pageCount, remembered.page);
@@ -542,17 +657,24 @@ async function loadPDF(bytes, name, handle = null) {
     status(
       `${info.pageCount} 页 · ${info.nodes.length.toLocaleString()} 个书签`,
     );
-    if (info.warnings.length) toast(info.warnings.join("；"));
+    if (openedEncrypted)
+      toast(
+        "已解密打开，首次保存将另存为无密码副本" +
+          (prepared.signed ? "；重写后的文档需重新签署" : ""),
+      );
+    else if (info.warnings.length) toast(info.warnings.join("；"));
+    return true;
   } finally {
-    setBusy(false);
+    if (requestEpoch === loadEpoch) setBusy(false);
   }
 }
 async function savePDF(forceAs = false, skipSummary = false) {
   await S.flowEdit?.flush();
-  if (!S.pdf || S.busy) return;
+  if (!S.pdf || S.busy) return { status: "cancelled" };
+  const saveSession = documentSession.capture();
   if (!forceAs && S.working && !S.dirty) {
     toast("文档已保存，没有新的修改");
-    return;
+    return { status: "saved" };
   }
   if (settings.saveSummary && !skipSummary) {
     const old = JSON.parse(S.baseline || "{}"),
@@ -573,8 +695,9 @@ async function savePDF(forceAs = false, skipSummary = false) {
     )
       return;
   }
+  const protect = settings.protect || !!S.openedEncrypted;
   const name =
-    !S.working && (settings.protect || forceAs)
+    !S.working && (protect || forceAs)
       ? S.name.replace(/\.pdf$/i, "").replace(/-edited$/i, "") + "-edited.pdf"
       : S.name;
   setBusy(true, "选择保存位置…");
@@ -588,11 +711,12 @@ async function savePDF(forceAs = false, skipSummary = false) {
           kind: "pdf",
           handle: S.handle,
           working: S.working,
-          protect: settings.protect,
+          protect,
           forceAs,
         })
       : null;
-    if (window.desktop?.prepareSave && !ticket) return;
+    if (window.desktop?.prepareSave && !ticket) return { status: "cancelled" };
+    documentSession.assert(saveSession);
     const state = stateKey();
     let stage = "整理书签与文档属性";
     const contentBytes =
@@ -623,7 +747,7 @@ async function savePDF(forceAs = false, skipSummary = false) {
         kind: "pdf",
         handle: S.handle,
         working: S.working,
-        protect: settings.protect,
+        protect,
         forceAs,
       });
     else {
@@ -631,6 +755,7 @@ async function savePDF(forceAs = false, skipSummary = false) {
       result = { name, working: true };
     }
     if (result) {
+      documentSession.assert(saveSession);
       S.name = result.name;
       S.handle = result.handle || null;
       S.working = true;
@@ -648,38 +773,89 @@ async function savePDF(forceAs = false, skipSummary = false) {
       $("#doc-name").title = S.name;
       toast("已保存：" + S.name);
       status("已保存 · " + S.name);
-      await recoveryStore(null);
+      await recoveryStore(null, S.sessionId).catch((e) =>
+        toast("文件已保存；草稿清理失败：" + e.message),
+      );
+      return { status: "saved" };
     }
+    return { status: "cancelled" };
+  } catch (e) {
+    error(e);
+    return { status: "failed", error: e.message };
   } finally {
     clearInterval(timer);
     setBusy(false);
   }
 }
-let filterCache = null, filterJob = null, filterEpoch = 0;
+let filterCache = null,
+  filterJob = null,
+  filterEpoch = 0;
 const filterActive = () => !!(S.filter || S.filterPage);
-const filterKey = () => JSON.stringify([S.filter, !!S.filterRegex, !!S.filterCase, S.filterPage || ""]);
-const filterReady = () => filterActive() && filterCache?.nodes === S.nodes && filterCache?.key === filterKey() && !filterCache.error && !filterJob;
+const filterKey = () =>
+  JSON.stringify([
+    S.filter,
+    !!S.filterRegex,
+    !!S.filterCase,
+    S.filterPage || "",
+  ]);
+const filterReady = () =>
+  filterActive() &&
+  filterCache?.nodes === S.nodes &&
+  filterCache?.key === filterKey() &&
+  !filterCache.error &&
+  !filterJob;
 function requestFilter() {
-  const key = filterKey(), nodes = S.nodes;
+  const key = filterKey(),
+    nodes = S.nodes;
   if (filterCache?.key === key && filterCache.nodes === nodes) return;
   if (filterJob?.key === key && filterJob.nodes === nodes) return;
-  filterJob?.worker.terminate(); if (filterJob) clearTimeout(filterJob.timer);
-  const epoch = ++filterEpoch, w = new Worker(new URL("./filter-worker.mjs", import.meta.url), { type: "module" });
-  const finish = data => {
-    w.terminate(); clearTimeout(job.timer);
-    if (epoch !== filterEpoch || key !== filterKey() || nodes !== S.nodes) return;
+  filterJob?.worker.terminate();
+  if (filterJob) clearTimeout(filterJob.timer);
+  const epoch = ++filterEpoch,
+    w = new Worker(new URL("./filter-worker.mjs", import.meta.url), {
+      type: "module",
+    });
+  const finish = (data) => {
+    w.terminate();
+    clearTimeout(job.timer);
+    if (epoch !== filterEpoch || key !== filterKey() || nodes !== S.nodes)
+      return;
     filterJob = null;
     filterCache = { ...data, key, nodes };
-    $("#filter-status").textContent = data.error || `${data.matches.length} 项匹配 · 祖先仅作路径显示`;
-    $("#filter-status").classList.toggle("error",!!data.error);
+    $("#filter-status").textContent =
+      data.error || `${data.matches.length} 项匹配 · 祖先仅作路径显示`;
+    $("#filter-status").classList.toggle("error", !!data.error);
     $("#filter").setAttribute("aria-invalid", !!data.error);
     rebuild();
   };
-  const job = filterJob = { key, nodes, worker: w, timer: setTimeout(() => finish({error:"筛选超过 2 秒，请简化正则表达式"}), 2000) };
+  const job = (filterJob = {
+    key,
+    nodes,
+    worker: w,
+    timer: setTimeout(
+      () => finish({ error: "筛选超过 2 秒，请简化正则表达式" }),
+      2000,
+    ),
+  });
   $("#filter-status").textContent = "正在筛选…";
-  $("#filter-select").disabled = true; $("#filter-batch").disabled = true;
-  w.onmessage = e => finish(e.data); w.onerror = e => finish({error:e.message});
-  w.postMessage({nodes: nodes.map(n=>({id:n.id,parent:n.parent,title:n.title,target:{page:n.target.page}})), query:S.filter, options:{regex:!!S.filterRegex,caseSensitive:!!S.filterCase,page:S.filterPage||""}});
+  $("#filter-select").disabled = true;
+  $("#filter-batch").disabled = true;
+  w.onmessage = (e) => finish(e.data);
+  w.onerror = (e) => finish({ error: e.message });
+  w.postMessage({
+    nodes: nodes.map((n) => ({
+      id: n.id,
+      parent: n.parent,
+      title: n.title,
+      target: { page: n.target.page },
+    })),
+    query: S.filter,
+    options: {
+      regex: !!S.filterRegex,
+      caseSensitive: !!S.filterCase,
+      page: S.filterPage || "",
+    },
+  });
 }
 function rebuild() {
   S.index = new Map(S.nodes.map((n) => [n.id, n]));
@@ -692,13 +868,22 @@ function rebuild() {
   let allowed;
   if (q) {
     requestFilter();
-    allowed = new Set(filterReady() ? filterCache.visible : (S.visible || []).filter(n=>S.index.has(n.id)).map(n=>n.id));
+    allowed = new Set(
+      filterReady()
+        ? filterCache.visible
+        : (S.visible || []).filter((n) => S.index.has(n.id)).map((n) => n.id),
+    );
   } else {
-    filterJob?.worker.terminate(); if (filterJob) clearTimeout(filterJob.timer);
-    filterEpoch++; filterJob = null; filterCache = null;
-    $("#filter-status").textContent = ""; $("#filter").setAttribute("aria-invalid", "false");
+    filterJob?.worker.terminate();
+    if (filterJob) clearTimeout(filterJob.timer);
+    filterEpoch++;
+    filterJob = null;
+    filterCache = null;
+    $("#filter-status").textContent = "";
+    $("#filter").setAttribute("aria-invalid", "false");
   }
-  $("#filter-select").disabled = !filterReady(); $("#filter-batch").disabled = !filterReady();
+  $("#filter-select").disabled = !filterReady();
+  $("#filter-batch").disabled = !filterReady();
   for (const n of S.nodes) {
     if (!q && (hidden.has(n.parent) || S.collapsed.has(n.parent))) {
       hidden.add(n.id);
@@ -738,7 +923,12 @@ function renderTree() {
     const n = S.visible[i],
       d = S.depth.get(n.id) || 0,
       row = document.createElement("div");
-    row.className = "tree-row" + (S.selected.has(n.id) ? " selected" : "") + (filterReady() && filterCache.matches.includes(n.id) ? " filter-match" : "");
+    row.className =
+      "tree-row" +
+      (S.selected.has(n.id) ? " selected" : "") +
+      (filterReady() && filterCache.matches.includes(n.id)
+        ? " filter-match"
+        : "");
     row.dataset.id = n.id;
     row.style.top = i * rowHeight() + "px";
     row.style.height = rowHeight() + "px";
@@ -1070,11 +1260,22 @@ function batchCompute(nodes, ids, rule) {
 }
 function batchDialog() {
   const memory = new RuleMemory(localStorage, S.fingerprint || S.name);
-  const sourceNodes = S.nodes, sourceBytes = S.bytes;
-  let activeOperation = memory.lastOperation(), previewContext = null, composing = false;
-  const context = () => JSON.stringify([S.selected ? [...S.selected] : [], S.filter, S.filterRegex, S.filterCase, S.filterPage]);
+  const sourceNodes = S.nodes,
+    sourceBytes = S.bytes;
+  let activeOperation = memory.lastOperation(),
+    previewContext = null,
+    composing = false;
+  const context = () =>
+    JSON.stringify([
+      S.selected ? [...S.selected] : [],
+      S.filter,
+      S.filterRegex,
+      S.filterCase,
+      S.filterPage,
+    ]);
   const remember = () => {
-    if ($("#batch-fields")) memory.remember(activeOperation, captureFields($("#batch-fields")));
+    if ($("#batch-fields"))
+      memory.remember(activeOperation, captureFields($("#batch-fields")));
   };
 
   let preview = null,
@@ -1102,7 +1303,13 @@ function batchDialog() {
         primary: true,
         id: "batch-apply",
         run: () => {
-          if (!preview || S.nodes !== sourceNodes || S.bytes !== sourceBytes || previewContext !== context()) throw Error("文档或处理范围已变化，请重新预览");
+          if (
+            !preview ||
+            S.nodes !== sourceNodes ||
+            S.bytes !== sourceBytes ||
+            previewContext !== context()
+          )
+            throw Error("文档或处理范围已变化，请重新预览");
           memory.record(activeOperation, captureFields($("#batch-fields")));
           commit(preview);
           closeModal();
@@ -1111,11 +1318,24 @@ function batchDialog() {
       },
     ],
   );
-  $("#batch-scope").value = filterActive() && filterReady() ? "filtered" : S.selected.size ? "selected" : "all";
-  if (![...$("#batch-op").options].some(o => o.value === activeOperation)) activeOperation = "replace";
+  $("#batch-scope").value =
+    filterActive() && filterReady()
+      ? "filtered"
+      : S.selected.size
+        ? "selected"
+        : "all";
+  if (![...$("#batch-op").options].some((o) => o.value === activeOperation))
+    activeOperation = "replace";
   $("#batch-op").value = activeOperation;
   const drawHistory = () => {
-    $("#batch-history").innerHTML = '<option value="">最近规则与收藏…</option>' + memory.data.history.map((h,i) => `<option value="${i}">${esc(h.name || h.values["b-find"] || h.operation)}</option>`).join("");
+    $("#batch-history").innerHTML =
+      '<option value="">最近规则与收藏…</option>' +
+      memory.data.history
+        .map(
+          (h, i) =>
+            `<option value="${i}">${esc(h.name || h.values["b-find"] || h.operation)}</option>`,
+        )
+        .join("");
   };
   drawHistory();
   const fields = () => {
@@ -1158,15 +1378,17 @@ function batchDialog() {
         scope === "filtered"
           ? new Set(filterReady() ? filterCache.matches : [])
           : scope === "all"
-          ? new Set(S.nodes.map((n) => n.id))
-          : scope === "descendants"
-            ? descendants(S.nodes, S.selected)
-            : S.selected;
+            ? new Set(S.nodes.map((n) => n.id))
+            : scope === "descendants"
+              ? descendants(S.nodes, S.selected)
+              : S.selected;
     const val = (id) => $("#" + id)?.value,
       checked = (id) => !!$("#" + id)?.checked;
     try {
-      if (S.nodes !== sourceNodes || S.bytes !== sourceBytes) throw Error("文档已变化，请关闭后重新打开规则");
-      if (scope === "filtered" && !filterReady()) throw Error("请先完成有效筛选");
+      if (S.nodes !== sourceNodes || S.bytes !== sourceBytes)
+        throw Error("文档已变化，请关闭后重新打开规则");
+      if (scope === "filtered" && !filterReady())
+        throw Error("请先完成有效筛选");
       const rule = {
         op,
         convert: checked("b-convert"),
@@ -1197,12 +1419,20 @@ function batchDialog() {
         open: checked("b-open"),
       };
       const out = await batchCompute(S.nodes, ids, rule);
-      if (rev !== revision || !$("#batch-preview") || S.nodes !== sourceNodes || S.bytes !== sourceBytes || context() !== scopeContext) return;
+      if (
+        rev !== revision ||
+        !$("#batch-preview") ||
+        S.nodes !== sourceNodes ||
+        S.bytes !== sourceBytes ||
+        context() !== scopeContext
+      )
+        return;
       const changed = out.filter(
         (n, i) => JSON.stringify(n) !== JSON.stringify(S.nodes[i]),
       );
       report = { rule, changes: describeChanges(S.nodes, out, rule) };
-      preview = out; previewContext = scopeContext;
+      preview = out;
+      previewContext = scopeContext;
       $("#batch-apply").disabled = !changed.length;
       $("#batch-summary").textContent =
         `范围 ${ids.size} 项 · 将修改 ${changed.length} 项 · 预览前 80 项`;
@@ -1226,23 +1456,44 @@ function batchDialog() {
     if (!composing) timer = setTimeout(update, 220);
   };
   $("#batch-op").onchange = () => {
-    remember(); activeOperation = $("#batch-op").value;
+    remember();
+    activeOperation = $("#batch-op").value;
     fields();
     schedule();
   };
   $("#batch-fields").addEventListener("input", schedule);
   $("#batch-fields").addEventListener("change", schedule);
-  $("#batch-fields").addEventListener("compositionstart", () => { composing = true; clearTimeout(timer); });
-  $("#batch-fields").addEventListener("compositionend", () => { composing = false; schedule(); });
+  $("#batch-fields").addEventListener("compositionstart", () => {
+    composing = true;
+    clearTimeout(timer);
+  });
+  $("#batch-fields").addEventListener("compositionend", () => {
+    composing = false;
+    schedule();
+  });
   $("#batch-scope").onchange = schedule;
   $("#batch-history").onchange = () => {
     const item = memory.data.history[+$("#batch-history").value];
     if (!item || $("#batch-history").value === "") return;
-    remember(); activeOperation = item.operation; $("#batch-op").value = activeOperation;
-    fields(); restoreFields($("#batch-fields"), item.values); schedule();
+    remember();
+    activeOperation = item.operation;
+    $("#batch-op").value = activeOperation;
+    fields();
+    restoreFields($("#batch-fields"), item.values);
+    schedule();
   };
-  $("#batch-favorite").onclick = () => { memory.record(activeOperation,captureFields($("#batch-fields")), $("#batch-name").value.trim()); drawHistory(); };
-  $("#batch-clear-history").onclick = () => { memory.clearHistory(); drawHistory(); };
+  $("#batch-favorite").onclick = () => {
+    memory.record(
+      activeOperation,
+      captureFields($("#batch-fields")),
+      $("#batch-name").value.trim(),
+    );
+    drawHistory();
+  };
+  $("#batch-clear-history").onclick = () => {
+    memory.clearHistory();
+    drawHistory();
+  };
 
   modalCleanup = () => {
     remember();
@@ -1492,7 +1743,7 @@ function exchangeDialog() {
       await S.flowEdit?.flush();
       await writeFile(
         S.name.replace(/\.pdf$/i, "") + ".folio",
-        await encodeProject(S.bytes, S.name, snapshot()),
+        await encodeProject(S.bytes, S.name, snapshot(), { blob: true }),
         "folio",
       );
     });
@@ -2024,12 +2275,12 @@ async function settingsDialog() {
 }
 function helpDialog() {
   modal(
-    "Folio PDF Studio · 1.1.0 RC1",
+    "Folio PDF Studio · 1.2.0 RC1",
     `<p>面向 Windows 11 x64 的离线书签工作台。建议先用副本验证实际工作文档。</p><h3>快捷操作</h3><p>Ctrl+O 打开 · Ctrl+S 保存 · Ctrl+Shift+S 另存 · Ctrl+B 书签面板 · Ctrl+Shift+B 新建<br>Ctrl+Z 撤销 · Ctrl+Y 重做 · Ctrl+F 搜索正文 · Ctrl+滚轮缩放 · Alt+左右返回视图<br>Ctrl / Shift 多选 · Delete 删除 · F2 改名<br>书签树中 Ctrl+A 全选 · Alt+左右箭头 升降级 · Tab 移动焦点<br>拖动行：上部插在前面，中部成为子项，下部插在后面；左侧退级区域移至根层。悬停展开，Esc 取消</p><h3>精确目标</h3><p>PDF 坐标以 pt 为单位，使用原生页面坐标系。XYZ = [左, 顶, 缩放]；留空为 null。FitR = [左, 底, 右, 顶]。XYZ 的 zoom=0 由阅读器解释为保持缩放。原始动作默认保持；使用「整理 → 原始本地目标 → 可编辑目标」后可统一偏移。</p><h3>当前边界</h3><p>已实现书签、批注、旋转、页面提取与追加、文档属性编辑。已加入文字/路径对象编辑、离线 OCR、段落流式编辑和同页分栏续排；工作工程可续编。加密文件可通过更多工具导出无密码副本后编辑。尚未实现跨页文章重排、公式结构编辑、表单编辑、安全涂黑、数字签名，以及 PDF-XChange 专有书签导入导出。不是 PDF-XChange 全功能替代品。</p><h3>技术与许可</h3><p>Electron 44.3.0 · PDF.js 5.6.205（Apache-2.0）· pdf-lib 1.17.1（MIT）。源码及依赖许可随包附带。没有遥测和在线更新功能。</p>`,
     [{ text: "开始使用", primary: true, run: closeModal }],
   );
 }
-let recoveryPending,
+let recoveryPending = new Map(),
   recoveryTimer,
   viewTimer,
   recoveryReady = false,
@@ -2043,22 +2294,27 @@ function scheduleRecovery() {
     const value =
       S.dirty || S.flowDraftDirty
         ? {
+            sessionId: S.sessionId,
             name: S.name,
             bytes: S.bytes,
-            state: { ...clone({ ...snapshot(), ocr: [] }), ocr: S.ocr },
+            state: {
+              ...clone({ ...snapshot(), ocr: [], nativeEdits: [] }),
+              ocr: S.ocr,
+              nativeEdits: immutableEdits(S.nativeEdits),
+            },
             baseline: S.baseline,
             view: surface.capture(),
             flowDraft: S.flowEdit?.draft?.() || null,
             savedAt: Date.now(),
           }
         : null;
-    recoveryPending = value;
+    recoveryPending.set(S.sessionId, value);
     recoveryChain = recoveryChain
       .then(async () => {
-        if (recoveryPending === undefined) return;
-        const latest = recoveryPending;
-        recoveryPending = undefined;
-        await recoveryStore(latest);
+        for (const [id, latest] of recoveryPending) {
+          recoveryPending.delete(id);
+          await recoveryStore(latest, id);
+        }
       })
       .catch((e) => toast("恢复快照未写入：" + e.message));
   }, 700);
@@ -3127,8 +3383,9 @@ const actions = {
   open: openFile,
   save: () => savePDF(false),
   "save-as": () => savePDF(true),
-  undo: () => restore(S.history.undo(snapshot())),
-  redo: () => restore(S.history.redo(snapshot())),
+  recover: () => recoveryDialog(),
+  undo: () => restoreHistory("undo"),
+  redo: () => restoreHistory("redo"),
   add: () => addNode(false),
   "add-child": () => addNode(true),
   delete: deleteNodes,
@@ -3189,7 +3446,18 @@ const actions = {
     settings.theme = settings.theme === "light" ? "dark" : "light";
     applySettings(false);
   },
-  decrypt: () => decryptDialog({S,modal,closeModal,choose,writeFile,rpc,settings,toast,setCleanup:fn=>modalCleanup=fn}),
+  decrypt: () =>
+    decryptDialog({
+      S,
+      modal,
+      closeModal,
+      choose,
+      writeFile,
+      rpc,
+      settings,
+      toast,
+      setCleanup: (fn) => (modalCleanup = fn),
+    }),
   settings: settingsDialog,
   help: helpDialog,
 };
@@ -3229,21 +3497,50 @@ const updateFilter = () => {
   clearTimeout(filterTimer);
   if (filterComposing) return;
   // Invalidate an in-flight match immediately, before the debounce expires.
-  filterEpoch++; filterJob?.worker.terminate(); if (filterJob) clearTimeout(filterJob.timer); filterJob = null;
-  S.filter = $("#filter").value; S.filterPage = $("#filter-page").value;
-  filterTimer = setTimeout(() => { $("#tree").scrollTop = 0; rebuild(); }, 120);
-  $("#filter-select").disabled = true; $("#filter-batch").disabled = true;
+  filterEpoch++;
+  filterJob?.worker.terminate();
+  if (filterJob) clearTimeout(filterJob.timer);
+  filterJob = null;
+  S.filter = $("#filter").value;
+  S.filterPage = $("#filter-page").value;
+  filterTimer = setTimeout(() => {
+    $("#tree").scrollTop = 0;
+    rebuild();
+  }, 120);
+  $("#filter-select").disabled = true;
+  $("#filter-batch").disabled = true;
 };
 $("#filter").oninput = updateFilter;
-$("#filter").oncompositionstart = () => { filterComposing = true; };
-$("#filter").oncompositionend = () => { filterComposing = false; updateFilter(); };
-$("#filter-page").oninput = updateFilter;
-for (const [id,field] of [["filter-regex","filterRegex"],["filter-case","filterCase"]]) $("#"+id).onclick = () => {
-  S[field] = !S[field]; $("#"+id).setAttribute("aria-pressed",String(S[field])); updateFilter();
+$("#filter").oncompositionstart = () => {
+  filterComposing = true;
 };
-$("#clear-filter").onclick = () => { $("#filter").value = ""; $("#filter-page").value = ""; updateFilter(); };
-$("#filter-select").onclick = () => { if (!filterReady()) return; S.selected = new Set(filterCache.matches); rebuild(); };
-$("#filter-batch").onclick = () => { if (filterReady()) batchDialog(); };
+$("#filter").oncompositionend = () => {
+  filterComposing = false;
+  updateFilter();
+};
+$("#filter-page").oninput = updateFilter;
+for (const [id, field] of [
+  ["filter-regex", "filterRegex"],
+  ["filter-case", "filterCase"],
+])
+  $("#" + id).onclick = () => {
+    S[field] = !S[field];
+    $("#" + id).setAttribute("aria-pressed", String(S[field]));
+    updateFilter();
+  };
+$("#clear-filter").onclick = () => {
+  $("#filter").value = "";
+  $("#filter-page").value = "";
+  updateFilter();
+};
+$("#filter-select").onclick = () => {
+  if (!filterReady()) return;
+  S.selected = new Set(filterCache.matches);
+  rebuild();
+};
+$("#filter-batch").onclick = () => {
+  if (filterReady()) batchDialog();
+};
 $("#tree").addEventListener("scroll", () => {
   if (treeFrame) return;
   treeFrame = requestAnimationFrame(() => {
@@ -3416,9 +3713,13 @@ setBusy(false);
 // Browser test harness uses the same file input flow; no network or document upload is involved.
 $("#file-input").onchange = async (e) => {
   const file = e.target.files[0];
-  if (file && (await confirmDiscard()))
-    guarded(async () =>
-      loadPDF(new Uint8Array(await file.arrayBuffer()), file.name),
+  e.target.value = "";
+  if (file && !S.busy)
+    await guarded(async () =>
+      openIncoming({
+        bytes: new Uint8Array(await file.arrayBuffer()),
+        name: file.name,
+      }),
     );
 };
 
@@ -3428,14 +3729,15 @@ async function refreshNative(
   reference = ocr === S.ocr ? S.ocrReference : null,
 ) {
   if (!window.desktop?.native) throw Error("内容编辑和 OCR 需要完整桌面运行包");
-  const anchor = surface.capture();
+  const anchor = surface.capture(),
+    token = documentSession.capture();
   setBusy(true, "正在生成内容预览…");
   try {
     const bytes =
       edits.length || ocr.length
         ? new Uint8Array(
             (
-              await window.desktop.native({
+              await nativeRequest({
                 command: "apply",
                 bytes: S.bytes,
                 edits,
@@ -3455,11 +3757,25 @@ async function refreshNative(
       isEvalSupported: false,
       enableXfa: false,
     }).promise;
+    try {
+      documentSession.assert(token);
+    } catch (e) {
+      await pdf.destroy();
+      throw e;
+    }
     const old = S.pdf;
     surface.cancel(true);
     S.pdf = pdf;
     surface.signature = "";
-    await surface.refresh(anchor);
+    try {
+      await surface.refresh(anchor);
+    } catch (e) {
+      S.pdf = old;
+      await pdf.destroy();
+      surface.signature = "";
+      await surface.refresh(anchor).catch(() => {});
+      throw e;
+    }
     await old.destroy();
   } finally {
     setBusy(false);
@@ -3751,54 +4067,81 @@ for (const side of ["left", "right"]) {
   };
 }
 window.addEventListener("pagehide", saveView);
-guarded(async () => {
-  const saved = await recoveryRead();
-  recoveryReady = true;
-  if (!saved) return;
+async function recoveryDialog() {
+  const records = await recoveryList();
+  if (!records.length) {
+    toast("没有未保存的恢复草稿");
+    return;
+  }
   modal(
-    "发现未保存的编辑",
-    `<p>${esc(saved.name)}</p><p>快照时间：${new Date(saved.savedAt).toLocaleString()}。恢复后首次保存会要求选择输出位置。</p>`,
+    "恢复未保存的编辑",
+    `<label>选择草稿<select id="recovery-session">${records.map((r) => `<option value="${esc(r.sessionId)}">${esc(r.name || "未命名")} · ${esc(new Date(r.savedAt).toLocaleString())}</option>`).join("")}</select></label><p>恢复前会校验原文和编辑资源；首次保存需选择输出位置。</p>`,
     [
+      { text: "稍后", run: closeModal },
       {
-        text: "丢弃恢复快照",
+        text: "删除所选草稿",
         run: async () => {
-          await recoveryStore(null);
+          await recoveryStore(null, $("#recovery-session").value);
           closeModal();
+          if ((await recoveryList()).length) await recoveryDialog();
         },
       },
       {
         text: "恢复编辑",
         primary: true,
         run: async () => {
+          const saved = await recoveryRead($("#recovery-session").value);
+          if (!saved) throw Error("草稿已不存在");
           closeModal();
+          if (S.pdf && !(await confirmDiscard())) return;
           recoveryReady = false;
-          await loadPDF(saved.bytes, saved.name);
-          Object.assign(S, saved.state);
-          S.nativeEdits ||= [];
-          S.ocr ||= [];
-          S.ocrReference = null;
-          if (S.nativeEdits.length || S.ocr.length) await refreshNative();
-          S.baseline = saved.baseline;
-          setDirty(true);
-          rebuild();
-          if (saved.view) {
-            S.page = saved.view.page;
-            S.zoom = saved.view.zoom;
-            surface.layout = saved.view.layout;
+          try {
+            let composed = null;
+            if (saved.state.nativeEdits?.length || saved.state.ocr?.length)
+              composed = new Uint8Array(
+                (
+                  await nativeRequest({
+                    command: "apply",
+                    bytes: saved.bytes,
+                    edits: saved.state.nativeEdits || [],
+                    ocr: saved.state.ocr || [],
+                  })
+                ).bytes,
+              );
+            const opened = await loadPDF(
+              saved.bytes,
+              saved.name,
+              null,
+              saved.state,
+              composed,
+            );
+            if (!opened) return;
+            S.sessionId = saved.sessionId || S.sessionId;
+            setDirty(true);
+            rebuild();
+            if (saved.view) await surface.refresh(saved.view);
+            if (saved.flowDraft) {
+              S.pendingFlowDraft = saved.flowDraft;
+              await surface.go(saved.flowDraft.page);
+              S.page = saved.flowDraft.page;
+              await nativeUI.flowDialog();
+            }
+          } finally {
+            recoveryReady = true;
+            if (S.bytes !== saved.bytes) void releaseSource(saved.bytes);
+            scheduleRecovery();
           }
-          await surface.refresh(saved.view);
-          recoveryReady = true;
-          if (saved.flowDraft) {
-            S.pendingFlowDraft = saved.flowDraft;
-            await surface.go(saved.flowDraft.page);
-            S.page = saved.flowDraft.page;
-            await nativeUI.flowDialog();
-          }
-          scheduleRecovery();
         },
       },
     ],
   );
+}
+guarded(async () => {
+  try {
+    if ((await recoveryList()).length) await recoveryDialog();
+  } finally {
+    recoveryReady = true;
+  }
 });
 // Local regression harness exports. No IPC or network access is added.
 export { S, surface, commit };

@@ -9,8 +9,10 @@ def font_metrics(font):
             raise ValueError('此字体编码暂不能独立编辑共享文字组')
         cid = font['/DescendantFonts'][0].get_object()
         widths = {}; values = cid.get('/W', []); i = 0
+        if hasattr(values,'get_object'):values=values.get_object()
         while i < len(values):
             first = int(values[i]); item = values[i+1]; i += 2
+            if hasattr(item,'get_object'):item=item.get_object()
             if isinstance(item, ArrayObject):
                 for j, width in enumerate(item): widths[first+j] = float(width)
             else:
@@ -20,6 +22,7 @@ def font_metrics(font):
     if font.get('/Subtype') not in ('/Type1', '/TrueType', '/MMType1'):
         raise ValueError('此字体类型暂不能独立编辑共享文字组')
     values = font.get('/Widths')
+    if hasattr(values,'get_object'):values=values.get_object()
     if values is not None:
         widths = {int(font.get('/FirstChar',0))+i:float(v) for i,v in enumerate(values)}
         descriptor = font.get('/FontDescriptor', {})

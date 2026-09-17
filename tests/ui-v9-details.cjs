@@ -31,7 +31,7 @@ let browser,server,activePage;const errors=[],checks=[];
  });
  await page.addInitScript(()=>{
   const call=async(url,data)=>{const r=await fetch(url,{method:'POST',body:JSON.stringify(data)});const v=await r.json();if(v.error)throw Error(v.error);if(v.bytes)v.bytes=new Uint8Array(v.bytes);return v;};
-  window.desktop={native:d=>call('/__native',{...d,bytes:Array.from(d.bytes)}),flowLayout:d=>call('/__flow',d),setDirty(){},onClose(){},onNativeProgress(){},save:async d=>{window.__saved=Array.from(d.bytes);return {name:d.name,working:true};},graphics:async()=>false,copyText:async()=>{},ocrJob:async()=>({})};
+  window.desktop={native:d=>call('/__native',{...d,...(d.bytes?{bytes:Array.from(d.bytes)}:{})}),flowLayout:d=>call('/__flow',d),setDirty(){},onClose(){},onNativeProgress(){},save:async d=>{window.__saved=Array.from(d.bytes);return {name:d.name,working:true};},graphics:async()=>false,copyText:async()=>{},ocrJob:async()=>({})};
  });
  }
  await configure(page);
@@ -40,7 +40,7 @@ let browser,server,activePage;const errors=[],checks=[];
  const bytes=Array.from(fs.readFileSync(filename));
  await page.evaluate(async(bytes)=>{await window.__qa.loadPDF(new Uint8Array(bytes),'Folio UI test.pdf');await window.__qa.surface.go(1);},bytes);
 
- const stable=()=>page.waitForFunction(()=>/自动重排完成/.test(document.querySelector('#pe-status')?.textContent||''),null,{timeout:30000});
+ const stable=()=>page.waitForFunction(()=>/(?:自动重排|段落重排|原始字位|局部行重排)完成/.test(document.querySelector('#pe-status')?.textContent||''),null,{timeout:30000});
  const draft=()=>page.evaluate(()=>window.__qa.S.flowEdit?.draft());
  const replace=async text=>{await page.locator('.page-edit-input').evaluate((el,text)=>{el.focus();el.select();document.execCommand('insertText',false,text);},text);};
  await page.evaluate(()=>window.__qa.actions.generate());await page.waitForSelector('[data-field="pattern"]');
@@ -53,7 +53,7 @@ let browser,server,activePage;const errors=[],checks=[];
  await page.waitForTimeout(800);assert(await page.locator('#multi-preview').textContent().then(t=>t.includes('Short title')));checks.push('incomplete regex, IME event lifecycle and stale-preview filtering remain responsive');
  await page.locator('.rules-settings>summary').click();await page.screenshot({path:path.join(out,'v9-rules-settings.png')});
  await page.evaluate(()=>window.__qa.closeModal());await page.evaluate(()=>window.__qa.actions.generate());assert.equal(await page.locator('[data-field="pattern"]').first().inputValue(),'^Short title');checks.push('rules draft restored on reopening');await page.evaluate(()=>window.__qa.closeModal());
- await page.locator('[data-action="flow-edit"]').click();await page.waitForSelector('.page-edit-hit[aria-label="Short title"]');await page.locator('.page-edit-hit[aria-label="Short title"]').click();await stable();
+ await page.locator('[data-action="flow-edit"]').click();await page.waitForSelector('.page-edit-hit[aria-label="Short title"]');await page.locator('.page-edit-hit[aria-label="Short title"]').click();await stable();await page.locator('#pe-more').click();await page.locator('#pe-growth').selectOption('auto');await page.locator('#pe-close-properties').click();
  await replace('Title 123 中文');await stable();
  await page.locator('.page-edit-input').evaluate(el=>{el.focus();el.setSelectionRange(0,5);});await page.locator('#pe-size').fill('18');await page.locator('#pe-size').press('Tab');await stable();
  const styled=(await draft()).model;assert(styled.runs.filter(r=>r.start<5).every(r=>r.size===18));assert(styled.runs.filter(r=>r.start>=5).every(r=>r.size===14));assert.equal(styled.size,14);checks.push('selected font size leaves unselected typography unchanged');
@@ -61,7 +61,7 @@ let browser,server,activePage;const errors=[],checks=[];
  await page.locator('#pe-more').click();await page.locator('#pe-growth').selectOption('fixed');await stable();
  await replace('Fixed frame overflow text. '.repeat(25));await page.waitForFunction(()=>!document.querySelector('#pe-overflow').hidden);
  assert(await page.locator('.page-edit-input').evaluate(el=>document.activeElement===el));await page.locator('#pe-overflow').click();await stable();assert.equal((await draft()).model.allowOverflow,true);await page.screenshot({path:path.join(out,'v9-overflow-warning.png')});checks.push('fixed-frame overflow has an explicit retain action and does not discard draft');
- await page.locator('#pe-cancel').click();await page.locator('.page-edit-hit[aria-label="Short title"]').click();await stable();await replace('Intentional overlap');await stable();
+ await page.locator('#pe-cancel').click();await page.locator('.page-edit-hit[aria-label="Short title"]').click();await stable();if(await page.locator('.pe-properties').isHidden())await page.locator('#pe-more').click();await page.locator('#pe-growth').selectOption('auto');await page.locator('#pe-close-properties').click();await replace('Intentional overlap');await stable();
  if(await page.locator('.pe-properties').isHidden())await page.locator('#pe-more').click();await page.locator('.pe-position>summary').click();
  await page.locator('[data-frame="y"]').fill('135');await page.locator('[data-frame="y"]').press('Tab');await stable();
  await page.locator('#pe-accept').click();assert.equal(await page.locator('.pe-notice').isHidden(),true);

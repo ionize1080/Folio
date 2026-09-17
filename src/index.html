@@ -7,7 +7,7 @@
       http-equiv="Content-Security-Policy"
       content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' blob: data:; connect-src 'self' blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'none'"
     />
-    <title>Folio PDF Studio 1.1.0 RC1</title>
+    <title>Folio PDF Studio 1.2.0 RC1</title>
     <link rel="stylesheet" href="style.css" />
     <link rel="stylesheet" href="vendor/pdf_viewer.css" />
   </head>
@@ -16,59 +16,113 @@
       <div class="brand">
         <span class="logo">f</span>
         <div>Folio <b>PDF Studio</b></div>
-        <span class="version">1.1.0 RC1</span>
+        <span class="version">1.2.0 RC1</span>
       </div>
       <div class="doc-tab">
         <i data-icon="file"></i><span id="doc-name">未打开文档</span
         ><span id="dirty-dot"></span>
       </div>
+      <nav class="toolbar" aria-label="文档工具">
+        <div class="toolgroup">
+          <button data-action="open" title="打开 Ctrl+O">
+            <i data-icon="folder"></i>打开
+          </button>
+          <button
+            data-action="save"
+            class="primary"
+            data-doc
+            title="保存 Ctrl+S"
+          >
+            <i data-icon="save"></i>保存
+          </button>
+        </div>
+        <div class="toolgroup">
+          <button data-action="undo" title="撤销 Ctrl+Z" data-doc>
+            <i data-icon="undo"></i>
+          </button>
+          <button data-action="redo" title="重做 Ctrl+Y" data-doc>
+            <i data-icon="redo"></i>
+          </button>
+        </div>
+        <div class="toolgroup">
+          <button
+            data-action="flow-edit"
+            data-doc
+            title="在页面上编辑段落及表格单元格"
+          >
+            <i data-icon="text"></i>页面编辑
+          </button>
+
+          <button data-action="ocr" data-doc>
+            <i data-icon="scan"></i>OCR
+          </button>
+        </div>
+
+        <details class="more-tools">
+          <summary>
+            <i data-icon="more"></i>更多工具<i data-icon="chevron"></i>
+          </summary>
+          <div class="more-tools-menu">
+            <button data-action="generate" data-doc>
+              <i data-icon="spark"></i>自动书签</button
+            ><button data-action="pages" data-doc>
+              <i data-icon="pages"></i>页面</button
+            ><button data-action="edit-content" data-doc>
+              <i data-icon="cursor"></i>编辑对象</button
+            ><button data-action="save-as" data-doc title="另存为 Ctrl+Shift+S">
+              <i data-icon="save-as"></i><span>另存为</span>
+            </button>
+            <button data-action="ocr-preview" data-doc>
+              <i data-icon="text"></i>文字预览
+            </button>
+            <button data-action="calibrate" data-doc>
+              <i data-icon="crosshair"></i>目标校准
+            </button>
+            <button data-action="whitespace" data-doc>
+              <i data-icon="spacing"></i>跳转留白
+            </button>
+            <button data-action="batch" data-doc>
+              <i data-icon="sliders"></i>批量规则
+            </button>
+            <button data-action="exchange" data-doc>
+              <i data-icon="exchange"></i>导入 / 导出
+            </button>
+            <button data-action="table-structure" data-doc>
+              <i data-icon="table"></i>表格结构
+            </button>
+            <button data-action="page-diff" data-doc>
+              <i data-icon="pages"></i>全页输出对照
+            </button>
+            <button data-action="decrypt">
+              <i data-icon="unlock"></i>导出无密码副本
+            </button>
+            <button data-action="recover">
+              <i data-icon="undo"></i>恢复草稿
+            </button>
+            <button data-action="metadata" data-doc>
+              <i data-icon="info"></i>文档属性
+            </button>
+          </div>
+        </details>
+      </nav>
       <div class="app-actions">
-      <button data-action="find" data-doc>
-        <i data-icon="search"></i><span>搜索正文</span><kbd>Ctrl F</kbd>
-      </button>
+        <button data-action="find" data-doc>
+          <i data-icon="search"></i><span>搜索正文</span><kbd>Ctrl F</kbd>
+        </button>
         <button data-action="theme" title="切换明暗主题">
           <i data-icon="sun"></i></button
-        ><button data-action="settings" title="首选项"><i data-icon="settings"></i>首选项</button
-        ><button data-action="help" title="使用说明"><i data-icon="info"></i></button>
+        ><button data-action="settings" title="首选项">
+          <i data-icon="settings"></i>首选项</button
+        ><button data-action="help" title="使用说明">
+          <i data-icon="info"></i>
+        </button>
       </div>
     </header>
-    <nav class="toolbar" aria-label="文档工具">
-      <div class="toolgroup">
-        <button data-action="open" title="打开 Ctrl+O"><i data-icon="folder"></i>打开</button>
-        <button data-action="save" class="primary" data-doc title="保存 Ctrl+S"><i data-icon="save"></i>保存</button>
-        <button data-action="save-as" data-doc title="另存为 Ctrl+Shift+S"><i data-icon="save-as"></i><span>另存为</span></button>
-      </div>
-      <div class="toolgroup">
-        <button data-action="undo" title="撤销 Ctrl+Z" data-doc><i data-icon="undo"></i></button>
-        <button data-action="redo" title="重做 Ctrl+Y" data-doc><i data-icon="redo"></i></button>
-      </div>
-      <div class="toolgroup">
-        <button data-action="flow-edit" data-doc title="在页面上编辑段落及表格单元格"><i data-icon="text"></i>页面编辑</button>
-        <button data-action="edit-content" data-doc><i data-icon="cursor"></i>编辑对象</button>
-        <button data-action="ocr" data-doc><i data-icon="scan"></i>OCR</button>
-        <button data-action="pages" data-doc><i data-icon="pages"></i>页面</button>
-      </div>
-      <button data-action="generate" data-doc><i data-icon="spark"></i>自动书签</button>
-      <details class="more-tools">
-        <summary><i data-icon="more"></i>更多工具<i data-icon="chevron"></i></summary>
-        <div class="more-tools-menu">
-          <button data-action="ocr-preview" data-doc><i data-icon="text"></i>文字预览</button>
-          <button data-action="calibrate" data-doc><i data-icon="crosshair"></i>目标校准</button>
-          <button data-action="whitespace" data-doc><i data-icon="spacing"></i>跳转留白</button>
-          <button data-action="batch" data-doc><i data-icon="sliders"></i>批量规则</button>
-          <button data-action="exchange" data-doc><i data-icon="exchange"></i>导入 / 导出</button>
-          <button data-action="table-structure" data-doc><i data-icon="table"></i>表格结构</button>
-          <button data-action="page-diff" data-doc><i data-icon="pages"></i>全页输出对照</button>
-          <button data-action="decrypt"><i data-icon="unlock"></i>导出无密码副本</button>
-          <button data-action="metadata" data-doc><i data-icon="info"></i>文档属性</button>
-        </div>
-      </details>
-    </nav>
+
     <main>
       <aside class="outline-panel">
         <div class="panel-heading">
           <div>
-            
             <h2>书签 <span id="node-count">0</span></h2>
           </div>
           <button data-action="add" title="新增同级书签 Ctrl+Shift+B" data-doc>
@@ -81,9 +135,23 @@
             id="filter"
             placeholder="筛选书签标题…"
             aria-label="筛选书签"
-          /><button id="filter-regex" aria-pressed="false" title="正则表达式">.*</button><button id="filter-case" aria-pressed="false" title="区分大小写">Aa</button><button id="clear-filter" title="清空筛选">×</button>
+          /><button id="filter-regex" aria-pressed="false" title="正则表达式">
+            .*</button
+          ><button id="filter-case" aria-pressed="false" title="区分大小写">
+            Aa</button
+          ><button id="clear-filter" title="清空筛选">×</button>
         </div>
-        <div class="filter-options"><input id="filter-page" type="number" min="1" placeholder="页码" aria-label="筛选物理页码"><button id="filter-select" disabled>选中匹配项</button><button id="filter-batch" disabled>批量处理</button></div><div id="filter-status" class="filter-status" role="status"></div>
+        <div class="filter-options">
+          <input
+            id="filter-page"
+            type="number"
+            min="1"
+            placeholder="页码"
+            aria-label="筛选物理页码"
+          /><button id="filter-select" disabled>选中匹配项</button
+          ><button id="filter-batch" disabled>批量处理</button>
+        </div>
+        <div id="filter-status" class="filter-status" role="status"></div>
         <div class="tree-tools">
           <button data-action="expand" title="展开全部" data-doc>展开</button
           ><button data-action="collapse" title="折叠全部" data-doc>折叠</button
@@ -175,12 +243,19 @@
             <option value="continuous" selected>连续 · 纵向</option>
             <option value="two">双页</option>
             <option value="two-continuous">双页连续</option>
-            <option value="horizontal">连续 · 横向</option></select
-          ><label class="view-check"
-            ><input id="cover" type="checkbox" checked />封面</label
-          ><label class="view-check"
-            ><input id="gaps" type="checkbox" checked />间距</label
-          ><span class="spacer"></span
+            <option value="horizontal">连续 · 横向</option>
+          </select>
+          <details class="view-options">
+            <summary>显示设置</summary>
+            <div>
+              <label class="view-check"
+                ><input id="cover" type="checkbox" checked />封面单独显示</label
+              ><label class="view-check"
+                ><input id="gaps" type="checkbox" checked />页面间距</label
+              >
+            </div>
+          </details>
+          <span class="spacer"></span
           ><button data-action="annotate" data-doc title="添加批注">
             <i data-icon="pen"></i><span>批注</span></button
           ><button
@@ -250,11 +325,14 @@
           <i data-icon="sliders"></i>
         </div>
         <section class="page-edit-context">
-          <h3>页面文字编辑</h3><p>点击页面中的段落开始编辑。优先保留原字位，排版结果显示在原页。</p>
+          <h3>页面文字编辑</h3>
+          <p>点击页面中的段落开始编辑。优先保留原字位，排版结果显示在原页。</p>
           <button data-flow-target="pe-more">文字与布局…</button>
           <button data-flow-target="pe-font">字体与字形推荐…</button>
           <button data-flow-target="pe-compare">本段原文对照</button>
-          <p class="hint">状态栏显示实际排版方式。完成编辑后，使用保存写入 PDF。</p>
+          <p class="hint">
+            状态栏显示实际排版方式。完成编辑后，使用保存写入 PDF。
+          </p>
         </section>
         <div id="inspector-empty">
           <div class="empty-orbit"><i data-icon="cursor"></i></div>
@@ -332,7 +410,7 @@
     <dialog id="modal">
       <div class="modal-header">
         <div>
-          <span class="eyebrow" id="modal-kicker">FOLIO 1.1.0 RC1</span>
+          <span class="eyebrow" id="modal-kicker">FOLIO 1.2.0 RC1</span>
           <h2 id="modal-title"></h2>
         </div>
         <button id="modal-close" aria-label="关闭">×</button>

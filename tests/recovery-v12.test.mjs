@@ -1,0 +1,20 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import 'fake-indexeddb/auto';
+import {recoveryStore,recoveryRead,recoveryList} from '../src/recovery.mjs';
+const state=()=>({nodes:[],annotations:[],ocr:[],nativeEdits:[]});
+test('recovery isolates sessions, deduplicates equal bytes and rejects missing source',async()=>{
+ const bytes=new TextEncoder().encode('%PDF-recovery');
+ await recoveryStore({sessionId:'a',name:'a.pdf',savedAt:1,bytes,state:state()});
+ await recoveryStore({sessionId:'b',name:'b.pdf',savedAt:2,bytes:bytes.slice(),state:state()});
+ assert.deepEqual((await recoveryList()).map(r=>r.sessionId),['b','a']);
+ const db=await new Promise((resolve,reject)=>{const q=indexedDB.open('folio-recovery',3);q.onsuccess=()=>resolve(q.result);q.onerror=()=>reject(q.error);});
+ const all=await new Promise(resolve=>{const q=db.transaction('assets').objectStore('assets').getAllKeys();q.onsuccess=()=>resolve(q.result);});
+ assert.equal(all.filter(k=>k.startsWith('source/')).length,1);
+ await recoveryStore(null,'a');assert.equal(await recoveryRead('a'),null);assert.equal((await recoveryRead('b')).name,'b.pdf');
+ await assert.rejects(recoveryStore({sessionId:'b',bytes:new Uint8Array(),state:state()}),/缺失/);
+ assert.equal((await recoveryRead('b')).name,'b.pdf');
+ await new Promise((resolve,reject)=>{const t=db.transaction('assets','readwrite');t.objectStore('assets').delete(all.find(k=>k.startsWith('source/')));t.oncomplete=resolve;t.onerror=()=>reject(t.error);});
+ await assert.rejects(recoveryRead('b'),/不完整/);assert.equal((await recoveryList()).length,1);
+ db.close();await recoveryStore(null,'b');
+});

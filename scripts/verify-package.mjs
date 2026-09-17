@@ -10,6 +10,10 @@ const require = createRequire(import.meta.url),
   asar = require("@electron/asar");
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".."),
   out = path.join(root, "dist/Folio-PDF-Studio-win-x64");
+assert(
+  !(await fs.readdir(out)).some((name) => name.startsWith(".Folio.exe.")),
+  "runtime staging file included in package",
+);
 const bytes = await fs.readFile(path.join(out, "Folio.exe")),
   exe = PE.NtExecutable.from(bytes),
   res = PE.NtExecutableResource.from(exe);
@@ -33,9 +37,22 @@ const archive = path.join(out, "resources/app.asar"),
 for (const f of [
   "native-bridge.cjs",
   "flow-layout.cjs",
-  "flow-layout-legacy.cjs",
+  "flow-validation.cjs",
+  "source-store.cjs",
+  "temp-store.cjs",
+  "src/project-worker.mjs",
+  "src/zip-store.mjs",
+  "src/portable-state.mjs",
+  "src/native-source.mjs",
+  "src/edit-assets.mjs",
+  "src/session-state.mjs",
+  "src/vendor/purify.es.mjs",
   "src/flow-page-model.mjs",
-  "src/rule-memory.mjs", "src/bookmark-filter.mjs", "src/filter-worker.mjs", "src/decrypt-ui.mjs",
+  "src/rule-memory.mjs",
+  "src/bookmark-filter.mjs",
+  "src/filter-worker.mjs",
+  "src/decrypt-ui.mjs",
+  "src/encrypted-open.mjs",
   "src/flow-ui.mjs",
   "src/flow-model.mjs",
   "src/project.mjs",
@@ -148,8 +165,30 @@ for (const f of [
   "vcruntime140_1.dll",
 ])
   await fs.access(path.join(out, "resources/native/runtime", f));
-for (const f of ["qpdf_tools.py", "original_layout.py", "font_similarity.py", "table_export.py", "runtime/Lib/site-packages/pikepdf/_core.cp312-win_amd64.pyd", "runtime/Lib/site-packages/lxml/etree.cp312-win_amd64.pyd", "story.py", "type1_restore.py", "image_edit.py", "table_render.py", "table_geometry.py", "vendor/fontTools/__init__.py", "vendor/fontTools/LICENSE", "models/layout_cdla.onnx", "runtime/Lib/site-packages/pymupdf/__init__.py", "runtime/Lib/site-packages/rapid_layout/__init__.py"])
-  await fs.access(path.join(out,"resources/native",f));
+assert(
+  !packed.includes("/flow-layout-legacy.cjs"),
+  "product still includes legacy renderer",
+);
+for (const f of [
+  "original_patch.py",
+  "qpdf_tools.py",
+  "original_layout.py",
+  "font_similarity.py",
+  "table_export.py",
+  "runtime/Lib/site-packages/pikepdf/_core.cp312-win_amd64.pyd",
+  "runtime/Lib/site-packages/lxml/etree.cp312-win_amd64.pyd",
+  "story.py",
+  "type1_restore.py",
+  "image_edit.py",
+  "table_render.py",
+  "table_geometry.py",
+  "vendor/fontTools/__init__.py",
+  "vendor/fontTools/LICENSE",
+  "models/layout_cdla.onnx",
+  "runtime/Lib/site-packages/pymupdf/__init__.py",
+  "runtime/Lib/site-packages/rapid_layout/__init__.py",
+])
+  await fs.access(path.join(out, "resources/native", f));
 const info = {
   native_compared_files: nativeFiles,
   pe_machine: "AMD64",

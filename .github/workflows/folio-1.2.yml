@@ -1,0 +1,36 @@
+name: Folio 1.2 Windows validation
+on:
+  push:
+    branches: [codex/folio-1.2]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: npm ci
+      - run: python -m pip install -r tests/requirements.txt
+      - run: python -m pip install --target native/vendor fonttools
+      - run: npx playwright install chromium
+      - run: python scripts/restore-assets.py
+      - run: npm test
+      - run: npm run build:win
+      - run: npm run test:package
+      - run: node tests/electron-v12.cjs
+        env:
+          FOLIO_EXE: ${{ github.workspace }}\dist\Folio-PDF-Studio-win-x64\Folio.exe
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: folio-1.2-windows-validation
+          path: tests/output/
