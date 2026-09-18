@@ -47,6 +47,7 @@ def catalog():
     return out
 
 def list_fonts():return {'fonts':[{k:v for k,v in f.items() if k!='path'} for f in catalog().values()]}
+@lru_cache(maxsize=96)
 def select_font(ident):
     import fitz
     from fontTools.ttLib import TTFont

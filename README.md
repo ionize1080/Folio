@@ -1,43 +1,24 @@
-# Folio PDF Studio 1.1.0 RC1
+# Folio PDF Studio 1.2.0 RC1
 
-Windows x64 完整便携版。**把 portable ZIP 完整解压，双击 Folio.exe。**
-无需安装 Python、qpdf、字体处理库或 OCR 模型；所有处理在本机进行。
-保留 resources、locales 和随包 DLL，不要只复制 EXE，也不要在 ZIP 内直接运行。
+Windows x64 离线 PDF 工作台。完整解压 portable ZIP 后运行 `Folio.exe`，无需另装 Python 或 OCR 模型；保留 resources、locales 和 DLL。
 
-[更新说明](docs/CHANGELOG-1.1.md) · [验证与已知边界](docs/VALIDATION-1.1.md) · [第三方许可](THIRD-PARTY-NOTICES.md)
+[1.2 更新](docs/CHANGELOG-1.2.md) · [当前架构](docs/ARCHITECTURE.md) · [验证记录](docs/VALIDATION-1.2.md) · [第三方许可](THIRD-PARTY-NOTICES.md)
 
-## 1.1 改进
+Ctrl+S 保存 PDF，页面编辑 Ctrl+Enter 完成本段。完成编辑后仍需保存文件。`.folio` 保存原文、内容片段和结构状态，适合续编；1.2 读取旧工程，写入新的 ZIP 工程格式。旧版无法读取新工程。
 
-- 批量规则记住各操作的输入、替换内容和大小写选项；可收藏及复用最近规则。
-- 书签支持正则/大小写筛选、独立页码条件；祖先作路径显示，批量操作仅作用于实际匹配项。
-- 编辑模型读取原始逐字坐标；默认优先保留原字位，小范围修改尝试局部行重排，必要时回退段落重排。格式面板可主动选择整段重排。
-- 字体推荐比较实际字形轮廓与字宽，支持缺字自动替换；显示匹配证据与替代字体。
-- 更多工具 → 导出无密码副本：内置 libqpdf，支持正确密码及无需打开密码的受限 PDF，另存副本并校验。
-- 表格结构窗口导出 CSV/XLSX；XLSX 保留合并单元格、前导零和文字值。
-- 重新识别已导出的 Folio 1.1 OCR 页面时替换已标记的 OCR 层，避免重复追加。
-- 首选项使用齿轮，更多工具使用三点图标，格式继续使用滑杆。
+## 开发与验证
 
-Ctrl+S 保存 PDF；页面编辑 Ctrl+Enter 完成本段。完成编辑不等于保存文件。
-加密文件可先通过“导出无密码副本”处理，再打开副本编辑。
-工作工程 .folio 保留原始 PDF、修改片段与结构状态；PDF 是交付输出。
+源码 ZIP 附带业务源码、字体、模型与 Windows Python 运行资源。Git 仓库与完整源码 ZIP 的资产范围不同：Git 默认不含 OCR 模型；使用 `scripts/restore-assets.py` 按清单恢复，模型下载失败会明确停止。便携包始终包含运行资产。
 
-## 源码与构建
-
-source ZIP 包含完整业务源码、测试、字体、模型和 Windows Python 运行时。
-使用产品请直接运行 portable ZIP；源码构建需要开发用 Node.js/npm，不是便携版运行要求。
-
-`npm ci --ignore-scripts` 安装锁定的构建依赖；`npm test` 运行 JS 回归。
-在离线构建时可指定已有完整便携目录和 ZIP：
-
-```text
-FOLIO_RUNTIME_BASE=<完整便携目录>
-FOLIO_RUNTIME_BASE_ZIP=<对应完整 ZIP>
-npm run build:win
-node scripts/verify-package.mjs
+```sh
+npm ci
+npx playwright install chromium
+npm test
+npm run test:package
 ```
 
-构建会验证基线 EXE 与版本，并重写所有业务源码及本地引擎。
-原生测试见 `tests/native-v11.py`，UI 回归见 `tests/ui-v11.cjs`。
-测试环境所需开发工具及用户原始 PDF 不属于运行依赖，也不随便携版提供。
+原生测试需要 Python 3.12 及 `tests/requirements.txt`；用 `FOLIO_PYTHON` 指定解释器，`FOLIO_CHROMIUM` 指定测试浏览器。纯 JS 快速测试为 `npm run test:unit`。真实 PDF 专项测试为 `npm run test:documents`，通过 `FOLIO_FIXTURES` 指定测试文档目录；这些用户文档不随源码或仓库分发。
 
-此交付标记为 RC1：自动化与静态 Windows 包校验已完成，尚未在 Windows 真机启动验收。
+Windows 包构建：`npm run build:win`。离线复用便携基线时设置 `FOLIO_RUNTIME_BASE`（已解压目录）和 `FOLIO_RUNTIME_BASE_ZIP`（对应 ZIP）；脚本验证运行时并重新装入业务源码和引擎。`npm run test:package` 校验 PE 信息、程序内容及随包资源。
+
+根目录 LICENSE 适用于 Folio 自有代码。第三方引擎、模型、字体、运行时分别遵守随附许可；package.json 的组合 SPDX 表达式不替代逐组件许可文件，也不表示第三方代码转为 MIT。

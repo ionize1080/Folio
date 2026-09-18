@@ -230,7 +230,7 @@ export async function ocrDialogV4(ctx) {
         excludeUnsupported,
       });
       if (cancelApply) throw Error("应用已取消，识别结果仍保留");
-      if (!r.reference) {
+      if (r.ok === false || !r.reference) {
         const host = $("#ocr-font-issues");
         host.hidden = false;
         host.innerHTML = `<strong>${r.count} 条文字含当前字体不支持的字符</strong><p>请先校对，或明确排除这些条目后应用其余结果。原 PDF 尚未改变。</p><div style="max-height:160px;overflow:auto">${r.issues.map((i) => `<p>第 ${i.page} 页 · ${esc(i.characters.join("、"))} · ${esc(i.text.slice(0, 80))}</p>`).join("")}</div><button id="ocr-exclude-unsupported">排除上述缺字条目并应用</button>`;

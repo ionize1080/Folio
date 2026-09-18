@@ -1,5 +1,5 @@
 // Full UI with real native services. No external document uploads.
-const {chromium}=require(process.env.CODEX_PRIMARY_RUNTIME_NODE_MODULES+'/playwright');
+const {chromium}=require(process.env.CODEX_PRIMARY_RUNTIME_NODE_MODULES ? process.env.CODEX_PRIMARY_RUNTIME_NODE_MODULES+'/playwright' : 'playwright');
 const {NativeBridge}=require('../native-bridge.cjs');const {FlowLayout}=require('../flow-layout.cjs');
 const fs=require('fs'),path=require('path'),http=require('http'),assert=require('assert/strict');
 const root=path.resolve(__dirname,'..'),out=path.join(root,'tests/output');
@@ -22,7 +22,7 @@ let browser,server,activePage;const errors=[],checks=[];
     const p=path.resolve(root,'src','.'+(u.pathname==='/'?'/index.html':decodeURIComponent(u.pathname)));
     if(!p.startsWith(path.join(root,'src')+path.sep))throw Error('path');
     body=fs.readFileSync(p);
-    if(p.endsWith('/app.mjs'))body=Buffer.concat([body,Buffer.from('\nwindow.__qa={S,surface,loadPDF,savePDF,undo:actions.undo,redo:actions.redo};')]);
+    if(path.basename(p)==='app.mjs')body=Buffer.concat([body,Buffer.from('\nwindow.__qa={S,surface,loadPDF,savePDF,undo:actions.undo,redo:actions.redo};')]);
     type=({'.mjs':'text/javascript','.js':'text/javascript','.css':'text/css','.html':'text/html','.wasm':'application/wasm'})[path.extname(p)]||'application/octet-stream';
    }
    await route.fulfill({status:200,contentType:type,body});
@@ -30,7 +30,7 @@ let browser,server,activePage;const errors=[],checks=[];
  });
  await page.addInitScript(()=>{
   const call=async(url,data)=>{const r=await fetch(url,{method:'POST',body:JSON.stringify(data)});const v=await r.json();if(v.error)throw Error(v.error);if(v.bytes)v.bytes=new Uint8Array(v.bytes);return v;};
-  window.desktop={native:d=>call('/__native',{...d,bytes:Array.from(d.bytes)}),flowLayout:d=>call('/__flow',d),setDirty(){},onClose(){},onNativeProgress(){},graphics:async()=>false,copyText:async()=>{},ocrJob:async()=>({})};
+  window.desktop={native:d=>call('/__native',{...d,...(d.bytes?{bytes:Array.from(d.bytes)}:{})}),flowLayout:d=>call('/__flow',d),setDirty(){},onClose(){},onNativeProgress(){},graphics:async()=>false,copyText:async()=>{},ocrJob:async()=>({})};
  });
  await page.goto('http://localhost');console.log('app loaded');await page.waitForFunction(()=>window.__qa);
  const filename=process.env.FOLIO_YEARBOOK,bytes=Array.from(fs.readFileSync(filename));

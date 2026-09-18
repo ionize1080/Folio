@@ -1,0 +1,95 @@
+name: Publish verified Folio 1.2 RC1-P1
+on:
+  push:
+    branches: [codex/release-1.2-rc1-p1]
+    paths: [.github/workflows/release-rc1-p1.yml]
+  workflow_dispatch:
+permissions:
+  actions: read
+  contents: write
+concurrency:
+  group: folio-release-v1.2.0-rc1-p1
+  cancel-in-progress: false
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ionize1080/Folio
+    steps:
+      - name: Download exact successful Windows build
+        shell: python
+        run: |
+          import json, subprocess
+          repo='ionize1080/Folio'
+          run=35301324064
+          sha='c2a425e798d72178c198c7e4b25de62ebc1b879a'
+          result=json.loads(subprocess.check_output(['gh','api',f'repos/{repo}/actions/runs/{run}']))
+          assert result['status']=='completed' and result['conclusion']=='success'
+          assert result['head_sha']==sha
+          artifacts=json.loads(subprocess.check_output(['gh','api',f'repos/{repo}/actions/runs/{run}/artifacts']))['artifacts']
+          expected={'folio-1.2-portable':10530067915,'folio-1.2-source':10530262493,'folio-1.2-windows-validation':10529847990}
+          for name,ident in expected.items():
+              matches=[a for a in artifacts if a['name']==name and a['id']==ident and not a['expired']]
+              assert len(matches)==1,(name,ident)
+              subprocess.run(['gh','run','download',str(run),'--name',name,'--dir','download/'+name],check=True)
+      - name: Verify and stage release attachments
+        shell: python
+        run: |
+          import hashlib,json,shutil,zipfile
+          from pathlib import Path
+          src=Path('download'); out=Path('release');out.mkdir()
+          prefix='Folio-PDF-Studio-1.2.0-RC1-P1'
+          portable=src/'folio-1.2-portable'/f'{prefix}-win-x64.zip'
+          source=src/'folio-1.2-source'/f'{prefix}-source.zip'
+          validation=src/'folio-1.2-windows-validation'
+          report=json.loads((validation/'v12-electron-report.json').read_text())
+          ui=json.loads((validation/'v12-ui-report.json').read_text())
+          assert report['platform']=='win32' and not report['errors'] and not ui['errors']
+          assert any('punctuation' in c for c in ui['checks'])
+          assert any('bookmarks' in c for c in ui['checks'])
+          with zipfile.ZipFile(portable) as z:
+              assert z.testzip() is None
+              with z.open('Folio-PDF-Studio/resources/app.asar') as f:
+                  assert hashlib.file_digest(f,'sha256').hexdigest()==report['asar_sha256']
+              with z.open('Folio-PDF-Studio/Folio.exe') as f:
+                  assert hashlib.file_digest(f,'sha256').hexdigest()==report['exe_sha256']
+          with zipfile.ZipFile(source) as z:
+              assert z.testzip() is None
+              p=json.loads(z.read('Folio-PDF-Studio-source/package.json'))
+              assert p['version']=='1.2.0' and p['releaseChannel']=='rc1-p1'
+          shutil.copyfile(portable,out/f'{prefix}-portable-win-x64.zip')
+          shutil.copyfile(source,out/source.name)
+          results={'sourceCommit':'c2a425e798d72178c198c7e4b25de62ebc1b879a','windowsRun':'https://github.com/ionize1080/Folio/actions/runs/35301324064','packagedElectron':report,'browser':ui}
+          (out/f'{prefix}-validation.json').write_text(json.dumps(results,ensure_ascii=False,indent=2),encoding='utf-8')
+          hashes=[]
+          for f in sorted(out.iterdir()):
+              with f.open('rb') as stream: digest=hashlib.file_digest(stream,'sha256').hexdigest()
+              hashes.append(f'{digest}  {f.name}')
+          (out/f'{prefix}-SHA256.txt').write_text('\n'.join(hashes)+'\n',encoding='utf-8')
+          notes='''## 更新内容
+          - 连续输入复用已经匹配的字体；仅在替代字体也缺字时重新分析，避免每个新字重复遍历系统字体。
+          - 缓存字体覆盖表和字体选择结果，减少原字位排版中的重复读取。
+          - 过时草稿停止继续进行扩容重排。
+          - 句号等标点处的光标改用字号和基线计算，保留真实的小字号差异。
+          - 自动书签移至顶部常驻工具栏。
+
+          ## 验证与性能
+          Windows 完整回归、打包检查，以及打包后 EXE 的启动、编辑和保存测试通过。
+          中文测试样本的连续输入后端排版中位耗时约从 317 ms 降至 65 ms（约 4.8 倍）。首次字体匹配仍有额外开销；此数据不代表用户具体 PDF 或电脑的端到端耗时。
+
+          验收记录：https://github.com/ionize1080/Folio/actions/runs/35301324064
+          已测试源码：c2a425e798d72178c198c7e4b25de62ebc1b879a
+
+          ## 下载与运行
+          下载 portable-win-x64.zip，完整解压后运行 Folio.exe；无需额外安装 Python、Node 或 OCR 模型。请保留完整目录。
+          附带 source.zip、验证记录和 SHA-256 校验文件。此版本继续标记为预发布版。
+          '''
+          Path('release-notes.md').write_text('\n'.join(line.lstrip() for line in notes.splitlines())+'\n',encoding='utf-8')
+      - name: Create release with verified assets and publish
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh release create v1.2.0-rc1-p1 release/* --target c2a425e798d72178c198c7e4b25de62ebc1b879a --title 'Folio PDF Studio 1.2.0 RC1-P1' --notes-file release-notes.md --draft --prerelease
+          gh release edit v1.2.0-rc1-p1 --draft=false --prerelease

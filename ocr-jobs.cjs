@@ -100,6 +100,7 @@ class OCRJobs {
   }
   async start(args) {
     await this.stop();
+    await this.prune();
     return this.startJob(args);
   }
   async startJob({
@@ -484,6 +485,7 @@ class OCRJobs {
     excludeUnsupported = false,
     pages,
   }) {
+    await this.prune();
     const j = id ? this.job : null;
     if (id && (!j || j.id !== id || j.running))
       throw Error("请等待识别停止后应用");
@@ -550,7 +552,8 @@ class OCRJobs {
       }
       cleaned += (b.text.match(/[\u200b\ufeff]/g) || []).length;
     }
-    if (count && !excludeUnsupported) return { issues, count, cleaned };
+    if (count && !excludeUnsupported)
+      return { ok: false, issues, count, cleaned };
     const reference = crypto.randomUUID(),
       dir = path.join(this.store, "snapshots");
     await fs.mkdir(dir, { recursive: true });
@@ -568,12 +571,55 @@ class OCRJobs {
       await h.close();
     }
     this.references.set(reference, file);
-    return { reference, blocks, issues, count, cleaned };
+    return { ok: true, reference, blocks, issues, count, cleaned };
   }
   resolveReference(id) {
     if (typeof id !== "string" || !this.references.has(id))
       throw Error("OCR 结果版本已失效，请重新应用");
     return this.references.get(id);
+  }
+  async prune(budget = 1024 ** 3) {
+    // Original job inputs and old JSONL snapshots are reproducible caches.
+    // Keep reviewed page JSON, corrections, current job and live history refs.
+    await fs.mkdir(this.store, { recursive: true });
+    const candidates = [];
+    for (const e of await fs.readdir(this.store, { withFileTypes: true })) {
+      if (!e.isDirectory()) continue;
+      if (e.name === "snapshots") {
+        for (const name of await fs.readdir(path.join(this.store, e.name))) {
+          if (!/^[a-f0-9-]{36}\.jsonl$/.test(name)) continue;
+          const file = path.join(this.store, e.name, name),
+            stat = await fs.stat(file);
+          candidates.push({
+            file,
+            bytes: stat.size,
+            time: stat.mtimeMs,
+            pinned: [...this.references.values()].includes(file),
+          });
+        }
+      } else if (/^[a-f0-9]{64}$/.test(e.name)) {
+        const file = path.join(this.store, e.name, "input.pdf");
+        try {
+          const stat = await fs.stat(file);
+          candidates.push({
+            file,
+            bytes: stat.size,
+            time: stat.mtimeMs,
+            pinned: e.name === this.job?.id,
+          });
+        } catch {}
+      }
+    }
+    let total = candidates.reduce((n, e) => n + e.bytes, 0),
+      removed = 0;
+    for (const e of candidates.sort((a, b) => a.time - b.time)) {
+      if (total <= budget) break;
+      if (e.pinned) continue;
+      await fs.rm(e.file, { force: true });
+      total -= e.bytes;
+      removed += e.bytes;
+    }
+    return { bytes: total, removed, pinnedOverBudget: total > budget };
   }
   async history() {
     await fs.mkdir(this.store, { recursive: true });

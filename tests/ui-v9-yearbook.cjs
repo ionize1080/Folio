@@ -22,7 +22,7 @@ let browser,server,activePage;const errors=[],checks=[];
     const p=path.resolve(root,'src','.'+(u.pathname==='/'?'/index.html':decodeURIComponent(u.pathname)));
     if(!p.startsWith(path.join(root,'src')+path.sep))throw Error('path');
     body=fs.readFileSync(p);
-    if(p.endsWith('/app.mjs'))body=Buffer.concat([body,Buffer.from('\nwindow.__qa={S,surface,loadPDF,savePDF,undo:actions.undo,redo:actions.redo,actions,closeModal};')]);
+    if(path.basename(p)==='app.mjs')body=Buffer.concat([body,Buffer.from('\nwindow.__qa={S,surface,loadPDF,savePDF,undo:actions.undo,redo:actions.redo,actions,closeModal};')]);
     type=({'.mjs':'text/javascript','.js':'text/javascript','.css':'text/css','.html':'text/html','.wasm':'application/wasm'})[path.extname(p)]||'application/octet-stream';
    }
    await route.fulfill({status:200,contentType:type,body});
@@ -30,7 +30,7 @@ let browser,server,activePage;const errors=[],checks=[];
  });
  await page.addInitScript(()=>{
   const call=async(url,data)=>{const r=await fetch(url,{method:'POST',body:JSON.stringify(data)});const v=await r.json();if(v.error)throw Error(v.error);if(v.bytes)v.bytes=new Uint8Array(v.bytes);return v;};
-  window.desktop={native:d=>call('/__native',{...d,bytes:Array.from(d.bytes)}),flowLayout:d=>call('/__flow',d),setDirty(){},onClose(){},onNativeProgress(){},graphics:async()=>false,copyText:async()=>{},ocrJob:async()=>({})};
+  window.desktop={native:d=>call('/__native',{...d,...(d.bytes?{bytes:Array.from(d.bytes)}:{})}),flowLayout:d=>call('/__flow',d),setDirty(){},onClose(){},onNativeProgress(){},graphics:async()=>false,copyText:async()=>{},ocrJob:async()=>({})};
  });
  await page.goto('http://localhost');console.log('app loaded');await page.waitForFunction(()=>window.__qa);
  const filename=process.env.FOLIO_YEARBOOK;
@@ -39,8 +39,9 @@ let browser,server,activePage;const errors=[],checks=[];
 
  await page.evaluate(async()=>{await window.__qa.surface.go(4);await window.__qa.surface.zoom('1');});
  await page.locator('[data-action="flow-edit"]').click();await page.waitForSelector('.page-edit-hit[aria-label^="【巍宝山乡法治"]');await page.locator('.page-edit-hit[aria-label^="【巍宝山乡法治"]').click();
- await page.waitForFunction(()=>/自动重排完成/.test(document.querySelector('#pe-status')?.textContent||''));
- await page.locator('.page-edit-input').evaluate(el=>{el.focus();el.setSelectionRange(0,0);document.execCommand('insertText',false,'新增文字。');});await page.waitForFunction(()=>/自动重排完成/.test(document.querySelector('#pe-status')?.textContent||''));
+ await page.waitForFunction(()=>/(?:自动重排|段落重排|原始字位|局部行重排)完成/.test(document.querySelector('#pe-status')?.textContent||''));
+ await page.locator('#pe-more').click();await page.locator('#pe-growth').selectOption('down');await page.locator('#pe-close-properties').click();
+ await page.locator('.page-edit-input').evaluate(el=>{el.focus();el.setSelectionRange(0,0);document.execCommand('insertText',false,'新增文字。');});await page.waitForFunction(()=>/(?:自动重排|段落重排|原始字位|局部行重排)完成/.test(document.querySelector('#pe-status')?.textContent||''));
  const d=await page.evaluate(()=>window.__qa.S.flowEdit.draft());assert(d.model.fontName.includes('FZ'));assert(d.model.text.startsWith('新增文字。'));assert(d.model.frame.width<220);
  await page.locator('#pe-more').click();await page.screenshot({path:path.join(out,'v9-yearbook-workspace.png')});await page.locator('#pe-close-properties').click();
  if(await page.locator('#pe-fallback').isVisible()){await page.locator('#pe-fallback').click();await page.screenshot({path:path.join(out,'v9-yearbook-fallback.png')});await page.locator('#pe-fallback-panel button').first().click();}

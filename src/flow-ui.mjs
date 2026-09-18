@@ -1,3 +1,4 @@
+import { nativeRequest, releaseSource } from "./native-source.mjs";
 import { fontLabel } from "./font-label.mjs";
 import { joinModels, splitModel, unionFrames } from "./flow-structure.mjs";
 import { editStyles, rangeStyle } from "./flow-style.mjs";
@@ -28,7 +29,11 @@ export function installFlowUI(ctx) {
   const b64 = (s) => btoa(unescape(encodeURIComponent(s)));
   const imageURL = (svg) => "data:image/svg+xml;base64," + b64(svg);
   const call = (command, options = {}) =>
-    window.desktop.native({ command, ...(!command.startsWith("font-") ? { bytes: S.bytes } : {}), ...options });
+    nativeRequest({
+      command,
+      ...(!command.startsWith("font-") ? { bytes: S.bytes } : {}),
+      ...options,
+    });
   async function start() {
     if (session) {
       const samePage = session.page === S.page;
@@ -137,6 +142,9 @@ export function installFlowUI(ctx) {
     const marks = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     marks.classList.add("page-edit-marks");
     marks.setAttribute("viewBox", `0 0 ${w} ${h}`);
+    const caret = document.createElement("div");
+    caret.className = "page-edit-caret pixel-caret";
+    caret.hidden = true;
     const hits = document.createElement("div");
     hits.className = "page-edit-hits";
     const frame = document.createElement("div");
@@ -156,7 +164,7 @@ export function installFlowUI(ctx) {
     const composition = document.createElement("span");
     composition.className = "page-edit-composition";
     composition.hidden = true;
-    layer.append(base, ink, hits, marks, frame, input, composition);
+    layer.append(base, ink, hits, marks, frame, input, composition, caret);
     const collisionMarks = document.createElementNS(marks.namespaceURI, "svg");
     collisionMarks.classList.add("page-edit-collisions");
     collisionMarks.setAttribute("viewBox", `0 0 ${w} ${h}`);
@@ -164,7 +172,15 @@ export function installFlowUI(ctx) {
     const signal = new AbortController(),
       listen = (el, type, fn, opts = {}) =>
         el.addEventListener(type, fn, { ...opts, signal: signal.signal });
-    document.querySelectorAll("[data-flow-target]").forEach(button=>button.addEventListener("click",()=>bar.querySelector("#"+button.dataset.flowTarget)?.click(),{signal:signal.signal}));
+    document
+      .querySelectorAll("[data-flow-target]")
+      .forEach((button) =>
+        button.addEventListener(
+          "click",
+          () => bar.querySelector("#" + button.dataset.flowTarget)?.click(),
+          { signal: signal.signal },
+        ),
+      );
     const status = (text, bad = false) => {
       bar.querySelector("#pe-status").textContent = text;
       bar.querySelector("#pe-status").classList.toggle("error", bad);
@@ -255,7 +271,7 @@ export function installFlowUI(ctx) {
         guarded(async () => {
           ok.disabled = true;
           try {
-            const edits = clone(S.nativeEdits || []).filter((e) => e.id !== id);
+            const edits = (S.nativeEdits || []).filter((e) => e.id !== id);
             parts.forEach((part, i) =>
               edits.push({
                 id: i ? crypto.randomUUID() : id,
@@ -420,18 +436,18 @@ export function installFlowUI(ctx) {
           if (g.delta > (gs.get(k)?.delta || 0)) gs.set(k, g);
         }
       }
-      for (const e of edits)
+      for (let i = 0; i < edits.length; i++) {
+        const e = edits[i];
         if (e.page === page && e.model?.cell) {
           const m = positioned(e.model, [...gs.values()]);
           if (JSON.stringify(m.frame) !== JSON.stringify(e.model.frame)) {
             const r = await window.desktop.flowLayout(m);
             if (r.overflow)
               throw Error("表格行高调整后仍有文字溢出，请调整布局");
-            e.model = m;
-            e.fragment = r.fragment;
-            e.ink = r.glyphs;
+            edits[i] = { ...e, model: m, fragment: r.fragment, ink: r.glyphs };
           }
         }
+      }
       return edits;
     }
     function tableObstacles(current) {
@@ -611,7 +627,8 @@ export function installFlowUI(ctx) {
       bar.querySelector("strong").textContent = model.cell
         ? "表格编辑"
         : "页面编辑";
-      bar.querySelector("#pe-layout-mode").value = model.layoutMode || "preserve";
+      bar.querySelector("#pe-layout-mode").value =
+        model.layoutMode || "preserve";
       bar.querySelector("#pe-growth").value = model.growth || "auto";
       bar.querySelector("#pe-growth-reason").textContent =
         model.growth && model.growth !== "auto"
@@ -637,8 +654,40 @@ export function installFlowUI(ctx) {
       chainList();
       positionFrame();
     }
-    async function activate(m, flowId, e) {
-      if (busy || composing) return;
+    let pendingActivation = null,
+      activationRunning = false,
+      activationTimer = null;
+    function activate(m, flowId, e) {
+      return new Promise((resolve, reject) => {
+        pendingActivation?.resolve(false);
+        pendingActivation = { m, flowId, e, resolve, reject };
+        status("已选择段落，正在准备编辑…");
+        drainActivation();
+      });
+    }
+    function drainActivation() {
+      clearTimeout(activationTimer);
+      if (closed) {
+        pendingActivation?.resolve(false);
+        pendingActivation = null;
+        return;
+      }
+      if (!pendingActivation) return;
+      if (busy || composing || activationRunning) {
+        activationTimer = setTimeout(drainActivation, 30);
+        return;
+      }
+      const intent = pendingActivation;
+      pendingActivation = null;
+      activationRunning = true;
+      activateNow(intent.m, intent.flowId, intent.e)
+        .then(intent.resolve, intent.reject)
+        .finally(() => {
+          activationRunning = false;
+          drainActivation();
+        });
+    }
+    async function activateNow(m, flowId, e) {
       if (linkMode && model && !flowId) {
         if (m.cell || model.cell) {
           status("单元格独立编辑，Tab 可切换下一格");
@@ -670,6 +719,7 @@ export function installFlowUI(ctx) {
         model.growthDirection = suggested.direction;
         model.growthReason = suggested.reason;
       }
+      model.growth ||= model.cell ? "down" : "fixed";
       delete model.typingStyle;
       initial = JSON.stringify(model);
       history = [];
@@ -678,9 +728,12 @@ export function installFlowUI(ctx) {
       validRevision = -1;
       input.value = model.text;
       candidateButtons();
-      await prepareBackground();
       showFields();
+      const activeId = id;
+      await prepareBackground();
+      if (closed || !model || id !== activeId) return false;
       await reflow();
+      if (closed || !model || id !== activeId) return false;
       input.focus({ preventScroll: true });
       const r = layer.getBoundingClientRect(),
         q = scale();
@@ -709,9 +762,7 @@ export function installFlowUI(ctx) {
         const blank =
           rendered ||
           (await window.desktop.flowLayout({ ...target, text: "" }));
-        const edits = clone(S.nativeEdits || []).filter(
-          (e) => e.id !== targetId,
-        );
+        const edits = (S.nativeEdits || []).filter((e) => e.id !== targetId);
         edits.push({
           id: targetId,
           page,
@@ -834,6 +885,7 @@ export function installFlowUI(ctx) {
           let res = await window.desktop.flowLayout(m),
             expanded = false,
             tableChanged = false;
+          if (closed || rev !== revision) return;
           const direction =
             m.growth && m.growth !== "auto"
               ? m.growth
@@ -845,24 +897,25 @@ export function installFlowUI(ctx) {
             !m.frames &&
             direction !== "fixed"
           ) {
-            const growRight = direction === "right" && !m.preserveAlignmentWidth;
+            const growRight =
+              direction === "right" && !m.preserveAlignmentWidth;
             const dimension = growRight ? "width" : "height";
-            const limit =
-              growRight
-                ? horizontalLimit(
-                    m,
-                    result.objects,
-                    S.nativeEdits || [],
-                    page,
-                    id,
-                  )
-                : growthLimit(m, result.objects, S.nativeEdits || [], page, id);
+            const limit = growRight
+              ? horizontalLimit(
+                  m,
+                  result.objects,
+                  S.nativeEdits || [],
+                  page,
+                  id,
+                )
+              : growthLimit(m, result.objects, S.nativeEdits || [], page, id);
             const original = m.frame[dimension];
             if (limit > original + 0.5) {
               const trial = await window.desktop.flowLayout({
                 ...m,
                 frame: { ...m.frame, [dimension]: limit },
               });
+              if (closed || rev !== revision) return;
               if (!trial.overflow) {
                 let lo = original,
                   hi = limit;
@@ -873,6 +926,7 @@ export function installFlowUI(ctx) {
                       ...m,
                       frame: { ...m.frame, [dimension]: mid },
                     });
+                  if (closed || rev !== revision) return;
                   if (test.overflow) lo = mid;
                   else {
                     hi = mid;
@@ -900,6 +954,7 @@ export function installFlowUI(ctx) {
                 ...m,
                 frame: { ...m.frame, height: limit },
               });
+              if (closed || rev !== revision) return;
               if (!trial.overflow) {
                 let lo = old,
                   hi = limit;
@@ -910,6 +965,7 @@ export function installFlowUI(ctx) {
                       ...m,
                       frame: { ...m.frame, height: mid },
                     });
+                  if (closed || rev !== revision) return;
                   if (r.overflow) lo = mid;
                   else {
                     hi = mid;
@@ -961,7 +1017,10 @@ export function installFlowUI(ctx) {
             await prepareBackground(res, true);
             if (closed || rev !== revision) return;
           }
-          const untouched = !S.flowDraftDirty && model.originalLayout?.text === model.text && res.layoutMode === "原始字位";
+          const untouched =
+            !S.flowDraftDirty &&
+            model.originalLayout?.text === model.text &&
+            res.layoutMode === "原始字位";
           base.hidden = untouched;
           ink.hidden = !!composite || untouched;
           selection();
@@ -1127,9 +1186,14 @@ export function installFlowUI(ctx) {
       const cursor = input.selectionDirection === "backward" ? a : b;
       const c = preview?.anchors?.[cursor] || caretRect(glyphs, cursor, model),
         z = scale();
-      if (a === b && !composing) {
-        const r = rect(c.x, c.y, Math.max(0.6, 1.4 / z), c.h, "#234dba");
-        r.classList.add("page-edit-caret");
+      caret.hidden = a !== b || composing;
+      if (!caret.hidden) {
+        const dpr = devicePixelRatio || 1;
+        caret.style.left = Math.round(c.x * z * dpr) / dpr + "px";
+        caret.style.top = Math.round(c.y * z * dpr) / dpr + "px";
+        caret.style.width = 1 / dpr + "px";
+        caret.style.height =
+          Math.max(1, Math.round(c.h * z * dpr)) / dpr + "px";
       }
       input.style.left = c.x * z + "px";
       input.style.top = c.y * z + "px";
@@ -1678,7 +1742,10 @@ export function installFlowUI(ctx) {
       input.focus({ preventScroll: true });
     });
     listen(bar.querySelector("#pe-layout-mode"), "change", () => {
-      if (!model)return;remember();model.layoutMode=bar.querySelector("#pe-layout-mode").value;queue();
+      if (!model) return;
+      remember();
+      model.layoutMode = bar.querySelector("#pe-layout-mode").value;
+      queue();
     });
     listen(bar.querySelector("#pe-recommend"), "click", () => {
       if (!model) return;
@@ -1816,17 +1883,28 @@ export function installFlowUI(ctx) {
     let fontRecommendations = [];
     let fontObserver = null;
     let fontSearchTimer = null;
-    signal.signal.addEventListener("abort", () => { fontObserver?.disconnect(); clearTimeout(fontSearchTimer); }, { once: true });
+    signal.signal.addEventListener(
+      "abort",
+      () => {
+        fontObserver?.disconnect();
+        clearTimeout(fontSearchTimer);
+      },
+      { once: true },
+    );
     const drawFonts = () => {
       fontObserver?.disconnect();
       const previews = new WeakMap();
-      fontObserver = new IntersectionObserver(entries => {
-        for (const entry of entries) if (entry.isIntersecting) {
-          fontObserver.unobserve(entry.target);
-          const show = previews.get(entry.target);
-          fontPreviewQueue = fontPreviewQueue.then(show, show);
-        }
-      }, { root: bar.querySelector("#pe-font-list"), rootMargin: "36px" });
+      fontObserver = new IntersectionObserver(
+        (entries) => {
+          for (const entry of entries)
+            if (entry.isIntersecting) {
+              fontObserver.unobserve(entry.target);
+              const show = previews.get(entry.target);
+              fontPreviewQueue = fontPreviewQueue.then(show, show);
+            }
+        },
+        { root: bar.querySelector("#pe-font-list"), rootMargin: "36px" },
+      );
       const list = bar.querySelector("#pe-font-list"),
         query = bar.querySelector("#pe-font-search").value.toLowerCase();
       list.replaceChildren();
@@ -1839,7 +1917,10 @@ export function installFlowUI(ctx) {
         localStorage.getItem("folio-recent-fonts") || "[]",
       );
       const all = [
-        ...fontRecommendations.map(f=>({...f,source:"字形推荐 · "+f.match+" · "+f.evidence+" 字证据"})),
+        ...fontRecommendations.map((f) => ({
+          ...f,
+          source: "字形推荐 · " + f.match + " · " + f.evidence + " 字证据",
+        })),
         ...recent.map((f) => ({ ...f, source: "最近使用" })),
         ...documentFonts,
         ...(fontCatalog || []),
@@ -1877,22 +1958,47 @@ export function installFlowUI(ctx) {
         // System faces are already installed: use their own family directly.
         // Only embedded faces need a small subset containing the displayed name.
         if (f.fontKey && !f.id) {
-          const key = f.fontKey, label = b.textContent, cacheKey = key + ":" + label;
+          const key = f.fontKey,
+            label = b.textContent,
+            cacheKey = key + ":" + label;
           const show = async () => {
-            if (closed || !b.isConnected || bar.querySelector(".pe-font-panel").hidden) return;
+            if (
+              closed ||
+              !b.isConnected ||
+              bar.querySelector(".pe-font-panel").hidden
+            )
+              return;
             try {
-              if (!previewFontCache.has(cacheKey)) previewFontCache.set(cacheKey, (async () => {
-                const data = await call("font-data", { fontKey: key, previewText: label });
-                const family = "FolioPreview_" + key;
-                const face = new FontFace(family, Uint8Array.from(atob(data.base64), c => c.charCodeAt(0)));
-                await face.load(); document.fonts.add(face);
-                return {face, family};
-              })());
+              if (!previewFontCache.has(cacheKey))
+                previewFontCache.set(
+                  cacheKey,
+                  (async () => {
+                    const data = await call("font-data", {
+                      fontKey: key,
+                      previewText: label,
+                    });
+                    const family = "FolioPreview_" + key;
+                    const face = new FontFace(
+                      family,
+                      Uint8Array.from(atob(data.base64), (c) =>
+                        c.charCodeAt(0),
+                      ),
+                    );
+                    await face.load();
+                    document.fonts.add(face);
+                    return { face, family };
+                  })(),
+                );
               const data = await previewFontCache.get(cacheKey);
-              if (!closed && b.isConnected) b.style.fontFamily = JSON.stringify(data.family) + ",sans-serif";
+              if (!closed && b.isConnected)
+                b.style.fontFamily =
+                  JSON.stringify(data.family) + ",sans-serif";
               while (previewFontCache.size > 64) {
                 const old = previewFontCache.keys().next().value;
-                previewFontCache.get(old).then(v => document.fonts.delete(v.face)).catch(() => {});
+                previewFontCache
+                  .get(old)
+                  .then((v) => document.fonts.delete(v.face))
+                  .catch(() => {});
                 previewFontCache.delete(old);
               }
             } catch {
@@ -1968,7 +2074,11 @@ export function installFlowUI(ctx) {
         bar.querySelector("#pe-font-search").focus();
         if (!fontCatalog) {
           status("正在读取本机字体…");
-          if (!fontCatalogPromise) fontCatalogPromise = call("font-catalog").catch(e => { fontCatalogPromise = null; throw e; });
+          if (!fontCatalogPromise)
+            fontCatalogPromise = call("font-catalog").catch((e) => {
+              fontCatalogPromise = null;
+              throw e;
+            });
           const r = await fontCatalogPromise;
           if (closed) return;
           fontCatalog = r.fonts;
@@ -1977,19 +2087,38 @@ export function installFlowUI(ctx) {
         }
       }),
     );
-    listen(bar.querySelector("#pe-font-match"), "click", () => guarded(async () => {
-      if (!model?.fontKey) { status("此段原字体不可提取，暂无法比较字形",true);return; }
-      const target=id, key=model.fontKey, button=bar.querySelector("#pe-font-match");button.disabled=true;
-      bar.querySelector("#pe-font-evidence").textContent="正在比较实际轮廓和字宽…";
-      try {
-        const r=await call("font-recommend",{fontKey:key,sample:model.text,missing:model.text});
-        if (closed || target!==id || key!==model?.fontKey)return;
-        fontRecommendations=r.fonts;drawFonts();
-        bar.querySelector("#pe-font-evidence").textContent=r.fonts.length ? "按轮廓与字宽排序；样本一致不代表整套字体已被证明相同。" : "本机没有覆盖全文且具有足够字形证据的候选。";
-      } finally { if (!closed) button.disabled=false; }
-    }));
+    listen(bar.querySelector("#pe-font-match"), "click", () =>
+      guarded(async () => {
+        if (!model?.fontKey) {
+          status("此段原字体不可提取，暂无法比较字形", true);
+          return;
+        }
+        const target = id,
+          key = model.fontKey,
+          button = bar.querySelector("#pe-font-match");
+        button.disabled = true;
+        bar.querySelector("#pe-font-evidence").textContent =
+          "正在比较实际轮廓和字宽…";
+        try {
+          const r = await call("font-recommend", {
+            fontKey: key,
+            sample: model.text,
+            missing: model.text,
+          });
+          if (closed || target !== id || key !== model?.fontKey) return;
+          fontRecommendations = r.fonts;
+          drawFonts();
+          bar.querySelector("#pe-font-evidence").textContent = r.fonts.length
+            ? "按轮廓与字宽排序；样本一致不代表整套字体已被证明相同。"
+            : "本机没有覆盖全文且具有足够字形证据的候选。";
+        } finally {
+          if (!closed) button.disabled = false;
+        }
+      }),
+    );
     listen(bar.querySelector("#pe-font-search"), "input", () => {
-      clearTimeout(fontSearchTimer); fontSearchTimer = setTimeout(drawFonts, 100);
+      clearTimeout(fontSearchTimer);
+      fontSearchTimer = setTimeout(drawFonts, 100);
     });
     listen(bar.querySelector("#pe-fallback"), "click", () => {
       const p = bar.querySelector("#pe-fallback-panel");
@@ -2065,6 +2194,7 @@ export function installFlowUI(ctx) {
       bar.querySelector("#pe-compare").setAttribute("aria-pressed", "false");
       ink.hidden = base.hidden = frame.hidden = true;
       marks.replaceChildren();
+      caret.hidden = true;
       input.blur();
       composition.hidden = true;
       window.desktop?.setDirty?.(S.dirty);
@@ -2081,7 +2211,7 @@ export function installFlowUI(ctx) {
         busy = true;
         input.disabled = true;
         try {
-          const edits = clone(S.nativeEdits || []).filter((e) => e.id !== id);
+          const edits = (S.nativeEdits || []).filter((e) => e.id !== id);
           const entry = {
             id,
             page,
@@ -2109,6 +2239,9 @@ export function installFlowUI(ctx) {
     }
     function destroy() {
       closed = true;
+      clearTimeout(activationTimer);
+      pendingActivation?.resolve(false);
+      pendingActivation = null;
       revision++;
       clearTimeout(timer);
       clearTimeout(backgroundTimer);
@@ -2138,7 +2271,11 @@ export function installFlowUI(ctx) {
         `<i data-icon="${iconName}"></i>${label}`;
     icons(bar);
     candidateButtons();
-    status(candidates.length ? `第 ${page} 页 · 点击原页文字开始编辑 · 版式分析在后台进行` : `第 ${page} 页 · 没有可直接替换的文字，可在格式面板添加文字；版式分析在后台进行`);
+    status(
+      candidates.length
+        ? `第 ${page} 页 · 点击原页文字开始编辑 · 版式分析在后台进行`
+        : `第 ${page} 页 · 没有可直接替换的文字，可在格式面板添加文字；版式分析在后台进行`,
+    );
     return {
       page,
       mount,
@@ -2154,6 +2291,7 @@ export function installFlowUI(ctx) {
           );
           bar.querySelector("#pe-status").title = ai.error || "";
         }
+        if (model) return; // Do not replace hit regions while a user is editing.
         candidates = pageCandidates(
           result.objects,
           w,

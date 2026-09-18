@@ -17,7 +17,11 @@ export class PageSurface {
     host.tabIndex = 0;
     host.addEventListener("scroll", () => this.schedule(), { passive: true });
     host.addEventListener("pointerdown", (e) => {
-      if (!e.target.closest("input,button,textarea,[contenteditable],.page-edit-layer"))
+      if (
+        !e.target.closest(
+          "input,button,textarea,[contenteditable],.page-edit-layer",
+        )
+      )
         host.focus({ preventScroll: true });
     });
     host.addEventListener("wheel", (e) => this.wheel(e), { passive: false });
@@ -383,7 +387,7 @@ export class PageSurface {
       e.ratio = ratio;
       e.lastUsed = performance.now();
       canvas.width = Math.max(1, Math.ceil(vp.width * ratio));
-      canvas.height = Math.max(1, Math.floor(vp.height * ratio));
+      canvas.height = Math.max(1, Math.ceil(vp.height * ratio));
       canvas.style.width = vp.width + "px";
       canvas.style.height = vp.height + "px";
       e.task = p.render({

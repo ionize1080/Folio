@@ -1,6 +1,7 @@
 node_modules/
 native/vendor/
-native/models/
+native/models/*
+!native/models/manifest.json
 native/build-wheels/
 native/vcredist/
 __pycache__/

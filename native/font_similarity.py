@@ -3,6 +3,7 @@ Exact identity means matching sampled glyphs, not proof of an entire font family
 """
 import hashlib, json, math
 from functools import lru_cache
+from collections import OrderedDict
 from pathlib import Path
 from font_match import load_font
 
@@ -84,10 +85,25 @@ def recommend(font_key, missing='', sample=''):
         except Exception:continue
     return sorted(ranked,key=lambda r:(r['confidence']=='高',r['score'],r['evidence']),reverse=True)[:5]
 
+# Reuse the chosen full face across different missing characters. Keep separate
+# script buckets so a Latin choice does not displace a Chinese fallback.
+_fallback_faces = OrderedDict()
+
 @lru_cache(maxsize=512)
 def fallback(font_key, character):
     from system_fonts import select_font
+    bucket=(font_key, 'latin' if ord(character)<0x300 else 'cjk' if 0x2e80<=ord(character)<=0x9fff else 'other')
+    previous=_fallback_faces.get(bucket, [])
+    if bucket in _fallback_faces:_fallback_faces.move_to_end(bucket)
+    for face in previous:
+        if ord(character) in face['coverage']:return face
     matches=recommend(font_key,character)
     if not matches:return None
     chosen=matches[0]
-    return {**load_font(select_font(chosen['id'])['fontKey']), 'match':chosen['match'], 'score':chosen['score'], 'confidence':chosen['confidence']}
+    font=load_font(select_font(chosen['id'])['fontKey'])
+    if not font or ord(character) not in font['coverage']:return None
+    face={**font, 'match':chosen['match'], 'score':chosen['score'], 'confidence':chosen['confidence']}
+    _fallback_faces[bucket]=[face,*previous][:4]
+    _fallback_faces.move_to_end(bucket)
+    while len(_fallback_faces)>64:_fallback_faces.popitem(last=False)
+    return face

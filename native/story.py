@@ -210,7 +210,7 @@ def map_glyphs(page, text):
                     x0, y0, x1, y1 = c['bbox']
                     out.append({'start': offsets[cursor], 'end': offsets[cursor+count],
                                 'x': x0, 'y': y0, 'w': max(0, x1-x0), 'h': y1-y0,
-                                'line': line_id, 'baseline':c['origin'][1]})
+                                'line': line_id, 'baseline':c['origin'][1], 'size':span['size']})
                     cursor += count
             line_id += 1
     if text[cursor:].strip(' \t\r\n\u200b\ufeff\u00ad'): ok = False

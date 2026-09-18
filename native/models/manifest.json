@@ -1,0 +1,50 @@
+[
+  {
+    "name": "multi_PP-OCRv6_det_small",
+    "version": "PP-OCRv6",
+    "task": "det",
+    "url": "https://www.modelscope.cn/models/RapidAI/RapidOCR/resolve/v3.9.2/onnx/PP-OCRv6/det/PP-OCRv6_det_small.onnx",
+    "sha256": "090f04abcd9d9a7498bc4ebf677e4cb9bdce1fe4197ddb7e529f1ef44e1ff94f",
+    "bytes": 9929594
+  },
+  {
+    "name": "multi_PP-OCRv6_rec_small",
+    "version": "PP-OCRv6",
+    "task": "rec",
+    "url": "https://www.modelscope.cn/models/RapidAI/RapidOCR/resolve/v3.9.2/onnx/PP-OCRv6/rec/PP-OCRv6_rec_small.onnx",
+    "sha256": "6f327246b50388f3c176ae304bd95767ea6dc0c9ae92153ef8cbe210b3c14884",
+    "bytes": 21234383
+  },
+  {
+    "name": "ch_PP-OCRv5_det_mobile",
+    "version": "PP-OCRv5",
+    "task": "det",
+    "url": "https://www.modelscope.cn/models/RapidAI/RapidOCR/resolve/v3.9.2/onnx/PP-OCRv5/det/ch_PP-OCRv5_det_mobile.onnx",
+    "sha256": "4d97c44a20d30a81aad087d6a396b08f786c4635742afc391f6621f5c6ae78ae",
+    "bytes": 4819576
+  },
+  {
+    "name": "ch_PP-OCRv5_rec_mobile",
+    "version": "PP-OCRv5",
+    "task": "rec",
+    "url": "https://www.modelscope.cn/models/RapidAI/RapidOCR/resolve/v3.9.2/onnx/PP-OCRv5/rec/ch_PP-OCRv5_rec_mobile.onnx",
+    "sha256": "5825fc7ebf84ae7a412be049820b4d86d77620f204a041697b0494669b1742c5",
+    "bytes": 16631306
+  },
+  {
+    "name": "ch_ppocr_mobile_v2.0_cls_mobile",
+    "version": "PP-OCRv4",
+    "task": "cls",
+    "url": "https://www.modelscope.cn/models/RapidAI/RapidOCR/resolve/v3.9.2/onnx/PP-OCRv4/cls/ch_ppocr_mobile_v2.0_cls_mobile.onnx",
+    "sha256": "e47acedf663230f8863ff1ab0e64dd2d82b838fceb5957146dab185a89d6215c",
+    "bytes": 585532
+  },
+  {
+    "name": "layout_cdla",
+    "version": "RapidLayout 1.2.1 / PP-Structure PicoDet CDLA",
+    "task": "layout",
+    "url": "https://www.modelscope.cn/models/RapidAI/RapidLayout/resolve/v1.2.0/onnx/pp_layout/layout_cdla.onnx",
+    "sha256": "25b1f27ec56aa932a48f30cbd6293c358a156280f4b20b0a973bab210c39f62c",
+    "bytes": 7423528
+  }
+]

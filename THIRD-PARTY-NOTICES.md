@@ -63,3 +63,7 @@ The UI fallback subset `src/vendor/folio-ui.ttf` derives from the bundled Noto S
 - lxml 6.1.3 and its bundled libxml2/libxslt: see the complete upstream notices in `native/licenses/lxml-6.1.3.dist-info/`.
 
 All font matching runs locally on embedded and locally installed fonts. Names are display labels; recommendations use normalized outline and advance metrics. Installed fonts are not redistributed by the application.
+
+## DOMPurify
+
+对话框 HTML 净化使用随包 DOMPurify；版本由 package-lock.json 锁定。许可原文：`src/vendor/DOMPurify-LICENSE`（Apache-2.0 或 MPL-2.0 双许可，按组件原文适用）。

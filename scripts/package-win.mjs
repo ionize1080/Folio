@@ -63,7 +63,11 @@ await fs.rm(stage, { recursive: true, force: true });
 await fs.mkdir(out, { recursive: true });
 await fs.mkdir(stage, { recursive: true });
 // extract-zip is part of the locked Electron development dependencies.
-if (base) await fs.cp(base, out, { recursive: true });
+if (base)
+  await fs.cp(base, out, {
+    recursive: true,
+    filter: (p) => !path.basename(p).startsWith(".Folio.exe."),
+  });
 else await require("extract-zip")(runtime, { dir: out });
 for (const item of [
   "src",
@@ -71,9 +75,11 @@ for (const item of [
   "assets",
   "main.cjs",
   "file-store.cjs",
+  "source-store.cjs",
+  "temp-store.cjs",
   "native-bridge.cjs",
   "flow-layout.cjs",
-  "flow-layout-legacy.cjs",
+  "flow-validation.cjs",
   "ocr-jobs.cjs",
   "preload.cjs",
   "LICENSE",
@@ -102,7 +108,8 @@ await fs.writeFile(
 await fs.access(path.join(root, "native/runtime/python.exe"));
 await fs.cp(path.join(root, "native"), path.join(out, "resources/native"), {
   recursive: true,
-  filter: (p) => !p.includes("__pycache__") && !p.split(path.sep).includes("build-wheels"),
+  filter: (p) =>
+    !p.includes("__pycache__") && !p.split(path.sep).includes("build-wheels"),
 });
 await asar.createPackage(stage, path.join(out, "resources", "app.asar"));
 await fs.rm(path.join(out, "resources", "default_app.asar"), { force: true });
@@ -186,4 +193,8 @@ await fs.writeFile(
   ),
 );
 await fs.rm(stage, { recursive: true, force: true });
+// Runtime staging files are not distributable assets.
+for (const name of await fs.readdir(out))
+  if (name.startsWith(".Folio.exe."))
+    await fs.rm(path.join(out, name), { force: true });
 console.log(out);

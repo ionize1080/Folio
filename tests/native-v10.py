@@ -1,4 +1,4 @@
-import sys,json,copy,base64,io,subprocess,unicodedata
+import os,sys,json,copy,base64,io,subprocess,unicodedata
 from pathlib import Path
 import fitz
 root=Path(__file__).resolve().parents[1];sys.path.insert(0,str(root/'native'))
@@ -13,11 +13,14 @@ def candidates(r):
 def apply(src,edits,name):
  dest=out/name;worker.run({'command':'apply','input':str(src),'output':str(dest),'edits':edits});return fitz.open(dest)
 # Real QDII Type1 glyphs remain reusable after change / output reopening.
-src=root.parent/'upload/QDII额度与纳指标普产品比较_20260831(1).pdf';r=worker.run({'command':'inspect','input':str(src),'page':2});cs=candidates(r)
-m=copy.deepcopy(max((c['model'] for c in cs if not c['model'].get('cell')),key=lambda m:len(m['text'])));original=m['text'];m['text']=original.replace('68.40','68.41',1);m['frame']['height']+=35;m['allowOverflow']=True
-rr=layout(m);assert rr['mappingComplete'] and rr['fallbackCount']==0
-entry={'id':'font-change','page':2,'type':'flow','sources':m['sources'],'model':m,'fragment':rr['fragment'],'ink':rr['glyphs']}
-doc=apply(src,[entry],'v10-qdii-font-output.pdf');actual=''.join(doc[1].get_text().split());expected=''.join(m['text'].split());assert expected in actual,(expected[:100],actual[:100]);doc.close();check('QDII Type1 source subset: edit, real PDF output and reopen retain all paragraph characters with zero fallback')
+if os.environ.get('FOLIO_TEST_DOCUMENTS')=='1':
+ src=Path(os.environ.get('FOLIO_FIXTURES',root.parent/'upload'))/'QDII额度与纳指标普产品比较_20260831(1).pdf';r=worker.run({'command':'inspect','input':str(src),'page':2});cs=candidates(r)
+ m=copy.deepcopy(max((c['model'] for c in cs if not c['model'].get('cell')),key=lambda m:len(m['text'])));original=m['text'];m['text']=original.replace('68.40','68.41',1);m['frame']['height']+=35;m['allowOverflow']=True
+ rr=layout(m);assert rr['mappingComplete'] and rr['fallbackCount']==0
+ entry={'id':'font-change','page':2,'type':'flow','sources':m['sources'],'model':m,'fragment':rr['fragment'],'ink':rr['glyphs']}
+ doc=apply(src,[entry],'v10-qdii-font-output.pdf');actual=''.join(doc[1].get_text().split());expected=''.join(m['text'].split());assert expected in actual,(expected[:100],actual[:100]);doc.close();check('QDII Type1 source subset: edit, real PDF output and reopen retain all paragraph characters with zero fallback')
+else:
+ m=copy.deepcopy(candidates(worker.run({'command':'inspect','input':str(out/'v9-fixture.pdf'),'page':1}))[0]['model'])
 # Same-page frame chain renders in explicitly specified independent rectangles.
 m.update(text='Frame content. '*15,runs=[],fontKey=None,fontName='内置替代字体',size=10,lineHeight=1.2,allowOverflow=False,frames=[{'x':30,'y':50,'width':120,'height':80},{'x':250,'y':220,'width':170,'height':220}],frame={'x':30,'y':50,'width':390,'height':390},sources=[])
 rr=layout(m);assert not rr['overflow'] and rr['mappingComplete'];assert len(rr['frames'])==2;assert any(g['x']>=250 for g in rr['glyphs']);check('Native text chain continues across explicit same-page frames without filling the intervening region')

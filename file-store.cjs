@@ -8,6 +8,7 @@ class FileStore {
     this.pick = pick;
     this.handles = new Map();
     this.tickets = new Map();
+    this.streams = new Map();
   }
   grant(file) {
     const id = crypto.randomUUID();
@@ -25,7 +26,17 @@ class FileStore {
     if (
       typeof name !== "string" ||
       name.length > 260 ||
-      !["pdf", "json", "txt", "png", "html", "md", "folio", "csv", "xlsx"].includes(kind)
+      ![
+        "pdf",
+        "json",
+        "txt",
+        "png",
+        "html",
+        "md",
+        "folio",
+        "csv",
+        "xlsx",
+      ].includes(kind)
     )
       throw Error("Invalid save request");
     let file =
@@ -50,6 +61,89 @@ class FileStore {
       if (Date.now() - v.time > 3600000) this.tickets.delete(id);
     this.tickets.set(ticket, { file, kind, time: Date.now() });
     return { ticket, name: path.basename(file) };
+  }
+  async beginStream({ ticket, kind, total }) {
+    const grant = this.tickets.get(ticket?.ticket);
+    if (
+      !grant ||
+      grant.kind !== kind ||
+      Date.now() - grant.time > 3600000 ||
+      !Number.isSafeInteger(total) ||
+      total < 0 ||
+      total > 1024 ** 3
+    )
+      throw Error("保存位置或文件大小无效");
+    for (const [id, entry] of this.streams)
+      if (Date.now() - entry.time > 3600000) await this.abortStream(id);
+    if (this.streams.size >= 2) throw Error("已有文件正在写入");
+    this.tickets.delete(ticket.ticket);
+    const id = crypto.randomUUID(),
+      tmp = grant.file + ".folio-" + id + ".tmp",
+      f = await fs.open(tmp, "wx");
+    this.streams.set(id, {
+      f,
+      tmp,
+      file: grant.file,
+      total,
+      offset: 0,
+      time: Date.now(),
+    });
+    return id;
+  }
+  async appendStream({ id, offset, bytes }) {
+    const e = this.streams.get(id);
+    if (
+      !e ||
+      e.writing ||
+      offset !== e.offset ||
+      !bytes ||
+      bytes.length > 4 * 1024 ** 2 ||
+      e.offset + bytes.length > e.total
+    )
+      throw Error("文件写入序列无效");
+    e.writing = true;
+    try {
+      await e.f.writeFile(Buffer.from(bytes));
+      e.offset += bytes.length;
+      e.time = Date.now();
+      return e.offset;
+    } catch (err) {
+      await this.abortStream(id);
+      throw err;
+    } finally {
+      e.writing = false;
+    }
+  }
+  async finishStream(id) {
+    const e = this.streams.get(id);
+    if (!e || e.writing || e.offset !== e.total)
+      throw Error("文件尚未完整写入");
+    e.writing = true;
+    try {
+      await e.f.sync();
+      await e.f.close();
+      await this.replace(e.tmp, e.file);
+      this.streams.delete(id);
+      return {
+        name: path.basename(e.file),
+        handle: this.grant(e.file),
+        working: true,
+      };
+    } catch (err) {
+      await this.abortStream(id);
+      throw Error("保存 " + path.basename(e.file) + " 失败：" + err.message);
+    }
+  }
+  async abortStream(id) {
+    const e = this.streams.get(id);
+    if (e) {
+      this.streams.delete(id);
+      await e.f.close().catch(() => {});
+      await fs.rm(e.tmp, { force: true }).catch(() => {});
+    }
+  }
+  async close() {
+    for (const id of [...this.streams.keys()]) await this.abortStream(id);
   }
   async save(options) {
     const { bytes, kind } = options;

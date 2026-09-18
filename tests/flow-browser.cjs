@@ -1,4 +1,4 @@
-const {chromium}=require(process.env.FOLIO_PLAYWRIGHT||process.env.CODEX_PRIMARY_RUNTIME_NODE_MODULES+'/playwright');const fs=require('fs'),assert=require('assert/strict');const {makeHTML,measureOverflow}=require('../flow-layout.cjs');
+const {chromium}=require(process.env.FOLIO_PLAYWRIGHT||process.env.CODEX_PRIMARY_RUNTIME_NODE_MODULES+'/playwright');const fs=require('fs'),assert=require('assert/strict');const {makeHTML,measureOverflow}=require('../flow-layout-legacy.cjs');
 (async()=>{let b;try{
  b=await chromium.launch({executablePath:process.env.FOLIO_BROWSER,headless:true,args:['--no-sandbox']});const p=await b.newPage();
  const model={pageWidth:595.28,pageHeight:841.89,frame:{x:60,y:120,width:460,height:480},text:'金融统计段落流式编辑测试，保留金额 00123.45 和百分比 3.50%。English words should wrap at word boundaries.\n第二段正文。'.repeat(8),size:12,lineHeight:1.5,columns:2,gap:20,align:'justify',color:'#202020',font:'sans'};

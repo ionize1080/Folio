@@ -3861,20 +3861,177 @@ textarea:focus-visible {
 }
 
 /* 1.1 rule reuse and accessible filter controls */
-.filter-wrap input { min-width: 0; }
-.filter-wrap button { flex: 0 0 auto; min-width: 28px; padding: 4px; }
-.filter-wrap button[aria-pressed="true"] { color: var(--accent,#5963de); background: #5963de20; }
-.filter-options { display:flex; gap:4px; padding:0 12px 4px; flex-wrap:wrap; }
-.filter-options input { width:64px; min-width:0; }
-.filter-options button { padding:4px 6px; font-size:12px; }
-.filter-status { font-size:11px; padding:0 14px; overflow-wrap:anywhere; }
-.filter-status:empty { display:none; }
-.tree-row.filter-match .title { text-decoration:underline; text-decoration-color:#7379dc80; text-underline-offset:3px; }
-.rule-memory-toolbar { display:flex; gap:8px; flex-wrap:wrap; margin:12px 0; }
-.rule-memory-toolbar select { flex:1; min-width:180px; }
-.rule-memory-toolbar input { width:180px; }
+.filter-wrap input {
+  min-width: 0;
+}
+.filter-wrap button {
+  flex: 0 0 auto;
+  min-width: 28px;
+  padding: 4px;
+}
+.filter-wrap button[aria-pressed="true"] {
+  color: var(--accent, #5963de);
+  background: #5963de20;
+}
+.filter-options {
+  display: flex;
+  gap: 4px;
+  padding: 0 12px 4px;
+  flex-wrap: wrap;
+}
+.filter-options input {
+  width: 64px;
+  min-width: 0;
+}
+.filter-options button {
+  padding: 4px 6px;
+  font-size: 12px;
+}
+.filter-status {
+  font-size: 11px;
+  padding: 0 14px;
+  overflow-wrap: anywhere;
+}
+.filter-status:empty {
+  display: none;
+}
+.tree-row.filter-match .title {
+  text-decoration: underline;
+  text-decoration-color: #7379dc80;
+  text-underline-offset: 3px;
+}
+.rule-memory-toolbar {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 12px 0;
+}
+.rule-memory-toolbar select {
+  flex: 1;
+  min-width: 180px;
+}
+.rule-memory-toolbar input {
+  width: 180px;
+}
 
-.page-edit-context { display:none; padding:20px; line-height:1.7; }
-.page-edit-context button { display:block; width:100%; text-align:left; margin:8px 0; }
-body.page-edit-mode .page-edit-context { display:block; }
-body.page-edit-mode #inspector-empty, body.page-edit-mode #properties { display:none !important; }
+.page-edit-context {
+  display: none;
+  padding: 20px;
+  line-height: 1.7;
+}
+.page-edit-context button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  margin: 8px 0;
+}
+body.page-edit-mode .page-edit-context {
+  display: block;
+}
+body.page-edit-mode #inspector-empty,
+body.page-edit-mode #properties {
+  display: none !important;
+}
+
+.pixel-caret {
+  position: absolute;
+  background: #234dba;
+  pointer-events: none;
+  z-index: 8;
+  transform: none;
+}
+.pixel-caret[hidden] {
+  display: none;
+}
+
+/* Two persistent rows: document commands in the header, navigation above pages. */
+.appbar {
+  gap: 12px;
+  min-height: 54px;
+}
+.appbar > .toolbar {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  gap: 5px;
+  overflow: visible;
+}
+.appbar .doc-tab {
+  max-width: 150px;
+  min-width: 60px;
+  flex: 0 1 150px;
+}
+.appbar .version {
+  display: none;
+}
+.appbar .brand {
+  flex-shrink: 0;
+}
+.appbar .toolgroup:empty {
+  display: none;
+}
+.view-options {
+  position: relative;
+  flex-shrink: 0;
+}
+.view-options summary {
+  cursor: pointer;
+  padding: 6px;
+  color: var(--muted);
+}
+.view-options > div {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 30;
+  width: 165px;
+  padding: 10px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+}
+.view-options .view-check {
+  display: flex;
+  padding: 7px 0;
+}
+body:not(.has-document) main {
+  grid-template-columns: 0 minmax(300px, 1fr) 0;
+}
+body:not(.has-document) .outline-panel,
+body:not(.has-document) .inspector {
+  visibility: hidden;
+  overflow: hidden;
+  border: 0;
+}
+body:not(.has-document) .viewer-toolbar {
+  display: none;
+}
+@media (max-width: 1150px) {
+  .appbar {
+    gap: 5px;
+    padding-inline: 9px;
+  }
+  .appbar .brand b,
+  .appbar .app-actions kbd,
+  .appbar .app-actions span,
+  .appbar .doc-tab {
+    display: none;
+  }
+  .appbar .app-actions button {
+    font-size: 0;
+    gap: 0;
+  }
+  .appbar .app-actions button svg {
+    width: 18px;
+    height: 18px;
+  }
+  .appbar > .toolbar {
+    justify-content: flex-start;
+  }
+  .appbar .toolbar button {
+    padding-inline: 7px;
+  }
+}

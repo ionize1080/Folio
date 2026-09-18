@@ -8,7 +8,7 @@ import { generateRules, industryRules } from "../src/generation.mjs";
 import { extractLines } from "../src/text-lines.mjs";
 import { paragraphCandidates } from "../src/flow-model.mjs";
 const require = createRequire(import.meta.url),
-  { validateModel, makeHTML } = require("../flow-layout.cjs");
+  { validateModel, makeHTML } = require("../flow-layout-legacy.cjs");
 const vp = {
   width: 595,
   height: 842,

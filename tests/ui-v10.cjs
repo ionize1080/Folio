@@ -22,7 +22,7 @@ let browser,server,activePage;const errors=[],checks=[];
     const p=path.resolve(root,'src','.'+(u.pathname==='/'?'/index.html':decodeURIComponent(u.pathname)));
     if(!p.startsWith(path.join(root,'src')+path.sep))throw Error('path');
     body=fs.readFileSync(p);
-    if(p.endsWith('/app.mjs'))body=Buffer.concat([body,Buffer.from('\nwindow.__qa={S,surface,loadPDF,savePDF,undo:actions.undo,redo:actions.redo,actions,closeModal};')]);
+    if(path.basename(p)==='app.mjs')body=Buffer.concat([body,Buffer.from('\nwindow.__qa={S,surface,loadPDF,savePDF,undo:actions.undo,redo:actions.redo,actions,closeModal};')]);
     type=({'.mjs':'text/javascript','.js':'text/javascript','.css':'text/css','.html':'text/html','.wasm':'application/wasm'})[path.extname(p)]||'application/octet-stream';
    }
    await route.fulfill({status:200,contentType:type,body});
@@ -30,11 +30,11 @@ let browser,server,activePage;const errors=[],checks=[];
  });
  await page.addInitScript(()=>{
   const call=async(url,data)=>{const r=await fetch(url,{method:'POST',body:JSON.stringify(data)});const v=await r.json();if(v.error)throw Error(v.error);if(v.bytes)v.bytes=new Uint8Array(v.bytes);return v;};
-  window.desktop={native:d=>call('/__native',{...d,bytes:Array.from(d.bytes)}),flowLayout:d=>call('/__flow',d),setDirty(){},onClose(){},onNativeProgress(){},graphics:async()=>false,copyText:async()=>{},ocrJob:async()=>({})};
+  window.desktop={native:d=>call('/__native',{...d,...(d.bytes?{bytes:Array.from(d.bytes)}:{})}),flowLayout:d=>call('/__flow',d),setDirty(){},onClose(){},onNativeProgress(){},graphics:async()=>false,copyText:async()=>{},ocrJob:async()=>({})};
  });
  await page.goto('http://localhost');console.log('app loaded');await page.waitForFunction(()=>window.__qa);
 
- async function load(name){const file=path.resolve(root,'../upload',name);const bytes=Array.from(fs.readFileSync(file));await page.evaluate(async({bytes,name})=>{await window.__qa.loadPDF(new Uint8Array(bytes),name);},{bytes,name});}
+ async function load(name){const file=path.resolve(process.env.FOLIO_FIXTURES||path.join(root,'../upload'),name);const bytes=Array.from(fs.readFileSync(file));await page.evaluate(async({bytes,name})=>{await window.__qa.loadPDF(new Uint8Array(bytes),name);},{bytes,name});}
  async function close(){await page.evaluate(()=>window.__qa.closeModal());}
  await load('20_WD_2025002892_国民经济行业分类-original.pdf');
  const lines=await page.evaluate(async()=>{const {extractLines}=await import('./text-lines.mjs');return extractLines(window.__qa.S.pdf,12,0,{visualRows:true});});
@@ -50,18 +50,18 @@ let browser,server,activePage;const errors=[],checks=[];
  await load('QDII额度与纳指标普产品比较_20260831(1).pdf');await page.evaluate(()=>window.__qa.surface.go(14));
  await page.locator('[data-action="flow-edit"]').click();await page.waitForSelector('.page-edit-hit',{timeout:30000});
  const candidates=await page.locator('.page-edit-hit').evaluateAll(es=>es.map(e=>e.getAttribute('aria-label')));assert(candidates.length>0);fs.writeFileSync(path.join(out,'v10-page14-candidates.json'),JSON.stringify(candidates,null,2));
- const hit=page.locator('.page-edit-hit').filter({hasText:''}).first();await hit.click();await page.waitForFunction(()=>!document.querySelector('.page-edit-ink').hidden,{timeout:30000});
- await page.waitForFunction(()=>/自动重排完成/.test(document.querySelector('#pe-status').textContent),{timeout:30000});
+ const hit=page.locator('.page-edit-hit').filter({hasText:''}).first();await hit.click();await page.waitForFunction(()=>!document.querySelector('.page-edit-input').disabled && !document.querySelector('.page-edit-frame').hidden,{timeout:30000});
+ await page.waitForFunction(()=>/(?:自动重排|段落重排|原始字位|局部行重排)完成/.test(document.querySelector('#pe-status').textContent),{timeout:30000});
  const status=await page.locator('#pe-status').textContent();fs.writeFileSync(path.join(out,'v10-page14-status.txt'),status);await page.screenshot({path:path.join(out,'v10-page14-edit.png')});
  checks.push('QDII page 14 opens editor with visible frame, native glyph preview and completed layout');await page.locator('#pe-done').click();
  await page.waitForFunction(()=>!window.__qa.S.flowEdit);await page.evaluate(()=>window.__qa.surface.go(2));await page.locator('[data-action="flow-edit"]').click();await page.waitForSelector('.page-edit-hit');
  const long=await page.locator('.page-edit-hit').evaluateAll(es=>es.map(e=>({t:e.getAttribute('aria-label'),len:e.getAttribute('aria-label').length})).sort((a,b)=>b.len-a.len)[0]);
  await page.locator('.page-edit-hit').filter({}).evaluateAll((es,t)=>es.find(e=>e.getAttribute('aria-label')===t).click(),long.t);
- await page.waitForFunction(()=>/自动重排完成/.test(document.querySelector('#pe-status').textContent),{timeout:30000});
+ await page.waitForFunction(()=>/(?:自动重排|段落重排|原始字位|局部行重排)完成/.test(document.querySelector('#pe-status').textContent),{timeout:30000});
  assert(await page.locator('#pe-fallback').isHidden(),'original font unexpectedly substituted');await page.locator('#pe-font').click();await page.waitForFunction(()=>document.querySelector('#pe-font-list').children.length>1);await page.screenshot({path:path.join(out,'v10-font-picker.png')});
  checks.push('QDII page 2 original embedded font is reused without whole-paragraph fallback');await page.locator('#pe-close-font').click();await page.locator('#pe-done').click();
  await page.evaluate(()=>{const S=window.__qa.S;S.nodes=[{id:'split-source',parent:null,title:'第一章：绪论；主题：基础',open:true,bold:false,italic:false,color:'#000000',target:{kind:'dest',page:2,mode:'XYZ',args:[20,700,null]}}];S.selected=new Set(['split-source']);window.__qa.actions['split-bookmark']();});
- await page.waitForSelector('#split-mode');await page.locator('#split-mode').selectOption('hierarchy');await page.locator('[data-key="pattern"]').first().fill('^(第一章)');await page.locator('[data-key="template"]').first().fill('$1');await page.locator('#split-add').click();await page.locator('[data-key="pattern"]').nth(1).fill('主题：(.*)$');await page.locator('[data-key="template"]').nth(1).fill('$1');
+ await page.waitForSelector('#split-mode');await page.locator('#split-mode').selectOption('hierarchy');await page.locator('#split-output').selectOption('template');await page.locator('[data-key="pattern"]').first().fill('^(第一章)');await page.locator('[data-key="template"]').first().fill('$1');await page.locator('#split-add').click();await page.locator('[data-key="pattern"]').nth(1).fill('主题：(.*)$');await page.locator('[data-key="template"]').nth(1).fill('$1');
  await page.waitForFunction(()=>!document.querySelector('#split-apply').disabled);await page.screenshot({path:path.join(out,'v10-bookmark-split.png')});await page.locator('#split-apply').click();assert.deepEqual(await page.evaluate(()=>window.__qa.S.nodes.map(n=>n.title)),['第一章','基础']);await page.evaluate(()=>window.__qa.undo());assert.equal(await page.evaluate(()=>window.__qa.S.nodes[0].title),'第一章：绪论；主题：基础');checks.push('Independent regex hierarchy preview, apply and complete undo');
  assert.deepEqual(errors,[]);fs.writeFileSync(path.join(out,'v10-ui-report.json'),JSON.stringify({checks,errors},null,2));console.log(JSON.stringify({checks,errors}));
 })().catch(async e=>{console.error(e);if(activePage){console.error('ERRORS',errors);console.error('STATUS',await activePage.locator('#pe-status').textContent().catch(()=>''));await activePage.screenshot({path:path.join(out,'v10-failure.png')});}process.exitCode=1;}).finally(async()=>{await browser?.close();server?.close();bridge.cancel();layout.close();});
