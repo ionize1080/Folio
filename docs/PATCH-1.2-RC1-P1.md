@@ -16,6 +16,11 @@ Validation on Linux:
 - Controlled Chinese subset test: 192-character initial paragraph; append six distinct missing characters. Subsequent five inputs: before 257.55–451.21 ms, after 63.63–66.25 ms, about 4–7x faster. First missing character: 1033.74 → 951.68 ms. Backend layout time only, on this host; these are not measurements of the user's PDF or Windows machine.
 - Native 1.1 regressions passed: actual outline matching, original glyph positions, deliberate full reflow, qpdf decryption, spreadsheet export, and OCR layer replacement.
 - Reproduce timings with `python tests/benchmark-input-p1.py` (cold process, then six successive different characters).
-- Browser/Windows validation pending at the time this patch is committed. CI includes real punctuation caret and toolbar visibility checks.
+- Windows validation completed successfully: https://github.com/ionize1080/Folio/actions/runs/35301324064 — tested source `c2a425e798d72178c198c7e4b25de62ebc1b879a`.
+- Full test suite, portable build verification, and packaged Windows EXE open/edit/atomic-save checks all passed. Browser report contains no errors and verifies real punctuation caret geometry plus toolbar visibility at 900 and 1440px.
+- Tested packaged `app.asar` SHA-256: `cde3f9806b4b786ae25947b6c11a0fbb652396398c90bede459db7721e2bc534`.
+- Portable artifact: https://github.com/ionize1080/Folio/actions/runs/35301324064/artifacts/10530067915
+- Source artifact: https://github.com/ionize1080/Folio/actions/runs/35301324064/artifacts/10530262493
+- Isolated full-CJK metadata benchmark (1,000 loads): 1964.69 ms before, 11.65 ms after. This is one stage, not end-to-end UI latency.
 
 Limitations: first-time font matching still scans candidate fonts. Entering a new page still inspects it and prepares its PDF background. This patch does not claim to reproduce or eliminate the user's specific tens-of-seconds delay without the affected PDF. AI page analysis was already asynchronous and is not called per input character.
