@@ -35,7 +35,7 @@ def render(m):
     # New style runs must equal the inherited source style to retain positions.
     offsets=[];offset=0
     for ch in text:offsets.append(offset);offset+=len(ch.encode('utf-16-le'))//2
-    fonts={};details=[];tokens=[]
+    fonts={};source_fonts={};details=[];tokens=[]
     matcher=difflib.SequenceMatcher(None,old,text,autojunk=False);mapping={}
     for a,b,n in matcher.get_matching_blocks():
         for j in range(n):mapping[b+j]=a+j
@@ -43,7 +43,8 @@ def render(m):
         run=next((r for r in m.get('runs',[]) if r['start']<=offsets[i]<r['end']),m)
         source=gs[mapping[i]] if i in mapping else gs[min(i,len(gs)-1)]
         key=(run.get('latinFontKey') if ord(ch)<0x300 else run.get('cjkFontKey')) or run.get('fontKey') or m.get('fontKey')
-        font=load_font(key)
+        if key not in source_fonts:source_fonts[key]=load_font(key)
+        font=source_fonts[key]
         if not font:return None
         if any(run.get(k,m.get(k))!=source['style'].get(k) for k in ('fontKey','size','color')):return None
         if run.get('bold') or run.get('italic'):return None
@@ -113,7 +114,7 @@ def render(m):
         if source and abs(x-source['originX'])<.001 and abs(y-source['baseline'])<.001:
             box={k:source[k] for k in ('x','y','w','h')}
         else:box={'x':x,'y':y-t['size']*.85,'w':t['width'],'h':t['size']}
-        mapped.append({**box,'start':t['start'],'end':t['end'],'baseline':y,'line':round(y,3)})
+        mapped.append({**box,'start':t['start'],'end':t['end'],'baseline':y,'line':round(y,3),'size':t['size']})
     svg=page.get_svg_image(text_as_path=True);doc.subset_fonts();blob=doc.tobytes(garbage=3,deflate=True);doc.close()
     f=m['frame'];overflow=any(g['x']+g['w']>f['x']+f['width']+.5 or g['y']+g['h']>f['y']+f['height']+.5 for g in mapped)
     return {'engine':'Folio anchored layout / MuPDF','layoutMode':mode,'engineVersion':fitz.VersionBind,'fragment':base64.b64encode(blob).decode(),'svg':svg,'glyphs':mapped,'positions':[], 'anchors':[], 'frames':[[f['x'],f['y'],f['x']+f['width'],f['y']+f['height']]],'overflow':overflow,'mappingComplete':True,'fallbackCount':len(details),'fallbackDetails':details,'spacingLimited':False}

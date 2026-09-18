@@ -885,6 +885,7 @@ export function installFlowUI(ctx) {
           let res = await window.desktop.flowLayout(m),
             expanded = false,
             tableChanged = false;
+          if (closed || rev !== revision) return;
           const direction =
             m.growth && m.growth !== "auto"
               ? m.growth
@@ -914,6 +915,7 @@ export function installFlowUI(ctx) {
                 ...m,
                 frame: { ...m.frame, [dimension]: limit },
               });
+              if (closed || rev !== revision) return;
               if (!trial.overflow) {
                 let lo = original,
                   hi = limit;
@@ -924,6 +926,7 @@ export function installFlowUI(ctx) {
                       ...m,
                       frame: { ...m.frame, [dimension]: mid },
                     });
+                  if (closed || rev !== revision) return;
                   if (test.overflow) lo = mid;
                   else {
                     hi = mid;
@@ -951,6 +954,7 @@ export function installFlowUI(ctx) {
                 ...m,
                 frame: { ...m.frame, height: limit },
               });
+              if (closed || rev !== revision) return;
               if (!trial.overflow) {
                 let lo = old,
                   hi = limit;
@@ -961,6 +965,7 @@ export function installFlowUI(ctx) {
                       ...m,
                       frame: { ...m.frame, height: mid },
                     });
+                  if (closed || rev !== revision) return;
                   if (r.overflow) lo = mid;
                   else {
                     hi = mid;

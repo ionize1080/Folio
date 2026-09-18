@@ -404,16 +404,22 @@ export function hitOffset(glyphs, x, y) {
 
 export function caretRect(glyphs, offset, model) {
   const next = glyphs.find((g) => g.start >= offset);
-  if (next && next.start === offset)
-    return { x: next.x, y: next.y, h: next.h, line: next.line };
   const before = [...glyphs].reverse().find((g) => g.end <= offset);
-  if (before)
+  const glyph = next?.start === offset ? next : before;
+  if (glyph) {
+    // Ink bounds describe a dot's paint, not the line's insertion caret.
+    // Use the local font size and baseline, preserving genuine small text.
+    const size = glyph.size || model.runs?.find(
+      (r) => r.start <= glyph.start && r.end > glyph.start,
+    )?.size || model.size;
+    const baseline = glyph.baseline ?? glyph.y + glyph.h;
     return {
-      x: before.x + before.w,
-      y: before.y,
-      h: before.h,
-      line: before.line,
+      x: glyph === next ? glyph.x : glyph.x + glyph.w,
+      y: baseline - size * 0.85,
+      h: size,
+      line: glyph.line,
     };
+  }
   return {
     x: model.frame.x,
     y: model.frame.y,

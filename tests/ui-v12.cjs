@@ -51,5 +51,24 @@ let browser,page;const errors=[],checks=[];
  await page.evaluate(()=>{const q=window.__qa;q.commit([{id:'x',parent:null,title:'<img id="injected" src=x onerror="window.injected=1">',color:'#000000',target:{kind:'dest',page:1,mode:'Fit',args:[]}}]);});
  assert.equal(await page.locator('#injected').count(),0);checks.push('Bookmark text remains literal markup');
  for(const width of [900,1440]){await page.setViewportSize({width,height:900});await page.screenshot({path:path.join(out,`v12-ui-${width}.png`)});}
+ // Main toolbar must expose the core bookmark command without opening a menu.
+ for(const width of [900,1440]){
+  await page.setViewportSize({width,height:900});
+  const button=page.locator('.toolbar > .toolgroup [data-action="generate"]');
+  assert.equal(await button.count(),1);assert(await button.isVisible());
+  const box=await button.boundingBox();assert(box.x>=0 && box.x+box.width<=width);
+ }
+ checks.push('Automatic bookmarks visible in the main toolbar at 900 and 1440px');
+ await page.evaluate(()=>{window.__qa.S.dirty=false;window.__qa.S.flowDraftDirty=false;});
+ await page.evaluate(async bytes=>window.__qa.loadPDF(new Uint8Array(bytes),'Punctuation.pdf'),Array.from(fs.readFileSync(path.join(out,'v12-punctuation.pdf'))));
+ await action('flow-edit');await page.locator('.page-edit-hit').first().click();
+ await page.waitForFunction(()=>/原始字位完成/.test(document.querySelector('#pe-status')?.textContent));
+ const heights=await page.evaluate(()=>{
+  const input=document.querySelector('.page-edit-input'),caret=document.querySelector('.page-edit-caret');
+  return [0,input.value.length-1,input.value.length].map(n=>{input.setSelectionRange(n,n);input.dispatchEvent(new Event('select'));return caret.getBoundingClientRect().height;});
+ });
+ assert(heights.every(h=>h>10 && Math.abs(h-heights[0])<=1));
+ checks.push('Real PDF punctuation caret matches body text before and after final period');
+ await page.screenshot({path:path.join(out,'v12-p1-punctuation.png')});
  assert.deepEqual(errors,[]);fs.writeFileSync(path.join(out,'v12-ui-report.json'),JSON.stringify({checks,errors,browser:await browser.version()},null,2));console.log(JSON.stringify({checks,errors}));
 })().catch(async e=>{console.error(e);if(page){console.error('page errors',errors);await page.screenshot({path:path.join(out,'v12-ui-failure.png')});}process.exitCode=1}).finally(async()=>{await browser?.close();bridge.cancel();flow.close();await sourceStore.close()});

@@ -34,3 +34,11 @@ for embedded in [False,True]:
  assert any(x.get_object().get('/FolioLayerVersion')==2 for x in p['/Resources']['/XObject'].values())
  checks.append('Style change uses versioned content form')
 print(json.dumps({'checks':checks},ensure_ascii=False));(out/'v12-native-report.json').write_text(json.dumps({'checks':checks},ensure_ascii=False,indent=2))
+
+# Punctuation ink is much shorter than the insertion caret's font metrics.
+d=fitz.open();p=d.new_page(width=595,height=842)
+p.insert_text((70,100),'Hello world.',fontsize=16)
+raw=d.tobytes();d.close();(out/'v12-punctuation.pdf').write_bytes(raw)
+m=model(raw);r=layout(m)
+assert r['glyphs'][-1]['h']<r['glyphs'][0]['h']*.5
+assert r['glyphs'][-1]['size']==16

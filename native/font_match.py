@@ -3,6 +3,7 @@ The cache is shared by the inspect and Story processes and keyed only by content
 """
 import base64,hashlib,io,json,math,re,struct,tempfile
 from pathlib import Path
+from functools import lru_cache
 CACHE=Path(tempfile.gettempdir())/'folio-fonts-v10'
 
 def checksum(data):
@@ -38,8 +39,15 @@ def unicode_cmap(blob,mapping):
 def load_font(key):
     if not isinstance(key,str) or not re.fullmatch('[0-9a-f]{32}',key):return None
     try:
-        info=json.loads((CACHE/(key+'.json')).read_text());info['path']=str(CACHE/(key+'.ttf'));info['coverage']=set(info['coverage']);return info
+        path=CACHE/(key+'.json')
+        return _load_font(key,path.stat().st_mtime_ns)
     except (OSError,ValueError):return None
+
+@lru_cache(maxsize=96)
+def _load_font(key,stamp):
+    info=json.loads((CACHE/(key+'.json')).read_text())
+    info['path']=str(CACHE/(key+'.ttf'));info['coverage']=frozenset(info['coverage'])
+    return info
 
 def inspect_fonts(data,page_number,objects,mapped,stream):
     import fitz

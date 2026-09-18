@@ -35,8 +35,12 @@ run(python, ["tests/fixture-encrypted-p1.py"]);
 if (mode !== "ui")
   for (const version of [4, 9, 10, 11, 12])
     run(python, [`tests/native-v${version}.py`]);
+if (mode !== "ui") run(python, ["tests/font-reuse-p1.py"]);
 if (mode !== "ui") run(process.execPath, ["tests/ocr-jobs-v5.cjs"]);
-if (mode === "ui") run(python, ["tests/native-v11.py"]); // Creates actual subset/encryption fixtures.
+if (mode === "ui") {
+  run(python, ["tests/native-v11.py"]); // Creates actual subset/encryption fixtures.
+  run(python, ["tests/native-v12.py"]); // Creates punctuation fixture.
+}
 if (mode !== "native")
   for (const file of [
     "ui-v9.cjs",
