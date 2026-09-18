@@ -1,0 +1,48 @@
+name: Mark verified RC1-P1 as latest
+on:
+  push:
+    branches: [codex/set-latest-rc1-p1-20260918]
+    paths: [.github/workflows/set-latest-rc1-p1.yml]
+permissions:
+  contents: write
+concurrency:
+  group: folio-mark-latest-rc1-p1
+  cancel-in-progress: false
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Verify existing release, update metadata and verify preserved assets
+        shell: python
+        run: |
+          import json, subprocess
+          repo = 'ionize1080/Folio'
+          tag = 'v1.2.0-rc1-p1'
+          expected_sha = 'c2a425e798d72178c198c7e4b25de62ebc1b879a'
+          expected_assets = [{"id":571692435,"name":"Folio-PDF-Studio-1.2.0-RC1-P1-portable-win-x64.zip","size":406924493,"digest":"sha256:9863235394173cce2fec04387bcad416151caa1a29591c716f80364b91b83a6c"},{"id":571692438,"name":"Folio-PDF-Studio-1.2.0-RC1-P1-source.zip","size":242657134,"digest":"sha256:4b961b8a01e185519be7b701e229b1bcd4aafabe1e450e472b466a5c6d7ee22b"},{"id":571692440,"name":"Folio-PDF-Studio-1.2.0-RC1-P1-validation.json","size":1300,"digest":"sha256:f2a21e10a47f3c52959b5cd34a41a99caeefc4634573509aeaaa2d242ed2bc24"},{"id":571692445,"name":"Folio-PDF-Studio-1.2.0-RC1-P1-SHA256.txt","size":336,"digest":"sha256:ada50d9829f7e40bf8621ec9d9b351d6af4d9be63f7708a3e6f0def904f9373f"}]
+          def api(path):
+              return json.loads(subprocess.check_output(['gh', 'api', f'repos/{repo}/{path}']))
+          def asset_state(release):
+              return sorted([{k: a[k] for k in ('id', 'name', 'size', 'digest')} for a in release['assets']], key=lambda a: a['id'])
+          before = api('releases/tags/' + tag)
+          assert before['id'] == 391189950 and not before['draft']
+          assert api('git/ref/tags/' + tag)['object']['sha'] == expected_sha
+          assert asset_state(before) == expected_assets
+          old_sentence = '此版本继续标记为预发布版。'
+          new_sentence = '此版本已设为仓库 Latest 下载版，GitHub 的 Pre-release 标记已取消；版本名称仍为 RC1-P1。此操作未重建程序，也不表示下述已知问题已修复。'
+          body = before['body'].replace(old_sentence, new_sentence)
+          marker = '## 当前已知问题与下一步'
+          if marker not in body:
+              body += '\n' + marker + '\n- 部分未嵌入字体的数字可能在段落编辑后发生替代；标题与正文的段落边界仍需改进。\n- 部分旋转扫描表格存在文字行方向误判、框内漏字或跨单元格合并；局部方向重试及结果合并修复尚未发布。\n- 后续计划和实现边界见主线 README：https://github.com/ionize1080/Folio#readme\n'
+          payload = {'prerelease': False, 'make_latest': 'true', 'body': body}
+          subprocess.run(['gh', 'api', '--method', 'PATCH', f'repos/{repo}/releases/391189950', '--input', '-'], input=json.dumps(payload), text=True, check=True, stdout=subprocess.DEVNULL)
+          after = api('releases/tags/' + tag)
+          assert api('releases/latest')['id'] == before['id']
+          assert after['prerelease'] is False and after['draft'] is False
+          assert asset_state(after) == expected_assets
+          assert after['name'] == before['name'] and after['tag_name'] == before['tag_name']
+          assert api('git/ref/tags/' + tag)['object']['sha'] == expected_sha
+          print('Latest verified: v1.2.0-rc1-p1; tag, release name and all four asset IDs/sizes/digests preserved.')
