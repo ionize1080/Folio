@@ -20,6 +20,12 @@ def font_data(key):
         f=load_font(key)
         if not f:raise ValueError('字体不可用')
         blob=Path(f['path']).read_bytes();actual=key;coverage=list(f['coverage']);name=f['name']
+    from browser_fonts import opentype
+    wrapped=opentype(blob)
+    if wrapped!=blob:
+        blob=wrapped;actual=hashlib.sha256(blob).hexdigest()[:32]
+        (CACHE/(actual+'.ttf')).write_bytes(blob)
+        (CACHE/(actual+'.json')).write_text(json.dumps({'name':name,'coverage':coverage}))
     system_key=None
     if key not in ('builtin-cjk','builtin-latin'):
         from font_resolver import resolve_name

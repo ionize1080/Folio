@@ -164,3 +164,32 @@ test("dense page bounded neighbour scan and long paragraph budget", () => {
     }),
   );
 });
+test("nonpainting source spaces retain surrounding original glyph anchors and bold", () => {
+  const m = model("AB CD", { sources: [{ index: 0 }, { index: 1 }] }),
+    g = (text, x) => ({
+      text,
+      originX: x,
+      baseline: 80,
+      x,
+      y: 70,
+      w: 6,
+      h: 12,
+    });
+  const a = o(0, "AB ", 40, 80, 20, {
+    renderMode: 2,
+    fill: [0, 0, 0, 255],
+    fontKey: "a".repeat(32),
+    glyphs: [g("A", 40), g("B", 47)],
+  });
+  const b = o(1, "CD", 65, 80, 20, {
+    renderMode: 2,
+    fill: [0, 0, 0, 255],
+    fontKey: "a".repeat(32),
+    glyphs: [g("C", 65), g("D", 72)],
+  });
+  sourceStyles(m, [a, b]);
+  assert(m.originalLayout);
+  assert.equal(m.originalLayout.glyphs.map((g) => g.text).join(""), "AB CD");
+  assert.equal(m.originalLayout.glyphs[3].originX, 65);
+  assert(m.runs.every((r) => r.bold));
+});

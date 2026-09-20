@@ -781,9 +781,15 @@ export function installFlowUI(ctx) {
       await Promise.all([
         prepareBackground(),
         fast
-          ? fastFonts.prepare(model).then(() => {
-              if (id === activeId) fastReady = true;
-            })
+          ? fastFonts
+              .prepare(model)
+              .then(() => {
+                if (id === activeId) fastReady = true;
+              })
+              .catch((e) => {
+                status("字体载入失败：" + e.message, true);
+                throw e;
+              })
           : Promise.resolve(),
       ]);
       if (closed || !model || id !== activeId) return false;
@@ -870,7 +876,9 @@ export function installFlowUI(ctx) {
         await background?.destroy();
         background = nextBackground;
         await paintBackground();
-        if (!stale()) base.hidden = false;
+        if (!stale())
+          base.hidden =
+            !S.flowDraftDirty && target.originalLayout?.text === target.text;
       } catch (e) {
         status(e.message, true);
         throw e;
@@ -936,6 +944,8 @@ export function installFlowUI(ctx) {
       revision++;
       validRevision = -1;
       clearTimeout(timer);
+      clearTimeout(preciseTimer);
+      bar.querySelector("#pe-refine").disabled = true;
       S.flowDraftDirty =
         JSON.stringify({ ...model, fastLayout: undefined }) !== initial;
       window.desktop?.setDirty?.(S.dirty || S.flowDraftDirty);
@@ -2015,7 +2025,13 @@ export function installFlowUI(ctx) {
             (r) =>
               r.start <= input.selectionStart && r.end > input.selectionStart,
           ) || model;
-        const v = !(model.typingStyle?.[k] ?? r[k] ?? model[k]);
+        const selected = (model.runs || []).filter(
+          (r) => r.end > input.selectionStart && r.start < input.selectionEnd,
+        );
+        const v =
+          input.selectionStart !== input.selectionEnd && selected.length
+            ? !selected.every((r) => !!(r[k] ?? model[k]))
+            : !(model.typingStyle?.[k] ?? r[k] ?? model[k]);
         rangeStyle(model, input.selectionStart, input.selectionEnd, { [k]: v });
         bar.querySelector("#pe-" + k).setAttribute("aria-pressed", v);
         queue();

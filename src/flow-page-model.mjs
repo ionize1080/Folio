@@ -276,8 +276,12 @@ export function pageCandidates(objects, w, h, regions = [], tables = []) {
       reason: "",
     });
   }
-  return candidates.sort(
-    (a, b) => a.original.y - b.original.y || a.original.x - b.original.x,
+  return candidates.sort((a, b) =>
+    a.model.writingMode?.startsWith("vertical") &&
+    a.model.writingMode === b.model.writingMode
+      ? (a.model.writingMode === "vertical-rl" ? -1 : 1) *
+          (a.original.x - b.original.x) || a.original.y - b.original.y
+      : a.original.y - b.original.y || a.original.x - b.original.x,
   );
 }
 

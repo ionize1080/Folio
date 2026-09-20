@@ -57,24 +57,33 @@ export function sourceStyles(model, objects) {
         ((o.horizontalScale || 100) * Math.hypot(o.matrix[0], o.matrix[1])) /
         Math.hypot(o.matrix[2], o.matrix[3]),
     };
-    let glyphOffset = start;
-    if (
-      (o.glyphs || [])
-        .map((g) => g.text)
-        .join("")
-        .replace(/[\r\n]+/g, "") === text
-    ) {
-      for (const g of o.glyphs || [])
-        if (!/[\r\n]/.test(g.text)) {
-          glyphs.push({
-            ...g,
-            start: glyphOffset,
-            end: glyphOffset + g.text.length,
-            style: { ...style },
-          });
-          glyphOffset += g.text.length;
-        }
+    // PDFium may omit nonpainting spaces from its glyph list. Keep real
+    // anchors and fill only missing whitespace below, rather than dropping
+    // the whole object's geometry because a trailing space has no glyph.
+    let objectOffset = 0;
+    const captured = [];
+    let aligned = true;
+    for (const g of o.glyphs || []) {
+      if (/[\r\n]/.test(g.text)) continue;
+      while (
+        objectOffset < text.length &&
+        text[objectOffset] === " " &&
+        g.text !== " "
+      )
+        objectOffset++;
+      if (!text.startsWith(g.text, objectOffset)) {
+        aligned = false;
+        break;
+      }
+      captured.push({
+        ...g,
+        start: start + objectOffset,
+        end: start + objectOffset + g.text.length,
+        style: { ...style },
+      });
+      objectOffset += g.text.length;
     }
+    if (aligned && !text.slice(objectOffset).trim()) glyphs.push(...captured);
     runs.push({ start, end: start + text.length, ...style });
     cursor = start + text.length;
   }
@@ -89,13 +98,16 @@ export function sourceStyles(model, objects) {
     model.italic = main.italic;
   }
   const byOffset = new Map(glyphs.map((g) => [g.start, g]));
+  let glyphCursor = 0;
   let position = 0,
     prev = null;
   const complete = [];
   for (const ch of model.text) {
+    while (glyphCursor < glyphs.length && glyphs[glyphCursor].start <= position)
+      glyphCursor++;
     let g = byOffset.get(position);
     if (!g && (ch === " " || ch === "\n") && prev) {
-      const next = glyphs.find((g) => g.start > position),
+      const next = glyphs[glyphCursor],
         x = prev.x + prev.w;
       g = {
         text: ch,

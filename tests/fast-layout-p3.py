@@ -61,3 +61,11 @@ with fitz.open(stream=base64.b64decode(background['pdf']),filetype='pdf') as pdf
  assert len(pdf)==1 and 'Selection' in pdf[0].get_text()
 checks.append('Page-local background applies edits from the requested page of a multipage document')
 (out/'p3-native-report.json').write_text(json.dumps({'checks':checks},indent=2));print(json.dumps({'checks':checks}))
+
+from browser_fonts import opentype
+for name in ['helv','hebo','tiro','tibi','cour']:
+ original=fitz.Font(name);wrapped=opentype(original.buffer);face=fitz.Font(fontbuffer=wrapped)
+ assert wrapped[:4]==b'OTTO'
+ assert all(abs(original.text_length(c,12)-face.text_length(c,12))<.02 for c in 'ABCDabcd1234')
+checks.append('Raw CFF wrapped for browser loading with identical advances and bold/italic flags')
+(out/'p3-native-report.json').write_text(json.dumps({'checks':checks},indent=2));print(json.dumps({'checks':checks}))

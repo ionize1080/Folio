@@ -139,6 +139,24 @@ const errors = [],
   await page.waitForFunction(() => window.__qa);
   await page.evaluate(
     async (bytes) =>
+      window.__qa.loadPDF(new Uint8Array(bytes), "Standard CFF.pdf"),
+    Array.from(fs.readFileSync(path.join(out, "v9-fixture.pdf"))),
+  );
+  await page.evaluate(() => window.__qa.actions["flow-edit"]());
+  await page.locator('.page-edit-hit[aria-label="Short title"]').click();
+  await page.waitForFunction(
+    () => /完成/.test(document.querySelector("#pe-status")?.textContent),
+    null,
+    { timeout: 60000 },
+  );
+  await page.locator("#pe-done").click();
+  await page.waitForFunction(() => !window.__qa.S.flowEdit);
+  checks.push(
+    "Raw PDF standard CFF face loads through outline-preserving OpenType wrapper",
+  );
+
+  await page.evaluate(
+    async (bytes) =>
       window.__qa.loadPDF(new Uint8Array(bytes), "Quick edit fixture.pdf"),
     Array.from(fs.readFileSync(path.join(out, "p3-fixture.pdf"))),
   );
@@ -300,6 +318,10 @@ const errors = [],
   );
   await page.locator("#pe-cancel").click();
   checks.push("Rotated region activates without flattening reading direction");
+  console.log(
+    "P3_PREVIEW_IMAGE=" +
+      fs.readFileSync(path.join(out, "p3-ui-1440.png")).toString("base64"),
+  );
   assert.deepEqual(errors, []);
   fs.writeFileSync(
     path.join(out, "p3-ui-report.json"),
