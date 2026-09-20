@@ -11,7 +11,7 @@ export function canFast(m) {
     !m.behindPage &&
     m.layerOrder == null &&
     !m.cell &&
-    !["down", "right"].includes(m.growth)
+    !["down", "right", "auto"].includes(m.growth)
   );
 }
 export function fastLayout(m, measure) {

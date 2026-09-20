@@ -41,7 +41,7 @@ export function sourceStyles(model, objects) {
       italic: !!o.italic,
       syntheticBold: o.renderMode === 2,
       syntheticItalic: !!o.syntheticItalic,
-      strokeWidth: o.strokeWidth || 0,
+      strokeWidth: o.renderMode === 2 ? o.strokeWidth || 0 : 0,
       strokeColor: o.strokeColor,
       fontBold: !!o.fontBold,
       fontItalic: !!o.fontItalic,

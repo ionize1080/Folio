@@ -72,7 +72,7 @@ def render(m):
         if not isinstance(stroke,(int,float)) or not math.isfinite(stroke) or not 0<=stroke<=20:raise ValueError('描边无效')
         stroke=stroke or g['size']*.025
         page.insert_text((x,y),ch,fontsize=g['size'],fontname=names[key],color=rgb,fill=rgb,render_mode=2 if bold else 0,
-                         border_width=stroke,rotate=(-angle)%360,morph=(fitz.Point(x,y),matrix))
+                         border_width=stroke/g['size'],rotate=(-angle)%360,morph=(fitz.Point(x,y),matrix))
     svg=page.get_svg_image(text_as_path=True);doc.subset_fonts();blob=doc.tobytes(garbage=3,deflate=True);doc.close()
     f=m['frame'];overflow=any(g['x']<f['x']-.5 or g['y']<f['y']-.5 or g['x']+g['w']>f['x']+f['width']+.5 or g['y']+g['h']>f['y']+f['height']+.5 for g in gs if g['text'].strip())
     return {'engine':'Folio fast anchored layout','layoutMode':'快速排版','fragment':base64.b64encode(blob).decode(),'svg':svg,'glyphs':gs,
@@ -104,9 +104,9 @@ def styled_story(m,result):
         if g is None:
             if not ch.isspace():raise ValueError('精排字位不完整')
             g={**(last or {'x':m['frame']['x'],'y':m['frame']['y'],'h':m['size'],'baseline':m['frame']['y']+m['size']*.85}),'w':0}
-        size=style.get('size',m['size'])
+        size=style.get('size',m['size']);face=font_data(key)
         g={**g,'text':ch,'start':offset,'end':offset+len(ch.encode('utf-16-le'))//2,'originX':g.get('originX',g['x']),'size':size,'fontKey':key,
-           'color':style.get('color',m['color']),'bold':bool(style.get('bold')),'italic':bool(style.get('italic')),'fontBold':bool(style.get('fontBold')),'fontItalic':bool(style.get('fontItalic')),'strokeWidth':style.get('strokeWidth',0),'rotation':0,'scale':style.get('horizontalScale',100)/100}
+           'color':style.get('color',m['color']),'bold':bool(style.get('bold')),'italic':bool(style.get('italic')),'fontBold':face['fontBold'],'fontItalic':face['fontItalic'],'strokeWidth':style.get('strokeWidth',0),'rotation':0,'scale':style.get('horizontalScale',100)/100}
         gs.append(g);offset=g['end'];last=g
     new={**m,'fastLayout':{'version':1,'text':m['text'],'glyphs':gs,'anchors':result.get('anchors',[])}}
     styled=render(new)

@@ -40,7 +40,7 @@ let browser,server,activePage;const errors=[],checks=[];
  const bytes=Array.from(fs.readFileSync(filename));
  await page.evaluate(async(bytes)=>{await window.__qa.loadPDF(new Uint8Array(bytes),'Folio UI test.pdf');await window.__qa.surface.go(1);},bytes);
 
- const stable=()=>page.waitForFunction(()=>/(?:自动重排|段落重排|原始字位|局部行重排)完成/.test(document.querySelector('#pe-status')?.textContent||''),null,{timeout:30000});
+ const stable=()=>page.waitForFunction(()=>/(?:自动重排|段落重排|原始字位|局部行重排|快速排版)完成/.test(document.querySelector('#pe-status')?.textContent||''),null,{timeout:30000});
  const draft=()=>page.evaluate(()=>window.__qa.S.flowEdit?.draft());
  const replace=async text=>{await page.locator('.page-edit-input').evaluate((el,text)=>{el.focus();el.select();document.execCommand('insertText',false,text);},text);};
  await page.evaluate(()=>window.__qa.actions.generate());await page.waitForSelector('[data-field="pattern"]');

@@ -1208,6 +1208,7 @@ export function installFlowUI(ctx) {
         if (validRevision !== revision) return reflow();
         return;
       }
+      delete model.fastLayout;
       const rev = revision,
         m = clone(model);
       validRevision = -1;

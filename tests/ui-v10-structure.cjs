@@ -36,14 +36,14 @@ let browser,server,activePage;const errors=[],checks=[];
 
  const bytes=Array.from(fs.readFileSync(path.join(out,'v9-fixture.pdf')));await page.evaluate(async bytes=>window.__qa.loadPDF(new Uint8Array(bytes),'Structure.pdf'),bytes);
  await page.locator('[data-action="flow-edit"]').click();await page.waitForSelector('.page-edit-hit');
- await page.locator('.page-edit-hit').evaluateAll(es=>es.find(e=>e.getAttribute('aria-label').startsWith('Left column paragraph.')).click());await page.waitForFunction(()=>/(?:自动重排|段落重排|原始字位|局部行重排)完成/.test(document.querySelector('#pe-status').textContent));
+ await page.locator('.page-edit-hit').evaluateAll(es=>es.find(e=>e.getAttribute('aria-label').startsWith('Left column paragraph.')).click());await page.waitForFunction(()=>/(?:自动重排|段落重排|原始字位|局部行重排|快速排版)完成/.test(document.querySelector('#pe-status').textContent));
  await page.locator('#pe-more').click();await page.locator('.pe-structure summary').click();await page.locator('#pe-region-kind').selectOption('text');await page.locator('#pe-region-order').fill('2');await page.locator('#pe-structure-save').click();assert.equal(await page.evaluate(()=>window.__qa.S.structures.length),1);await page.locator('#pe-link').click();await page.locator('#pe-close-properties').click();await page.locator('.page-edit-hit').evaluateAll(es=>es.find(e=>e.getAttribute('aria-label').startsWith('Right column paragraph')).click());
- await page.waitForFunction(()=>/(?:自动重排|段落重排|原始字位|局部行重排)完成|草稿已保留/.test(document.querySelector('#pe-status').textContent));await page.locator('#pe-more').click();await page.waitForSelector('#pe-chain-list li');assert.equal(await page.locator('#pe-chain-list li').count(),2);await page.screenshot({path:path.join(out,'v10-structure-chain.png')});await page.locator('#pe-close-properties').click();await page.locator('#pe-done').click();
+ await page.waitForFunction(()=>/(?:自动重排|段落重排|原始字位|局部行重排|快速排版)完成|草稿已保留/.test(document.querySelector('#pe-status').textContent));await page.locator('#pe-more').click();await page.waitForSelector('#pe-chain-list li');assert.equal(await page.locator('#pe-chain-list li').count(),2);await page.screenshot({path:path.join(out,'v10-structure-chain.png')});await page.locator('#pe-close-properties').click();await page.locator('#pe-done').click();
  // A bounded chain now keeps its draft when the joined text exceeds its frames.
  await page.waitForFunction(()=>!window.__qa.S.flowEdit || document.querySelector('#pe-status')?.textContent.includes('草稿已保留'));
  if(await page.evaluate(()=>!!window.__qa.S.flowEdit)) {
   await page.locator('#pe-overflow').click();
-  await page.waitForFunction(()=>/(?:自动重排|段落重排|原始字位|局部行重排)完成/.test(document.querySelector('#pe-status')?.textContent));
+  await page.waitForFunction(()=>/(?:自动重排|段落重排|原始字位|局部行重排|快速排版)完成/.test(document.querySelector('#pe-status')?.textContent));
   await page.locator('#pe-done').click();
  }
  await page.waitForFunction(()=>!window.__qa.S.flowEdit);assert.equal(await page.evaluate(()=>window.__qa.S.nativeEdits.find(e=>e.model?.frames)?.model.frames.length),2);

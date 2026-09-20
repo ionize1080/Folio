@@ -6,7 +6,7 @@ import fitz,worker
 from fast_layout import font_data,render
 out=root/'tests/output';out.mkdir(exist_ok=True);checks=[]
 d=fitz.open();p=d.new_page(width=595,height=842);font=str(root/'native/fonts/DejaVuSans.ttf');p.insert_font(fontname='Body',fontfile=font)
-p.insert_text((70,100),'Quarterly report',fontname='Body',fontsize=14,render_mode=2,border_width=.35)
+p.insert_text((70,100),'Quarterly report',fontname='Body',fontsize=14,render_mode=2,border_width=.025)
 p.insert_text((70,140),'Original first line',fontname='Body',fontsize=12)
 p.insert_text((70,156),'Original second line',fontname='Body',fontsize=12)
 p.insert_text((70,200),'Selection bold and italic',fontname='Body',fontsize=12)
@@ -25,7 +25,13 @@ saved=base64.b64decode(worker.run({'command':'apply','bytes':base64.b64encode(ra
 with fitz.open(stream=saved,filetype='pdf') as pdf:
  assert 'Selection' in pdf[0].get_text();traces=[t for t in pdf[0].get_texttrace() if 180<t['bbox'][1]<210];assert any(t['type']==1 for t in traces)
  assert any(abs(t['dir'][0]-1)<.01 for t in traces)
-checks.append('Selected synthetic bold and italic exported as actual searchable PDF text')
+from pypdf import PdfReader
+from pypdf.generic import ContentStream
+import io
+page=PdfReader(io.BytesIO(base64.b64decode(result['fragment']))).pages[0]
+widths=[float(a[0]) for a,op in ContentStream(page['/Contents'],page.pdf).operations if op==b'w']
+assert widths and all(0<w<=.31 for w in widths),widths
+checks.append('Selected synthetic bold and italic exported as actual searchable PDF text, correct stroke units')
 # A stale/malformed cache must not silently export other text.
 bad=copy.deepcopy(m);bad['text']+='X'
 try:render(bad);raise AssertionError('stale accepted')

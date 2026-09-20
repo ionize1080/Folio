@@ -205,6 +205,7 @@ const errors = [],
   );
   // Large frame allows both layout choices to fit; format panel fields are public UI.
   await page.locator("#pe-more").click();
+  await page.locator(".pe-position>summary").click();
   await page.locator('input[data-frame="width"]').fill("330");
   await page.locator('input[data-frame="width"]').dispatchEvent("change");
   await page.locator('input[data-frame="height"]').fill("110");
