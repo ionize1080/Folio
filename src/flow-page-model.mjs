@@ -421,7 +421,19 @@ export function growthLimit(model, objects, edits, page, ownId) {
   return Math.max(f.height, Math.min(model.pageHeight - f.y, bottom - f.y));
 }
 
-export function hitOffset(glyphs, x, y) {
+export function hitOffset(glyphs, x, y, anchors = []) {
+  // Only empty-line anchors bypass glyph hit testing. Fast layout has anchors
+  // for every character: choosing the first anchor in a line loses mouse X.
+  const blank = Object.entries(anchors || {}).find(
+    ([, a]) =>
+      a &&
+      y >= a.y &&
+      y <= a.y + a.h &&
+      !glyphs.some(
+        (g) => g.w > 0.05 && g.h > 0.05 && g.y < a.y + a.h && g.y + g.h > a.y,
+      ),
+  );
+  if (blank) return +blank[0];
   if (!glyphs.length) return 0;
   const distance = (g) =>
     Math.max(g.x - x, 0, x - g.x - g.w) ** 2 +

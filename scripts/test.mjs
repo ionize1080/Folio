@@ -32,6 +32,7 @@ if (mode === "all")
 run(python, ["tests/fixture-v9.py"]);
 run(python, ["tests/fixture-v10.py"]);
 run(python, ["tests/fixture-encrypted-p1.py"]);
+if (mode !== "ui") run(python, ["tests/editor-p4.py"]);
 if (mode === "all") {
   run(python, ["tests/fast-layout-p3.py"]);
   for (const file of ["ui-fast-p3.cjs", "ui-v9.cjs", "ui-v9-details.cjs"])
@@ -57,6 +58,7 @@ if (mode === "ui") {
   run(python, ["tests/native-v11.py"]); // Creates actual subset/encryption fixtures.
   run(python, ["tests/native-v12.py"]); // Creates punctuation fixture.
   run(python, ["tests/fast-layout-p3.py"]);
+  run(python, ["tests/editor-p4.py"]);
 }
 if (mode !== "native")
   for (const file of [
@@ -67,6 +69,7 @@ if (mode !== "native")
     "ui-v11.cjs",
     "ui-v12.cjs",
     "ui-fast-p3.cjs",
+    "ui-editor-p4.cjs",
     "ui-encrypted-open-p1.cjs",
     "ui-large-p2.cjs",
   ])

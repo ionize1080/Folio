@@ -520,7 +520,7 @@ export class FastFonts {
       fontItalic: f.fontItalic,
     };
   };
-  paint(canvas, layout, w, h, scale) {
+  paint(canvas, layout, w, h, scale, clipFrame = null) {
     let l = w,
       t = h,
       r = 0,
@@ -531,6 +531,12 @@ export class FastFonts {
       t = Math.min(t, g.y - g.size * 0.25);
       r = Math.max(r, g.x + g.w + g.size * 0.4);
       b = Math.max(b, g.y + g.h + g.size * 0.25);
+    }
+    if (clipFrame) {
+      l = Math.max(l, clipFrame.x);
+      t = Math.max(t, clipFrame.y);
+      r = Math.min(r, clipFrame.x + clipFrame.width);
+      b = Math.min(b, clipFrame.y + clipFrame.height);
     }
     if (r <= l || b <= t) {
       canvas.width = 1;
@@ -562,7 +568,21 @@ export class FastFonts {
     c.clearRect(0, 0, iw, ih);
     c.scale(z, z);
     c.translate(-l, -t);
+    c.save();
+    if (clipFrame) {
+      c.beginPath();
+      c.rect(clipFrame.x, clipFrame.y, clipFrame.width, clipFrame.height);
+      c.clip();
+    }
     for (const g of layout.glyphs) {
+      if (
+        clipFrame &&
+        (g.y > b + g.size ||
+          g.y + g.h < t - g.size ||
+          g.x > r + g.size ||
+          g.x + g.w < l - g.size)
+      )
+        continue;
       if (!g.text.trim()) continue;
       const f = this.fonts.get(g.fontKey);
       if (!f) continue;
@@ -580,5 +600,6 @@ export class FastFonts {
       }
       c.restore();
     }
+    c.restore();
   }
 }

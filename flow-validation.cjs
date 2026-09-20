@@ -21,8 +21,8 @@ function validateModel(m) {
   n(m.gap ?? 18, 0, 200, "栏间距");
   n(m.size, 4, 150, "字号");
   n(m.lineHeight, 1, 3, "行高");
-  if ((f.width - (columns - 1) * (m.gap ?? 18)) / columns < m.size * 2)
-    throw Error("每栏宽度不足，请扩大文本框");
+  if ((f.width - (columns - 1) * (m.gap ?? 18)) / columns <= 0)
+    throw Error("栏间距占满了文本框，请减少栏数或栏间距");
   if (!["left", "center", "right", "justify"].includes(m.align))
     throw Error("对齐方式无效");
   if (!/^#[0-9a-f]{6}$/i.test(m.color)) throw Error("文字颜色无效");
