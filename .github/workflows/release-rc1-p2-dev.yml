@@ -107,21 +107,30 @@ jobs:
       - name: Create release with verified assets and publish
         shell: python
         run: |
-          import json, subprocess
+          import hashlib, json, subprocess
           from pathlib import Path
           tag='v1.2.0-rc1-p2-dev'
           repo='ionize1080/Folio'
           sha='af4d249aae820e05154ae41836557b4df7f31d6c'
           releases=json.loads(subprocess.check_output(['gh','api',f'repos/{repo}/releases?per_page=100']))
-          assert not any(r['tag_name']==tag for r in releases),'Release already exists; inspect before retry'
           files=sorted(Path('release').iterdir())
           assert len(files)==4
-          subprocess.run(['gh','release','create',tag,*map(str,files),'--target',sha,'--title','Folio PDF Studio 1.2.0 RC1-P2 DEV','--notes-file','release-notes.md','--draft','--prerelease','--latest=false'],check=True)
-          release=json.loads(subprocess.check_output(['gh','api',f'repos/{repo}/releases/tags/{tag}']))
+          matches=[r for r in releases if r['tag_name']==tag]
+          if not matches:
+              subprocess.run(['gh','release','create',tag,*map(str,files),'--target',sha,'--title','Folio PDF Studio 1.2.0 RC1-P2 DEV','--notes-file','release-notes.md','--draft','--prerelease','--latest=false'],check=True)
+              releases=json.loads(subprocess.check_output(['gh','api',f'repos/{repo}/releases?per_page=100']))
+              matches=[r for r in releases if r['tag_name']==tag]
+          assert len(matches)==1
+          release=matches[0]
           assert release['draft'] and release['prerelease'] and release['target_commitish']==sha
           assert {a['name']:a['size'] for a in release['assets']}=={f.name:f.stat().st_size for f in files}
           assert all(a['state']=='uploaded' for a in release['assets'])
-          subprocess.run(['gh','release','edit',tag,'--draft=false','--prerelease','--latest=false'],check=True)
+          assert release['body'].strip()==Path('release-notes.md').read_text(encoding='utf-8').strip()
+          for file in files:
+              asset=next(a for a in release['assets'] if a['name']==file.name)
+              with file.open('rb') as f:
+                  assert asset['digest']=='sha256:'+hashlib.file_digest(f,'sha256').hexdigest()
+          subprocess.run(['gh','api','--method','PATCH',f"repos/{repo}/releases/{release['id']}",'-F','draft=false','-F','prerelease=true','-f','make_latest=false','--silent'],check=True)
           published=json.loads(subprocess.check_output(['gh','api',f'repos/{repo}/releases/tags/{tag}']))
           assert not published['draft'] and published['prerelease']
           print(published['html_url'])
