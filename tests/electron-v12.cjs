@@ -19,6 +19,25 @@ const root=path.resolve(__dirname,'..'),out=path.join(root,'tests/output'),check
   await page.locator('#pe-done').click();await page.waitForFunction(()=>!document.body.classList.contains('page-edit-mode'));
   await page.locator('[data-action="save"]').click();await page.waitForFunction(()=>!document.querySelector('#dirty-dot').classList.contains('changed') && document.querySelector('#doc-name').textContent.includes('saved'),null,{timeout:60000});
   assert(fs.statSync(saved).size>100);checks.push('Real Windows native edit and atomic PDF save');
+  // Exercise the actual large-file open IPC and packaged native worker, not
+  // only the browser harness. Keep sparse fixtures out of uploaded artifacts.
+  const largeInput=path.join(out,'large-electron-input.pdf'),largeSaved=path.join(out,'large-electron-saved.pdf');
+  require('node:child_process').execFileSync(process.env.FOLIO_PYTHON||'python',[path.join(root,'tests/fixture-large-p2.py'),largeInput]);
+  try {
+    await app.evaluate(({dialog},{largeInput,largeSaved})=>{dialog.showOpenDialog=async()=>({canceled:false,filePaths:[largeInput]});dialog.showSaveDialog=async()=>({canceled:false,filePath:largeSaved});},{largeInput,largeSaved});
+    await page.locator('[data-action="open"]').first().click();
+    await page.waitForFunction(()=>document.querySelector('.large-workspace [data-image]')?.naturalWidth>0,null,{timeout:60000});
+    await page.locator('.large-workspace [data-add]').click();
+    await page.locator('.large-workspace [data-title]').fill('Large yearbook bookmark');
+    await page.locator('.large-workspace [data-update]').click();
+    await page.locator('.large-workspace [data-save]').click();
+    await page.waitForFunction(()=>/已保存/.test(document.querySelector('.large-workspace [data-status]')?.textContent),null,{timeout:120000});
+    assert(fs.statSync(largeSaved).size>768*1024**2);
+    await page.screenshot({path:path.join(out,'large-electron-p2.png')});
+    await page.locator('.large-workspace [data-close]').click();
+    await page.waitForSelector('.large-workspace',{state:'detached'});
+    checks.push('Actual >768 MiB IPC opens file-backed workspace and packaged worker saves bookmark copy');
+  } finally {for(const f of [largeInput,largeSaved])fs.rmSync(f,{force:true});}
   assert.deepEqual(errors,[]);await page.screenshot({path:path.join(out,'v12-electron.png')});
   const exe=await app.evaluate(()=>process.execPath),hash=p=>require('node:crypto').createHash('sha256').update(fs.readFileSync(p)).digest('hex');
   fs.writeFileSync(path.join(out,'v12-electron-report.json'),JSON.stringify({platform:process.platform,checks,errors,exe_sha256:hash(exe),asar_sha256:process.env.FOLIO_EXE?hash(path.join(path.dirname(exe),'resources/app.asar')):null},null,2));console.log(checks);

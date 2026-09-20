@@ -174,6 +174,9 @@ assert(
 );
 for (const f of [
   "original_patch.py",
+  "font_resolver.py",
+  "ocr_diagnostics.py",
+  "large_pdf.py",
   "qpdf_tools.py",
   "original_layout.py",
   "font_similarity.py",
