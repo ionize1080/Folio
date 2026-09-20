@@ -32,5 +32,5 @@
     "dompurify": "^3.4.15",
     "opencc-js": "^1.0.5"
   },
-  "releaseChannel": "rc1-p2-dev"
+  "releaseChannel": "rc1-p3"
 }

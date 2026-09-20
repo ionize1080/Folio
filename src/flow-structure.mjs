@@ -11,6 +11,14 @@ export function unionFrames(frames) {
 }
 export function joinModels(a, b, chain = false) {
   if (a.cell || b.cell) throw Error("表格单元格请使用表格结构工具");
+  if (
+    (a.writingMode || "horizontal-tb") !== (b.writingMode || "horizontal-tb") ||
+    (a.direction || "ltr") !== (b.direction || "ltr") ||
+    (a.rotation || 0) !== (b.rotation || 0)
+  )
+    throw Error("不同阅读方向的文字需要分别编辑");
+  if (chain && (a.rotation || a.writingMode?.startsWith("vertical")))
+    throw Error("当前方向暂不支持跨框串接，请分别编辑");
   const own = new Set(a.sources.map((s) => s.index));
   if (b.sources.some((s) => own.has(s.index)))
     throw Error("这两个范围包含相同原文");
@@ -37,6 +45,7 @@ export function joinModels(a, b, chain = false) {
     delete m.frames;
     m.frame = unionFrames([a.frame, b.frame]);
   }
+  delete m.fastLayout;
   m.structureLocked = true;
   return m;
 }
@@ -44,6 +53,8 @@ export function splitModel(m, at, glyphs = []) {
   if (!Number.isInteger(at) || at <= 0 || at >= m.text.length)
     throw Error("请将光标放在文字中间的拆分位置");
   if (m.cell) throw Error("请使用表格单元格拆分");
+  if (m.rotation || m.writingMode?.startsWith("vertical"))
+    throw Error("当前方向请保留原框编辑，暂不支持拆框");
   if (
     /[\uD800-\uDBFF]/.test(m.text[at - 1]) &&
     /[\uDC00-\uDFFF]/.test(m.text[at])
@@ -66,6 +77,7 @@ export function splitModel(m, at, glyphs = []) {
         start: Math.max(r.start, start) - start,
         end: Math.min(r.end, end) - start,
       }));
+    delete p.fastLayout;
     delete p.frames;
     delete p.typingStyle;
     p.columns = 1;

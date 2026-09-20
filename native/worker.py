@@ -89,6 +89,11 @@ def describe(r,obj,i,tp):
  out={'index':i,'type':{1:'text',2:'path',3:'image',4:'shading',5:'form'}.get(typ,'other'),'bounds':[v.value for v in b],'matrix':[m.a,m.b,m.c,m.d,m.e,m.f],'fill':get_color(r,obj),'stroke':get_color(r,obj,True)}
  if typ==1:
   n=r.FPDFTextObj_GetText(obj,tp,None,0);buf=(C.c_ushort*((n+1)//2))();r.FPDFTextObj_GetText(obj,tp,buf,n);size=C.c_float();r.FPDFTextObj_GetFontSize(obj,C.byref(size));out.update(text=bytes(buf)[:n].decode('utf-16-le',errors='replace').rstrip('\0'),size=size.value,renderMode=r.FPDFTextObj_GetTextRenderMode(obj))
+ if typ==1:
+  width=C.c_float();r.FPDFPageObj_GetStrokeWidth(obj,C.byref(width));out['strokeWidth']=width.value*math.hypot(m.a,m.b)
+  font=r.FPDFTextObj_GetFont(obj);flags=r.FPDFFont_GetFlags(font) if font else 0;weight=r.FPDFFont_GetWeight(font) if font else 0
+  out['fontBold']=weight>=600;out['fontItalic']=bool(flags & 64);out['bold']=out['fontBold'] or out['renderMode']==2
+  out['syntheticItalic']=abs(m.a*m.c+m.b*m.d)>0.03*max(.00001,math.hypot(m.a,m.b)*math.hypot(m.c,m.d));out['italic']=out['fontItalic'] or out['syntheticItalic']
  if typ==2:
   segs=[]
   for j in range(r.FPDFPath_CountSegments(obj)):
@@ -304,6 +309,9 @@ def run(args):
  if args.get('command')=='font-catalog':
   from system_fonts import list_fonts
   return list_fonts()
+ if args.get('command')=='font-fast':
+  from fast_layout import font_data
+  return font_data(args.get('fontKey'))
  if args.get('command')=='font-data':
   from font_match import load_font
   font=load_font(args.get('fontKey'))
@@ -331,12 +339,14 @@ def run(args):
   from story import analyze
   return analyze(Path(args['input']).read_bytes(),args.get('page',1))
  if args.get('command')=='flow-background':
-  # PDF.js renders the exact same PDF color spaces / Decode arrays as the reader.
-  data=run({**args,'command':'apply'})['bytes']
+  # Compose just the active page, not all pages of a yearbook on each activation.
   from pypdf import PdfReader,PdfWriter
-  reader=PdfReader(io.BytesIO(base64.b64decode(data)));writer=PdfWriter()
-  writer.add_page(reader.pages[args.get('page',1)-1]);buf=io.BytesIO();writer.write(buf)
-  return {'pdf':base64.b64encode(buf.getvalue()).decode()}
+  raw=Path(args['input']).read_bytes() if 'input' in args else base64.b64decode(args['bytes'])
+  reader=PdfReader(io.BytesIO(raw));number=args.get('page',1);writer=PdfWriter();writer.add_page(reader.pages[number-1]);buf=io.BytesIO();writer.write(buf)
+  edits=[{**e,'page':1} for e in args.get('edits',[]) if e['page']==number]
+  blocks=[{**b,'page':1} for b in read_blocks(args) if b['page']==number]
+  data=run({'command':'apply','page':1,'bytes':base64.b64encode(buf.getvalue()).decode(),'edits':edits,'blocks':blocks,'ocr':blocks})['bytes']
+  return {'pdf':data}
  import pypdfium2 as p
  if args.get('command')=='ocr' and 'input' in args:
   if CACHED_PATH!=args['input']:

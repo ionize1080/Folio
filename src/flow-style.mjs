@@ -5,9 +5,10 @@ export function sourceStyles(model, objects) {
   let cursor = 0;
   const runs = [],
     glyphs = [];
+  const order = new Map(model.sources.map((s, i) => [s.index, i]));
   const src = objects
     .filter((o) => sources.has(o.index))
-    .sort((a, b) => b.matrix[5] - a.matrix[5] || a.bounds[0] - b.bounds[0]);
+    .sort((a, b) => order.get(a.index) - order.get(b.index));
   for (const o of src) {
     const text = o.text.replace(/[\r\n]+/g, "");
     if (!text) continue;
@@ -36,6 +37,14 @@ export function sourceStyles(model, objects) {
         o.fontResolution || (o.fontKey ? "embedded" : "unresolved"),
       fontFallback: o.fontFallback || "",
       size: o.size,
+      bold: !!o.bold || o.renderMode === 2,
+      italic: !!o.italic,
+      syntheticBold: o.renderMode === 2,
+      syntheticItalic: !!o.syntheticItalic,
+      strokeWidth: o.renderMode === 2 ? o.strokeWidth || 0 : 0,
+      strokeColor: o.strokeColor,
+      fontBold: !!o.fontBold,
+      fontItalic: !!o.fontItalic,
       color:
         "#" +
         fill
@@ -44,26 +53,37 @@ export function sourceStyles(model, objects) {
           .join(""),
       charSpacing: o.charSpacing || 0,
       wordSpacing: o.wordSpacing || 0,
-      horizontalScale: ((o.horizontalScale || 100) * o.matrix[0]) / o.matrix[3],
+      horizontalScale:
+        ((o.horizontalScale || 100) * Math.hypot(o.matrix[0], o.matrix[1])) /
+        Math.hypot(o.matrix[2], o.matrix[3]),
     };
-    let glyphOffset = start;
-    if (
-      (o.glyphs || [])
-        .map((g) => g.text)
-        .join("")
-        .replace(/[\r\n]+/g, "") === text
-    ) {
-      for (const g of o.glyphs || [])
-        if (!/[\r\n]/.test(g.text)) {
-          glyphs.push({
-            ...g,
-            start: glyphOffset,
-            end: glyphOffset + g.text.length,
-            style: { ...style },
-          });
-          glyphOffset += g.text.length;
-        }
+    // PDFium may omit nonpainting spaces from its glyph list. Keep real
+    // anchors and fill only missing whitespace below, rather than dropping
+    // the whole object's geometry because a trailing space has no glyph.
+    let objectOffset = 0;
+    const captured = [];
+    let aligned = true;
+    for (const g of o.glyphs || []) {
+      if (/[\r\n]/.test(g.text)) continue;
+      while (
+        objectOffset < text.length &&
+        text[objectOffset] === " " &&
+        g.text !== " "
+      )
+        objectOffset++;
+      if (!text.startsWith(g.text, objectOffset)) {
+        aligned = false;
+        break;
+      }
+      captured.push({
+        ...g,
+        start: start + objectOffset,
+        end: start + objectOffset + g.text.length,
+        style: { ...style },
+      });
+      objectOffset += g.text.length;
     }
+    if (aligned && !text.slice(objectOffset).trim()) glyphs.push(...captured);
     runs.push({ start, end: start + text.length, ...style });
     cursor = start + text.length;
   }
@@ -74,15 +94,20 @@ export function sourceStyles(model, objects) {
     model.fontName = main.fontName;
     model.charSpacing = main.charSpacing;
     model.wordSpacing = main.wordSpacing;
+    model.bold = main.bold;
+    model.italic = main.italic;
   }
   const byOffset = new Map(glyphs.map((g) => [g.start, g]));
+  let glyphCursor = 0;
   let position = 0,
     prev = null;
   const complete = [];
   for (const ch of model.text) {
+    while (glyphCursor < glyphs.length && glyphs[glyphCursor].start <= position)
+      glyphCursor++;
     let g = byOffset.get(position);
-    if (!g && ch === " " && prev) {
-      const next = glyphs.find((g) => g.start > position),
+    if (!g && (ch === " " || ch === "\n") && prev) {
+      const next = glyphs[glyphCursor],
         x = prev.x + prev.w;
       g = {
         text: ch,
@@ -108,7 +133,10 @@ export function sourceStyles(model, objects) {
   glyphs.splice(0, glyphs.length, ...complete);
   if (
     glyphs.length &&
-    src.every((o) => o.renderMode === 0 && (!o.fill || o.fill[3] === 255)) &&
+    src.every(
+      (o) =>
+        [0, 2].includes(o.renderMode ?? 0) && (!o.fill || o.fill[3] === 255),
+    ) &&
     glyphs.map((g) => g.text).join("") === model.text
   ) {
     model.layoutMode = "preserve";
@@ -125,6 +153,13 @@ export function sourceStyles(model, objects) {
           "wordSpacing",
           "bold",
           "italic",
+          "syntheticBold",
+          "syntheticItalic",
+          "strokeWidth",
+          "strokeColor",
+          "fontBold",
+          "fontItalic",
+          "horizontalScale",
           "firstIndent",
           "paragraphBefore",
           "paragraphGap",
@@ -148,6 +183,13 @@ export function editStyles(runs, oldText, newText, base = {}) {
       "wordSpacing",
       "bold",
       "italic",
+      "syntheticBold",
+      "syntheticItalic",
+      "strokeWidth",
+      "strokeColor",
+      "fontBold",
+      "fontItalic",
+      "horizontalScale",
       "latinFontKey",
       "latinFontName",
       "cjkFontKey",
@@ -235,6 +277,13 @@ export function rangeStyle(model, start, end, patch) {
         "wordSpacing",
         "bold",
         "italic",
+        "syntheticBold",
+        "syntheticItalic",
+        "strokeWidth",
+        "strokeColor",
+        "fontBold",
+        "fontItalic",
+        "horizontalScale",
       ];
       return {
         ...Object.fromEntries(

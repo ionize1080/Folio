@@ -20,6 +20,10 @@ export function pageCandidates(objects, w, h, regions = [], tables = []) {
       ? { ...o, size: o.size * Math.hypot(o.matrix[2], o.matrix[3]) }
       : o,
   );
+  const objectByIndex = new Map(objects.map((o) => [o.index, o]));
+  const sortedObstacles = objects
+    .map((o) => ({ o, b: topBounds(o, h) }))
+    .sort((a, b) => a.b[1] - b.b[1]);
   // Repeated native line starts establish gutters even when AI labels the whole page as text.
   const lanes = [];
   for (const o of objects.filter(
@@ -92,7 +96,7 @@ export function pageCandidates(objects, w, h, regions = [], tables = []) {
       ? "span"
       : cuts.filter((c) => x > c).length;
     const key =
-      (r
+      (r?.kind === "table"
         ? `${r.i}:${r.kind === "table" ? Math.round(o.matrix[5] / 3) : ""}`
         : "geometry") +
       ":" +
@@ -100,16 +104,18 @@ export function pageCandidates(objects, w, h, regions = [], tables = []) {
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key).push(o);
   }
+  const barriers = objects.filter((o) => o.type === "path");
   let candidates = [...groups.values()].flatMap((g) =>
-    paragraphCandidates(g, h),
+    paragraphCandidates(g, h, barriers),
   );
   // Native deletion now preserves advances inside shared BT groups; never merge columns by BT identity.
   candidates = candidates.map((c, i) => {
     const cs = [c];
     const m = mergeCandidates(cs, w, h);
-    const src = objects.filter((o) =>
-      m.sources.some((s) => s.index === o.index),
-    );
+    const selectedIndices = new Set(m.sources.map((s) => s.index));
+    const src = m.sources
+      .map((s) => objectByIndex.get(s.index))
+      .filter(Boolean);
     const bases = [
       ...new Set(src.map((o) => Math.round(o.matrix[5] * 10) / 10)),
     ].sort((a, b) => b - a);
@@ -168,17 +174,35 @@ export function pageCandidates(objects, w, h, regions = [], tables = []) {
       top + Math.max(m.frame.height, m.size * m.lineHeight),
     );
     let limit = h - 12;
-    for (const o of objects) {
-      if (selected.has(o.index)) continue;
-      const b = topBounds(o, h);
-      if (b[2] <= x0 + 1 || b[0] >= x1 - 1) continue;
-      if (b[1] >= h - lastBase + m.size * 0.18)
-        limit = Math.min(limit, b[1] + m.size * 0.55);
+    let lo = 0,
+      hi = sortedObstacles.length;
+    const threshold = h - lastBase + m.size * 0.18;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (sortedObstacles[mid].b[1] < threshold) lo = mid + 1;
+      else hi = mid;
+    }
+    for (let j = lo; j < sortedObstacles.length; j++) {
+      const { o, b } = sortedObstacles[j];
+      if (b[1] >= limit) break;
+      if (selected.has(o.index) || b[2] <= x0 + 1 || b[0] >= x1 - 1) continue;
+      limit = Math.min(limit, b[1] + m.size * 0.55);
+      break;
     }
     bottom = Math.max(bottom, Math.min(limit, top + m.frame.height + m.size));
     m.frame.height = Math.max(10, Math.min(limit - top, bottom - top));
-    sourceStyles(m, objects);
-    m.originalBaseline = h - firstBase;
+    if (m.writingMode?.startsWith("vertical") || m.rotation) {
+      m.frame = {
+        ...c.frame,
+        width: Math.max(m.size * 2, c.frame.width),
+        height: Math.max(m.size * 2, c.frame.height),
+      };
+    }
+    sourceStyles(m, src);
+    if (!m.writingMode?.startsWith("vertical"))
+      m.originalBaseline = h - firstBase;
+    m.baselineOffset =
+      m.originalBaseline != null ? m.originalBaseline - m.frame.y : undefined;
     return { id: "page-paragraph-" + i, model: m, original, reason };
   });
   for (const cell of cellList) {
@@ -246,7 +270,7 @@ export function pageCandidates(objects, w, h, regions = [], tables = []) {
           .slice(0, 3)
           .map((v) => Math.round(v).toString(16).padStart(2, "0"))
           .join("");
-    sourceStyles(m, objects);
+    sourceStyles(m, src);
     candidates.push({
       id: cell.id,
       model: m,
@@ -254,8 +278,12 @@ export function pageCandidates(objects, w, h, regions = [], tables = []) {
       reason: "",
     });
   }
-  return candidates.sort(
-    (a, b) => a.original.y - b.original.y || a.original.x - b.original.x,
+  return candidates.sort((a, b) =>
+    a.model.writingMode?.startsWith("vertical") &&
+    a.model.writingMode === b.model.writingMode
+      ? (a.model.writingMode === "vertical-rl" ? -1 : 1) *
+          (a.original.x - b.original.x) || a.original.y - b.original.y
+      : a.original.y - b.original.y || a.original.x - b.original.x,
   );
 }
 
@@ -399,7 +427,7 @@ export function hitOffset(glyphs, x, y) {
     Math.max(g.x - x, 0, x - g.x - g.w) ** 2 +
     4 * Math.max(g.y - y, 0, y - g.y - g.h) ** 2;
   const g = glyphs.reduce((a, b) => (distance(b) < distance(a) ? b : a));
-  return x > g.x + g.w / 2 ? g.end : g.start;
+  return (g.vertical ? y > g.y + g.h / 2 : x > g.x + g.w / 2) ? g.end : g.start;
 }
 
 export function caretRect(glyphs, offset, model) {
@@ -409,9 +437,11 @@ export function caretRect(glyphs, offset, model) {
   if (glyph) {
     // Ink bounds describe a dot's paint, not the line's insertion caret.
     // Use the local font size and baseline, preserving genuine small text.
-    const size = glyph.size || model.runs?.find(
-      (r) => r.start <= glyph.start && r.end > glyph.start,
-    )?.size || model.size;
+    const size =
+      glyph.size ||
+      model.runs?.find((r) => r.start <= glyph.start && r.end > glyph.start)
+        ?.size ||
+      model.size;
     const baseline = glyph.baseline ?? glyph.y + glyph.h;
     return {
       x: glyph === next ? glyph.x : glyph.x + glyph.w,

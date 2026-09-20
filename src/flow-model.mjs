@@ -1,141 +1,22 @@
-// Conservative native-text paragraph candidates; no generative rewriting of source text.
-const rowText = (row) =>
-  row.objects
-    .map((o) => o.text)
-    .join("")
-    .trim();
-function paragraphBreak(last, row, paragraph) {
-  const before = rowText(last),
-    after = rowText(row);
-  const heading =
-    /^(?:第[〇零一二三四五六七八九十百千万\d]+[章节篇部分]|[（(]?[一二三四五六七八九十百\d]+[）)、.．])/u;
-  if (heading.test(after)) return true;
-  if (
-    paragraph.rows.length === 1 &&
-    heading.test(before) &&
-    before.length <= 45 &&
-    (row.right - row.left > (last.right - last.left) * 1.4 ||
-      row.left - last.left > row.size)
-  )
-    return true;
-  const bold = (r) =>
-    r.objects.some((o) => /bold|黑体|粗/i.test(o.fontName || ""));
-  return (
-    before.length < 45 &&
-    bold(last) !== bold(row) &&
-    row.right - row.left > (last.right - last.left) * 1.3
-  );
-}
-export function paragraphCandidates(objects, pageHeight) {
-  const rows = [];
-  for (const o of objects
-    .filter(
-      (o) =>
-        o.type === "text" &&
-        o.flowEditable &&
-        o.text?.trim() &&
-        Math.abs(o.matrix[1]) < 0.001 &&
-        Math.abs(o.matrix[2]) < 0.001 &&
-        o.matrix[0] > 0 &&
-        o.matrix[3] > 0,
-    )
-    .sort((a, b) => b.matrix[5] - a.matrix[5] || a.bounds[0] - b.bounds[0])) {
-    let row = rows
-      .slice(-5)
-      .find(
-        (r) =>
-          Math.abs(r.base - o.matrix[5]) < Math.max(2, o.size * 0.22) &&
-          Math.abs(r.size - o.size) < Math.max(1.2, o.size * 0.35) &&
-          o.bounds[0] - r.right < Math.max(20, o.size * 2),
-      );
-    if (!row) {
-      row = {
-        base: o.matrix[5],
-        size: o.size,
-        objects: [],
-        left: o.bounds[0],
-        right: o.bounds[2],
-      };
-      rows.push(row);
-    }
-    row.objects.push(o);
-    row.left = Math.min(row.left, o.bounds[0]);
-    row.right = Math.max(row.right, o.bounds[2]);
-  }
-  rows.sort((a, b) => b.base - a.base || a.left - b.left);
-  const paragraphs = [];
-  for (const row of rows) {
-    let previous = paragraphs.slice(-8).find((p) => {
-      const last = p.rows.at(-1),
-        dy = last.base - row.base;
-      return (
-        !/^[\s]*[·•▪●]/u.test(row.objects.map((o) => o.text).join("")) &&
-        !paragraphBreak(last, row, p) &&
-        dy > row.size * 0.6 &&
-        dy < row.size * 2.6 &&
-        Math.abs(last.size - row.size) < Math.max(0.8, row.size * 0.1) &&
-        Math.abs(p.left - row.left) < row.size * 2.8 &&
-        !(row.left - p.left > row.size * 1.3 && p.rows.length > 1) &&
-        last.right >= p.right - row.size * 2
-      );
-    });
-    if (!previous) {
-      previous = { rows: [], left: row.left, right: row.right };
-      paragraphs.push(previous);
-    }
-    previous.rows.push(row);
-    previous.left = Math.min(previous.left, row.left);
-    previous.right = Math.max(previous.right, row.right);
-  }
-  return paragraphs.map((p, i) => {
-    const source = p.rows.flatMap((r) => r.objects),
-      bounds = [
-        Math.min(...source.map((o) => o.bounds[0])),
-        Math.min(...source.map((o) => o.bounds[1])),
-        Math.max(...source.map((o) => o.bounds[2])),
-        Math.max(...source.map((o) => o.bounds[3])),
-      ];
-    const lineText = (r) =>
-      r.objects
-        .sort((a, b) => a.bounds[0] - b.bounds[0])
-        .map(
-          (o, i, a) =>
-            (i &&
-            o.bounds[0] - a[i - 1].bounds[2] > o.size * 0.2 &&
-            !/[\u2e80-\u9fff\uff00-\uffef]$/.test(a[i - 1].text) &&
-            !/^[\u2e80-\u9fff\uff00-\uffef]/.test(o.text)
-              ? " "
-              : "") + o.text.replace(/[\r\n]+/g, ""),
-        )
-        .join("");
-    let text = "";
-    for (const row of p.rows) {
-      const t = lineText(row);
-      text +=
-        (text && /[A-Za-z0-9]$/.test(text) && /^[A-Za-z0-9]/.test(t)
-          ? " "
-          : "") + t;
-    }
-    return {
-      id: "paragraph-" + i,
-      text,
-      sources: source.map((o) => ({ index: o.index, signature: o.signature })),
-      bounds,
-      size: source[0].size,
-      frame: {
-        x: bounds[0],
-        y: Math.max(0, pageHeight - bounds[3]),
-        width: bounds[2] - bounds[0] + 1,
-        height: Math.min(
-          pageHeight - (pageHeight - bounds[3]),
-          bounds[3] - bounds[1] + source[0].size * 0.5,
-        ),
-      },
-    };
-  });
-}
+import { connectedParagraphs } from "./flow-regions.mjs";
+export const paragraphCandidates = connectedParagraphs;
 export function mergeCandidates(candidates, pageWidth, pageHeight) {
+  const first = candidates[0];
+  if (
+    candidates.some(
+      (p) =>
+        (p.writingMode || "horizontal-tb") !==
+          (first.writingMode || "horizontal-tb") ||
+        (p.rotation || 0) !== (first.rotation || 0) ||
+        (p.direction || "ltr") !== (first.direction || "ltr"),
+    )
+  )
+    throw Error("不同阅读方向的文字需要分别编辑");
   const sorted = [...candidates].sort((a, b) => {
+    if (a.writingMode === "vertical-rl")
+      return b.frame.x - a.frame.x || a.frame.y - b.frame.y;
+    if (a.writingMode === "vertical-lr")
+      return a.frame.x - b.frame.x || a.frame.y - b.frame.y;
     const overlap =
       Math.min(a.frame.x + a.frame.width, b.frame.x + b.frame.width) -
       Math.max(a.frame.x, b.frame.x);
@@ -148,6 +29,11 @@ export function mergeCandidates(candidates, pageWidth, pageHeight) {
     y = Math.min(...sorted.map((p) => p.frame.y));
   return {
     text: sorted.map((p) => p.text).join("\n"),
+    writingMode: sorted[0].writingMode || "horizontal-tb",
+    direction: sorted[0].direction || "ltr",
+    rotation: sorted[0].rotation || 0,
+    directionSupported: sorted.every((p) => p.supported !== false),
+    lineStarts: sorted.length === 1 ? sorted[0].lineStarts : undefined,
     sources: sorted.flatMap((p) => p.sources),
     pageWidth,
     pageHeight,

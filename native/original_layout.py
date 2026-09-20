@@ -29,7 +29,30 @@ def render(m):
     if any(m.get(k)!=original.get('settings',{}).get(k) for k in fields):return None
     if any(abs(m['frame'][k]-original['frame'][k])>.01 for k in ('x','y')) or m['frame']['width']<original['frame']['width']-.01:return None
     text=m['text'];old=original['text'];gs=original['glyphs']
-    if not text or any(c in text for c in '\n\r\t'):return None
+    if '\n' in text or '\n' in old:
+        # Explicit extraction breaks are semantic boundaries. Equal-length
+        # corrections may reuse the legacy exact anchors without deleting them.
+        if len(text.split('\n'))!=len(old.split('\n')) or any(len(a)!=len(b) for a,b in zip(text.split('\n'),old.split('\n'))):return None
+        from copy import deepcopy
+        clean=deepcopy(m);clean['text']=text.replace('\n','');clean['originalLayout']['text']=old.replace('\n','')
+        flat_to_full={};full_to_flat={};full=flat=0
+        for ch in text:
+            n=len(ch.encode('utf-16-le'))//2
+            for j in range(n):full_to_flat[full+j]=flat+(j if ch!='\n' else 0)
+            if ch!='\n':flat_to_full[flat]=full;flat+=n
+            full+=n
+        full_to_flat[full]=flat
+        def stripped_offset(n):return full_to_flat[n]
+        clean['originalLayout']['glyphs']=[{**g,'start':stripped_offset(g['start']),'end':stripped_offset(g['end'])} for g in gs if g['text']!='\n']
+        clean['runs']=[{**r,'start':stripped_offset(r['start']),'end':stripped_offset(r['end'])} for r in m.get('runs',[]) if stripped_offset(r['end'])>stripped_offset(r['start'])]
+        result=render(clean)
+        if not result or result['layoutMode']!='原始字位':return None
+        for g in result['glyphs']:
+            n=g['end']-g['start'];g['start']=flat_to_full[g['start']];g['end']=g['start']+n
+        result['glyphs']+= [{**g,'w':0} for g in gs if g['text']=='\n']
+        result['glyphs'].sort(key=lambda g:g['start'])
+        return result
+    if not text or any(c in text for c in '\r\t'):return None
     if any(unicodedata.combining(c) or unicodedata.bidirectional(c) in ('R','AL','AN') or 0x900<=ord(c)<=0x109f for c in text):return None
     if len(gs)!=len(old) or any(g['text']!=c for g,c in zip(gs,old)):return None
     # New style runs must equal the inherited source style to retain positions.

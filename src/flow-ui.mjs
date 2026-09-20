@@ -1,3 +1,4 @@
+import { FastFonts, fastLayout, canFast } from "./fast-layout.mjs";
 import { nativeRequest, releaseSource } from "./native-source.mjs";
 import { fontLabel } from "./font-label.mjs";
 import { joinModels, splitModel, unionFrames } from "./flow-structure.mjs";
@@ -19,7 +20,7 @@ let fontCatalogPromise = null;
 let fontPreviewQueue = Promise.resolve();
 
 // The hidden native input owns IME / clipboard. MuPDF's vector page owns every
-// visible glyph, line break, caret and selection. No popup editor / HTML reflow.
+// visible glyph in precise mode; fast canvas and PDF share explicit glyph anchors.
 export function installFlowUI(ctx) {
   const { S, surface, commit, refreshNative, guarded, toast, clone } = ctx;
   let session = null,
@@ -122,6 +123,26 @@ export function installFlowUI(ctx) {
       lastConflicts = [],
       acceptedConflicts = "",
       ignoreConflicts = false;
+    const fastFonts = new FastFonts(call);
+    let fastReady = false,
+      precise = null,
+      preciseTimer = null,
+      preciseRunning = false,
+      showingPrecise = false,
+      collisionTimer = null;
+    const fastInk = document.createElement("canvas");
+    fastInk.className = "page-edit-fast";
+    fastInk.hidden = true;
+    const tools = document.createElement("div");
+    tools.className = "pe-fast-tools";
+    tools.innerHTML =
+      '<span id="pe-direction-badge">横排 · 左→右</span><button id="pe-refine" disabled>后台精排中</button><button id="pe-keep-fast" hidden>保留快速排版</button><button id="pe-use-refined" hidden>应用精排</button>';
+    bar.querySelector(".pe-status-row").append(tools);
+    const directionLabel = document.createElement("label");
+    directionLabel.textContent = "书写方向";
+    directionLabel.innerHTML +=
+      '<select id="pe-writing-mode"><option value="horizontal-tb">横排 · 向下换行</option><option value="vertical-rl">竖排 · 向左换列</option><option value="vertical-lr">竖排 · 向右换列</option></select>';
+    bar.querySelector(".pe-properties-grid").append(directionLabel);
     const input = document.createElement("textarea");
     input.className = "page-edit-input";
     input.setAttribute("aria-label", "当前页面段落文字");
@@ -164,7 +185,17 @@ export function installFlowUI(ctx) {
     const composition = document.createElement("span");
     composition.className = "page-edit-composition";
     composition.hidden = true;
-    layer.append(base, ink, hits, marks, frame, input, composition, caret);
+    layer.append(
+      base,
+      ink,
+      fastInk,
+      hits,
+      marks,
+      frame,
+      input,
+      composition,
+      caret,
+    );
     const collisionMarks = document.createElementNS(marks.namespaceURI, "svg");
     collisionMarks.classList.add("page-edit-collisions");
     collisionMarks.setAttribute("viewBox", `0 0 ${w} ${h}`);
@@ -322,7 +353,7 @@ export function installFlowUI(ctx) {
           page,
           key,
           sources,
-          model: clone(model),
+          model: clone({ ...model, fastLayout: undefined }),
           kind: bar.querySelector("#pe-region-kind").value,
           column: +bar.querySelector("#pe-region-column").value,
           order: +bar.querySelector("#pe-region-order").value,
@@ -386,6 +417,8 @@ export function installFlowUI(ctx) {
     observer.observe(surface.host, { childList: true, subtree: true });
     const resizeObserver = new ResizeObserver(() => {
       positionFrame();
+      if (fastReady && preview?.version === 1 && !showingPrecise)
+        fastFonts.paint(fastInk, preview, w, h, scale());
       selection();
       clearTimeout(backgroundTimer);
       backgroundTimer = setTimeout(() => guarded(paintBackground), 100);
@@ -596,6 +629,15 @@ export function installFlowUI(ctx) {
         );
     }
     function showFields() {
+      if (model) {
+        bar.querySelector("#pe-writing-mode").value =
+          model.writingMode || "horizontal-tb";
+        bar.querySelector("#pe-direction-badge").textContent =
+          model.writingMode?.startsWith("vertical")
+            ? "竖排 · " +
+              (model.writingMode === "vertical-lr" ? "向右换列" : "向左换列")
+            : `横排 · ${model.direction === "rtl" ? "右→左" : "左→右"}${model.rotation ? " · 旋转 " + model.rotation + "°" : ""}`;
+      }
       if (!model) return;
       for (const [key, name] of [
         ["size", "size"],
@@ -703,6 +745,8 @@ export function installFlowUI(ctx) {
         queue();
         return;
       }
+      if (m.directionSupported === false)
+        throw Error("此阅读方向或倾斜角度尚不支持可靠编辑，原文已保留");
       await finish(false);
       model = positioned(m, tableRows(null));
       model.text = model.text.replace(/\r\n?/g, "\n");
@@ -721,7 +765,7 @@ export function installFlowUI(ctx) {
       }
       model.growth ||= model.cell ? "down" : "fixed";
       delete model.typingStyle;
-      initial = JSON.stringify(model);
+      initial = JSON.stringify({ ...model, fastLayout: undefined });
       history = [];
       future = [];
       preview = null;
@@ -730,9 +774,29 @@ export function installFlowUI(ctx) {
       candidateButtons();
       showFields();
       const activeId = id;
-      await prepareBackground();
+      fastReady = false;
+      precise = null;
+      showingPrecise = false;
+      const fast = canFast(model);
+      await Promise.all([
+        prepareBackground(),
+        fast
+          ? fastFonts
+              .prepare(model)
+              .then(() => {
+                if (id === activeId) fastReady = true;
+              })
+              .catch((e) => {
+                status("字体载入失败：" + e.message, true);
+                throw e;
+              })
+          : Promise.resolve(),
+      ]);
       if (closed || !model || id !== activeId) return false;
-      await reflow();
+      if (fastReady) {
+        renderFast();
+        schedulePrecise();
+      } else await reflow();
       if (closed || !model || id !== activeId) return false;
       input.focus({ preventScroll: true });
       const r = layer.getBoundingClientRect(),
@@ -747,6 +811,7 @@ export function installFlowUI(ctx) {
       input.setSelectionRange(offset, offset);
       selection();
     }
+    let blankFragmentPromise;
     async function prepareBackground(rendered = null, quiet = false) {
       const target = clone(model),
         targetId = id,
@@ -761,7 +826,21 @@ export function installFlowUI(ctx) {
       try {
         const blank =
           rendered ||
-          (await window.desktop.flowLayout({ ...target, text: "" }));
+          (await (blankFragmentPromise ||= window.desktop
+            .flowLayout({
+              text: "",
+              pageWidth: w,
+              pageHeight: h,
+              frame: { x: 0, y: 0, width: w, height: h },
+              size: 12,
+              lineHeight: 1.4,
+              align: "left",
+              color: "#202020",
+            })
+            .catch((e) => {
+              blankFragmentPromise = null;
+              throw e;
+            })));
         const edits = (S.nativeEdits || []).filter((e) => e.id !== targetId);
         edits.push({
           id: targetId,
@@ -797,7 +876,9 @@ export function installFlowUI(ctx) {
         await background?.destroy();
         background = nextBackground;
         await paintBackground();
-        if (!stale()) base.hidden = false;
+        if (!stale())
+          base.hidden =
+            !S.flowDraftDirty && target.originalLayout?.text === target.text;
       } catch (e) {
         status(e.message, true);
         throw e;
@@ -852,7 +933,7 @@ export function installFlowUI(ctx) {
     function remember() {
       if (!model) return;
       history.push({
-        model: clone(model),
+        model: clone({ ...model, fastLayout: undefined }),
         start: input.selectionStart,
         end: input.selectionEnd,
       });
@@ -863,13 +944,276 @@ export function installFlowUI(ctx) {
       revision++;
       validRevision = -1;
       clearTimeout(timer);
-      S.flowDraftDirty = JSON.stringify(model) !== initial;
+      clearTimeout(preciseTimer);
+      bar.querySelector("#pe-refine").disabled = true;
+      S.flowDraftDirty =
+        JSON.stringify({ ...model, fastLayout: undefined }) !== initial;
       window.desktop?.setDirty?.(S.dirty || S.flowDraftDirty);
       ctx.scheduleRecovery?.();
-      status("正在重排…");
-      timer = setTimeout(() => guarded(reflow), 45);
+      precise = null;
+      showingPrecise = false;
+      bar.querySelector("#pe-keep-fast").hidden = true;
+      bar.querySelector("#pe-use-refined").hidden = true;
+      if (
+        fastReady &&
+        fastFonts.ready(model) &&
+        canFast(model) &&
+        model.layoutMode !== "reflow"
+      ) {
+        renderFast();
+        schedulePrecise();
+      } else {
+        fastReady = false;
+        if (canFast(model) && model.layoutMode !== "reflow") {
+          const active = id,
+            rev = revision;
+          status("载入所选字体…");
+          fastFonts
+            .prepare(model)
+            .then(() => {
+              if (!closed && id === active && revision === rev) {
+                fastReady = true;
+                renderFast();
+                schedulePrecise();
+              }
+            })
+            .catch((e) => status(e.message, true));
+        } else {
+          fastInk.hidden = true;
+          status("正在精排…");
+          timer = setTimeout(() => guarded(reflow), 120);
+        }
+      }
     }
+    function renderFast() {
+      if (!model || composing || closed) return;
+      try {
+        const t = performance.now(),
+          res = fastLayout(model, fastFonts.measure);
+        // Scan collisions on idle/export, not on every key event.
+        clearTimeout(collisionTimer);
+        collisionTimer = setTimeout(() => fastConflicts(res), 150);
+        preview = res;
+        model.fastLayout = res;
+        validRevision = res.overflow ? -1 : revision;
+        fastFonts.paint(fastInk, res, w, h, scale());
+        const untouched =
+          !S.flowDraftDirty && model.originalLayout?.text === model.text;
+        fastInk.hidden = untouched;
+        ink.hidden = true;
+        base.hidden = untouched;
+        selection();
+        positionFrame();
+        bar.querySelector("#pe-fallback").hidden = !res.fallbackCount;
+        bar.querySelector("#pe-fallback").textContent =
+          `${res.fallbackCount} 字替代 · 查看`;
+        bar.querySelector(".pe-notice").hidden = !res.overflow;
+        bar.querySelector("#pe-warning").textContent =
+          "内容超出当前框，可扩大文本框或保留溢出。";
+        bar.querySelector("#pe-overflow").hidden = !res.overflow;
+        bar.querySelector("#pe-accept").hidden = true;
+        status(
+          `${res.layoutMode}完成 · ${model.text.length} 字符 · ${(performance.now() - t).toFixed(1)} ms${res.overflow ? " · 内容溢出" : ""}`,
+        );
+      } catch (e) {
+        validRevision = -1;
+        status(e.message, true);
+      }
+    }
+    function fastConflicts(res) {
+      if (!model || closed || res.glyphs !== preview?.glyphs) return;
+      const obstacles = tableObstacles(model),
+        conflicts = flowConflicts(
+          model,
+          obstacles.objects,
+          obstacles.edits,
+          page,
+          id,
+          res.glyphs,
+        );
+      lastConflicts = conflicts;
+      showCollisions(conflicts);
+      if (conflicts.some((c) => c.kind === "source")) {
+        validRevision = -1;
+        status("同一源对象已有另一项修改，请先完成或撤销该修改", true);
+      }
+      const signature = JSON.stringify(
+        conflicts.map((c) => [c.kind, c.bounds]),
+      );
+      const warn =
+        conflicts.length && !ignoreConflicts && signature !== acceptedConflicts;
+      bar.querySelector(".pe-notice").hidden = !(res.overflow || warn);
+      if (!res.overflow) {
+        bar.querySelector("#pe-warning").textContent =
+          `${conflicts.length} 处可能遮挡 · 可以继续调整或保留效果`;
+        bar.querySelector("#pe-accept").hidden = !warn;
+      }
+    }
+    function schedulePrecise() {
+      clearTimeout(preciseTimer);
+      const button = bar.querySelector("#pe-refine");
+      button.disabled = true;
+      if (
+        !model ||
+        model.writingMode?.startsWith("vertical") ||
+        model.rotation ||
+        model.direction === "rtl"
+      ) {
+        button.textContent = "保留当前方向";
+        return;
+      }
+      button.textContent = "等待后台精排";
+      preciseTimer = setTimeout(() => refine(), 800);
+    }
+    async function refine() {
+      if (closed || !model || composing) return;
+      if (preciseRunning) {
+        preciseTimer = setTimeout(refine, 300);
+        return;
+      }
+      const rev = revision,
+        active = id,
+        m = clone(model);
+      delete m.fastLayout;
+      m.layoutMode = "reflow";
+      preciseRunning = true;
+      const button = bar.querySelector("#pe-refine");
+      button.textContent = "后台精排中";
+      try {
+        const result = await window.desktop.flowLayout(m);
+        if (closed || id !== active || revision !== rev) return;
+        if (!result.mappingComplete || result.overflow) {
+          button.textContent = "精排未通过，可继续快速编辑";
+          button.disabled = true;
+          return;
+        }
+        precise = { result, model: m, revision: rev };
+        button.textContent = "预览精排";
+        button.disabled = false;
+      } catch (e) {
+        if (!closed && id === active && revision === rev) {
+          button.textContent = "精排暂不可用";
+          button.title = e.message;
+        }
+      } finally {
+        preciseRunning = false;
+      }
+    }
+    listen(bar.querySelector("#pe-refine"), "click", () =>
+      guarded(async () => {
+        if (!precise || precise.revision !== revision) return;
+        showingPrecise = true;
+        ink.src = imageURL(precise.result.svg);
+        await ink.decode();
+        if (!precise || precise.revision !== revision) {
+          showingPrecise = false;
+          return;
+        }
+        fastInk.hidden = true;
+        ink.hidden = false;
+        base.hidden = false;
+        input.disabled = true;
+        caret.hidden = true;
+        marks.replaceChildren();
+        bar.querySelector("#pe-keep-fast").hidden = false;
+        bar.querySelector("#pe-use-refined").hidden = false;
+        status("精排预览 · 选择保留快速排版或应用精排后继续编辑");
+      }),
+    );
+    listen(bar.querySelector("#pe-keep-fast"), "click", () => {
+      showingPrecise = false;
+      input.disabled = false;
+      renderFast();
+      bar.querySelector("#pe-keep-fast").hidden = true;
+      bar.querySelector("#pe-use-refined").hidden = true;
+      input.focus({ preventScroll: true });
+    });
+    listen(bar.querySelector("#pe-use-refined"), "click", () => {
+      if (!precise || precise.revision !== revision) return;
+      remember();
+
+      model.originalLayout = {
+        ...(model.originalLayout || {}),
+        text: model.text,
+        frame: { ...model.frame },
+        settings: Object.fromEntries(
+          [
+            "size",
+            "align",
+            "lineHeight",
+            "charSpacing",
+            "wordSpacing",
+            "firstIndent",
+            "paragraphBefore",
+            "paragraphGap",
+          ].map((k) => [k, model[k]]),
+        ),
+        glyphs: precise.result.glyphs.map((g) => ({
+          ...g,
+          text: model.text.slice(g.start, g.end),
+          originX: g.originX ?? g.x,
+          style: {
+            ...((model.runs || []).find(
+              (r) => r.start <= g.start && r.end > g.start,
+            ) || {
+              fontKey: model.fontKey,
+              size: model.size,
+              color: model.color,
+            }),
+          },
+        })),
+      };
+      preview = precise.result;
+      model.baselineOffset =
+        (precise.result.glyphs[0]?.baseline ??
+          model.frame.y + model.size * 0.85) - model.frame.y;
+      model.layoutMode = "preserve";
+      showingPrecise = false;
+      input.disabled = false;
+      initial = initial || JSON.stringify(model);
+      S.flowDraftDirty = true;
+      bar.querySelector("#pe-keep-fast").hidden = true;
+      bar.querySelector("#pe-use-refined").hidden = true;
+      queue();
+      input.focus({ preventScroll: true });
+    });
+    listen(bar.querySelector("#pe-writing-mode"), "change", () => {
+      if (!model) return;
+      remember();
+      model.writingMode = bar.querySelector("#pe-writing-mode").value;
+      model.direction = "ltr";
+      model.directionSupported = true;
+      model.rotation = 0;
+      delete model.originalLayout;
+      delete model.originalBaseline;
+      showFields();
+      queue();
+    });
+    // Preserve textarea selection when toolbar buttons take a pointer click.
+    listen(bar, "mousedown", (e) => {
+      if (e.target.closest("button") && model) e.preventDefault();
+    });
     async function reflow() {
+      if (
+        model &&
+        fastReady &&
+        canFast(model) &&
+        model.layoutMode !== "reflow"
+      ) {
+        renderFast();
+        fastConflicts(preview);
+        if (validRevision !== revision) return;
+        const rev = revision,
+          active = id;
+        const res = await window.desktop.flowLayout(clone(model));
+        if (closed || id !== active || revision !== rev) return;
+        preview = { ...preview, fragment: res.fragment };
+        validRevision = rev;
+        return;
+      }
+      return nativeReflow();
+    }
+    async function nativeReflow() {
       clearTimeout(timer);
       if (!model || closed || composing) return;
       if (running) {
@@ -877,6 +1221,7 @@ export function installFlowUI(ctx) {
         if (validRevision !== revision) return reflow();
         return;
       }
+      delete model.fastLayout;
       const rev = revision,
         m = clone(model);
       validRevision = -1;
@@ -999,7 +1344,8 @@ export function installFlowUI(ctx) {
               candidateButtons();
             }
             positionFrame();
-            if (!S.flowDraftDirty) initial = JSON.stringify(model);
+            if (!S.flowDraftDirty)
+              initial = JSON.stringify({ ...model, fastLayout: undefined });
           }
           preview = res;
           ink.src = imageURL(res.svg);
@@ -1135,7 +1481,9 @@ export function installFlowUI(ctx) {
         b = input.selectionEnd;
       if (document.activeElement === input) {
         const r = (model.runs || []).find(
-          (r) => r.start <= Math.max(0, a - 1) && r.end > Math.max(0, a - 1),
+          (r) =>
+            r.start <= Math.max(0, a === b ? a - 1 : a) &&
+            r.end > Math.max(0, a === b ? a - 1 : a),
         );
         if (r) {
           const origin = {
@@ -1202,9 +1550,12 @@ export function installFlowUI(ctx) {
         const dpr = devicePixelRatio || 1;
         caret.style.left = Math.round(c.x * z * dpr) / dpr + "px";
         caret.style.top = Math.round(c.y * z * dpr) / dpr + "px";
-        caret.style.width = 1 / dpr + "px";
+        caret.style.width =
+          (c.vertical ? (c.w || model.size) * z : 1 / dpr) + "px";
         caret.style.height =
-          Math.max(1, Math.round(c.h * z * dpr)) / dpr + "px";
+          (c.vertical
+            ? 1 / dpr
+            : Math.max(1, Math.round(c.h * z * dpr)) / dpr) + "px";
       }
       input.style.left = c.x * z + "px";
       input.style.top = c.y * z + "px";
@@ -1245,7 +1596,8 @@ export function installFlowUI(ctx) {
         model.runs = draft.runs;
       }
       model.text = input.value;
-      S.flowDraftDirty = JSON.stringify(model) !== initial;
+      S.flowDraftDirty =
+        JSON.stringify({ ...model, fastLayout: undefined }) !== initial;
       window.desktop?.setDirty?.(S.dirty || S.flowDraftDirty);
       if (!composing) queue();
     });
@@ -1299,6 +1651,58 @@ export function installFlowUI(ctx) {
       }
       const ctrl = e.ctrlKey || e.metaKey;
       if (
+        !ctrl &&
+        model.writingMode?.startsWith("vertical") &&
+        [
+          "ArrowLeft",
+          "ArrowRight",
+          "ArrowUp",
+          "ArrowDown",
+          "Home",
+          "End",
+        ].includes(e.key)
+      ) {
+        e.preventDefault();
+        e.stopPropagation();
+        delete model.typingStyle;
+        const gs = preview?.glyphs || [],
+          offset =
+            input.selectionDirection === "backward"
+              ? input.selectionStart
+              : input.selectionEnd;
+        const g = gs.find((g) => g.start === offset) || gs.at(-1);
+        let n = offset;
+        if (g) {
+          const line = gs.filter((q) => q.line === g.line);
+          if (e.key === "Home") n = line[0].start;
+          else if (e.key === "End") n = line.at(-1).end;
+          else if (e.key === "ArrowUp")
+            n = gs.filter((q) => q.start < offset).at(-1)?.start ?? 0;
+          else if (e.key === "ArrowDown")
+            n = gs.find((q) => q.end > offset)?.end ?? model.text.length;
+          else {
+            const delta =
+                (e.key === "ArrowLeft" ? 1 : -1) *
+                (model.writingMode === "vertical-rl" ? 1 : -1),
+              next = gs.filter((q) => q.line === g.line + delta);
+            if (next.length)
+              n = hitOffset(next, next[0].x + next[0].w / 2, g.y);
+          }
+        }
+        const anchor = e.shiftKey
+          ? input.selectionDirection === "backward"
+            ? input.selectionEnd
+            : input.selectionStart
+          : n;
+        input.setSelectionRange(
+          Math.min(anchor, n),
+          Math.max(anchor, n),
+          n < anchor ? "backward" : "forward",
+        );
+        selection();
+        return;
+      }
+      if (
         [
           "ArrowLeft",
           "ArrowRight",
@@ -1318,7 +1722,7 @@ export function installFlowUI(ctx) {
           entry = from.pop();
         if (!entry) return;
         to.push({
-          model: clone(model),
+          model: clone({ ...model, fastLayout: undefined }),
           start: input.selectionStart,
           end: input.selectionEnd,
         });
@@ -1624,7 +2028,13 @@ export function installFlowUI(ctx) {
             (r) =>
               r.start <= input.selectionStart && r.end > input.selectionStart,
           ) || model;
-        const v = !(model.typingStyle?.[k] ?? r[k] ?? model[k]);
+        const selected = (model.runs || []).filter(
+          (r) => r.end > input.selectionStart && r.start < input.selectionEnd,
+        );
+        const v =
+          input.selectionStart !== input.selectionEnd && selected.length
+            ? !selected.every((r) => !!(r[k] ?? model[k]))
+            : !(model.typingStyle?.[k] ?? r[k] ?? model[k]);
         rangeStyle(model, input.selectionStart, input.selectionEnd, { [k]: v });
         bar.querySelector("#pe-" + k).setAttribute("aria-pressed", v);
         queue();
@@ -2190,6 +2600,11 @@ export function installFlowUI(ctx) {
     function cancelDraft() {
       revision++;
       clearTimeout(timer);
+      clearTimeout(preciseTimer);
+      precise = null;
+      fastReady = false;
+      fastInk.hidden = true;
+      showingPrecise = false;
       model = null;
       preview = null;
       initial = null;
@@ -2215,6 +2630,7 @@ export function installFlowUI(ctx) {
     async function finish(exit = false) {
       if (busy) throw Error("正在准备页面，请稍候");
       if (composing) throw Error("请先完成当前输入法组词");
+      if (showingPrecise) throw Error("请先选择保留快速排版或应用精排");
       if (model && S.flowDraftDirty) {
         await reflow();
         if (validRevision !== revision || !preview)
@@ -2256,6 +2672,8 @@ export function installFlowUI(ctx) {
       revision++;
       clearTimeout(timer);
       clearTimeout(backgroundTimer);
+      clearTimeout(preciseTimer);
+      clearTimeout(collisionTimer);
       backgroundSerial++;
       backgroundTask?.cancel();
       background?.destroy();
@@ -2317,7 +2735,7 @@ export function installFlowUI(ctx) {
           ? {
               page,
               id,
-              model: clone(model),
+              model: clone({ ...model, fastLayout: undefined }),
               initial,
               start: input.selectionStart,
               end: input.selectionEnd,

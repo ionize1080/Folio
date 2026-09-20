@@ -75,7 +75,7 @@ def inspect_fonts(data,page_number,objects,mapped,stream):
                         blob,coverage=restore_type1(blob,cmap,name)
                     if not coverage:raise ValueError('原字体 Unicode 映射不完整，需要选择可用字体')
                 else:
-                    if f.get('/Subtype')!='/Type0' or f.get('/Encoding')!='/Identity-H':raise ValueError(reason)
+                    if f.get('/Subtype')!='/Type0' or f.get('/Encoding') not in ('/Identity-H','/Identity-V'):raise ValueError(reason)
                     cid=f['/DescendantFonts'][0].get_object()
                     if cid.get('/Subtype')!='/CIDFontType2':raise ValueError(reason)
                     _,ext,_,blob=doc.extract_font(ref.idnum)
@@ -95,7 +95,7 @@ def inspect_fonts(data,page_number,objects,mapped,stream):
                 reason=''
             except (KeyError,ValueError,TypeError,IndexError,struct.error,ImportError) as e: key=None;reason=str(e) or reason
             meta={'fontKey':key,'fontName':name.split('+')[-1],'fontFallback':reason,'fontSubset':bool(re.match(r'^[A-Z]{6}\+',name)),
-                  'fontOriginalName':name, 'fontResolution':'embedded' if key else 'unresolved'}
+                  'writingMode':'vertical-rl' if f.get('/Encoding')=='/Identity-V' else 'horizontal-tb', 'fontOriginalName':name, 'fontResolution':'embedded' if key else 'unresolved'}
             # Only missing streams permit name resolution. Broken embedded cmap is
             # a different failure and must not be silently relabelled as unembedded.
             try:

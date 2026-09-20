@@ -39,9 +39,9 @@ let browser,server,activePage;const errors=[],checks=[];
 
  await page.evaluate(async()=>{await window.__qa.surface.go(4);await window.__qa.surface.zoom('1');});
  await page.locator('[data-action="flow-edit"]').click();await page.waitForSelector('.page-edit-hit[aria-label^="【巍宝山乡法治"]');await page.locator('.page-edit-hit[aria-label^="【巍宝山乡法治"]').click();
- await page.waitForFunction(()=>/(?:自动重排|段落重排|原始字位|局部行重排)完成/.test(document.querySelector('#pe-status')?.textContent||''));
+ await page.waitForFunction(()=>/(?:自动重排|段落重排|原始字位|局部行重排|快速排版)完成/.test(document.querySelector('#pe-status')?.textContent||''));
  await page.locator('#pe-more').click();await page.locator('#pe-growth').selectOption('down');await page.locator('#pe-close-properties').click();
- await page.locator('.page-edit-input').evaluate(el=>{el.focus();el.setSelectionRange(0,0);document.execCommand('insertText',false,'新增文字。');});await page.waitForFunction(()=>/(?:自动重排|段落重排|原始字位|局部行重排)完成/.test(document.querySelector('#pe-status')?.textContent||''));
+ await page.locator('.page-edit-input').evaluate(el=>{el.focus();el.setSelectionRange(0,0);document.execCommand('insertText',false,'新增文字。');});await page.waitForFunction(()=>/(?:自动重排|段落重排|原始字位|局部行重排|快速排版)完成/.test(document.querySelector('#pe-status')?.textContent||''));
  const d=await page.evaluate(()=>window.__qa.S.flowEdit.draft());assert(d.model.fontName.includes('FZ'));assert(d.model.text.startsWith('新增文字。'));assert(d.model.frame.width<220);
  await page.locator('#pe-more').click();await page.screenshot({path:path.join(out,'v9-yearbook-workspace.png')});await page.locator('#pe-close-properties').click();
  if(await page.locator('#pe-fallback').isVisible()){await page.locator('#pe-fallback').click();await page.screenshot({path:path.join(out,'v9-yearbook-fallback.png')});await page.locator('#pe-fallback-panel button').first().click();}

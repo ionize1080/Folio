@@ -23,6 +23,7 @@ let browser,server,activePage;const errors=[],checks=[];
     const p=path.resolve(root,'src','.'+(u.pathname==='/'?'/index.html':decodeURIComponent(u.pathname)));
     if(!p.startsWith(path.join(root,'src')+path.sep))throw Error('path');
     body=fs.readFileSync(p);
+    if(path.basename(p)==='flow-ui.mjs')body=Buffer.from(body.toString().replace('      draft: () =>','      qaState: () => ({ preview, lastConflicts, acceptedConflicts, ignoreConflicts, revision }),\n      draft: () =>'));
     if(path.basename(p)==='app.mjs')body=Buffer.concat([body,Buffer.from('\nwindow.__qa={S,surface,loadPDF,savePDF,undo:actions.undo,redo:actions.redo,actions,closeModal};')]);
     type=({'.mjs':'text/javascript','.js':'text/javascript','.css':'text/css','.html':'text/html','.wasm':'application/wasm'})[path.extname(p)]||'application/octet-stream';
    }
@@ -40,7 +41,7 @@ let browser,server,activePage;const errors=[],checks=[];
  const bytes=Array.from(fs.readFileSync(filename));
  await page.evaluate(async(bytes)=>{await window.__qa.loadPDF(new Uint8Array(bytes),'Folio UI test.pdf');await window.__qa.surface.go(1);},bytes);
 
- const stable=()=>page.waitForFunction(()=>/(?:自动重排|段落重排|原始字位|局部行重排)完成/.test(document.querySelector('#pe-status')?.textContent||''),null,{timeout:30000});
+ const stable=()=>page.waitForFunction(()=>/(?:自动重排|段落重排|原始字位|局部行重排|快速排版)完成/.test(document.querySelector('#pe-status')?.textContent||''),null,{timeout:30000});
  const draft=()=>page.evaluate(()=>window.__qa.S.flowEdit?.draft());
  const replace=async text=>{await page.locator('.page-edit-input').evaluate((el,text)=>{el.focus();el.select();document.execCommand('insertText',false,text);},text);};
  await page.evaluate(()=>window.__qa.actions.generate());await page.waitForSelector('[data-field="pattern"]');
@@ -64,6 +65,7 @@ let browser,server,activePage;const errors=[],checks=[];
  await page.locator('#pe-cancel').click();await page.locator('.page-edit-hit[aria-label="Short title"]').click();await stable();if(await page.locator('.pe-properties').isHidden())await page.locator('#pe-more').click();await page.locator('#pe-growth').selectOption('auto');await page.locator('#pe-close-properties').click();await replace('Intentional overlap');await stable();
  if(await page.locator('.pe-properties').isHidden())await page.locator('#pe-more').click();await page.locator('.pe-position>summary').click();
  await page.locator('[data-frame="y"]').fill('135');await page.locator('[data-frame="y"]').press('Tab');await stable();
+ await page.waitForFunction(()=>!document.querySelector('#pe-accept').hidden&&!document.querySelector('.pe-notice').hidden,null,{timeout:5000}).catch(async e=>{console.log('COLLISION_DEBUG',await page.evaluate(()=>{const f=window.__qa.S.flowEdit,d=f.draft(),s=f.qaState();return JSON.stringify({frame:d.model.frame,offset:d.model.baselineOffset,baseline:d.model.originalBaseline,sources:d.model.sources,text:d.model.text,conflicts:s.lastConflicts,accepted:s.acceptedConflicts,ignore:s.ignoreConflicts,glyphs:s.preview.glyphs.slice(0,2),tail:s.preview.glyphs.slice(-2)});}));throw e;});
  await page.locator('#pe-accept').click();assert.equal(await page.locator('.pe-notice').isHidden(),true);
  await page.locator('.pe-layers>summary').click();await page.locator('[data-order="top"]').click();await stable();assert.equal(await page.locator('.page-edit-ink').isHidden(),true);assert((await draft()).model.layerOrder>0);
  await page.screenshot({path:path.join(out,'v9-stacking.png')});

@@ -1,0 +1,65 @@
+name: Folio RC1-P3 fast editor validation
+on:
+  push:
+    branches: [codex/folio-fast-edit-p3]
+  workflow_dispatch:
+concurrency:
+  group: folio-fast-p3-windows
+  cancel-in-progress: true
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: npm ci
+      - run: python -m pip install -r tests/requirements.txt
+      - run: python -m pip install --target native/vendor fonttools==4.61.1
+      - name: Include fontTools license
+        shell: python
+        run: |
+          from pathlib import Path
+          import shutil
+          root = Path('native/vendor')
+          target = root / 'fontTools/LICENSE'
+          if not target.exists():
+              source = next(root.glob('fonttools-*.dist-info/**/LICENSE'))
+              shutil.copyfile(source, target)
+      - run: npx playwright install chromium
+      - run: python scripts/restore-assets.py
+      - run: npm test
+      - run: npm run build:win
+      - run: npm run test:package
+      - run: node tests/electron-v12.cjs
+        env:
+          FOLIO_EXE: ${{ github.workspace }}\dist\Folio-PDF-Studio-win-x64\Folio.exe
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: folio-p3-windows-validation
+          path: tests/output/
+      - name: Archive tested build
+        run: python scripts/archive-release.py deliverables
+      - uses: actions/upload-artifact@v4
+        with:
+          name: folio-p3-portable
+          path: deliverables/*-win-x64.zip
+          compression-level: 0
+      - uses: actions/upload-artifact@v4
+        with:
+          name: folio-p3-source
+          path: deliverables/*-source.zip
+          compression-level: 0
+      - uses: actions/upload-artifact@v4
+        with:
+          name: folio-p3-checksums
+          path: deliverables/*-SHA256.json

@@ -119,6 +119,13 @@ def layout(model):
     started = time.perf_counter()
     m = validate(model)
     text = m['text']
+    if m.get('fastLayout') and m.get('layoutMode')!='reflow':
+        from fast_layout import render
+        return render(m)
+    if m.get('rotation') or str(m.get('writingMode','')).startswith('vertical'):
+        raise ValueError('当前方向请使用快速排版，精排不会更改阅读方向')
+    if m.get('directionSupported') is False:
+        raise ValueError('此阅读方向或倾斜角度尚不支持可靠编辑，原文已保留')
     from original_layout import render as anchored_layout
     anchored=anchored_layout(m)
     if anchored:return anchored
@@ -174,12 +181,14 @@ def layout(model):
         svg = page.get_svg_image(text_as_path=True)
         doc.subset_fonts()
         blob = doc.tobytes(garbage=3, deflate=True)
-    return {'engine': 'MuPDF Story', 'layoutMode':'段落重排', 'engineVersion': fitz.VersionBind, 'fallbackCount':fallback_count, 'fallbackDetails':fallback_details, 'spacingLimited':spacing_limited,
+    result = {'engine': 'MuPDF Story', 'layoutMode':'段落重排', 'engineVersion': fitz.VersionBind, 'fallbackCount':fallback_count, 'fallbackDetails':fallback_details, 'spacingLimited':spacing_limited,
             'fragment': base64.b64encode(blob).decode(), 'svg': svg,
             'glyphs': glyphs, 'positions': positions, 'frames': frames,
             'anchors': blank_anchors(text, positions, m),
             'overflow': overflow, 'mappingComplete': map_ok or overflow,
             'elapsedMs': round((time.perf_counter()-started)*1000, 2)}
+    from fast_layout import styled_story
+    return styled_story(m,result)
 
 
 def map_glyphs(page, text):
@@ -212,7 +221,7 @@ def map_glyphs(page, text):
                     x0, y0, x1, y1 = c['bbox']
                     out.append({'start': offsets[cursor], 'end': offsets[cursor+count],
                                 'x': x0, 'y': y0, 'w': max(0, x1-x0), 'h': y1-y0,
-                                'line': line_id, 'baseline':c['origin'][1], 'size':span['size']})
+                                'line': line_id, 'originX':c['origin'][0], 'baseline':c['origin'][1], 'size':span['size']})
                     cursor += count
             line_id += 1
     if text[cursor:].strip(' \t\r\n\u200b\ufeff\u00ad'): ok = False
