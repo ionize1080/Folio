@@ -11,6 +11,7 @@ def opentype(blob):
     from fontTools.cffLib import CFFFontSet
     from fontTools.fontBuilder import FontBuilder
     from fontTools.pens.t2CharStringPen import T2CharStringPen
+    from fontTools.pens.recordingPen import RecordingPen
     cff=CFFFontSet();cff.decompile(io.BytesIO(blob),None);top=cff.topDictIndex[0];order=list(top.charset)
     face=fitz.Font(fontbuffer=blob);cmap={}
     for cp in face.valid_codepoints():
@@ -21,7 +22,8 @@ def opentype(blob):
     if any(abs(a-b)>1e-8 for a,b in zip(matrix,[.001,0,0,.001,0,0])):raise ValueError('此 CFF 字体采用非常规坐标单位')
     chars={};metrics={}
     for name in order:
-        old=top.CharStrings[name];pen=T2CharStringPen(None,None);old.draw(pen);width=round(old.width);pen.width=width
+        old=top.CharStrings[name];recording=RecordingPen();old.draw(recording);width=round(old.width)
+        pen=T2CharStringPen(width,None);recording.replay(pen)
         chars[name]=pen.getCharString();metrics[name]=(width,0)
     bold=bool(face.flags.get('bold'));italic=bool(face.flags.get('italic'));name=face.name
     fb=FontBuilder(1000,isTTF=False);fb.setupGlyphOrder(order);fb.setupCharacterMap(cmap);fb.setupHorizontalMetrics(metrics)

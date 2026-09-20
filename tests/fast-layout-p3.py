@@ -65,6 +65,13 @@ checks.append('Page-local background applies edits from the requested page of a 
 from browser_fonts import opentype
 for name in ['helv','hebo','tiro','tibi','cour']:
  original=fitz.Font(name);wrapped=opentype(original.buffer);face=fitz.Font(fontbuffer=wrapped)
+ from fontTools.ttLib import TTFont
+ import io
+ sfnt=TTFont(io.BytesIO(wrapped));top=sfnt['CFF '].cff.topDictIndex[0]
+ from fontTools.pens.recordingPen import RecordingPen
+ for glyph in sfnt.getGlyphOrder():
+  char=top.CharStrings[glyph];char.draw(RecordingPen())
+  assert round(char.width)==sfnt['hmtx'][glyph][0],(name,glyph,char.width,sfnt['hmtx'][glyph][0])
  assert wrapped[:4]==b'OTTO'
  assert all(abs(original.text_length(c,12)-face.text_length(c,12))<.02 for c in 'ABCDabcd1234')
 checks.append('Raw CFF wrapped for browser loading with identical advances and bold/italic flags')

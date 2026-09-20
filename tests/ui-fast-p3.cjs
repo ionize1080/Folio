@@ -149,6 +149,17 @@ const errors = [],
     null,
     { timeout: 60000 },
   );
+  assert(
+    await page.evaluate(() => {
+      const face = [...document.fonts].find((f) =>
+        f.family.startsWith("FolioFast_"),
+      );
+      const c = document.createElement("canvas").getContext("2d");
+      c.font = `14px "${face.family}"`;
+      return c.measureText("Intentional overlap").width > 50;
+    }),
+    "Standard CFF has nonzero browser advances",
+  );
   await page.locator("#pe-done").click();
   await page.waitForFunction(() => !window.__qa.S.flowEdit);
   checks.push(
