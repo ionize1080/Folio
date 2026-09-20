@@ -1021,7 +1021,7 @@ export function installFlowUI(ctx) {
       }
     }
     function fastConflicts(res) {
-      if (!model || closed || res !== preview) return;
+      if (!model || closed || res.glyphs !== preview?.glyphs) return;
       const obstacles = tableObstacles(model),
         conflicts = flowConflicts(
           model,
