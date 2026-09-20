@@ -201,6 +201,8 @@ export function pageCandidates(objects, w, h, regions = [], tables = []) {
     sourceStyles(m, src);
     if (!m.writingMode?.startsWith("vertical"))
       m.originalBaseline = h - firstBase;
+    m.baselineOffset =
+      m.originalBaseline != null ? m.originalBaseline - m.frame.y : undefined;
     return { id: "page-paragraph-" + i, model: m, original, reason };
   });
   for (const cell of cellList) {

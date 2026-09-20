@@ -27,6 +27,7 @@ export function fastLayout(m, measure) {
       rotation: 0,
       originalLayout: undefined,
       originalBaseline: undefined,
+      baselineOffset: undefined,
       frame: {
         x: 0,
         y: 0,
@@ -143,7 +144,12 @@ export function fastLayout(m, measure) {
     line = 0,
     x = f.x + (m.firstIndent || 0),
     base =
-      (m.originalBaseline || f.y + m.size * 0.85) + (m.paragraphBefore || 0),
+      f.y +
+      (m.baselineOffset ??
+        (m.originalBaseline != null
+          ? m.originalBaseline - (m.originalLayout?.frame.y ?? f.y)
+          : m.size * 0.85)) +
+      (m.paragraphBefore || 0),
     pen = vertical ? f.y : x;
   let col = rl ? f.x + f.width - m.size : f.x,
     step = m.size * (m.lineHeight || 1.4),

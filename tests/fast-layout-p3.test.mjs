@@ -193,3 +193,12 @@ test("nonpainting source spaces retain surrounding original glyph anchors and bo
   assert.equal(m.originalLayout.glyphs[3].originX, 65);
   assert(m.runs.every((r) => r.bold));
 });
+test("moving a text frame moves its baseline rather than reporting stale-page overflow", () => {
+  const m = model("AB", { originalBaseline: 61, baselineOffset: 11 });
+  const before = fastLayout(m, measure);
+  m.frame = { ...m.frame, x: 140, y: 150 };
+  const after = fastLayout(m, measure);
+  assert.equal(after.glyphs[0].originX - before.glyphs[0].originX, 100);
+  assert.equal(after.glyphs[0].baseline - before.glyphs[0].baseline, 100);
+  assert(!after.overflow);
+});

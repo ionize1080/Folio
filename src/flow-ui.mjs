@@ -1164,6 +1164,9 @@ export function installFlowUI(ctx) {
         })),
       };
       preview = precise.result;
+      model.baselineOffset =
+        (precise.result.glyphs[0]?.baseline ??
+          model.frame.y + model.size * 0.85) - model.frame.y;
       model.layoutMode = "preserve";
       showingPrecise = false;
       input.disabled = false;
