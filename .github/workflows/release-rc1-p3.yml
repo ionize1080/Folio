@@ -1,0 +1,106 @@
+name: Publish verified Folio RC1-P3
+on:
+  push:
+    branches: [codex/release-1.2-rc1-p3]
+    paths: [.github/workflows/release-rc1-p3.yml]
+  workflow_dispatch:
+permissions:
+  actions: read
+  contents: write
+concurrency:
+  group: folio-release-v1.2.0-rc1-p3
+  cancel-in-progress: false
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ionize1080/Folio
+    steps:
+      - name: Fetch the exact tested build
+        shell: python
+        run: |
+          import json,subprocess
+          repo='ionize1080/Folio';run=35500176993;sha='d89fd881d682c06152e05b84d77415ef189ad843'
+          r=json.loads(subprocess.check_output(['gh','api',f'repos/{repo}/actions/runs/{run}']))
+          assert r['status']=='completed' and r['conclusion']=='success' and r['head_sha']==sha
+          expected={"folio-p3-source":10602735051,"folio-p3-portable":10602505542,"folio-p3-checksums":10602201537,"folio-p3-windows-validation":10601184812}
+          actual=json.loads(subprocess.check_output(['gh','api',f'repos/{repo}/actions/runs/{run}/artifacts']))['artifacts']
+          for name,ident in expected.items():
+              assert any(a['name']==name and a['id']==ident and not a['expired'] for a in actual)
+              subprocess.run(['gh','run','download',str(run),'--name',name,'--dir','download/'+name],check=True)
+      - name: Verify executable, source, UI and native reports
+        shell: python
+        run: |
+          import hashlib,json,shutil,zipfile
+          from pathlib import Path
+          src=Path('download');out=Path('release');out.mkdir()
+          portable=next((src/'folio-p3-portable').glob('*.zip'));source=next((src/'folio-p3-source').glob('*.zip'))
+          reports=src/'folio-p3-windows-validation'
+          exe=json.loads((reports/'v12-electron-report.json').read_text())
+          ui=json.loads((reports/'p3-ui-report.json').read_text())
+          native=json.loads((reports/'p3-native-report.json').read_text())
+          assert exe['platform']=='win32' and not exe['errors'] and not ui['errors']
+          assert ui['perf']['requests']==0 and len(native['checks'])>=8
+          with zipfile.ZipFile(portable) as z:
+              assert z.testzip() is None
+              for entry,expected in [('Folio-PDF-Studio/Folio.exe',exe['exe_sha256']),('Folio-PDF-Studio/resources/app.asar',exe['asar_sha256'])]:
+                  with z.open(entry) as f:assert hashlib.file_digest(f,'sha256').hexdigest()==expected
+          with zipfile.ZipFile(source) as z:
+              assert z.testzip() is None
+              pkg=json.loads(z.read('Folio-PDF-Studio-source/package.json'))
+              assert pkg['version']=='1.2.0' and pkg['releaseChannel']=='rc1-p3'
+              assert 'Folio-PDF-Studio-source/native/browser_fonts.py' in z.namelist()
+              assert 'Folio-PDF-Studio-source/src/fast-layout.mjs' in z.namelist()
+          prefix='Folio-PDF-Studio-1.2.0-RC1-P3'
+          shutil.copyfile(portable,out/f'{prefix}-portable-win-x64.zip');shutil.copyfile(source,out/source.name)
+          data={'sourceCommit':'d89fd881d682c06152e05b84d77415ef189ad843','windowsRun':'https://github.com/ionize1080/Folio/actions/runs/35500176993','packagedElectron':exe,'fastEditorUI':ui,'native':native}
+          (out/f'{prefix}-validation.json').write_text(json.dumps(data,ensure_ascii=False,indent=2),encoding='utf-8')
+          hashes=[]
+          for f in sorted(out.iterdir()):
+              with f.open('rb') as stream:hashes.append(hashlib.file_digest(stream,'sha256').hexdigest()+'  '+f.name)
+          (out/f'{prefix}-SHA256.txt').write_text('\n'.join(hashes)+'\n')
+          notes='''Folio PDF Studio 1.2.0 RC1-P3：快速编辑预发布版。
+
+          更新：
+          - 自研按阅读方向投影的对象、行、段落连接，保留原行换行；标题、勾选项、栏间空白和表格边界约束合并。
+          - 普通中英文固定框在原页快速编辑；粗体、斜体、字号、颜色、字距和选区样式直接预览，识别 PDF 填充加描边形成的粗体。
+          - 保留可兼容的原字位，修复无可见字形的空格导致整段坐标丢失；标准 CFF 字体以保留轮廓和字宽的 OpenType 封装载入。
+          - 空闲时后台精排，按钮预览后选择保留快速排版或应用精排，过期结果不会自动覆盖输入。
+          - 按需加载并缓存字体，快速路径优先使用同名同样式系统字体；画布仅覆盖编辑区域，去字背景只组合当前页。
+          - 增加基础竖排方向、90°/180°/270° 文字旋转和相应的选区处理。
+
+          验证：Windows 全套单元、原生和浏览器回归通过，实际打包 EXE 完成编辑与原子保存；新增 UI 测试记录连续 15 次输入不发起逐次原生排版请求。验证记录与 SHA-256 随包提供，便携包 EXE/ASAR 哈希与测试对象逐一核对。
+
+          范围：本版仍为 Pre-release，不替代 Latest，也不宣称达到 Acrobat 的全部能力。基础竖排尚无完整竖排字形替换、竖中横；复杂双向文字与任意倾斜角度不属于已验证快速范围。表格自动增长、多栏串接和特殊叠放沿用既有排版路径；页面旋转、非标准坐标及大文件编辑限制延续 P2。同名字体仍可能存在版本或字宽差异。
+
+          下载 portable-win-x64.zip 后完整解压，运行 Folio.exe。source.zip 包含离线源码与运行依赖。更多算法与边界说明见源码 docs/FAST-EDIT-P3.md。
+
+          测试提交：d89fd881d682c06152e05b84d77415ef189ad843
+          测试运行：https://github.com/ionize1080/Folio/actions/runs/35500176993
+          '''
+          Path('release-notes.md').write_text(notes,encoding='utf-8')
+      - name: Stage, verify and publish prerelease
+        shell: python
+        run: |
+          import hashlib,json,subprocess
+          from pathlib import Path
+          tag='v1.2.0-rc1-p3';repo='ionize1080/Folio';sha='d89fd881d682c06152e05b84d77415ef189ad843'
+          files=sorted(Path('release').iterdir());assert len(files)==4
+          releases=json.loads(subprocess.check_output(['gh','api',f'repos/{repo}/releases?per_page=100']))
+          matches=[r for r in releases if r['tag_name']==tag]
+          if not matches:
+              subprocess.run(['gh','release','create',tag,*map(str,files),'--target',sha,'--title','Folio PDF Studio 1.2.0 RC1-P3','--notes-file','release-notes.md','--draft','--prerelease','--latest=false'],check=True)
+              matches=[r for r in json.loads(subprocess.check_output(['gh','api',f'repos/{repo}/releases?per_page=100'])) if r['tag_name']==tag]
+          assert len(matches)==1
+          release=matches[0];assert release['draft'] and release['prerelease'] and release['target_commitish']==sha
+          assert {a['name']:a['size'] for a in release['assets']}=={f.name:f.stat().st_size for f in files}
+          assert all(a['state']=='uploaded' for a in release['assets'])
+          assert release['body'].strip()==Path('release-notes.md').read_text().strip()
+          for f in files:
+              asset=next(a for a in release['assets'] if a['name']==f.name)
+              with f.open('rb') as stream:assert asset['digest']=='sha256:'+hashlib.file_digest(stream,'sha256').hexdigest()
+          subprocess.run(['gh','api','--method','PATCH',f"repos/{repo}/releases/{release['id']}",'-F','draft=false','-F','prerelease=true','-f','make_latest=false','--silent'],check=True)
+          final=json.loads(subprocess.check_output(['gh','api',f'repos/{repo}/releases/tags/{tag}']))
+          assert not final['draft'] and final['prerelease'];print(final['html_url'])
