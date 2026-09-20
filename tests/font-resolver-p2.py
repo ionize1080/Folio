@@ -27,6 +27,12 @@ class FontResolution(unittest.TestCase):
   runs=[o for o in result['objects'] if o['type']=='text']
   self.assertTrue(runs);self.assertTrue(all(o.get('fontKey') for o in runs))
   self.assertTrue(all(o['fontResolution'] in ('system-name','metric-substitute') for o in runs))
+ def test_unknown_resolution_requires_explicit_font(self):
+  from story import styled_html
+  m={'text':'123','runs':[],'fontResolution':'unresolved','fontOriginalName':'Unknown','size':12,'color':'#000000'}
+  with self.assertRaisesRegex(ValueError,'未解析'):styled_html(m)
+  m['fontKey']=resolve_name('DejaVuSans')['fontKey']
+  styled_html(m)
  def test_system_name(self):
   r=resolve_name('DejaVuSans');self.assertEqual(r['fontResolution'],'system-name')
 

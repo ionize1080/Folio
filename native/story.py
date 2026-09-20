@@ -65,7 +65,7 @@ def styled_html(m):
     archive=fitz.Archive(str(ROOT/'fonts'));text=m['text'];runs=m.get('runs',[])
     if not isinstance(runs,list) or len(runs)>100000:raise ValueError('字体样式数量无效')
     runs=sorted(runs,key=lambda r:r.get('start',0))
-    defaults={k:m.get(k) for k in ('fontKey','fontName','size','color','charSpacing','wordSpacing','bold','italic','latinFontKey','cjkFontKey','latinFontName','cjkFontName')}
+    defaults={k:m.get(k) for k in ('fontKey','fontName','fontResolution','fontOriginalName','size','color','charSpacing','wordSpacing','bold','italic','latinFontKey','cjkFontKey','latinFontName','cjkFontName')}
     definitions={};fonts={};css=[];fallback=0;fallback_details=[];spacing_limited=False;ri=0;offset=0;paragraphs=[];parts=[];segment='';last=None
     def flush():
         nonlocal segment

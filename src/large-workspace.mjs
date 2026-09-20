@@ -348,6 +348,8 @@ export async function openLargeWorkspace(file, ctx) {
       $("[data-password]").value = "";
       $("[data-unlock]").hidden = true;
       rows = info.outlines;
+      $("[data-save]").disabled = !info.incremental;
+      $("[data-save]").title = info.incremental ? "保留原件，另存书签副本" : "此文件无法增量写入，当前仅供阅读";
       $("[data-pages]").textContent = `/ ${info.pages}`;
       $("[data-page]").max = info.pages;
       $("[data-to]").value = info.pages;

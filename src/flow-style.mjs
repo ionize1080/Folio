@@ -20,6 +20,9 @@ export function sourceStyles(model, objects) {
     const start = cursor;
     if (!model.text.startsWith(text, start)) {
       model.runs = [];
+      delete model.fontKey;
+      model.fontResolution = "unresolved";
+      model.fontOriginalName = "对象样式映射不完整";
       delete model.originalLayout;
       model.styleMappingWarning = "原文对象顺序与文字不一致，请检查字体";
       return model;

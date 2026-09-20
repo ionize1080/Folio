@@ -76,4 +76,5 @@ def recognize_with_evidence(engine, image):
                         'diagnostic':{'schema':SCHEMA,'detectedQuad':box.tolist(),'classifier':{'label':str(label),'score':float(score)},
                                       'threshold':float(engine.text_score),'reasons':reasons,'candidates':candidates,
                                       'chosenRotation':chosen['rotation']}})
-    return outputs, {'detected':len(boxes),'retried':retried,'seconds':time.perf_counter()-started}
+    return outputs, {'detected':len(boxes),'retried':retried,'seconds':time.perf_counter()-started,
+                     'stages':{'detect':float(det.elapse or 0),'classify':float(cls.elapse or 0),'recognize':float(rec.elapse or 0)}}

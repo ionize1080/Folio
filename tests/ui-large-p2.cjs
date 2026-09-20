@@ -119,6 +119,7 @@ const root = path.resolve(__dirname, ".."),
       /已保存/.test(document.querySelector("[data-status]").textContent),
     );
     assert.equal(await page.evaluate(() => window.dirty), false);
+    await page.getByText("自动书签 · 预览后追加", { exact: true }).click();
     await page.locator("[data-rules]").fill("^Chapter");
     await page.locator("[data-scan]").click();
     await page.waitForFunction(

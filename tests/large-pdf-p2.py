@@ -29,6 +29,12 @@ class LargePDF(unittest.TestCase):
    src=Path(td)/'in.pdf';out=Path(td)/'out.pdf';d=fitz.open();d.new_page();d.save(src);d.close()
    with self.assertRaises(ValueError):process({'command':'large-save','input':str(src),'output':str(out),'outlines':[{'id':'new-x','level':2,'title':'x','page':1}]})
    self.assertFalse(out.exists())
+ def test_password_and_preserved_encryption(self):
+  with tempfile.TemporaryDirectory() as td:
+   src=Path(td)/'protected.pdf';out=Path(td)/'copy.pdf';d=fitz.open();d.new_page();d.save(src,encryption=fitz.PDF_ENCRYPT_AES_256,user_pw='reader',owner_pw='owner');d.close()
+   with self.assertRaisesRegex(ValueError,'密码'):process({'command':'large-info','input':str(src)})
+   process({'command':'large-save','input':str(src),'output':str(out),'password':'owner','outlines':[{'id':'new-p','level':1,'title':'Protected','page':1}]})
+   with fitz.open(out) as check:self.assertTrue(check.needs_pass);self.assertTrue(check.authenticate('reader'));self.assertEqual(check.get_toc()[0][1],'Protected')
  def test_sparse_pdf_over_4g_metadata(self):
   # Valid unreferenced stream crosses 32-bit offsets, without allocating its size.
   with tempfile.TemporaryDirectory() as td:
