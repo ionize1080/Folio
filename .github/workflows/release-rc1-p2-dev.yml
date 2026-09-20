@@ -1,0 +1,127 @@
+name: Publish verified Folio 1.2 RC1-P2-DEV
+on:
+  push:
+    branches: [codex/release-1.2-rc1-p2-dev]
+    paths: [.github/workflows/release-rc1-p2-dev.yml]
+  workflow_dispatch:
+permissions:
+  actions: read
+  contents: write
+concurrency:
+  group: folio-release-v1.2.0-rc1-p2-dev
+  cancel-in-progress: false
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ionize1080/Folio
+    steps:
+      - name: Download exact successful Windows build
+        shell: python
+        run: |
+          import json, subprocess
+          repo='ionize1080/Folio'
+          run=35488605966
+          sha='af4d249aae820e05154ae41836557b4df7f31d6c'
+          result=json.loads(subprocess.check_output(['gh','api',f'repos/{repo}/actions/runs/{run}']))
+          assert result['status']=='completed' and result['conclusion']=='success'
+          assert result['head_sha']==sha
+          artifacts=json.loads(subprocess.check_output(['gh','api',f'repos/{repo}/actions/runs/{run}/artifacts']))['artifacts']
+          expected={'folio-1.2-portable':10598157675,'folio-1.2-source':10598607013,'folio-1.2-windows-validation':10598233981}
+          for name,ident in expected.items():
+              matches=[a for a in artifacts if a['name']==name and a['id']==ident and not a['expired']]
+              assert len(matches)==1,(name,ident)
+              subprocess.run(['gh','run','download',str(run),'--name',name,'--dir','download/'+name],check=True)
+      - name: Verify and stage release attachments
+        shell: python
+        run: |
+          import hashlib,json,shutil,zipfile
+          from pathlib import Path
+          src=Path('download'); out=Path('release');out.mkdir()
+          prefix='Folio-PDF-Studio-1.2.0-RC1-P2-DEV'
+          portable=src/'folio-1.2-portable'/f'{prefix}-win-x64.zip'
+          source=src/'folio-1.2-source'/f'{prefix}-source.zip'
+          validation=src/'folio-1.2-windows-validation'
+          report=json.loads((validation/'v12-electron-report.json').read_text())
+          ui=json.loads((validation/'v12-ui-report.json').read_text())
+          assert report['platform']=='win32' and not report['errors'] and not ui['errors']
+          assert any('punctuation' in c for c in ui['checks'])
+          assert any('bookmarks' in c for c in ui['checks'])
+          assert any('Actual >768 MiB IPC opens file-backed workspace' in c for c in report['checks'])
+          expected_hashes={portable:'62ce15609e016fd8eab08840c7ca50d9382941b2e9c147231dd88389aea7ef60',source:'02b43f68d4d83b99bdde6c0722546044a1c6a42bfab41c53934da8dd3ea83879'}
+          for file,digest in expected_hashes.items():
+              with file.open('rb') as f:
+                  assert hashlib.file_digest(f,'sha256').hexdigest()==digest,file
+          assert report['asar_sha256']=='b742e410a46c52e02aece8d55b75b9161f48b490b45d0d1edfa4e4dadb11018d'
+          assert report['exe_sha256']=='bfa6fb9efd738b2e532b4060d7949a5198617d3ae19e41967c55fa9f3a0e5551'
+          with zipfile.ZipFile(portable) as z:
+              assert z.testzip() is None
+              with z.open('Folio-PDF-Studio/resources/app.asar') as f:
+                  assert hashlib.file_digest(f,'sha256').hexdigest()==report['asar_sha256']
+              with z.open('Folio-PDF-Studio/Folio.exe') as f:
+                  assert hashlib.file_digest(f,'sha256').hexdigest()==report['exe_sha256']
+          with zipfile.ZipFile(source) as z:
+              assert z.testzip() is None
+              p=json.loads(z.read('Folio-PDF-Studio-source/package.json'))
+              assert p['version']=='1.2.0' and p['releaseChannel']=='rc1-p2-dev'
+          shutil.copyfile(portable,out/f'{prefix}-portable-win-x64.zip')
+          shutil.copyfile(source,out/source.name)
+          results={'sourceCommit':'af4d249aae820e05154ae41836557b4df7f31d6c','windowsRun':'https://github.com/ionize1080/Folio/actions/runs/35488605966','packagedElectron':report,'browser':ui}
+          (out/f'{prefix}-validation.json').write_text(json.dumps(results,ensure_ascii=False,indent=2),encoding='utf-8')
+          hashes=[]
+          for f in sorted(out.iterdir()):
+              with f.open('rb') as stream: digest=hashlib.file_digest(stream,'sha256').hexdigest()
+              hashes.append(f'{digest}  {f.name}')
+          (out/f'{prefix}-SHA256.txt').write_text('\n'.join(hashes)+'\n',encoding='utf-8')
+          notes='''## 开发预览版
+          本版本为 1.2.0 RC1-P2 DEV，面向字体保真、OCR 复核和大型年鉴阅读的开发验证。标记为 Pre-release，不替代当前 Latest。字体与 OCR 问题仍有未完成范围，不能视为 #2 / #3 已全面修复。
+          
+          ## 更新内容
+          - 字体：增加未嵌入字体的名称、别名与样式解析，显示字体来源与替代状态。Times New Roman / Arial / Courier New 支持明确标记的度量兼容替代；无法解析字体或样式时保留草稿并要求显式选择替代字体，避免静默应用。度量兼容不保证字形轮廓完全一致。
+          - 段落：收紧编号标题与正文的合并边界，并覆盖正常折行回归。
+          - OCR：保留过滤前的空白和低质量候选，为可疑文本框增加 0° / 180° 重试及方向证据；跨单元格风险与未解决候选进入复核，应用隐藏文字层前要求处理疑点。
+          - 大文件：超过 768 MiB 的 PDF 进入独立大文件工作区，准入上限为 8 GiB。按页原生渲染，支持翻页、缩放、书签增删改与撤销、分级正则扫描预览及追加、另存书签副本；保存采用临时文件和原子替换，并检查源文件是否已被外部修改。
+          - 修复工程文件拖入和打开时大小校验不一致，以及开发版关于窗口的版本显示。
+          
+          ## 当前范围与限制
+          - 大文件模式目前支持阅读和书签保存；多 GB 文件的 OCR、页面文字编辑、工程恢复尚未接入。普通编辑模式仍保留原有容量限制。
+          - 大文件工作区尚无连续滚动、文字选择、全文搜索和自动恢复。
+          - 8 GiB 是准入保护上限，不代表已通过真实 8 GiB 扫描年鉴的性能验收。大于 4 GiB 的稀疏 PDF 测试验证文件偏移和按页渲染，不等同于真实高密度扫描件的吞吐与内存测试。
+          - 复杂表格的自动跨格拆分、局部重新 OCR 后的结构合并尚未完成。疑点进入复核不代表全部自动纠正。
+          
+          ## 验证
+          Windows 工作流通过 94 项 JavaScript 测试、原生与 UI 回归、打包验证，以及实际 portable EXE 的打开、文字编辑和保存测试；已验证实际大于 768 MiB 文件通过文件句柄打开并保存书签副本。
+          - 已测试源码：af4d249aae820e05154ae41836557b4df7f31d6c
+          - [Windows 验证与交付构建](https://github.com/ionize1080/Folio/actions/runs/35488605966)
+          - [开发变更 PR #4](https://github.com/ionize1080/Folio/pull/4)
+          
+          发布附件直接采用该成功构建的交付包，并核对 ZIP、Folio.exe 与 app.asar 的 SHA-256；不重新构建二进制。
+          
+          ## 下载与运行
+          下载 portable-win-x64.zip，完整解压后运行 Folio.exe；无需额外安装 Python、Node 或 OCR 模型，请保留完整目录。
+          source.zip 为完整离线源码交付包；另附验证 JSON 和 SHA256.txt。GitHub 自动生成的 Source code 存档不等同于完整离线源码包。
+          '''
+          Path('release-notes.md').write_text('\n'.join(line.lstrip() for line in notes.splitlines())+'\n',encoding='utf-8')
+      - name: Create release with verified assets and publish
+        shell: python
+        run: |
+          import json, subprocess
+          from pathlib import Path
+          tag='v1.2.0-rc1-p2-dev'
+          repo='ionize1080/Folio'
+          sha='af4d249aae820e05154ae41836557b4df7f31d6c'
+          releases=json.loads(subprocess.check_output(['gh','api',f'repos/{repo}/releases?per_page=100']))
+          assert not any(r['tag_name']==tag for r in releases),'Release already exists; inspect before retry'
+          files=sorted(Path('release').iterdir())
+          assert len(files)==4
+          subprocess.run(['gh','release','create',tag,*map(str,files),'--target',sha,'--title','Folio PDF Studio 1.2.0 RC1-P2 DEV','--notes-file','release-notes.md','--draft','--prerelease','--latest=false'],check=True)
+          release=json.loads(subprocess.check_output(['gh','api',f'repos/{repo}/releases/tags/{tag}']))
+          assert release['draft'] and release['prerelease'] and release['target_commitish']==sha
+          assert {a['name']:a['size'] for a in release['assets']}=={f.name:f.stat().st_size for f in files}
+          assert all(a['state']=='uploaded' for a in release['assets'])
+          subprocess.run(['gh','release','edit',tag,'--draft=false','--prerelease','--latest=false'],check=True)
+          published=json.loads(subprocess.check_output(['gh','api',f'repos/{repo}/releases/tags/{tag}']))
+          assert not published['draft'] and published['prerelease']
+          print(published['html_url'])
