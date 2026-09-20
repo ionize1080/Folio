@@ -28,6 +28,10 @@ export function sourceStyles(model, objects) {
     const style = {
       fontKey: o.fontKey || null,
       fontName: o.fontName || "内置替代字体",
+      fontOriginalName: o.fontOriginalName || o.fontName,
+      fontResolution:
+        o.fontResolution || (o.fontKey ? "embedded" : "unresolved"),
+      fontFallback: o.fontFallback || "",
       size: o.size,
       color:
         "#" +
@@ -132,6 +136,9 @@ export function editStyles(runs, oldText, newText, base = {}) {
     [
       "fontKey",
       "fontName",
+      "fontOriginalName",
+      "fontResolution",
+      "fontFallback",
       "size",
       "color",
       "charSpacing",
@@ -188,6 +195,8 @@ export function editStyles(runs, oldText, newText, base = {}) {
 
 // Apply only the explicit selection. A collapsed caret sets the typing style.
 export function rangeStyle(model, start, end, patch) {
+  if (patch.fontKey || patch.latinFontKey || patch.cjkFontKey)
+    patch = { ...patch, fontResolution: "user-selected", fontFallback: "" };
   if (start === end) {
     model.typingStyle = { ...(model.typingStyle || {}), ...patch };
     return;
@@ -210,6 +219,9 @@ export function rangeStyle(model, start, end, patch) {
       const keys = [
         "fontKey",
         "fontName",
+        "fontOriginalName",
+        "fontResolution",
+        "fontFallback",
         "latinFontKey",
         "latinFontName",
         "cjkFontKey",

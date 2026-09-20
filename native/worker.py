@@ -214,7 +214,9 @@ def render_fragment(pdf,r,edits,blocks):
    if not r.FPDFPage_GenerateContent(prev):raise ValueError('页面内容生成失败')
    prev.close();objects.pop(last_ocr_page,None)
   last_ocr_page=b['page']
-  if b.get('excluded') or not b.get('text'):continue
+  if b.get('excluded'):continue
+  if b.get('needsReview') and not (b.get('corrected') or b.get('reviewAccepted')):raise ValueError('OCR 疑点尚未确认，请校对或排除后应用')
+  if not b.get('text'):continue
   page=page_for(b['page'],inspect=False);quad=b['quad']
   if len(quad)!=4:raise ValueError('OCR 四角坐标无效')
   a,b2,c,d=[[number(x),number(y)] for x,y in quad];runs,total=text_objects(b['text'],10)
@@ -267,11 +269,16 @@ def recognize(pdf,r,args):
  bmp=page.render(scale=number(args.get('dpi',180),72,300)/72);img=bmp.to_pil().convert('RGB');w,h=img.size;rx=ry=0;region=args.get('region')
  if region:
   x,y,rw,rh=[number(v,0,1) for v in region];rx=int(x*w);ry=int(y*h);img=img.crop((rx,ry,min(w,int((x+rw)*w)),min(h,int((y+rh)*h))))
- rendered=time.perf_counter();result=ENGINES[key](np.asarray(img));recognized=time.perf_counter();blocks=[]
+ rendered=time.perf_counter()
+ from ocr_diagnostics import recognize_with_evidence
+ evidence,diagnostics=recognize_with_evidence(ENGINES[key],np.asarray(img));recognized=time.perf_counter();blocks=[]
  def native(pt):
   x,y=C.c_double(),C.c_double();r.FPDF_DeviceToPage(page,0,0,w,h,0,round(float(pt[0])+rx),round(float(pt[1])+ry),C.byref(x),C.byref(y));return [x.value,y.value]
- if result.txts:
-  for q,t,s in zip(result.boxes,result.txts,result.scores):blocks.append({'page':args['page'],'text':str(t),'confidence':float(s),'quad':[native(v) for v in q]})
+ for b in evidence:
+  b['quad']=[native(v) for v in b['quad']]
+  for candidate in b['diagnostic']['candidates']:candidate['quad']=[native(v) for v in candidate['quad']]
+  b['diagnostic']['detectedQuad']=[native(v) for v in b['diagnostic']['detectedQuad']]
+  blocks.append({**b,'page':args['page']})
  # Spatial duplicate suppression preserves legitimate repeated words at distinct locations.
  unique=[];buckets={}
  for b in blocks:
@@ -279,10 +286,13 @@ def recognize(pdf,r,args):
   if any(max(abs(b['quad'][j][v]-x['quad'][j][v]) for j in range(4) for v in (0,1))<2 for x in seen):continue
   seen.append(b);unique.append(b)
  img.close();bmp.close();page.close()
- return {'rss':sample_memory(),'blocks':unique,'skipped':False,'seconds':result.elapse,'profile':profile,'timing':{'load':loaded-started,'render':rendered-loaded,'recognize':recognized-rendered,'total':time.perf_counter()-started},'engine':'RapidOCR / ONNX Runtime CPU','threads':threads,'batch':batch}
+ return {'rss':sample_memory(),'blocks':unique,'skipped':False,'seconds':recognized-rendered,'diagnostics':diagnostics,'profile':profile,'timing':{'load':loaded-started,'render':rendered-loaded,'recognize':recognized-rendered,'total':time.perf_counter()-started},'engine':'RapidOCR / ONNX Runtime CPU','threads':threads,'batch':batch}
 
 def run(args):
  global CACHED_PDF,CACHED_PATH
+ if args.get('command') in ('large-info','large-save','large-page','large-text'):
+  from large_pdf import process
+  return process(args)
  if args.get('command') in ('qpdf-status','qpdf-decrypt'):
   from qpdf_tools import process
   return process(args)

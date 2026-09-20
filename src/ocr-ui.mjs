@@ -75,7 +75,7 @@ export async function ocrDialogV4(ctx) {
   };
   modal(
     "离线 OCR · 双层 PDF",
-    `<details class="ocr-settings" open><summary>识别范围与设置</summary><label>处理页面<input id="ocr-range" value="${S.page}"></label><div class="form-grid three"><label>模型<select id="ocr-profile"><option value="v6">PP-OCRv6 small</option><option value="v5">PP-OCRv5 mobile</option></select></label><label>分辨率<select id="ocr-dpi"><option>180</option><option>240</option><option>300</option></select></label><label>资源模式<select id="ocr-mode"><option value="auto">自动 · 兼顾内存与响应</option><option value="low">低占用</option><option value="high">高性能</option><option value="custom">自定义</option></select></label></div><div class="form-grid three" id="ocr-custom" hidden><label>并行页数<input id="ocr-workers" type="number" min="1" max="16" value="2"></label><label>每进程线程<input id="ocr-threads" type="number" min="1" value="2"></label><label>文字行批量<input id="ocr-batch" type="number" min="1" max="32" value="6"></label></div><div class="menu-grid"><label class="check"><input id="ocr-skip" type="checkbox" checked>跳过已有文字的整页</label><select id="ocr-skip-mode" aria-label="跳过策略"><option value="coverage">智能：正文文字充足才跳过</option><option value="any">任意已有文字（旧版策略）</option></select><label class="check"><input id="ocr-resume" type="checkbox" checked>续做相同文档与设置的已完成页</label></div><details><summary>语言与输出文字</summary><div class="menu-grid"><label class="check"><input type="checkbox" name="ocr-language" value="zh-Hans" checked>简体中文</label><label class="check"><input type="checkbox" name="ocr-language" value="zh-Hant">繁体中文</label><label class="check"><input type="checkbox" name="ocr-language" value="en" checked>英文</label></div><label class="check"><input id="ocr-other-language" type="checkbox" checked>保留引擎识别出的其他文字</label><label>输出字形<select id="ocr-output-script"><option value="preserve">保留原始识别</option><option value="simplified">统一为简体</option><option value="traditional">统一为繁体</option></select></label><p>语言勾选用于校对提示；不扩展模型的语言能力。字形转换在识别后进行，原始文字保留，置信度仍是引擎原始分数。</p></details><details><summary>局部识别区域</summary><p>相对左上角百分比：左、上、宽、高。局部识别不会因页面其他区域有文字而跳过。</p><input id="ocr-region" placeholder="例如 0,10,100,80"><button id="ocr-region-pick">在左侧拖框选择区域</button><button id="ocr-region-clear">清除区域</button></details></details><div class="menu-grid"><button id="ocr-start" class="primary">开始识别</button><button id="ocr-stop" disabled>停止并保留结果</button><button id="ocr-cancel-apply" hidden>取消应用</button><label class="check"><input id="ocr-box-preview" type="checkbox" checked>识别框</label><label class="check"><input id="ocr-text-preview" type="checkbox">识别文字</label><label class="check"><input id="ocr-image-preview" type="checkbox" checked>原图</label></div><p id="ocr-status" class="callout">完全离线 · 原扫描图保留 · 识别结果逐页保存；关闭后可按相同设置续做。</p><details id="ocr-errors" class="callout" hidden><summary>失败详情</summary><pre id="ocr-error-detail" style="white-space:pre-wrap;max-height:180px;overflow:auto;user-select:text"></pre></details><div class="ocr-review-nav"><strong>正在校对</strong><select id="ocr-scroll-mode" aria-label="校对浏览方式"><option value="continuous">连续滚动</option><option value="single">单页</option></select><button id="ocr-prev">上一页</button><input id="ocr-review-page" type="number" min="1" max="${S.info.pageCount}" value="${S.page}" aria-label="校对 PDF 页"><span>/ ${S.info.pageCount}</span><button id="ocr-next">下一页</button><button id="ocr-low">下一处待复核</button><button id="ocr-reviewed" title="Ctrl+Enter">确认并下一处</button><button id="ocr-defer">暂缓</button><span id="ocr-review-lock"></span><label>页状态<select id="ocr-page-filter"><option value="all">全部</option><option value="done">已识别</option><option value="low">需校对</option><option value="failed">失败</option><option value="skipped">跳过</option></select></label><select id="ocr-page-list" aria-label="识别页状态"></select></div><div class="native-workspace"><div class="native-preview"><canvas id="ocr-canvas"></canvas><div id="ocr-boxes"></div></div><div class="native-properties"><label>本页识别结果<select id="ocr-results" size="7"></select></label><p id="ocr-confidence"></p><label>校对文字<textarea id="ocr-correction" rows="3"></textarea></label><details><summary>调整四角 PDF 坐标</summary><textarea id="ocr-quad" rows="3"></textarea></details><label class="check"><input id="ocr-exclude" type="checkbox">不写入此条</label><button id="ocr-correct">保存此条校对</button><small>切换条目、翻页和应用前会自动保存。关闭窗口前也会保存。</small><div id="ocr-font-issues" class="callout" hidden></div></div></div>`,
+    `<details class="ocr-settings" open><summary>识别范围与设置</summary><label>处理页面<input id="ocr-range" value="${S.page}"></label><div class="form-grid three"><label>模型<select id="ocr-profile"><option value="v6">PP-OCRv6 small</option><option value="v5">PP-OCRv5 mobile</option></select></label><label>分辨率<select id="ocr-dpi"><option>180</option><option>240</option><option>300</option></select></label><label>资源模式<select id="ocr-mode"><option value="auto">自动 · 兼顾内存与响应</option><option value="low">低占用</option><option value="high">高性能</option><option value="custom">自定义</option></select></label></div><div class="form-grid three" id="ocr-custom" hidden><label>并行页数<input id="ocr-workers" type="number" min="1" max="16" value="2"></label><label>每进程线程<input id="ocr-threads" type="number" min="1" value="2"></label><label>文字行批量<input id="ocr-batch" type="number" min="1" max="32" value="6"></label></div><div class="menu-grid"><label class="check"><input id="ocr-skip" type="checkbox" checked>跳过已有文字的整页</label><select id="ocr-skip-mode" aria-label="跳过策略"><option value="coverage">智能：正文文字充足才跳过</option><option value="any">任意已有文字（旧版策略）</option></select><label class="check"><input id="ocr-resume" type="checkbox" checked>续做相同文档与设置的已完成页</label></div><details><summary>语言与输出文字</summary><div class="menu-grid"><label class="check"><input type="checkbox" name="ocr-language" value="zh-Hans" checked>简体中文</label><label class="check"><input type="checkbox" name="ocr-language" value="zh-Hant">繁体中文</label><label class="check"><input type="checkbox" name="ocr-language" value="en" checked>英文</label></div><label class="check"><input id="ocr-other-language" type="checkbox" checked>保留引擎识别出的其他文字</label><label>输出字形<select id="ocr-output-script"><option value="preserve">保留原始识别</option><option value="simplified">统一为简体</option><option value="traditional">统一为繁体</option></select></label><p>语言勾选用于校对提示；不扩展模型的语言能力。字形转换在识别后进行，原始文字保留，置信度仍是引擎原始分数。</p></details><details><summary>局部识别区域</summary><p>相对左上角百分比：左、上、宽、高。局部识别不会因页面其他区域有文字而跳过。</p><input id="ocr-region" placeholder="例如 0,10,100,80"><button id="ocr-region-pick">在左侧拖框选择区域</button><button id="ocr-region-clear">清除区域</button></details></details><div class="menu-grid"><button id="ocr-start" class="primary">开始识别</button><button id="ocr-stop" disabled>停止并保留结果</button><button id="ocr-cancel-apply" hidden>取消应用</button><label class="check"><input id="ocr-box-preview" type="checkbox" checked>识别框</label><label class="check"><input id="ocr-text-preview" type="checkbox">识别文字</label><label class="check"><input id="ocr-image-preview" type="checkbox" checked>原图</label></div><p id="ocr-status" class="callout">完全离线 · 原扫描图保留 · 识别结果逐页保存；关闭后可按相同设置续做。</p><details id="ocr-errors" class="callout" hidden><summary>失败详情</summary><pre id="ocr-error-detail" style="white-space:pre-wrap;max-height:180px;overflow:auto;user-select:text"></pre></details><div class="ocr-review-nav"><strong>正在校对</strong><select id="ocr-scroll-mode" aria-label="校对浏览方式"><option value="continuous">连续滚动</option><option value="single">单页</option></select><button id="ocr-prev">上一页</button><input id="ocr-review-page" type="number" min="1" max="${S.info.pageCount}" value="${S.page}" aria-label="校对 PDF 页"><span>/ ${S.info.pageCount}</span><button id="ocr-next">下一页</button><button id="ocr-low">下一处待复核</button><button id="ocr-reviewed" title="Ctrl+Enter">确认并下一处</button><button id="ocr-defer">暂缓</button><span id="ocr-review-lock"></span><label>页状态<select id="ocr-page-filter"><option value="all">全部</option><option value="done">已识别</option><option value="low">需校对</option><option value="failed">失败</option><option value="skipped">跳过</option></select></label><select id="ocr-page-list" aria-label="识别页状态"></select></div><div class="native-workspace"><div class="native-preview"><canvas id="ocr-canvas"></canvas><div id="ocr-boxes"></div></div><div class="native-properties"><label>本页识别结果<select id="ocr-results" size="7"></select></label><p id="ocr-confidence"></p><details id="ocr-diagnostics"><summary>方向与识别诊断</summary><pre id="ocr-evidence"></pre><div id="ocr-candidates"></div></details><label>校对文字<textarea id="ocr-correction" rows="3"></textarea></label><details><summary>调整四角 PDF 坐标</summary><textarea id="ocr-quad" rows="3"></textarea></details><label class="check"><input id="ocr-exclude" type="checkbox">不写入此条</label><button id="ocr-correct">保存此条校对</button><small>切换条目、翻页和应用前会自动保存。关闭窗口前也会保存。</small><div id="ocr-font-issues" class="callout" hidden></div></div></div>`,
     [
       {
         text: "收起并继续",
@@ -327,6 +327,30 @@ export async function ocrDialogV4(ctx) {
       : b.scriptIssue
         ? " · 字形与语言偏好不一致"
         : "";
+    $("#ocr-evidence").textContent = b.diagnostic
+      ? JSON.stringify(
+          {
+            方向: b.diagnostic.classifier,
+            原因: b.diagnostic.reasons,
+            阈值: b.diagnostic.threshold,
+          },
+          null,
+          2,
+        )
+      : "旧结果无阶段诊断，可重新识别";
+    $("#ocr-candidates").replaceChildren();
+    if (b.needsReview && !b.reviewAccepted && !b.corrected)
+      $("#ocr-confidence").textContent += " · 待确认，应用前须校对或排除";
+    for (const c of b.diagnostic?.candidates || []) {
+      const button = document.createElement("button");
+      button.textContent = `${c.rotation}° · ${(c.score * 100).toFixed(1)}% · ${c.text || "空结果"}`;
+      button.onclick = () => {
+        $("#ocr-correction").value = c.text;
+        $("#ocr-quad").value = JSON.stringify(c.quad);
+        draftDirty = true;
+      };
+      $("#ocr-candidates").append(button);
+    }
     $("#ocr-correction").title =
       `原始文字：${b.originalText ?? b.rawText ?? b.text}`;
     $("#ocr-boxes")
@@ -501,7 +525,8 @@ export async function ocrDialogV4(ctx) {
         (b, i) =>
           i > selected &&
           !b.excluded &&
-          b.confidence < 0.85 &&
+          (b.confidence < 0.85 ||
+            (b.needsReview && !b.reviewAccepted && !b.corrected)) &&
           !checked.has(markKey(reviewPage, b)),
       );
       if (local >= 0) {
@@ -527,7 +552,10 @@ export async function ocrDialogV4(ctx) {
           : localCorrections.get(p) || ocrPage(S.ocr, p);
         const i = bs.findIndex(
           (b) =>
-            !b.excluded && b.confidence < 0.85 && !checked.has(markKey(p, b)),
+            !b.excluded &&
+            (b.confidence < 0.85 ||
+              (b.needsReview && !b.reviewAccepted && !b.corrected)) &&
+            !checked.has(markKey(p, b)),
         );
         if (i >= 0) {
           await loadPage(p);
@@ -688,7 +716,10 @@ export async function ocrDialogV4(ctx) {
         state: "done",
         low: bs.filter(
           (b) =>
-            !b.excluded && b.confidence < 0.85 && !checked.has(markKey(p, b)),
+            !b.excluded &&
+            (b.confidence < 0.85 ||
+              (b.needsReview && !b.reviewAccepted && !b.corrected)) &&
+            !checked.has(markKey(p, b)),
         ).length,
         revision: 0,
       });
@@ -758,6 +789,12 @@ export async function ocrDialogV4(ctx) {
       if (composing) return;
       await savePage();
       if (pageBlocks[selected]) {
+        pageBlocks[selected] = {
+          ...pageBlocks[selected],
+          reviewAccepted: true,
+        };
+        dirtyPage = true;
+        await savePage();
         checked.add(markKey(reviewPage, pageBlocks[selected]));
         localStorage.setItem(
           reviewKey + "-checked",

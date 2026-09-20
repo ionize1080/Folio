@@ -1,5 +1,7 @@
 # Folio PDF Studio
 
+> 本分支为 **RC1-P2 DEV** 开发验证版本，尚未替代下方 Latest。字体/OCR 与大文件阅读、书签另存的新增实现和限制见 [开发说明](docs/DEVELOPMENT-P2.md)。大文件通道当前上限 8 GiB，实际年鉴与 Windows 验收范围以测试记录为准。
+
 面向 Windows x64 的离线 PDF 工作台，重点解决长文档的**书签生成与整理、页面内文字编辑、OCR 识别与校对**。阅读、版面分析、字体匹配和 OCR 在本地运行；完整便携包无需另装 Python、Node.js 或模型。
 
 **当前发布版：1.2.0 RC1-P1** · [下载 Latest](https://github.com/ionize1080/Folio/releases/latest) · [指定版本与校验文件](https://github.com/ionize1080/Folio/releases/tag/v1.2.0-rc1-p1)

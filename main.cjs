@@ -62,6 +62,15 @@ app.on("before-quit", () => {
   sourceStore.close();
 });
 let fileStore;
+const { LargeFiles } = require("./large-files.cjs");
+const largeFiles = new LargeFiles(native.root, native.python, async (name) => {
+  const r = await dialog.showSaveDialog(win, {
+    defaultPath: name,
+    filters: [{ name: "PDF", extensions: ["pdf"] }],
+  });
+  return r.canceled ? null : r.filePath;
+});
+app.on("before-quit", () => largeFiles.close());
 const root = path.join(__dirname, "src");
 function check(e) {
   if (
@@ -158,6 +167,8 @@ app.whenReady().then(() => {
     if (r.canceled) return null;
     const file = r.filePaths[0],
       s = await fs.stat(file);
+    if (/\.pdf$/i.test(file) && s.size > 768 * 1024 ** 2)
+      return largeFiles.register(file);
     if (s.size > (/\.folio$/i.test(file) ? 1024 : 768) * 1024 * 1024)
       throw Error("当前版本单文件上限为 768 MB");
     const bytes = await fs.readFile(file);
@@ -167,7 +178,12 @@ app.whenReady().then(() => {
     if (typeof file !== "string" || !/\.(pdf|folio)$/i.test(file))
       throw Error("仅支持 PDF 与 Folio 文件");
     const stat = await fs.stat(file);
-    if (!stat.isFile() || stat.size > 768 * 1024 * 1024)
+    if (stat.isFile() && /\.pdf$/i.test(file) && stat.size > 768 * 1024 ** 2)
+      return largeFiles.register(file);
+    if (
+      !stat.isFile() ||
+      stat.size > (/\.folio$/i.test(file) ? 1024 : 768) * 1024 ** 2
+    )
       throw Error("文件无效或超过 768 MB");
     return {
       name: path.basename(file),
@@ -205,6 +221,12 @@ app.whenReady().then(() => {
   ipc("save-stream-finish", (id) => fileStore.finishStream(id));
   ipc("save-stream-abort", (id) => fileStore.abortStream(id));
   app.on("before-quit", () => fileStore.close());
+  ipc("large-read", (data) => largeFiles.read(data));
+  ipc("large-info", (data) => largeFiles.info(data));
+  ipc("large-page", (data) => largeFiles.page(data));
+  ipc("large-save", (data) => largeFiles.save(data));
+  ipc("large-release", (handle) => largeFiles.release(handle));
+  ipc("large-cancel", () => largeFiles.cancel());
   ipc("source-register", (bytes) => sourceStore.register(bytes));
   ipc("source-release", (handle) => sourceStore.release(handle));
   ipc("native", (data) => {

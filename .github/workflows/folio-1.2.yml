@@ -1,7 +1,7 @@
 name: Folio 1.2 Windows validation
 on:
   push:
-    branches: [codex/folio-1.2]
+    branches: [codex/folio-1.2, codex/folio-correctness-large-files]
   workflow_dispatch:
 concurrency:
   group: folio-1.2-windows

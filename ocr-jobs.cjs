@@ -156,6 +156,7 @@ class OCRJobs {
       .createHash("sha256")
       .update(await fs.readFile(path.join(this.root, "runtime-lock.json")))
       .update(await fs.readFile(path.join(this.root, "worker.py")))
+      .update(await fs.readFile(path.join(this.root, "ocr_diagnostics.py")))
       .update(await fs.readFile(path.join(this.root, "models/manifest.json")))
       .digest("hex");
     const id = crypto
@@ -250,7 +251,7 @@ class OCRJobs {
       state: r.skipped ? "skipped" : "done",
       count: r.blocks.length,
       low: r.blocks.filter(
-        (b) => !b.excluded && b.confidence < 0.85 && !b.corrected,
+        (b) => !b.excluded && (b.confidence < 0.85 || b.needsReview) && !b.corrected && !b.reviewAccepted,
       ).length,
       corrected: r.blocks.filter((b) => b.corrected).length,
       reason: r.skipped ? "检测到已有文字，可选此页强制重识别" : undefined,
@@ -506,6 +507,8 @@ class OCRJobs {
       .map((b) => ({ ...b }))
       .concat(collected)
       .sort((a, b) => a.page - b.page);
+    const pending = blocks.filter(b => !b.excluded && b.needsReview && !b.corrected && !b.reviewAccepted);
+    if (pending.length) throw Error(`${pending.length} 条 OCR 疑点尚未确认，请在校对中确认或排除后应用`);
     const allowed = new Set([
       ...JSON.parse(
         await fs.readFile(

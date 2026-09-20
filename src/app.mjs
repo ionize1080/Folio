@@ -1,3 +1,4 @@
+import { openLargeWorkspace } from "./large-workspace.mjs";
 import DOMPurify from "./vendor/purify.es.mjs";
 import { nativeRequest, releaseSource } from "./native-source.mjs";
 import { DocumentSession, readSettings, safeJSON } from "./session-state.mjs";
@@ -425,6 +426,7 @@ async function openFile() {
   const f = await choose("pdf");
   if (f) await openIncoming(f);
 }
+let largeWorkspace = null;
 let loadEpoch = 0;
 async function loadPDF(
   bytes,
@@ -3695,6 +3697,7 @@ new ResizeObserver(() => {
   }, 180);
 }).observe($("#canvas-host"));
 window.desktop?.onClose(async () => {
+  if (largeWorkspace) { await guarded(() => largeWorkspace.close()); return; }
   if (S.busy) {
     toast("正在处理文档，请完成后关闭");
     return;
@@ -4195,7 +4198,17 @@ document.addEventListener("keydown", (e) => {
 });
 
 async function openIncoming(f) {
-  if (S.busy) return;
+  if (S.busy) { if(f.large) await window.desktop.largeRelease(f.handle); return; }
+  if (f.large) {
+    if (largeWorkspace) { await window.desktop.largeRelease(f.handle); throw Error("请先关闭大文件工作区"); }
+    await openLargeWorkspace(f, {
+      originalDirty: !!(S.dirty || S.flowDraftDirty),
+      confirmDiscard: text => confirmDialog("关闭大文件", text, "丢弃并关闭"),
+      onReady: workspace => { largeWorkspace=workspace; },
+      onClose: () => { largeWorkspace=null; },
+    });
+    return;
+  }
   if (f.handle && f.handle === S.handle) {
     toast("此文档已打开");
     return;

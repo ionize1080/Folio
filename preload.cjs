@@ -5,6 +5,12 @@ contextBridge.exposeInMainWorld("desktop", {
     ipcRenderer.on("native-progress", fn);
     return () => ipcRenderer.removeListener("native-progress", fn);
   },
+  largeRead: (data) => ipcRenderer.invoke("large-read", data),
+  largePage: (data) => ipcRenderer.invoke("large-page", data),
+  largeInfo: (data) => ipcRenderer.invoke("large-info", data),
+  largeSave: (data) => ipcRenderer.invoke("large-save", data),
+  largeRelease: (handle) => ipcRenderer.invoke("large-release", handle),
+  largeCancel: () => ipcRenderer.invoke("large-cancel"),
   ocrJob: (data) => ipcRenderer.invoke("ocr-job", data),
   flowLayout: (data) => ipcRenderer.invoke("flow-layout", data),
   qpdf: (data) => ipcRenderer.invoke("qpdf", data),

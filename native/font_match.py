@@ -94,7 +94,20 @@ def inspect_fonts(data,page_number,objects,mapped,stream):
                 (CACHE/(key+'.json')).write_text(json.dumps({'name':name,'coverage':sorted(coverage)}))
                 reason=''
             except (KeyError,ValueError,TypeError,IndexError,struct.error,ImportError) as e: key=None;reason=str(e) or reason
-            available[str(resource)]={'fontKey':key,'fontName':name.split('+')[-1],'fontFallback':reason,'fontSubset':bool(re.match(r'^[A-Z]{6}\+',name))}
+            meta={'fontKey':key,'fontName':name.split('+')[-1],'fontFallback':reason,'fontSubset':bool(re.match(r'^[A-Z]{6}\+',name)),
+                  'fontOriginalName':name, 'fontResolution':'embedded' if key else 'unresolved'}
+            # Only missing streams permit name resolution. Broken embedded cmap is
+            # a different failure and must not be silently relabelled as unembedded.
+            try:
+                _,_,_,embedded=doc.extract_font(ref.idnum)
+            except (ValueError,RuntimeError):embedded=None
+            if not embedded:
+                if key:meta['fontResolution']='standard'
+                else:
+                    from font_resolver import resolve_name
+                    resolved=resolve_name(name)
+                    if resolved:meta.update(resolved)
+            available[str(resource)]=meta
     state={'font':None,'charSpacing':0,'wordSpacing':0,'horizontalScale':100};stack=[];states={}
     for i,(args,op) in enumerate(stream.operations):
         if op==b'q':stack.append(state.copy())

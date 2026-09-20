@@ -36,6 +36,7 @@ const archive = path.join(out, "resources/app.asar"),
   packed = asar.listPackage(archive).map((name) => name.split(path.sep).join("/"));
 for (const f of [
   "native-bridge.cjs",
+  "large-files.cjs",
   "flow-layout.cjs",
   "flow-validation.cjs",
   "source-store.cjs",
@@ -55,6 +56,8 @@ for (const f of [
   "src/encrypted-open.mjs",
   "src/flow-ui.mjs",
   "src/flow-model.mjs",
+  "src/large-workspace.mjs",
+  "src/large-rules-worker.mjs",
   "src/project.mjs",
   "src/region-select.mjs",
   "src/copy-region-ui.mjs",

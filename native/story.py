@@ -79,6 +79,8 @@ def styled_html(m):
         key=(style.get('latinFontKey') if ord(ch)<0x300 else style.get('cjkFontKey')) or style.get('fontKey')
         if key not in fonts:fonts[key]=load_font(key)
         font=fonts[key]
+        if not font and style.get('fontResolution') == 'unresolved' and not ch.isspace():
+            raise ValueError('原字体 '+str(style.get('fontOriginalName') or style.get('fontName') or '')+' 未解析，草稿已保留；请明确选择此范围的替代字体后应用')
         covered=font and ord(ch) in font['coverage']
         size=number(style.get('size') or m['size'],4,150)
         spacing=number(style.get('charSpacing') or 0,-5,30);word=number(style.get('wordSpacing') or 0,-5,50)

@@ -1,4 +1,31 @@
 // Conservative native-text paragraph candidates; no generative rewriting of source text.
+const rowText = (row) =>
+  row.objects
+    .map((o) => o.text)
+    .join("")
+    .trim();
+function paragraphBreak(last, row, paragraph) {
+  const before = rowText(last),
+    after = rowText(row);
+  const heading =
+    /^(?:第[〇零一二三四五六七八九十百千万\d]+[章节篇部分]|[（(]?[一二三四五六七八九十百\d]+[）)、.．])/u;
+  if (heading.test(after)) return true;
+  if (
+    paragraph.rows.length === 1 &&
+    heading.test(before) &&
+    before.length <= 45 &&
+    (row.right - row.left > (last.right - last.left) * 1.4 ||
+      row.left - last.left > row.size)
+  )
+    return true;
+  const bold = (r) =>
+    r.objects.some((o) => /bold|黑体|粗/i.test(o.fontName || ""));
+  return (
+    before.length < 45 &&
+    bold(last) !== bold(row) &&
+    row.right - row.left > (last.right - last.left) * 1.3
+  );
+}
 export function paragraphCandidates(objects, pageHeight) {
   const rows = [];
   for (const o of objects
@@ -43,6 +70,7 @@ export function paragraphCandidates(objects, pageHeight) {
         dy = last.base - row.base;
       return (
         !/^[\s]*[·•▪●]/u.test(row.objects.map((o) => o.text).join("")) &&
+        !paragraphBreak(last, row, p) &&
         dy > row.size * 0.6 &&
         dy < row.size * 2.6 &&
         Math.abs(last.size - row.size) < Math.max(0.8, row.size * 0.1) &&
