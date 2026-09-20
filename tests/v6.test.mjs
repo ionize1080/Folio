@@ -127,6 +127,6 @@ test("paragraph grouping retains leading zeros and separates distant independent
     842,
   );
   assert.equal(p.length, 2);
-  assert(p.some((p) => p.text === "00123.45正文续行"));
+  assert(p.some((p) => p.text === "00123.45\n正文续行"));
   assert(p.some((p) => p.text === "另一篇文章"));
 });

@@ -232,7 +232,7 @@ app.whenReady().then(() => {
   ipc("native", (data) => {
     const options = { ...data };
     if (
-      ["font-catalog", "font-select", "font-data", "font-recommend"].includes(
+      ["font-catalog", "font-select", "font-data", "font-recommend", "font-fast"].includes(
         options.command,
       )
     )

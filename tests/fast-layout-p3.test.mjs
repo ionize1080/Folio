@@ -1,0 +1,166 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { connectedParagraphs, textDirection } from "../src/flow-regions.mjs";
+import { fastLayout, canFast } from "../src/fast-layout.mjs";
+import { sourceStyles, rangeStyle, editStyles } from "../src/flow-style.mjs";
+import { hitOffset } from "../src/flow-page-model.mjs";
+const o = (i, text, x, y, w = 80, extra = {}) => ({
+  index: i,
+  signature: "" + i,
+  type: "text",
+  flowEditable: true,
+  text,
+  size: 12,
+  fontName: "宋体",
+  matrix: [1, 0, 0, 1, x, 800 - y],
+  bounds: [x, 800 - y - 3, x + w, 800 - y + 10],
+  ...extra,
+});
+const model = (text, extra = {}) => ({
+  text,
+  pageWidth: 600,
+  pageHeight: 800,
+  frame: { x: 40, y: 50, width: 120, height: 120 },
+  size: 12,
+  lineHeight: 1.4,
+  align: "left",
+  color: "#000000",
+  font: "sans",
+  sources: [],
+  ...extra,
+});
+const measure = (c, s) => ({
+  width: /[\u3000-\uffff]/u.test(c) ? s.size : s.size * 0.5,
+  fontKey: "a".repeat(32),
+});
+test("same row fragmented by mixed fonts joins, checkbox remains a separate paragraph", () => {
+  const r = connectedParagraphs(
+    [
+      o(0, "（二） ", 40, 100, 30),
+      o(1, "标题", 85, 100, 90, { bold: true }),
+      o(2, "□适用 √不适用", 40, 120, 90),
+    ],
+    800,
+  );
+  assert.equal(r.length, 2);
+  assert.equal(r[0].text, "（二） 标题");
+});
+test("explicit original line break retained, no column bridge", () => {
+  const r = connectedParagraphs(
+    [
+      o(0, "左栏一", 40, 100),
+      o(1, "左栏二", 40, 118),
+      o(2, "右栏一", 300, 100),
+      o(3, "右栏二", 300, 118),
+    ],
+    800,
+  );
+  assert.equal(r.length, 2);
+  assert(r.some((p) => p.text === "左栏一\n左栏二"));
+  assert(r.every((p) => !p.text.includes("左栏二右")));
+});
+test("direction classification handles upright vertical, rotated and RTL independently", () => {
+  assert.equal(
+    textDirection(
+      o(0, "天地", 50, 50, 12, {
+        glyphs: [
+          { text: "天", originX: 50, baseline: 50 },
+          { text: "地", originX: 50, baseline: 62 },
+        ],
+      }),
+    ).writingMode,
+    "vertical-rl",
+  );
+  assert.equal(
+    textDirection(o(1, "AB", 50, 50, 12, { matrix: [0, -1, 1, 0, 50, 750] }))
+      .rotation,
+    90,
+  );
+  assert.equal(textDirection(o(2, "مرحبا", 50, 50)).direction, "rtl");
+  assert(!canFast(model("مرحبا")));
+});
+test("fixed frame: hard breaks, empty line, CJK punctuation, astral UTF16 and mixed styles", () => {
+  const m = model("甲乙\n\nAB😀。", {
+    runs: [
+      { start: 0, end: 2, size: 14, bold: true },
+      { start: 4, end: 9, size: 10, italic: true },
+    ],
+  });
+  const r = fastLayout(m, measure);
+  assert.equal(r.glyphs.map((g) => g.text).join(""), m.text);
+  assert.equal(
+    r.glyphs.find((g) => g.text === "😀").end -
+      r.glyphs.find((g) => g.text === "😀").start,
+    2,
+  );
+  assert(r.glyphs[0].bold);
+  assert(r.glyphs.find((g) => g.text === "A").italic);
+  assert(r.glyphs.find((g) => g.text === "A").y > r.glyphs[0].y + 24);
+});
+test("vertical columns advance left, and hit test follows top-to-bottom", () => {
+  const r = fastLayout(
+    model("天地玄黄宇宙洪荒", {
+      writingMode: "vertical-rl",
+      frame: { x: 40, y: 50, width: 100, height: 36 },
+    }),
+    measure,
+  );
+  assert(r.glyphs[1].y > r.glyphs[0].y);
+  assert(r.glyphs[3].x < r.glyphs[0].x);
+  const g = r.glyphs[0];
+  assert.equal(hitOffset(r.glyphs, g.x + g.w / 2, g.y + g.h * 0.8), g.end);
+});
+test("rotated flow transforms anchors and ink together", () => {
+  const r = fastLayout(model("ABC", { rotation: 90 }), measure);
+  assert.equal(r.glyphs[0].rotation, 90);
+  assert(r.glyphs[1].baseline > r.glyphs[0].baseline);
+});
+test("mixed selection formatting preserves neighbours and survives insertion", () => {
+  const m = model("ABCD", {
+    runs: [
+      {
+        start: 0,
+        end: 4,
+        fontKey: "a".repeat(32),
+        size: 12,
+        bold: false,
+        italic: false,
+      },
+    ],
+  });
+  rangeStyle(m, 1, 3, { bold: true });
+  assert.deepEqual(
+    m.runs.map((r) => [r.start, r.end, r.bold]),
+    [
+      [0, 1, false],
+      [1, 3, true],
+      [3, 4, false],
+    ],
+  );
+  m.runs = editStyles(m.runs, m.text, "ABXCD", m);
+  assert(m.runs.find((r) => r.start <= 2 && r.end > 2).bold);
+});
+test("dense page bounded neighbour scan and long paragraph budget", () => {
+  const a = Array.from({ length: 10000 }, (_, i) =>
+    o(i, "段" + i, 40 + (i % 10) * 50, 20 + Math.floor(i / 10) * 15, 35),
+  );
+  const t = performance.now();
+  connectedParagraphs(a, 16000);
+  const ms = performance.now() - t;
+  assert(ms < 4000, `geometry ${ms}ms`);
+  const m = model("中文ABC ".repeat(2000), {
+      frame: { x: 40, y: 50, width: 500, height: 14000 },
+    }),
+    t2 = performance.now();
+  fastLayout(m, measure);
+  const layoutMs = performance.now() - t2;
+  assert(layoutMs < 2000, `layout ${layoutMs}ms`);
+  console.log(
+    JSON.stringify({
+      objects: 10000,
+      geometryMs: ms,
+      chars: m.text.length,
+      layoutMs,
+    }),
+  );
+});

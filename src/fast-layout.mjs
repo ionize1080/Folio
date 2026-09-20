@@ -1,0 +1,443 @@
+// Deterministic browser layout. O(characters + runs); measuring is cached by face,
+// size and character. Hard source line breaks are retained in the text model.
+const unsupported = /[\p{Mark}\u0590-\u109f\u200c\u200d]/u;
+export function canFast(m) {
+  return (
+    m.directionSupported !== false &&
+    m.direction !== "rtl" &&
+    !unsupported.test(m.text) &&
+    !m.frames &&
+    (m.columns || 1) === 1 &&
+    !m.behindPage &&
+    m.layerOrder == null &&
+    !m.cell &&
+    !["down", "right"].includes(m.growth)
+  );
+}
+export function fastLayout(m, measure) {
+  if (!canFast(m)) throw Error("此文字需要复杂字形排版，使用精排模式");
+  const f = m.frame,
+    vertical = m.writingMode?.startsWith("vertical"),
+    angle = m.rotation || 0,
+    rl = m.writingMode !== "vertical-lr";
+  if (angle && !vertical) {
+    const swap = angle === 90 || angle === 270;
+    const local = {
+      ...m,
+      rotation: 0,
+      originalLayout: undefined,
+      originalBaseline: undefined,
+      frame: {
+        x: 0,
+        y: 0,
+        width: swap ? f.height : f.width,
+        height: swap ? f.width : f.height,
+      },
+    };
+    const r = fastLayout(local, measure);
+    const point = (x, y) =>
+      angle === 90
+        ? [f.x + f.width - y, f.y + x]
+        : angle === 180
+          ? [f.x + f.width - x, f.y + f.height - y]
+          : [f.x + y, f.y + f.height - x];
+    r.glyphs = r.glyphs.map((g) => {
+      const [originX, baseline] = point(g.originX, g.baseline),
+        pts = [
+          [g.x, g.y],
+          [g.x + g.w, g.y],
+          [g.x, g.y + g.h],
+          [g.x + g.w, g.y + g.h],
+        ].map((p) => point(...p));
+      const xs = pts.map((p) => p[0]),
+        ys = pts.map((p) => p[1]);
+      return {
+        ...g,
+        originX,
+        baseline,
+        x: Math.min(...xs),
+        y: Math.min(...ys),
+        w: Math.max(...xs) - Math.min(...xs),
+        h: Math.max(...ys) - Math.min(...ys),
+        rotation: angle,
+        vertical: swap,
+      };
+    });
+    r.anchors = r.anchors.map((a) => {
+      if (!a) return a;
+      const [x, y] = point(a.x, a.y);
+      return { ...a, x, y, vertical: swap, w: swap ? a.h : 1 };
+    });
+    return r;
+  }
+  const runs = m.runs || [],
+    gs = [],
+    anchors = [],
+    original = m.originalLayout?.glyphs || [],
+    oldText = m.originalLayout?.text;
+  const unchanged = oldText === m.text;
+  const byOffset = new Map(original.map((g) => [g.start, g]));
+  let ri = 0,
+    offset = 0,
+    line = 0,
+    x = f.x + (m.firstIndent || 0),
+    base = m.originalBaseline || f.y + m.size * 0.85,
+    pen = vertical ? f.y : x;
+  let col = rl ? f.x + f.width - m.size : f.x,
+    step = m.size * (m.lineHeight || 1.4),
+    lineStart = 0,
+    lineSize = m.size;
+  const details = [],
+    close = /[，。！？；：、）】》〉」』,.!?;:%\)\]]/u,
+    open = /[（【《〈「『\(\[]/u;
+  const tokens = Array.from(m.text);
+  let previous = "",
+    cachedRun = null,
+    cachedStyle = null;
+  function alignLine(end, hard) {
+    if (vertical || end <= lineStart) return;
+    const list = gs.slice(lineStart, end).filter((g) => g.text !== "\n");
+    if (!list.length) return;
+    const left = list[0].originX,
+      right = list.at(-1).originX + list.at(-1).advance,
+      space = Math.max(0, f.x + f.width - right);
+    const shift = unchanged
+      ? 0
+      : m.align === "center"
+        ? space / 2
+        : m.align === "right"
+          ? space
+          : 0;
+    let extra =
+      !unchanged && m.align === "justify" && !hard && list.length > 1
+        ? space / (list.length - 1)
+        : 0;
+    list.forEach((g, i) => {
+      g.x += shift + i * extra;
+      g.originX += shift + i * extra;
+      anchors[g.start] = {
+        x: g.originX,
+        y: g.baseline - g.size * 0.85,
+        h: g.size,
+      };
+    });
+  }
+  function nextLine(hard = false) {
+    alignLine(gs.length, hard);
+    line++;
+    base +=
+      Math.max(step, lineSize * (m.lineHeight || 1.4)) +
+      (hard ? m.paragraphGap || 0 : 0);
+    col += (rl ? -1 : 1) * Math.max(step, lineSize * (m.lineHeight || 1.4));
+    pen = vertical ? f.y : f.x;
+    lineStart = gs.length;
+    lineSize = m.size;
+  }
+  for (let ti = 0; ti < tokens.length; ti++) {
+    const ch = tokens[ti];
+    while (ri < runs.length && runs[ri].end <= offset) ri++;
+    const run = runs[ri]?.start <= offset ? runs[ri] : null;
+    if (cachedStyle === null || cachedRun !== run) {
+      cachedStyle = { ...m, ...run };
+      cachedRun = run;
+    }
+    const style = cachedStyle,
+      size = style.size || m.size;
+    const measured =
+      ch === "\n"
+        ? { width: 0, fontKey: null }
+        : ch === "\t"
+          ? { ...measure(" ", style), width: measure(" ", style).width * 4 }
+          : measure(ch, style);
+    const scale = (style.horizontalScale || 100) / 100,
+      width = measured.width * scale;
+    const advance =
+      (vertical ? size : width) +
+      (style.charSpacing || 0) +
+      (ch === " " ? style.wordSpacing || 0 : 0);
+    if (
+      ch !== "\n" &&
+      pen + (vertical ? size : width) >
+        (vertical ? f.y + f.height : f.x + f.width) + 0.25 &&
+      pen > (vertical ? f.y : f.x) + 0.25 &&
+      !close.test(ch)
+    )
+      nextLine();
+    // Don't strand an opening bracket, or split an ASCII word when it fits a line.
+    if (!vertical && ch !== "\n" && pen > f.x + 0.25) {
+      let needed = width;
+      if (open.test(ch) && tokens[ti + 1] && tokens[ti + 1] !== "\n")
+        needed += measure(tokens[ti + 1], style).width * scale;
+      if (/[A-Za-z0-9]/.test(ch) && !/[A-Za-z0-9]/.test(previous)) {
+        let j = ti + 1;
+        while (
+          j < tokens.length &&
+          j < ti + 128 &&
+          /^[A-Za-z0-9]$/.test(tokens[j])
+        ) {
+          needed += measure(tokens[j], style).width * scale;
+          j++;
+        }
+      }
+      if (needed <= f.width && pen + needed > f.x + f.width + 0.25) nextLine();
+    }
+    const old =
+      unchanged && m.layoutMode !== "reflow" ? byOffset.get(offset) : null;
+    let ox = vertical ? col + (size - width) / 2 : pen,
+      by = vertical ? pen + size * 0.85 : base;
+    // Reuse each original anchor only when all character/paragraph geometry is unchanged.
+    const settings = m.originalLayout?.settings || {};
+    const preserve =
+      old &&
+      m.layoutMode !== "reflow" &&
+      [
+        "size",
+        "align",
+        "lineHeight",
+        "charSpacing",
+        "wordSpacing",
+        "firstIndent",
+        "paragraphGap",
+      ].every((k) => m[k] === settings[k]) &&
+      Math.abs(f.x - m.originalLayout.frame.x) < 0.01 &&
+      Math.abs(f.y - m.originalLayout.frame.y) < 0.01 &&
+      Math.abs(f.width - m.originalLayout.frame.width) < 0.01 &&
+      size === old.style?.size;
+    if (preserve) {
+      ox = old.originX;
+      by = old.baseline;
+    }
+    const g = {
+      text: ch,
+      start: offset,
+      end: offset + ch.length,
+      originX: ox,
+      baseline: by,
+      x: ox,
+      y: by - size * 0.85,
+      w: width,
+      h: size,
+      size,
+      line,
+      advance,
+      fontKey: measured.fontKey,
+      color: style.color || m.color,
+      bold: !!style.bold,
+      italic: !!style.italic,
+      fontBold: measured.fontBold ?? !!style.fontBold,
+      fontItalic: measured.fontItalic ?? !!style.fontItalic,
+      strokeWidth: style.strokeWidth || 0,
+      scale,
+      rotation: 0,
+      vertical: !!vertical,
+    };
+    if (ch === "\n") {
+      g.w = 0;
+      g.fontKey = null;
+    }
+    gs.push(g);
+    anchors[offset] = {
+      x: vertical ? col : ox,
+      y: vertical ? pen : by - size * 0.85,
+      h: size,
+      w: vertical ? size : 1,
+      vertical: !!vertical,
+    };
+    offset += ch.length;
+    lineSize = Math.max(lineSize, size);
+    if (measured.fallback)
+      details.push({
+        start: g.start,
+        end: g.end,
+        text: ch,
+        original: style.fontName,
+        actual: measured.name,
+        match: "fallback",
+        confidence: 0,
+      });
+    if (ch === "\n") nextLine(true);
+    else pen += advance;
+    previous = ch;
+  }
+  alignLine(gs.length, true);
+  anchors[offset] = {
+    x: vertical ? col : pen,
+    y: vertical ? pen : base - m.size * 0.85,
+    h: m.size,
+    w: vertical ? m.size : 1,
+    vertical: !!vertical,
+  };
+  const overflow = gs.some(
+    (g) =>
+      g.text.trim() &&
+      (g.x < f.x - 0.5 ||
+        g.y < f.y - 0.5 ||
+        g.x + g.w > f.x + f.width + 0.5 ||
+        g.y + g.h > f.y + f.height + 0.5),
+  );
+  return {
+    version: 1,
+    text: m.text,
+    glyphs: gs,
+    anchors,
+    overflow: overflow && !m.allowOverflow,
+    mappingComplete: true,
+    fallbackCount: details.length,
+    fallbackDetails: details,
+    layoutMode: unchanged ? "原始字位" : "快速排版",
+  };
+}
+const fontCache = new Map();
+export class FastFonts {
+  constructor(call) {
+    this.call = call;
+    this.fonts = new Map();
+    this.widths = new Map();
+    this.canvas = document.createElement("canvas");
+    this.ctx = this.canvas.getContext("2d");
+  }
+  async load(key) {
+    if (!fontCache.has(key))
+      fontCache.set(
+        key,
+        (async () => {
+          const data = await this.call("font-fast", { fontKey: key });
+          const family = "FolioFast_" + data.key;
+          const face = new FontFace(
+            family,
+            Uint8Array.from(atob(data.base64), (c) => c.charCodeAt(0)),
+          );
+          await face.load();
+          document.fonts.add(face);
+          return {
+            ...data,
+            base64: undefined,
+            family,
+            coverage: new Set(data.coverage),
+          };
+        })().catch((e) => {
+          fontCache.delete(key);
+          throw e;
+        }),
+      );
+    const f = await fontCache.get(key);
+    this.fonts.set(key, f);
+    this.fonts.set(f.key, f);
+    if (f.systemKey && !this.fonts.has(f.systemKey))
+      await this.load(f.systemKey);
+    return f;
+  }
+  async prepare(m) {
+    const keys = new Set([
+      "builtin-latin",
+      "builtin-cjk",
+      ...[m, ...(m.runs || [])]
+        .flatMap((r) => [r.fontKey, r.latinFontKey, r.cjkFontKey])
+        .filter(Boolean),
+    ]);
+    await Promise.all([...keys].map((k) => this.load(k)));
+  }
+  measure = (ch, s) => {
+    const key =
+      (ch.codePointAt(0) < 0x300 ? s.latinFontKey : s.cjkFontKey) || s.fontKey;
+    let f = this.fonts.get(key),
+      fallback = false;
+    if (f?.systemKey) {
+      const system = this.fonts.get(f.systemKey);
+      if (system?.coverage.has(ch.codePointAt(0))) {
+        f = system;
+        fallback = true;
+      }
+    }
+    if (
+      !f?.coverage.has(ch.codePointAt(0)) ||
+      (f.fontBold && !s.bold) ||
+      (f.fontItalic && !s.italic)
+    ) {
+      f = this.fonts.get(
+        ch.codePointAt(0) < 0x300 ? "builtin-latin" : "builtin-cjk",
+      );
+      fallback = true;
+    }
+    if (!f?.coverage.has(ch.codePointAt(0)))
+      throw Error("字体缺少字符：" + ch + "；请选择覆盖此字符的字体");
+    const cache = f.key + ":" + s.size + ":" + ch;
+    let width = this.widths.get(cache);
+    if (width == null) {
+      this.ctx.font = `${s.size}px "${f.family}"`;
+      width = this.ctx.measureText(ch).width;
+      this.widths.set(cache, width);
+      if (this.widths.size > 20000)
+        this.widths.delete(this.widths.keys().next().value);
+    }
+    return {
+      width,
+      fontKey: f.key,
+      fallback,
+      name: f.name,
+      fontBold: f.fontBold,
+      fontItalic: f.fontItalic,
+    };
+  };
+  paint(canvas, layout, w, h, scale) {
+    let l = w,
+      t = h,
+      r = 0,
+      b = 0;
+    for (const g of layout.glyphs) {
+      if (!g.text.trim()) continue;
+      l = Math.min(l, g.x - g.size * 0.4);
+      t = Math.min(t, g.y - g.size * 0.25);
+      r = Math.max(r, g.x + g.w + g.size * 0.4);
+      b = Math.max(b, g.y + g.h + g.size * 0.25);
+    }
+    if (r <= l || b <= t) {
+      canvas.width = 1;
+      canvas.height = 1;
+      return;
+    }
+    l = Math.max(0, l);
+    t = Math.max(0, t);
+    r = Math.min(w, r);
+    b = Math.min(h, b);
+    const cw = Math.max(1, r - l),
+      ch = Math.max(1, b - t),
+      z = Math.min(
+        scale * (devicePixelRatio || 1),
+        3,
+        Math.sqrt(8000000 / (cw * ch)),
+      );
+    const iw = Math.ceil(cw * z),
+      ih = Math.ceil(ch * z);
+    if (canvas.width !== iw) canvas.width = iw;
+    if (canvas.height !== ih) canvas.height = ih;
+    canvas.style.inset = "auto";
+    canvas.style.left = (l / w) * 100 + "%";
+    canvas.style.top = (t / h) * 100 + "%";
+    canvas.style.width = (cw / w) * 100 + "%";
+    canvas.style.height = (ch / h) * 100 + "%";
+    const c = canvas.getContext("2d");
+    c.setTransform(1, 0, 0, 1, 0, 0);
+    c.clearRect(0, 0, iw, ih);
+    c.scale(z, z);
+    c.translate(-l, -t);
+    for (const g of layout.glyphs) {
+      if (!g.text.trim()) continue;
+      const f = this.fonts.get(g.fontKey);
+      if (!f) continue;
+      c.save();
+      c.translate(g.originX, g.baseline);
+      c.rotate((g.rotation * Math.PI) / 180);
+      c.transform(g.scale, 0, g.italic && !g.fontItalic ? -0.22 : 0, 1, 0, 0);
+      c.font = `${g.size}px "${f.family}"`;
+      c.fillStyle = g.color;
+      c.strokeStyle = g.color;
+      c.fillText(g.text, 0, 0);
+      if (g.bold && !g.fontBold) {
+        c.lineWidth = g.strokeWidth || g.size * 0.025;
+        c.strokeText(g.text, 0, 0);
+      }
+      c.restore();
+    }
+  }
+}

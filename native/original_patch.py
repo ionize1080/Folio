@@ -10,6 +10,7 @@ def correction(page, stream, mapped, description, flow):
     try:
         model=flow.get('model') or {}; original=model.get('originalLayout') or {}
         old=original.get('text'); new=model.get('text')
+        if model.get('fastLayout'):return None
         if not old or not new or old==new or len(old)!=len(new): return None
         if old!=description.get('text') or len(flow.get('sources',[]))!=1:return None
         if model.get('layoutMode')=='reflow' or model.get('frames') or model.get('cell') or model.get('columns',1)!=1:return None

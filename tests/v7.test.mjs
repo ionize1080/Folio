@@ -3,7 +3,7 @@ import {pageCandidates,checkFlowConflicts,hitOffset,caretRect} from '../src/flow
 const object=(index,text,x,y)=>({index,type:'text',text,size:280,matrix:[.05,0,0,.05,x,y],bounds:[x,y-3,x+text.length*14,y+11],flowEditable:true,signature:'s'+index,textGroup:4,fill:[0,0,0,255]});
 test('page-space font sizes and reading order survive 0.05 Office transforms',()=>{
  const c=pageCandidates([object(0,'第一行正文',90,700),object(1,'第二行正文',90,670)],595,842);
- assert.equal(c.length,1);assert.equal(c[0].model.size,14);assert.equal(c[0].model.text,'第一行正文第二行正文');assert(c[0].model.frame.height<110);
+ assert.equal(c.length,1);assert.equal(c[0].model.size,14);assert.equal(c[0].model.text,'第一行正文\n第二行正文');assert(c[0].model.frame.height<110);
 });
 test('independent whitespace operators need not be deleted with a paragraph',()=>{
  const a=object(0,'测试',90,700),space=object(1,' ',118,700);

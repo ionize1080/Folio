@@ -103,7 +103,7 @@ class NativeBridge {
         format: options.format,
       });
     if (
-      ["font-catalog", "font-select", "font-data", "font-recommend"].includes(
+      ["font-catalog", "font-select", "font-data", "font-recommend", "font-fast"].includes(
         command,
       )
     ) {

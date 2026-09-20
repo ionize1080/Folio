@@ -36,13 +36,21 @@ if (mode !== "ui")
   for (const version of [4, 9, 10, 11, 12])
     run(python, [`tests/native-v${version}.py`]);
 if (mode !== "ui") {
-  for (const name of ["font-reuse-p1", "font-resolver-p2", "ocr-diagnostics-p2", "large-pdf-p2"]) run(python, ["tests/"+name+".py"]);
+  for (const name of [
+    "font-reuse-p1",
+    "font-resolver-p2",
+    "ocr-diagnostics-p2",
+    "large-pdf-p2",
+    "fast-layout-p3",
+  ])
+    run(python, ["tests/" + name + ".py"]);
   run(process.execPath, ["tests/large-files-p2.cjs"]);
 }
 if (mode !== "ui") run(process.execPath, ["tests/ocr-jobs-v5.cjs"]);
 if (mode === "ui") {
   run(python, ["tests/native-v11.py"]); // Creates actual subset/encryption fixtures.
   run(python, ["tests/native-v12.py"]); // Creates punctuation fixture.
+  run(python, ["tests/fast-layout-p3.py"]);
 }
 if (mode !== "native")
   for (const file of [
@@ -52,6 +60,7 @@ if (mode !== "native")
     "ui-v10-structure.cjs",
     "ui-v11.cjs",
     "ui-v12.cjs",
+    "ui-fast-p3.cjs",
     "ui-encrypted-open-p1.cjs",
     "ui-large-p2.cjs",
   ])
