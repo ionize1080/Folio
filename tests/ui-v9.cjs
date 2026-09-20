@@ -68,7 +68,7 @@ let browser,server,activePage;const errors=[],checks=[];
  await page.setViewportSize({width:1536,height:1000});await page.locator('#pe-done').click();await page.waitForFunction(()=>!window.__qa.S.flowEdit,{timeout:20000});
  checks.push('responsive editor has no horizontal scroll and fixed visible completion actions');
  await page.locator('[data-action="flow-edit"]').click();await page.waitForSelector('.page-edit-hit');await page.locator('#pe-more').click();await page.locator('#pe-tables').click();await page.locator('#pe-close-properties').click();
- const cell=page.locator('.table-cell-hit').first();await cell.click();await page.waitForFunction(()=>!document.querySelector('.page-edit-ink').hidden);
+ const cell=page.locator('.table-cell-hit').first();await cell.click();await page.waitForFunction(()=>/完成/.test(document.querySelector('#pe-status')?.textContent)&&!document.querySelector('.page-edit-input').disabled&&document.querySelector('.page-edit-input').value.trim()==='Cell 1-1');
  await page.locator('.page-edit-input').evaluate(el=>{el.focus();el.select();document.execCommand('insertText',false,'Table cell expands the whole row. '.repeat(7));});
  await page.waitForFunction(()=>/(?:自动重排|段落重排|原始字位|局部行重排|快速排版)完成/.test(document.querySelector('#pe-status').textContent),{timeout:30000});
  assert.equal(await page.locator('.pe-notice').isHidden(),true,'row growth should not collide with old row positions');

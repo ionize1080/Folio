@@ -1879,7 +1879,8 @@ body[data-right="narrow"] .inspector > .panel-rail {
   overflow: visible;
 }
 .page-edit-background,
-.page-edit-ink {
+.page-edit-ink,
+.page-edit-fast {
   position: absolute;
   inset: 0;
   width: 100%;

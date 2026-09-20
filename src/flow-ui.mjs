@@ -131,7 +131,7 @@ export function installFlowUI(ctx) {
       showingPrecise = false,
       collisionTimer = null;
     const fastInk = document.createElement("canvas");
-    fastInk.className = "page-edit-ink page-edit-fast";
+    fastInk.className = "page-edit-fast";
     fastInk.hidden = true;
     const tools = document.createElement("div");
     tools.className = "pe-fast-tools";
