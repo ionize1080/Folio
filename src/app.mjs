@@ -2277,7 +2277,7 @@ async function settingsDialog() {
 }
 function helpDialog() {
   modal(
-    "Folio PDF Studio · 1.2.0 RC1-P1",
+    document.title,
     `<p>面向 Windows 11 x64 的离线书签工作台。建议先用副本验证实际工作文档。</p><h3>快捷操作</h3><p>Ctrl+O 打开 · Ctrl+S 保存 · Ctrl+Shift+S 另存 · Ctrl+B 书签面板 · Ctrl+Shift+B 新建<br>Ctrl+Z 撤销 · Ctrl+Y 重做 · Ctrl+F 搜索正文 · Ctrl+滚轮缩放 · Alt+左右返回视图<br>Ctrl / Shift 多选 · Delete 删除 · F2 改名<br>书签树中 Ctrl+A 全选 · Alt+左右箭头 升降级 · Tab 移动焦点<br>拖动行：上部插在前面，中部成为子项，下部插在后面；左侧退级区域移至根层。悬停展开，Esc 取消</p><h3>精确目标</h3><p>PDF 坐标以 pt 为单位，使用原生页面坐标系。XYZ = [左, 顶, 缩放]；留空为 null。FitR = [左, 底, 右, 顶]。XYZ 的 zoom=0 由阅读器解释为保持缩放。原始动作默认保持；使用「整理 → 原始本地目标 → 可编辑目标」后可统一偏移。</p><h3>当前边界</h3><p>已实现书签、批注、旋转、页面提取与追加、文档属性编辑。已加入文字/路径对象编辑、离线 OCR、段落流式编辑和同页分栏续排；工作工程可续编。加密文件可通过更多工具导出无密码副本后编辑。尚未实现跨页文章重排、公式结构编辑、表单编辑、安全涂黑、数字签名，以及 PDF-XChange 专有书签导入导出。不是 PDF-XChange 全功能替代品。</p><h3>技术与许可</h3><p>Electron 44.3.0 · PDF.js 5.6.205（Apache-2.0）· pdf-lib 1.17.1（MIT）。源码及依赖许可随包附带。没有遥测和在线更新功能。</p>`,
     [{ text: "开始使用", primary: true, run: closeModal }],
   );
