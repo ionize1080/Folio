@@ -221,3 +221,35 @@ test("trailing side bearings do not falsely overflow a tight source frame", () =
   assert.equal(r.glyphs[0].w, 7);
   assert.equal(r.overflow, false);
 });
+
+test("same-slot correction retains untouched PDF ink despite rounded browser metrics", () => {
+  const m = model("ABN", {
+    frame: { x: 40, y: 50, width: 18, height: 30 },
+    sources: [{ index: 0 }],
+  });
+  const glyphs = [...m.text].map((text, i) => ({
+    text,
+    originX: 40 + i * 6,
+    baseline: 62,
+    x: 40 + i * 6,
+    y: 53,
+    w: 5,
+    h: 9,
+  }));
+  sourceStyles(m, [
+    o(0, "ABN", 40, 62, 18, { fontKey: "a".repeat(32), glyphs }),
+  ]);
+  m.text = "AAN";
+  const r = fastLayout(m, () => ({
+    width: 6,
+    inkLeft: 2,
+    inkWidth: 9,
+    ascent: 9,
+    inkHeight: 9,
+    fontKey: m.fontKey,
+  }));
+  assert.equal(r.layoutMode, "原始字位");
+  assert.equal(r.overflow, false);
+  assert.equal(r.glyphs[0].x, 40);
+  assert.equal(r.glyphs[2].w, 5);
+});

@@ -301,6 +301,20 @@ export function fastLayout(m, measure) {
       rotation: 0,
       vertical: !!vertical,
     };
+    if (
+      preserve &&
+      old.text === ch &&
+      ["fontKey", "bold", "italic", "horizontalScale"].every(
+        (k) => style[k] === old.style?.[k],
+      )
+    ) {
+      // Preserve authoritative source ink for untouched glyphs. Browser
+      // raster metrics may round a tight PDF edge outward by one pixel.
+      g.x = old.x;
+      g.y = old.y;
+      g.w = old.w;
+      g.h = old.h;
+    }
     if (ch === "\n") {
       g.w = 0;
       g.fontKey = null;
