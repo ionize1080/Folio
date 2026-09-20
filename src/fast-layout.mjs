@@ -281,10 +281,12 @@ export function fastLayout(m, measure) {
       end: offset + ch.length,
       originX: ox,
       baseline: by,
-      x: ox,
-      y: by - size * 0.85,
-      w: width,
-      h: size,
+      // Advance includes trailing side bearings; only actual ink can overflow
+      // the source's tight bounding box. Keep advance separately for the caret.
+      x: ox - (vertical ? 0 : (measured.inkLeft || 0) * scale),
+      y: by - (vertical ? size * 0.85 : (measured.ascent ?? size * 0.85)),
+      w: vertical ? width : (measured.inkWidth ?? measured.width) * scale,
+      h: vertical ? size : (measured.inkHeight ?? size),
       size,
       line,
       advance,
@@ -480,16 +482,23 @@ export class FastFonts {
     if (!f?.coverage.has(ch.codePointAt(0)))
       throw Error("字体缺少字符：" + ch + "；请选择覆盖此字符的字体");
     const cache = f.key + ":" + s.size + ":" + ch;
-    let width = this.widths.get(cache);
-    if (width == null) {
+    let metrics = this.widths.get(cache);
+    if (metrics == null) {
       this.ctx.font = `${s.size}px "${f.family}"`;
-      width = this.ctx.measureText(ch).width;
-      this.widths.set(cache, width);
+      const t = this.ctx.measureText(ch);
+      metrics = {
+        width: t.width,
+        inkLeft: t.actualBoundingBoxLeft,
+        inkWidth: t.actualBoundingBoxLeft + t.actualBoundingBoxRight,
+        ascent: t.actualBoundingBoxAscent,
+        inkHeight: t.actualBoundingBoxAscent + t.actualBoundingBoxDescent,
+      };
+      this.widths.set(cache, metrics);
       if (this.widths.size > 20000)
         this.widths.delete(this.widths.keys().next().value);
     }
     return {
-      width,
+      ...metrics,
       fontKey: f.key,
       fallback,
       name: f.name,

@@ -71,4 +71,4 @@ let browser,page;const errors=[],checks=[];
  checks.push('Real PDF punctuation caret matches body text before and after final period');
  await page.screenshot({path:path.join(out,'v12-p1-punctuation.png')});
  assert.deepEqual(errors,[]);fs.writeFileSync(path.join(out,'v12-ui-report.json'),JSON.stringify({checks,errors,browser:await browser.version()},null,2));console.log(JSON.stringify({checks,errors}));
-})().catch(async e=>{console.error(e);if(page){console.error('page errors',errors);await page.screenshot({path:path.join(out,'v12-ui-failure.png')});}process.exitCode=1}).finally(async()=>{await browser?.close();bridge.cancel();flow.close();await sourceStore.close()});
+})().catch(async e=>{console.error(e);if(page){console.error('page errors',errors);console.error('EDIT_STATUS',await page.locator('#pe-status').textContent().catch(()=>''));await page.screenshot({path:path.join(out,'v12-ui-failure.png')});}process.exitCode=1}).finally(async()=>{await browser?.close();bridge.cancel();flow.close();await sourceStore.close()});

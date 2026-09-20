@@ -202,3 +202,22 @@ test("moving a text frame moves its baseline rather than reporting stale-page ov
   assert.equal(after.glyphs[0].baseline - before.glyphs[0].baseline, 100);
   assert(!after.overflow);
 });
+
+test("trailing side bearings do not falsely overflow a tight source frame", () => {
+  const m = model("N", {
+    frame: { x: 40, y: 40, width: 8, height: 20 },
+    baselineOffset: 12,
+  });
+  const r = fastLayout(m, () => ({
+    width: 9.5,
+    inkLeft: -1,
+    inkWidth: 7,
+    ascent: 9,
+    inkHeight: 9,
+    fontKey: "test",
+  }));
+  assert.equal(r.glyphs[0].advance, 9.5);
+  assert.equal(r.glyphs[0].x, 41);
+  assert.equal(r.glyphs[0].w, 7);
+  assert.equal(r.overflow, false);
+});
