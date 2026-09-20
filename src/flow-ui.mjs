@@ -805,6 +805,7 @@ export function installFlowUI(ctx) {
       input.setSelectionRange(offset, offset);
       selection();
     }
+    let blankFragmentPromise;
     async function prepareBackground(rendered = null, quiet = false) {
       const target = clone(model),
         targetId = id,
@@ -819,7 +820,21 @@ export function installFlowUI(ctx) {
       try {
         const blank =
           rendered ||
-          (await window.desktop.flowLayout({ ...target, text: "" }));
+          (await (blankFragmentPromise ||= window.desktop
+            .flowLayout({
+              text: "",
+              pageWidth: w,
+              pageHeight: h,
+              frame: { x: 0, y: 0, width: w, height: h },
+              size: 12,
+              lineHeight: 1.4,
+              align: "left",
+              color: "#202020",
+            })
+            .catch((e) => {
+              blankFragmentPromise = null;
+              throw e;
+            })));
         const edits = (S.nativeEdits || []).filter((e) => e.id !== targetId);
         edits.push({
           id: targetId,
@@ -931,11 +946,7 @@ export function installFlowUI(ctx) {
       bar.querySelector("#pe-use-refined").hidden = true;
       if (
         fastReady &&
-        [model, ...(model.runs || [])].every((r) =>
-          [r.fontKey, r.latinFontKey, r.cjkFontKey]
-            .filter(Boolean)
-            .every((k) => fastFonts.fonts.has(k)),
-        ) &&
+        fastFonts.ready(model) &&
         canFast(model) &&
         model.layoutMode !== "reflow"
       ) {
@@ -1115,7 +1126,18 @@ export function installFlowUI(ctx) {
         ...(model.originalLayout || {}),
         text: model.text,
         frame: { ...model.frame },
-        settings: { ...(model.originalLayout?.settings || {}) },
+        settings: Object.fromEntries(
+          [
+            "size",
+            "align",
+            "lineHeight",
+            "charSpacing",
+            "wordSpacing",
+            "firstIndent",
+            "paragraphBefore",
+            "paragraphGap",
+          ].map((k) => [k, model[k]]),
+        ),
         glyphs: precise.result.glyphs.map((g) => ({
           ...g,
           text: model.text.slice(g.start, g.end),

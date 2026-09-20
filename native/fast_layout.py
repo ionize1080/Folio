@@ -5,7 +5,7 @@ import base64,hashlib,json,math,re
 from pathlib import Path
 from functools import lru_cache
 
-@lru_cache(maxsize=128)
+@lru_cache(maxsize=16)
 def font_data(key):
     import fitz
     from font_match import load_font,CACHE
@@ -63,7 +63,11 @@ def render(m):
         bold=bool(g.get('bold')) and not g.get('fontBold');italic=bool(g.get('italic')) and not g.get('fontItalic')
         sx=g.get('scale',1)
         if not isinstance(sx,(float,int)) or not math.isfinite(sx) or not .05<=sx<=20:raise ValueError('文字比例无效')
-        x,y=g['originX'],g['baseline'];matrix=fitz.Matrix(sx,0,.22 if italic else 0,1,0,0)
+        x,y=g['originX'],g['baseline']
+        # insert_text rotation precedes the page-space morph: conjugate local
+        # scale/shear into page coordinates so italic never tilts the baseline.
+        radians=-math.radians(angle);c=math.cos(radians);s=math.sin(radians);k=.22 if italic else 0
+        matrix=fitz.Matrix(sx*c*c-k*c*s+s*s,(sx-1)*c*s-k*s*s,(sx-1)*c*s+k*c*c,sx*s*s+k*c*s+c*c,0,0)
         stroke=g.get('strokeWidth',0) if bold else 0
         if not isinstance(stroke,(int,float)) or not math.isfinite(stroke) or not 0<=stroke<=20:raise ValueError('描边无效')
         stroke=stroke or g['size']*.025

@@ -38,3 +38,20 @@ assert not res['overflow'] and res['mappingComplete']
 with fitz.open(stream=base64.b64decode(res['fragment']),filetype='pdf') as pdf:assert any(t['type']==1 for t in pdf[0].get_texttrace())
 checks.append('Story precision preview preserves synthetic bold')
 (out/'p3-native-report.json').write_text(json.dumps({'checks':checks},indent=2));print(json.dumps({'checks':checks}))
+# Direction survives PDF export, not just frontend geometry.
+for angle in (90,180,270):
+ sample=copy.deepcopy(m);sample['rotation']=angle;sample['text']='ABCD';sample['runs']=[{**sample['runs'][0],'start':0,'end':4}];sample['frame']={'x':100,'y':100,'width':120,'height':120};sample.pop('originalLayout',None);sample.pop('originalBaseline',None)
+ (out/'p3-direction-input.json').write_text(json.dumps(sample))
+ js="import fs from 'node:fs';import {fastLayout} from './src/fast-layout.mjs';const m=JSON.parse(fs.readFileSync('tests/output/p3-direction-input.json'));m.fastLayout=fastLayout(m,(c,s)=>({width:8,fontKey:s.fontKey}));console.log(JSON.stringify(m));"
+ sample=json.loads(subprocess.check_output(['node','--input-type=module','-e',js],cwd=root));rr=render(sample)
+ with fitz.open(stream=base64.b64decode(rr['fragment']),filetype='pdf') as pdf:
+  traces=[t for t in pdf[0].get_texttrace() if t['type']==0];expected={90:(0,1),180:(-1,0),270:(0,-1)}[angle]
+  assert all(abs(t['dir'][0]-expected[0])<.02 and abs(t['dir'][1]-expected[1])<.02 for t in traces), (angle,[t['dir'] for t in traces])
+checks.append('Actual exported text direction verified at 90/180/270 degrees')
+# A page background must contain only the requested page with source removal applied.
+multi=fitz.open();multi.new_page();multi.insert_pdf(fitz.open(stream=raw,filetype='pdf'));multi.new_page();multi_raw=multi.tobytes();multi.close()
+background=worker.run({'command':'flow-background','bytes':base64.b64encode(multi_raw).decode(),'page':2,'edits':[{**e,'page':2}]})
+with fitz.open(stream=base64.b64decode(background['pdf']),filetype='pdf') as pdf:
+ assert len(pdf)==1 and 'Selection' in pdf[0].get_text()
+checks.append('Page-local background applies edits from the requested page of a multipage document')
+(out/'p3-native-report.json').write_text(json.dumps({'checks':checks},indent=2));print(json.dumps({'checks':checks}))

@@ -77,11 +77,73 @@ export function fastLayout(m, measure) {
     oldText = m.originalLayout?.text;
   const unchanged = oldText === m.text;
   const byOffset = new Map(original.map((g) => [g.start, g]));
+  let slotCompatible =
+    typeof oldText === "string" && oldText.length === m.text.length;
+  if (slotCompatible) {
+    let at = 0;
+    for (const ch of m.text) {
+      const old = byOffset.get(at);
+      if (
+        !old ||
+        (ch === "\n" && old.text !== "\n") ||
+        (old.text === "\n" && ch !== "\n")
+      ) {
+        slotCompatible = false;
+        break;
+      }
+      if (ch !== old.text) {
+        const next = byOffset.get(at + ch.length);
+        const available =
+          next && Math.abs(next.baseline - old.baseline) < 0.5
+            ? next.originX - old.originX
+            : f.x + f.width - old.originX;
+        const st = { ...m, ...old.style };
+        if (
+          (measure(ch, st).width * (st.horizontalScale || 100)) / 100 >
+          available + 0.25
+        ) {
+          slotCompatible = false;
+          break;
+        }
+      }
+      at += ch.length;
+    }
+  }
+  const geometrySame =
+    slotCompatible &&
+    m.originalLayout &&
+    [
+      "size",
+      "align",
+      "lineHeight",
+      "charSpacing",
+      "wordSpacing",
+      "firstIndent",
+      "paragraphBefore",
+      "paragraphGap",
+    ].every((k) => m[k] === m.originalLayout.settings?.[k]) &&
+    ["x", "y", "width", "height"].every(
+      (k) => Math.abs(f[k] - m.originalLayout.frame[k]) < 0.01,
+    ) &&
+    runs.every((r) => {
+      const old = byOffset.get(r.start)?.style;
+      return (
+        !old ||
+        [
+          "size",
+          "fontKey",
+          "charSpacing",
+          "wordSpacing",
+          "horizontalScale",
+        ].every((k) => r[k] === old[k])
+      );
+    });
   let ri = 0,
     offset = 0,
     line = 0,
     x = f.x + (m.firstIndent || 0),
-    base = m.originalBaseline || f.y + m.size * 0.85,
+    base =
+      (m.originalBaseline || f.y + m.size * 0.85) + (m.paragraphBefore || 0),
     pen = vertical ? f.y : x;
   let col = rl ? f.x + f.width - m.size : f.x,
     step = m.size * (m.lineHeight || 1.4),
@@ -101,7 +163,7 @@ export function fastLayout(m, measure) {
     const left = list[0].originX,
       right = list.at(-1).originX + list.at(-1).advance,
       space = Math.max(0, f.x + f.width - right);
-    const shift = unchanged
+    const shift = geometrySame
       ? 0
       : m.align === "center"
         ? space / 2
@@ -109,7 +171,7 @@ export function fastLayout(m, measure) {
           ? space
           : 0;
     let extra =
-      !unchanged && m.align === "justify" && !hard && list.length > 1
+      !geometrySame && m.align === "justify" && !hard && list.length > 1
         ? space / (list.length - 1)
         : 0;
     list.forEach((g, i) => {
@@ -182,7 +244,7 @@ export function fastLayout(m, measure) {
       if (needed <= f.width && pen + needed > f.x + f.width + 0.25) nextLine();
     }
     const old =
-      unchanged && m.layoutMode !== "reflow" ? byOffset.get(offset) : null;
+      geometrySame && m.layoutMode !== "reflow" ? byOffset.get(offset) : null;
     let ox = vertical ? col + (size - width) / 2 : pen,
       by = vertical ? pen + size * 0.85 : base;
     // Reuse each original anchor only when all character/paragraph geometry is unchanged.
@@ -267,6 +329,15 @@ export function fastLayout(m, measure) {
     w: vertical ? m.size : 1,
     vertical: !!vertical,
   };
+  const last = gs.at(-1);
+  if (last && last.text !== "\n")
+    anchors[offset] = {
+      x: vertical ? last.x : last.originX + last.advance,
+      y: vertical ? last.y + last.size : last.baseline - last.size * 0.85,
+      h: last.size,
+      w: vertical ? last.size : 1,
+      vertical: !!vertical,
+    };
   const overflow = gs.some(
     (g) =>
       g.text.trim() &&
@@ -284,7 +355,7 @@ export function fastLayout(m, measure) {
     mappingComplete: true,
     fallbackCount: details.length,
     fallbackDetails: details,
-    layoutMode: unchanged ? "原始字位" : "快速排版",
+    layoutMode: geometrySame ? "原始字位" : "快速排版",
   };
 }
 const fontCache = new Map();
@@ -327,15 +398,56 @@ export class FastFonts {
       await this.load(f.systemKey);
     return f;
   }
-  async prepare(m) {
-    const keys = new Set([
-      "builtin-latin",
-      "builtin-cjk",
-      ...[m, ...(m.runs || [])]
+  required(m) {
+    const keys = new Set(
+      [m, ...(m.runs || [])]
         .flatMap((r) => [r.fontKey, r.latinFontKey, r.cjkFontKey])
         .filter(Boolean),
-    ]);
+    );
+    let i = 0,
+      offset = 0,
+      run = null,
+      style = m;
+    const runs = m.runs || [];
+    for (const ch of m.text) {
+      while (i < runs.length && runs[i].end <= offset) i++;
+      const next = runs[i]?.start <= offset ? runs[i] : null;
+      if (next !== run) {
+        run = next;
+        style = { ...m, ...run };
+      }
+      offset += ch.length;
+      if (ch === "\n" || ch === "\r") continue;
+      const cp = ch === "\t" ? 32 : ch.codePointAt(0),
+        key =
+          (cp < 0x300 ? style.latinFontKey : style.cjkFontKey) || style.fontKey;
+      let f = this.fonts.get(key);
+      const system = f?.systemKey && this.fonts.get(f.systemKey);
+      if (system?.coverage.has(cp)) f = system;
+      if (
+        !f?.coverage.has(cp) ||
+        (f.fontBold && !style.bold) ||
+        (f.fontItalic && !style.italic)
+      )
+        keys.add(cp < 0x300 ? "builtin-latin" : "builtin-cjk");
+    }
+    return keys;
+  }
+  ready(m) {
+    return [...this.required(m)].every((k) => this.fonts.has(k));
+  }
+  async prepare(m) {
+    const keys = new Set(
+      [m, ...(m.runs || [])]
+        .flatMap((r) => [r.fontKey, r.latinFontKey, r.cjkFontKey])
+        .filter(Boolean),
+    );
     await Promise.all([...keys].map((k) => this.load(k)));
+    await Promise.all(
+      [...this.required(m)]
+        .filter((k) => !this.fonts.has(k))
+        .map((k) => this.load(k)),
+    );
   }
   measure = (ch, s) => {
     const key =

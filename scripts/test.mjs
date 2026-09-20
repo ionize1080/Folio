@@ -65,3 +65,5 @@ if (mode !== "native")
     "ui-large-p2.cjs",
   ])
     run(process.execPath, ["tests/" + file]);
+
+if (mode !== "native") run(python, ["tests/check-ui-p3.py"]);

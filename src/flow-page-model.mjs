@@ -96,7 +96,7 @@ export function pageCandidates(objects, w, h, regions = [], tables = []) {
       ? "span"
       : cuts.filter((c) => x > c).length;
     const key =
-      (r
+      (r?.kind === "table"
         ? `${r.i}:${r.kind === "table" ? Math.round(o.matrix[5] / 3) : ""}`
         : "geometry") +
       ":" +
