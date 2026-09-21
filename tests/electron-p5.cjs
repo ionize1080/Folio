@@ -51,6 +51,54 @@ const root = path.resolve(__dirname, ".."),
       await page.locator(".page-edit-hit:not(.unavailable)").first().click();
       await stable();
     };
+    const publicFonts = [];
+    for (const name of [
+      "tracemonkey.pdf",
+      "ArabicCIDTrueType.pdf",
+      "XiaoBiaoSong.pdf",
+    ]) {
+      const result = await page.evaluate(
+        async (bytes) => {
+          const { nativeRequest, releaseSource } = await import(
+            "./native-source.mjs"
+          );
+          const data = new Uint8Array(bytes),
+            loaded = [];
+          try {
+            const r = await nativeRequest({
+              command: "inspect",
+              bytes: data,
+              page: 1,
+            });
+            for (const key of new Set(
+              Object.values(r.fonts)
+                .map((f) => f.fontKey)
+                .filter(Boolean),
+            )) {
+              const f = await nativeRequest({
+                command: "font-fast",
+                fontKey: key,
+              });
+              const face = await new FontFace(
+                "P5Public" + key,
+                Uint8Array.from(atob(f.base64), (c) => c.charCodeAt(0)),
+              ).load();
+              loaded.push({ name: f.name, status: face.status });
+            }
+            return loaded;
+          } finally {
+            await releaseSource(data);
+          }
+        },
+        Array.from(fs.readFileSync(path.join(out, "public-corpus", name))),
+      );
+      assert(result.length > 0);
+      assert(result.every((f) => f.status === "loaded"));
+      publicFonts.push({ file: name, fonts: result });
+    }
+    checks.push(
+      "Public English Type1 and Chinese/Arabic embedded fonts pass actual Chromium FontFace loading",
+    );
     await open(path.join(out, "p5-missing-post.pdf"));
     assert((await page.title()).includes("RC1-P5"));
     const font = JSON.parse(
@@ -149,6 +197,7 @@ const root = path.resolve(__dirname, ".."),
         crypto.createHash("sha256").update(fs.readFileSync(p)).digest("hex");
     const report = {
       platform: process.platform,
+      publicFonts,
       checks,
       errors,
       exe_sha256: hash(exe),

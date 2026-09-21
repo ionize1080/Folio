@@ -5,6 +5,7 @@ import {
   editStyles,
   editSoftBreaks,
   sourceStyles,
+  rangeStyle,
 } from "../src/flow-style.mjs";
 import { fastLayout } from "../src/fast-layout.mjs";
 import { displayToPage, pageTransform } from "../src/page-coordinates.mjs";
@@ -143,4 +144,16 @@ test("page/view rotations use one invertible coordinate transform", () => {
         { x: p[0], y: p[1] },
       );
     }
+});
+
+test("typing style cannot cut a surrogate pair after an emoji replacement", () => {
+  const m = { text: "😁a", runs: [{ start: 0, end: 3, color: "#000000" }] };
+  rangeStyle(m, 1, 2, { color: "#173ea8" });
+  assert.deepEqual(
+    m.runs.map((r) => [r.start, r.end, r.color]),
+    [
+      [0, 2, "#173ea8"],
+      [2, 3, "#000000"],
+    ],
+  );
 });

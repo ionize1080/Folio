@@ -284,6 +284,16 @@ export function rangeStyle(model, start, end, patch) {
     model.typingStyle = { ...(model.typingStyle || {}), ...patch };
     return;
   }
+  if (
+    /[\uD800-\uDBFF]/.test(model.text[start - 1] || "") &&
+    /[\uDC00-\uDFFF]/.test(model.text[start] || "")
+  )
+    start--;
+  if (
+    /[\uD800-\uDBFF]/.test(model.text[end - 1] || "") &&
+    /[\uDC00-\uDFFF]/.test(model.text[end] || "")
+  )
+    end++;
   const runs = model.runs || [],
     edges = [
       ...new Set([

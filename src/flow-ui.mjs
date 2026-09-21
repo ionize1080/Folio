@@ -1739,6 +1739,7 @@ export function installFlowUI(ctx) {
       composition.hidden = true;
       composition.textContent = "";
       const old = model.text;
+      model.softBreaks = editSoftBreaks(model.softBreaks, old, input.value);
       model.runs = editStyles(model.runs || [], old, input.value, model);
       if (model.typingStyle) {
         let a = 0,

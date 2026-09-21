@@ -78,5 +78,12 @@ assert scaled['hhea'].advanceWidthMax>=max(v[0]for v in scaled['hmtx'].metrics.v
 assert repair_map(b'<0001> <0002> <1f600>')==b'<0001> <0002> [<d83dde00> <d83dde01>]'
 checks.append('Expanded metrics and supplementary ToUnicode destinations remain standards-compatible')
 
+# Native Story must keep the same offsets while merging physical line wraps.
+m=dict(text='ab\ncd\nef',softBreaks=[2],pageWidth=600,pageHeight=800,frame=dict(x=40,y=50,width=300,height=200),size=12,lineHeight=1.4,color='#000000',align='left',layoutMode='reflow',fontName='内置替代字体')
+r=layout(m);assert r['mappingComplete'] and not r['overflow'];gs=r['glyphs']
+assert gs[0]['baseline']==gs[2]['baseline'] and gs[4]['baseline']>gs[0]['baseline']
+assert [g['start'] for g in gs]==[0,1,3,4,6,7]
+checks.append('Native Story merges soft wraps while retaining UTF-16 glyph offsets and hard paragraphs')
+
 (OUT/'p5-native-report.json').write_text(json.dumps({'platform':sys.platform,'pymupdf':fitz.VersionBind,'checks':checks,'errors':[]},ensure_ascii=False,indent=2))
 print(json.dumps({'checks':checks,'errors':[]},ensure_ascii=False))
