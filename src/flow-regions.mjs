@@ -51,7 +51,7 @@ function project(o, h, d) {
   };
 }
 // A style change creates another PDF text object, not another line or column.
-export function visualRows(items, d) {
+export function visualRows(items, d, gapEm = 2.1) {
   items = [...items].sort(
     (a, b) => a.base - b.base || a.u - b.u || a.o.index - b.o.index,
   );
@@ -64,7 +64,7 @@ export function visualRows(items, d) {
         (r) =>
           Math.abs(r.base - p.base) <= Math.max(1, size * 0.22) &&
           p.u >= r.end - size * 0.3 &&
-          p.u - r.end <= Math.max(3, size * 2.1),
+          p.u - r.end <= Math.max(3, size * gapEm),
       );
     if (!row) {
       row = { base: p.base, u: p.u, end: p.end, size, parts: [], d };
@@ -76,6 +76,8 @@ export function visualRows(items, d) {
   }
   return rows.sort((a, b) => a.base - b.base || a.u - b.u);
 }
+// Before gutters are known, a two-em join can bridge a newspaper column.
+// Use sub-em continuity for evidence; paragraph assembly uses established lanes.
 export function horizontalRows(objects, h) {
   const d = {
     writingMode: "horizontal-tb",
@@ -96,6 +98,7 @@ export function horizontalRows(objects, h) {
       )
       .map((o) => project(o, h, d)),
     d,
+    0.9,
   );
 }
 export function connectedParagraphs(objects, h, barriers = objects) {

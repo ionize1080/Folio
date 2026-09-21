@@ -57,6 +57,26 @@ test("mixed style rows remain one paragraph; true columns remain separate", () =
   assert.equal(ms.length, 3);
   for (const c of ms) assert.equal(c.model.sources.length, 5);
 });
+test("narrow newspaper gutters stay separate even on identical baselines", () => {
+  const os = [];
+  for (let row = 0; row < 8; row++)
+    for (let col = 0; col < 3; col++)
+      os.push(
+        object(
+          os.length,
+          "中文正文栏" + col,
+          50 + col * 165,
+          700 - row * 15,
+          147,
+        ),
+      );
+  const cs = pageCandidates(os, 600, 800);
+  assert.equal(cs.length, 3);
+  for (const c of cs) {
+    assert.equal(c.model.sources.length, 8);
+    assert(c.model.frame.width < 160);
+  }
+});
 test("dominant body font is counted across fragments, instead of selecting one long heading", () => {
   const os = [
     object(0, "heading!", 40, 700, 100, true),
