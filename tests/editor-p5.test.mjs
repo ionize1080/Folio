@@ -7,7 +7,7 @@ import {
   sourceStyles,
   rangeStyle,
 } from "../src/flow-style.mjs";
-import { fastLayout } from "../src/fast-layout.mjs";
+import { fastLayout, FastFonts } from "../src/fast-layout.mjs";
 import { displayToPage, pageTransform } from "../src/page-coordinates.mjs";
 const object = (index, text, x, y, width = 100, bold = false) => ({
   index,
@@ -156,4 +156,65 @@ test("typing style cannot cut a surrogate pair after an emoji replacement", () =
       [2, 3, "#000000"],
     ],
   );
+});
+
+test("embedded coverage wins over same-name system fonts, with lazy missing-glyph fallback", async () => {
+  const previous = globalThis.document;
+  const context = {
+    measureText() {
+      return {
+        width: this.font.includes("Embedded") ? 12 : 20,
+        actualBoundingBoxLeft: 0,
+        actualBoundingBoxRight: 10,
+        actualBoundingBoxAscent: 10,
+        actualBoundingBoxDescent: 2,
+      };
+    },
+  };
+  globalThis.document = {
+    createElement: () => ({ getContext: () => context }),
+  };
+  try {
+    const f = new FastFonts(() => {}),
+      loaded = [];
+    const definitions = {
+      embedded: {
+        key: "embedded",
+        family: "Embedded",
+        name: "Same Family",
+        coverage: new Set([0x4e2d]),
+        systemKey: "system",
+      },
+      system: {
+        key: "system",
+        family: "System",
+        name: "Same Family",
+        coverage: new Set([0x4e2d, 0x65b0]),
+      },
+      "builtin-cjk": {
+        key: "builtin-cjk",
+        family: "Builtin",
+        coverage: new Set([0x7f3a]),
+      },
+    };
+    f.load = async (key) => {
+      loaded.push(key);
+      f.fonts.set(key, definitions[key]);
+      return definitions[key];
+    };
+    const m = { text: "中", fontKey: "embedded", size: 12 };
+    await f.prepare(m);
+    assert.deepEqual(loaded, ["embedded"]);
+    assert.equal(f.measure("中", m).fontKey, "embedded");
+    assert.equal(f.measure("中", m).width, 12);
+    assert.equal(f.measure("中", m).fallback, false);
+    loaded.length = 0;
+    m.text = "新缺";
+    await f.prepare(m);
+    assert.deepEqual(loaded, ["embedded", "system", "builtin-cjk"]);
+    assert.equal(f.measure("新", m).fontKey, "system");
+    assert.equal(f.measure("缺", m).fontKey, "builtin-cjk");
+  } finally {
+    globalThis.document = previous;
+  }
 });

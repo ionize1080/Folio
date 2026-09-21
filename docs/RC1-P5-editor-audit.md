@@ -11,6 +11,7 @@
 | 内嵌中文字体在 Chromium 报 Invalid font data | PDF 子集允许省略浏览器需要的 cmap/post/OS2 | 按 PDF ToUnicode 重建 cmap，补 post 与缺失的 OS/2 度量元数据，校验表范围、度量与校验和；保留原字形与提示字节 |
 | 内嵌 CID CFF 错用替代字体或映射到错误字形 | 把 CID 当作 GID，且只处理 CIDFontType2 | 支持 OTTO 内 CIDFontType0，从 CFF charset 建立 CID→GID→Unicode 映射 |
 | Type1 英文字体无法加载 | PFA/PFB 不是浏览器 FontFace 格式 | 从原 Encoding/ToUnicode 恢复 Unicode 并封装为 OpenType CFF |
+| 原字体已覆盖，却发生全段替代及溢出 | 快速排版无条件优先同名系统字体 | 优先内嵌字形，仅为缺字按需加载系统/内置替代字体 |
 | 字距增加后浏览器裁字 | hmtx 扩大，但 hhea.advanceWidthMax 未同步 | 归一化最大字宽；不改变原文字形 |
 | 一页文字整体变成不可编辑 | 空 f/S 绘制操作被当成 PDFium 页面对象 | 仅在存在路径时增加绘制对象索引 |
 | 保存后文字仍能搜索，却不能再次编辑 | Folio 写出的内容 Form 再打开时作为不透明对象 | 仅展开有明确 Folio Content 标记的自有层，保留矩阵、剪裁、资源作用域；不展开外部 Form/OCR/透明组 |

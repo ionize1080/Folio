@@ -431,8 +431,6 @@ export class FastFonts {
     const f = await fontCache.get(key);
     this.fonts.set(key, f);
     this.fonts.set(f.key, f);
-    if (f.systemKey && !this.fonts.has(f.systemKey))
-      await this.load(f.systemKey);
     return f;
   }
   required(m) {
@@ -459,8 +457,14 @@ export class FastFonts {
         key =
           (cp < 0x300 ? style.latinFontKey : style.cjkFontKey) || style.fontKey;
       let f = this.fonts.get(key);
-      const system = f?.systemKey && this.fonts.get(f.systemKey);
-      if (system?.coverage.has(cp)) f = system;
+      if (f?.systemKey && !f.coverage.has(cp)) {
+        const system = this.fonts.get(f.systemKey);
+        if (!system) {
+          keys.add(f.systemKey);
+          continue;
+        }
+        if (system.coverage.has(cp)) f = system;
+      }
       if (
         !f?.coverage.has(cp) ||
         (f.fontBold && !style.bold) ||
@@ -480,18 +484,19 @@ export class FastFonts {
         .filter(Boolean),
     );
     await Promise.all([...keys].map((k) => this.load(k)));
-    await Promise.all(
-      [...this.required(m)]
-        .filter((k) => !this.fonts.has(k))
-        .map((k) => this.load(k)),
-    );
+    // At most two fallback edges: original -> same-name system -> builtin.
+    for (let pass = 0; pass < 3; pass++) {
+      const missing = [...this.required(m)].filter((k) => !this.fonts.has(k));
+      if (!missing.length) return;
+      await Promise.all(missing.map((k) => this.load(k)));
+    }
   }
   measure = (ch, s) => {
     const key =
       (ch.codePointAt(0) < 0x300 ? s.latinFontKey : s.cjkFontKey) || s.fontKey;
     let f = this.fonts.get(key),
       fallback = false;
-    if (f?.systemKey) {
+    if (f?.systemKey && !f.coverage.has(ch.codePointAt(0))) {
       const system = this.fonts.get(f.systemKey);
       if (system?.coverage.has(ch.codePointAt(0))) {
         f = system;

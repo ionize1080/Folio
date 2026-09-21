@@ -162,6 +162,14 @@ const root = path.resolve(__dirname, ".."),
         e.dispatchEvent(new Event("change", { bubbles: true }));
       }, ["#173ea8", "#7d2450", "#245930"][i]);
       await stable();
+      const state = await page.locator("#pe-status").innerText();
+      console.log("Chinese roundtrip", i, state);
+      assert(!/溢出/.test(state), state);
+      assert.equal(
+        await page.locator("#pe-fallback").isVisible(),
+        false,
+        "Covered embedded glyphs must not be replaced",
+      );
       await page.locator("#pe-done").click();
       await page.waitForFunction(
         () => !document.body.classList.contains("page-edit-mode"),
