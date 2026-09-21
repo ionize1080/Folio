@@ -110,6 +110,31 @@ export function fastLayout(m, measure) {
       at += ch.length;
     }
   }
+  const geometryKeys = [
+    "size",
+    "fontKey",
+    "charSpacing",
+    "wordSpacing",
+    "horizontalScale",
+  ];
+  const geometryValue = (style, key, parent = {}) =>
+    style?.[key] ??
+    parent[key] ??
+    { charSpacing: 0, wordSpacing: 0, horizontalScale: 100, fontKey: null }[
+      key
+    ];
+  // Formatting a paragraph adds runs for its nonpainting newline separators.
+  // Compare the actual glyphs and effective defaults, not just run boundaries.
+  let geometryRun = 0;
+  const stylesKeepGeometry = original.every((g) => {
+    if (g.text === "\n" || g.text === "\r") return true;
+    while (geometryRun < runs.length && runs[geometryRun].end <= g.start)
+      geometryRun++;
+    const run = runs[geometryRun]?.start <= g.start ? runs[geometryRun] : null;
+    return geometryKeys.every(
+      (k) => geometryValue(run, k, m) === geometryValue(g.style, k),
+    );
+  });
   const geometrySame =
     slotCompatible &&
     m.originalLayout &&
@@ -126,19 +151,7 @@ export function fastLayout(m, measure) {
     ["x", "y", "width", "height"].every(
       (k) => Math.abs(f[k] - m.originalLayout.frame[k]) < 0.01,
     ) &&
-    runs.every((r) => {
-      const old = byOffset.get(r.start)?.style;
-      return (
-        !old ||
-        [
-          "size",
-          "fontKey",
-          "charSpacing",
-          "wordSpacing",
-          "horizontalScale",
-        ].every((k) => r[k] === old[k])
-      );
-    });
+    stylesKeepGeometry;
   let ri = 0,
     offset = 0,
     line = 0,

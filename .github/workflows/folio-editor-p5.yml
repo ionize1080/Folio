@@ -37,16 +37,17 @@ jobs:
       - run: npx playwright install chromium
       - run: python scripts/restore-assets.py
       - run: python tests/public-corpus-p5.py
-      - run: npm test
+      - run: python tests/editor-p5.py
       - run: npm run build:win
       - run: npm run test:package
+      - run: node tests/electron-p5.cjs
+        env:
+          FOLIO_EXE: ${{ github.workspace }}\dist\Folio-PDF-Studio-win-x64\Folio.exe
+      - run: npm test
       - run: node tests/electron-v12.cjs
         env:
           FOLIO_EXE: ${{ github.workspace }}\dist\Folio-PDF-Studio-win-x64\Folio.exe
       - run: node tests/electron-p4.cjs
-        env:
-          FOLIO_EXE: ${{ github.workspace }}\dist\Folio-PDF-Studio-win-x64\Folio.exe
-      - run: node tests/electron-p5.cjs
         env:
           FOLIO_EXE: ${{ github.workspace }}\dist\Folio-PDF-Studio-win-x64\Folio.exe
       - uses: actions/upload-artifact@v4

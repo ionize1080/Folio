@@ -218,3 +218,36 @@ test("embedded coverage wins over same-name system fonts, with lazy missing-glyp
     globalThis.document = previous;
   }
 });
+
+test("coloring a multi-line paragraph preserves anchors across newly styled newline runs", () => {
+  const text = "abcdefgh",
+    objects = [];
+  for (let line = 0; line < 3; line++) {
+    const o = object(line, text, 40, 700 - line * 15, 80);
+    o.glyphs = Array.from(text, (ch, i) => ({
+      text: ch,
+      originX: 40 + i * 10,
+      baseline: 100 + line * 15,
+      x: 40 + i * 10,
+      y: 92 + line * 15,
+      w: 9,
+      h: 10,
+    }));
+    objects.push(o);
+  }
+  const m = pageCandidates(objects, 600, 800)[0].model;
+  const measure = () => ({ width: 10, fontKey: "a" }),
+    before = fastLayout(m, measure);
+  rangeStyle(m, 0, m.text.length, { color: "#173ea8" });
+  const after = fastLayout(m, measure);
+  assert.equal(after.layoutMode, "原始字位");
+  assert.equal(after.overflow, false);
+  assert.deepEqual(
+    after.glyphs
+      .filter((g) => g.text !== "\n")
+      .map((g) => [g.originX, g.baseline, g.x, g.y, g.w, g.h]),
+    before.glyphs
+      .filter((g) => g.text !== "\n")
+      .map((g) => [g.originX, g.baseline, g.x, g.y, g.w, g.h]),
+  );
+});
