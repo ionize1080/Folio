@@ -35,7 +35,7 @@ def validate(m):
     n = number(m.get('columns', 1), 1, 3)
     if int(n) != n: raise ValueError('栏数须为整数')
     gap = number(m.get('gap', 18), 0, 200)
-    if (f['width'] - (n-1)*gap)/n < m['size']*2: raise ValueError('每栏宽度不足')
+    if (f['width'] - (n-1)*gap)/n <= 0: raise ValueError('栏间距占满了文本框')
     if m.get('align') not in ('left', 'right', 'center', 'justify'): raise ValueError('对齐方式无效')
     if not re.fullmatch('#[0-9a-fA-F]{6}', m.get('color', '')): raise ValueError('文字颜色无效')
     frames=m.get('frames')
@@ -126,6 +126,9 @@ def layout(model):
         raise ValueError('当前方向请使用快速排版，精排不会更改阅读方向')
     if m.get('directionSupported') is False:
         raise ValueError('此阅读方向或倾斜角度尚不支持可靠编辑，原文已保留')
+    from fast_layout import anchored_style
+    styled = anchored_style(m)
+    if styled:return styled
     from original_layout import render as anchored_layout
     anchored=anchored_layout(m)
     if anchored:return anchored

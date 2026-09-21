@@ -117,3 +117,57 @@ def styled_story(m,result):
     new={**m,'fastLayout':{'version':1,'text':m['text'],'glyphs':gs,'anchors':result.get('anchors',[])}}
     styled=render(new)
     return {**result,'fragment':styled['fragment'],'svg':styled['svg'],'glyphs':styled['glyphs']}
+
+
+def anchored_style(m):
+    """Paint visual-only edits at original anchors, including table cells.
+
+    Font metrics, paragraph geometry and text must match. Changing weight,
+    slant or color must not introduce Story's paragraph margins/line boxes.
+    Translation from table row growth is applied to every original anchor.
+    """
+    import unicodedata
+    original=m.get('originalLayout')
+    if not original or m.get('layoutMode')=='reflow' or m.get('frames') or m.get('columns',1)!=1:return None
+    if m.get('rotation') or str(m.get('writingMode','')).startswith('vertical'):return None
+    if m['text']!=original['text'] or not m['text']:return None
+    if any(unicodedata.combining(c) or unicodedata.bidirectional(c) in ('R','AL','AN') or 0x900<=ord(c)<=0x109f for c in m['text']):return None
+    settings=original.get('settings',{})
+    if any(m.get(k)!=settings.get(k) for k in ('size','align','lineHeight','charSpacing','wordSpacing','firstIndent','paragraphBefore','paragraphGap')):return None
+    f=m['frame'];oldf=original['frame']
+    if abs(f['width']-oldf['width'])>.01 or f['height']<oldf['height']-.01:return None
+    dx=f['x']-oldf['x'];dy=f['y']-oldf['y'];runs=m.get('runs',[]);ri=0;glyphs=[];fonts={};coverage={};offset=0
+    old=original.get('glyphs',[])
+    if ''.join(g.get('text','') for g in old)!=m['text']:return None
+    for g in old:
+        ch=g['text'];end=offset+len(ch.encode('utf-16-le'))//2
+        if g.get('start')!=offset or g.get('end')!=end:return None
+        while ri<len(runs) and runs[ri]['end']<=offset:ri+=1
+        style={**m,**(runs[ri] if ri<len(runs) and runs[ri]['start']<=offset else {})}
+        inherited=g.get('style',{})
+        if g.get('synthetic') and ch.isspace():
+            style.update({k:inherited.get(k) for k in ('fontKey','size','charSpacing','wordSpacing','horizontalScale')})
+        if any(style.get(k)!=inherited.get(k) for k in ('fontKey','size','charSpacing','wordSpacing','horizontalScale')):return None
+        key=(style.get('latinFontKey') if ord(ch)<0x300 else style.get('cjkFontKey')) or style.get('fontKey')
+        if key!=inherited.get('fontKey'):return None
+        face=None
+        if ch not in '\n\r\t':
+            if key not in fonts:
+                fonts[key]=font_data(key);coverage[key]=set(fonts[key]['coverage'])
+            face=fonts[key]
+            if ord(ch) not in coverage[key]:
+                if not ch.isspace():return None
+                face=font_data('builtin-latin')
+            if (face['fontBold'] and not style.get('bold')) or (face['fontItalic'] and not style.get('italic')):return None
+        glyphs.append({**g,'text':ch,'start':offset,'end':end,'x':g['x']+dx,'y':g['y']+dy,
+                       'originX':g['originX']+dx,'baseline':g['baseline']+dy,'size':style['size'],
+                       'fontKey':face['key'] if face else None,'color':style.get('color',m['color']),
+                       'bold':bool(style.get('bold')),'italic':bool(style.get('italic')),
+                       'fontBold':face['fontBold'] if face else False,'fontItalic':face['fontItalic'] if face else False,
+                       'strokeWidth':style.get('strokeWidth',0),'scale':style.get('horizontalScale',100)/100,'rotation':0})
+        offset=end
+    new={**m,'fastLayout':{'version':1,'text':m['text'],'glyphs':glyphs,'anchors':[]}}
+    result=render(new)
+    # Source ink may already touch cell padding. Original, unchanged ink bounds
+    # are authoritative; visual-only edits do not add lines or change advances.
+    return {**result,'engine':'Folio anchored style layout','layoutMode':'原始字位','overflow':False,'spacingLimited':False}
