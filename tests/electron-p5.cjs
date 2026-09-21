@@ -35,7 +35,7 @@ const root = path.resolve(__dirname, ".."),
         null,
         { timeout: 60000 },
       );
-    const open = async (fixture) => {
+    const open = async (fixture, cellCount = null) => {
       await page.evaluate(() => window.desktop?.setDirty(false));
       await page.reload();
       await page.waitForSelector('[data-action="open"]');
@@ -48,6 +48,11 @@ const root = path.resolve(__dirname, ".."),
       await page.locator('[data-action="open"]').first().click();
       await page.waitForSelector("body.has-document");
       await page.locator('[data-action="flow-edit"]').click();
+      if (cellCount !== null)
+        await page.waitForFunction(
+          (count) => document.querySelectorAll(".table-cell-hit").length === count,
+          cellCount,
+        );
       await page.locator(".page-edit-hit:not(.unavailable)").first().click();
       await stable();
     };
@@ -211,8 +216,10 @@ const root = path.resolve(__dirname, ".."),
     checks.push(
       "Rotated 90-degree page hit target activates correct text with transformed editor layer",
     );
-    await open(path.join(out, "p5-sparse.pdf"));
-    assert.equal(await page.locator(".table-cell-hit").count(), 12);
+    await open(path.join(out, "p5-sparse.pdf"), 12);
+    // The selected cell is replaced by its input, so eleven other hit targets remain.
+    assert.equal(await page.locator(".table-cell-hit").count(), 11);
+    assert.equal((await page.locator(".page-edit-input").inputValue()).trim(), "Cell 0,0");
     await page.locator("#pe-more").click();
     await page.locator(".pe-position>summary").click();
     assert(await page.locator('[data-frame="height"]').isDisabled());
