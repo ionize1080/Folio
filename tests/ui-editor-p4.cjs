@@ -28,8 +28,7 @@ const report = { tag, pages: [], errors: [], requests: [] };
     headless: true,
     args: [
       "--no-sandbox",
-      "--no-zygote",
-      "--single-process",
+      ...(process.platform === "linux" ? ["--no-zygote", "--single-process"] : []),
       "--disable-gpu",
       "--disable-background-networking",
     ],
