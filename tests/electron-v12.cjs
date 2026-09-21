@@ -18,6 +18,7 @@ const root=path.resolve(__dirname,'..'),out=path.join(root,'tests/output'),check
   const before=await page.locator('.page-edit-input').inputValue();await page.locator('.page-edit-input').fill(before.slice(0,1)+'A'+before.slice(2));await page.waitForFunction(()=>/完成/.test(document.querySelector('#pe-status')?.textContent));
   await page.locator('#pe-done').click();await page.waitForFunction(()=>!document.body.classList.contains('page-edit-mode'));
   await page.locator('[data-action="save"]').click();await page.waitForFunction(()=>!document.querySelector('#dirty-dot').classList.contains('changed') && document.querySelector('#doc-name').textContent.includes('saved'),null,{timeout:60000});
+  await page.waitForFunction(async()=>{const {S}=await import('./app.mjs');return !S.busy;},null,{timeout:60000});
   assert(fs.statSync(saved).size>100);checks.push('Real Windows native edit and atomic PDF save');
   // Exercise the actual large-file open IPC and packaged native worker, not
   // only the browser harness. Keep sparse fixtures out of uploaded artifacts.
