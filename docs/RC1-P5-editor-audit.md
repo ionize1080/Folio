@@ -8,7 +8,7 @@
 
 | 问题 | 原因 | 修复 |
 |---|---|---|
-| 内嵌中文字体在 Chromium 报 Invalid font data | PDF 子集允许省略浏览器需要的 cmap/post | 按 PDF ToUnicode 重建 cmap，补 post，校验表范围、度量与校验和；保留原字形与提示字节 |
+| 内嵌中文字体在 Chromium 报 Invalid font data | PDF 子集允许省略浏览器需要的 cmap/post/OS2 | 按 PDF ToUnicode 重建 cmap，补 post 与缺失的 OS/2 度量元数据，校验表范围、度量与校验和；保留原字形与提示字节 |
 | 内嵌 CID CFF 错用替代字体或映射到错误字形 | 把 CID 当作 GID，且只处理 CIDFontType2 | 支持 OTTO 内 CIDFontType0，从 CFF charset 建立 CID→GID→Unicode 映射 |
 | Type1 英文字体无法加载 | PFA/PFB 不是浏览器 FontFace 格式 | 从原 Encoding/ToUnicode 恢复 Unicode 并封装为 OpenType CFF |
 | 字距增加后浏览器裁字 | hmtx 扩大，但 hhea.advanceWidthMax 未同步 | 归一化最大字宽；不改变原文字形 |
@@ -23,6 +23,8 @@
 | 字体栏样式偶尔选错 | 最长单一样式片段代替全文权重 | 按字体/字号/粗斜体累计字符权重选择主体样式 |
 | emoji 附近编辑损坏样式偏移 | 字符串差分切开 UTF-16 代理对 | 调整差分边界，维护软换行、拆分与接续偏移 |
 | 快速字体加载失败后编辑停住 | FontFace 异常直接中断激活 | 保留草稿，切回原字位/原生排版，并显示实际状态 |
+
+便携版在首次处理 CID CFF 前加载随包附带的 fontTools，不依赖此前是否打开过 Type1 字体。
 
 字体缓存改为 v11；字体和元数据用原子替换写入，避免多个工作进程读到半个文件。
 

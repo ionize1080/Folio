@@ -43,10 +43,11 @@ def build(version, parts):
 
 def normalize(blob):
     parts = tables(blob)
-    required = {b'head', b'hhea', b'maxp', b'hmtx', b'cmap', b'name', b'OS/2'}
+    required = {b'head', b'hhea', b'maxp', b'hmtx', b'cmap', b'name'}
     missing = required - parts.keys()
     if missing:
         raise ValueError('字体缺少必要表：'+', '.join(t.decode('ascii') for t in sorted(missing)))
+    if len(parts[b'head'])<54:raise ValueError('字体 head 表无效')
     changed = False
     if b'post' not in parts:
         # Format 3 carries metrics, without a glyph-name array. PDF.js also
@@ -61,6 +62,25 @@ def normalize(blob):
     if not 1 <= metrics <= count or len(parts[b'hmtx']) < 4*metrics+2*(count-metrics):
         raise ValueError('字体字宽数量不一致')
     maximum = max(struct.unpack_from('>H', parts[b'hmtx'], 4*i)[0] for i in range(metrics))
+    if b'OS/2' not in parts:
+        # PDF subsets may omit Windows metadata. Recover conservative metrics
+        # from existing head/hhea/hmtx; never change outline or advance tables.
+        # OpenType OS/2 v4 layout: Microsoft OpenType specification.
+        head=parts[b'head'];units=struct.unpack_from('>H',head,18)[0]
+        style=struct.unpack_from('>H',head,44)[0];ascent,descent,gap=struct.unpack_from('>hhh',parts[b'hhea'],4)
+        ymin,ymax=struct.unpack_from('>h',head,38)[0],struct.unpack_from('>h',head,42)[0]
+        widths=[struct.unpack_from('>H',parts[b'hmtx'],4*i)[0]for i in range(metrics)]
+        widths += [widths[-1]]*(count-metrics);nonzero=[w for w in widths if w]
+        average=min(32767,round(sum(nonzero)/len(nonzero))) if nonzero else 0
+        os2=bytearray(96)
+        struct.pack_into('>HhHHH',os2,0,4,average,700 if style&1 else 400,5,0)
+        values=[.65,.6,0,.14,.65,.6,0,.48,.05,.25,0]
+        struct.pack_into('>11h',os2,10,*(max(-32768,min(32767,round(v*units)))for v in values))
+        os2[58:62]=b'FOLI'
+        selection=(32 if style&1 else 0)|(1 if style&2 else 0)
+        struct.pack_into('>HHHhhhHH',os2,62,selection or 64,0,65535,ascent,descent,gap,min(65535,max(0,ascent,ymax)),min(65535,max(0,-descent,-ymin)))
+        struct.pack_into('>hhHHH',os2,86,0,max(0,ascent),0,0,1)
+        parts[b'OS/2']=bytes(os2);changed=True
     if struct.unpack_from('>H', parts[b'hhea'], 10)[0] < maximum:
         header = bytearray(parts[b'hhea']); struct.pack_into('>H', header, 10, maximum)
         parts[b'hhea'] = bytes(header); changed = True

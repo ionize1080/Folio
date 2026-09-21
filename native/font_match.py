@@ -1,9 +1,12 @@
 """Restore Unicode cmap for embedded TrueType subsets; keep original glyph outlines/metrics.
 The cache is shared by the inspect and Story processes and keyed only by content hashes.
 """
-import base64,hashlib,io,json,math,re,struct,tempfile
+import base64,hashlib,io,json,math,re,struct,tempfile,sys
 from pathlib import Path
 from functools import lru_cache
+# Embedded Windows Python must resolve the shipped converter on the first CID font,
+# without relying on a previous Type1/browser-font request to alter sys.path.
+sys.path.insert(0,str(Path(__file__).parent/'vendor'))
 CACHE=Path(tempfile.gettempdir())/'folio-fonts-v11'
 
 def checksum(data):

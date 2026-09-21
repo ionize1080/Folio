@@ -24,6 +24,7 @@ for name,p in files:
         start=time.perf_counter();r=worker.run({'command':'inspect','input':str(p),'page':pn})
         texts=[o for o in r['objects'] if o['type']=='text']
         controls=sum(sum(ord(c)<32 and c not in '\r\n\t' for c in o.get('text','')) for o in texts)
+        if name=='ArabicCIDTrueType.pdf':assert all(f['fontResolution']=='embedded' for f in r['fonts'].values())
         if name=='tracemonkey.pdf':assert controls==0,(pn,controls)
         if name=='french_diacritics.pdf':assert all('nknown' not in f['fontName'] or f['fontName']=='Unknown' for f in r['fonts'].values())
         entry['results'].append({'page':pn,'textObjects':len(texts),'editableText':sum(bool(o.get('flowEditable')) for o in texts),'controlCharacters':controls,'tables':len(r['tables']),'fontResolutions':sorted(set(f['fontResolution'] for f in r['fonts'].values())),'seconds':round(time.perf_counter()-start,3)})

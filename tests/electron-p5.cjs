@@ -53,6 +53,7 @@ const root = path.resolve(__dirname, ".."),
     };
     const publicFonts = [];
     for (const name of [
+      "p5-cid.pdf",
       "tracemonkey.pdf",
       "ArabicCIDTrueType.pdf",
       "XiaoBiaoSong.pdf",
@@ -85,15 +86,34 @@ const root = path.resolve(__dirname, ".."),
               ).load();
               loaded.push({ name: f.name, status: face.status });
             }
-            return loaded;
+            return {
+              loaded,
+              fonts: Object.values(r.fonts).map((f) => ({
+                name: f.fontName,
+                embedded: f.fontEmbedded,
+                resolution: f.fontResolution,
+                reason: f.fontFallback,
+              })),
+            };
           } finally {
             await releaseSource(data);
           }
         },
-        Array.from(fs.readFileSync(path.join(out, "public-corpus", name))),
+        Array.from(
+          fs.readFileSync(
+            path.join(out, name === "p5-cid.pdf" ? "" : "public-corpus", name),
+          ),
+        ),
       );
-      assert(result.length > 0);
-      assert(result.every((f) => f.status === "loaded"));
+      if (name === "XiaoBiaoSong.pdf" && !result.loaded.length)
+        assert(
+          result.fonts.length > 0 && result.fonts.every((f) => !f.embedded),
+          JSON.stringify(result),
+        );
+      else
+        assert(result.loaded.length > 0, name + " " + JSON.stringify(result));
+      assert(result.loaded.every((f) => f.status === "loaded"));
+      console.log("FontFace checked", name, JSON.stringify(result));
       publicFonts.push({ file: name, fonts: result });
     }
     checks.push(

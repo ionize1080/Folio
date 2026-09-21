@@ -27,16 +27,24 @@ def paint(raw,m,color,page=1):
     out=worker.run({'command':'apply','bytes':base64.b64encode(raw).decode(),'edits':[{'type':'flow','page':page,'sources':m['sources'],'model':m,'fragment':result['fragment']}]})
     return base64.b64decode(out['bytes'])
 
+# Non-identity CFF charset catches CID/GID confusion and cold runtime imports.
+import runpy
+runpy.run_path(str(ROOT/'tests/fixture-cid-p5.py'))
+r,ms=models((OUT/'p5-cid.pdf').read_bytes());assert ms[0]['text']=='中文'
+assert all(f['fontResolution']=='embedded' for f in r['fonts'].values())
+font=TTFont(load_font(ms[0]['fontKey'])['path']);assert font.getBestCmap()[0x4e2d]=='cid00020' and font.getBestCmap()[0x6587]=='cid00005'
+checks.append('Non-identity CFF charset maps CID 20/5 to GID 1/2 without replacing the embedded font')
+
 # PDF-style subset omits both cmap and post; its PDF ToUnicode remains intact.
 font=TTFont(ROOT/'native/fonts/NotoSansSC.ttf');sub=subset.Subsetter();sub.populate(text='字体测试原文编辑中文');sub.subset(font)
 buf=io.BytesIO();font.save(buf);d=fitz.open();p=d.new_page(width=600,height=800);p.insert_font(fontname='CJK',fontbuffer=buf.getvalue())
 for y in [90,108,126]:p.insert_text((50,y),'字体测试原文编辑',fontname='CJK',fontsize=12)
-fref=p.get_fonts()[0][0];_,_,_,embedded=d.extract_font(fref);f=TTFont(io.BytesIO(embedded));del f['cmap'];del f['post'];b=io.BytesIO();f.save(b)
+fref=p.get_fonts()[0][0];_,_,_,embedded=d.extract_font(fref);f=TTFont(io.BytesIO(embedded));del f['cmap'];del f['post'];del f['OS/2'];b=io.BytesIO();f.save(b)
 desc=int(d.xref_get_key(fref,'DescendantFonts')[1].split('[')[1].split()[0]);descriptor=int(d.xref_get_key(desc,'FontDescriptor')[1].split()[0]);stream=int(d.xref_get_key(descriptor,'FontFile2')[1].split()[0]);d.update_stream(stream,b.getvalue())
 raw=d.tobytes();(OUT/'p5-missing-post.pdf').write_bytes(raw);r,ms=models(raw);assert ms and all(f['fontResolution']=='embedded' for f in r['fonts'].values())
-face=load_font(ms[0]['fontKey']);fixed=TTFont(face['path']);assert 'cmap'in fixed and 'post'in fixed
+face=load_font(ms[0]['fontKey']);fixed=TTFont(face['path']);assert all(t in fixed for t in ['cmap','post','OS/2'])
 assert f.getTableData('glyf')==fixed.getTableData('glyf') and f.getTableData('hmtx')==fixed.getTableData('hmtx')
-checks.append('PDF subset without cmap/post gains browser tables while preserving outlines and advances')
+checks.append('PDF subset without cmap/post/OS2 gains browser tables while preserving outlines and advances')
 (OUT/'p5-font.json').write_text(json.dumps(worker.run({'command':'font-fast','fontKey':ms[0]['fontKey']})))
 
 # Save/reopen/edit three times. Searchable text alone would not catch the P4 bug.
