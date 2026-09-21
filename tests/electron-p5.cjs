@@ -176,10 +176,9 @@ const root = path.resolve(__dirname, ".."),
       );
       await page.locator('[data-action="save"]').click();
       await page.waitForFunction(
-        async (expectedName) => {
-          const { S } = await import("./app.mjs");
+        (expectedName) => {
           return (
-            !S.busy &&
+            document.querySelector("#busy").hidden &&
             document.querySelector("#doc-name").textContent === expectedName &&
             !document.querySelector("#dirty-dot").classList.contains("changed")
           );

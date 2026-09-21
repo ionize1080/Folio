@@ -29,7 +29,7 @@ const root=path.resolve(__dirname,'..'),out=path.join(root,'tests/output'),check
   await page.locator('#pe-done').click();await page.waitForFunction(()=>!document.body.classList.contains('page-edit-mode'));
   await page.locator('[data-action="save"]').click();
   await page.waitForFunction(()=>!document.querySelector('#dirty-dot').classList.contains('changed')&&document.querySelector('#doc-name').textContent.includes('saved'),null,{timeout:60000});
-  await page.waitForFunction(async()=>{const {S}=await import('./app.mjs');return !S.busy;},null,{timeout:60000});
+  await page.waitForFunction(()=>document.querySelector('#busy').hidden,null,{timeout:60000});
   assert(fs.statSync(saved).size>100);
   const inspection=await page.evaluate(async bytes=>{const {nativeRequest}=await import('./native-source.mjs');return nativeRequest({command:'inspect',bytes:new Uint8Array(bytes),page:1});},Array.from(fs.readFileSync(saved)));
   const table=inspection.tables.find(t=>Math.abs(t.bounds[0]-80)<1);assert(table,'Saved PDF retains table structure');assert(Math.abs(table.bounds[3]-164)<1,JSON.stringify(table.bounds));
