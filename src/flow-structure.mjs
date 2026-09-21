@@ -25,6 +25,10 @@ export function joinModels(a, b, chain = false) {
   const m = clone(a),
     offset = m.text.length + 1;
   m.text += "\n" + b.text;
+  m.softBreaks = [
+    ...(a.softBreaks || []),
+    ...(b.softBreaks || []).map((n) => n + offset),
+  ];
   m.runs = [
     ...(a.runs || []),
     ...(b.runs || []).map((r) => ({
@@ -70,6 +74,9 @@ export function splitModel(m, at, glyphs = []) {
       end = i ? m.text.length : at,
       p = parts[i];
     p.text = m.text.slice(start, end);
+    p.softBreaks = (m.softBreaks || [])
+      .filter((n) => n >= start && n < end)
+      .map((n) => n - start);
     p.runs = (m.runs || [])
       .filter((r) => r.end > start && r.start < end)
       .map((r) => ({

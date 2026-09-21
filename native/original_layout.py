@@ -9,11 +9,18 @@ def inspect(r,page,tp,objects,height):
         if o is None:continue
         cp=r.FPDFText_GetUnicode(tp,i)
         if not cp or cp>0x10ffff:continue
+        hyphen = cp == 2 and r.FPDFText_IsHyphen(tp,i) == 1
+        if hyphen:o['_hyphenCount']=o.get('_hyphenCount',0)+1;cp=45
         x,y=C.c_double(),C.c_double();bounds=[C.c_double() for _ in range(4)]
         if not r.FPDFText_GetCharOrigin(tp,i,C.byref(x),C.byref(y)):continue
         if not r.FPDFText_GetCharBox(tp,i,*map(C.byref,bounds)):continue
         l,rr,b,t=[v.value for v in bounds]
         o.setdefault('glyphs',[]).append({'text':chr(cp),'originX':x.value,'baseline':height-y.value,'x':l,'y':height-t,'w':max(0,rr-l),'h':max(0,t-b)})
+
+    for o in byptr.values():
+        count=o.pop('_hyphenCount',0)
+        if count and o.get('text','').count('\x02')==count:
+            o['text']=o['text'].replace('\x02','-')
 
 def render(m):
     """Conservative incremental layout. Unsupported shaping returns to Story.

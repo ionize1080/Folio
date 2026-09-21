@@ -1,0 +1,32 @@
+[
+  {
+    "file": "tracemonkey.pdf",
+    "url": "https://raw.githubusercontent.com/mozilla/pdf.js/master/test/pdfs/tracemonkey.pdf",
+    "sha256": "3662ff519e485810520552bf301d8c3b2b917fd2f83303f4965d7abed367e113"
+  },
+  {
+    "file": "hello_world_rotated.pdf",
+    "url": "https://raw.githubusercontent.com/mozilla/pdf.js/master/test/pdfs/hello_world_rotated.pdf",
+    "sha256": "ab0cb700cd5e5338fd676dfca25becae800acd2be03a4e57856485b8cfd2d28b"
+  },
+  {
+    "file": "ArabicCIDTrueType.pdf",
+    "url": "https://raw.githubusercontent.com/mozilla/pdf.js/master/test/pdfs/ArabicCIDTrueType.pdf",
+    "sha256": "1cad1de912ba29f89a6d8b08bc5b0f84382874ffedab2c8f9e05ef608c265bb1"
+  },
+  {
+    "file": "french_diacritics.pdf",
+    "url": "https://raw.githubusercontent.com/mozilla/pdf.js/master/test/pdfs/french_diacritics.pdf",
+    "sha256": "eb6af7155988924ca0ba75cd95d21a93ea730b77b111dacb5d6599fa00867194"
+  },
+  {
+    "file": "SimFang-variant.pdf",
+    "url": "https://raw.githubusercontent.com/mozilla/pdf.js/master/test/pdfs/SimFang-variant.pdf",
+    "sha256": "e6c6e3fb472f06a3d812bef23afc026e90b33497408122b61d577e0f7df49418"
+  },
+  {
+    "file": "XiaoBiaoSong.pdf",
+    "url": "https://raw.githubusercontent.com/mozilla/pdf.js/master/test/pdfs/XiaoBiaoSong.pdf",
+    "sha256": "1ea20b84d94b90fa1ccb08bdd2e79e710071e0593fde6d547ab1cd4a3ebc0f88"
+  }
+]

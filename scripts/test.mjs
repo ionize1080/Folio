@@ -32,10 +32,18 @@ if (mode === "all")
 run(python, ["tests/fixture-v9.py"]);
 run(python, ["tests/fixture-v10.py"]);
 run(python, ["tests/fixture-encrypted-p1.py"]);
-if (mode !== "ui") run(python, ["tests/editor-p4.py"]);
+if (mode !== "ui") {
+  run(python, ["tests/editor-p4.py"]);
+  run(python, ["tests/editor-p5.py"]);
+}
 if (mode === "all") {
   run(python, ["tests/fast-layout-p3.py"]);
-  for (const file of ["ui-editor-p4.cjs", "ui-fast-p3.cjs", "ui-v9.cjs", "ui-v9-details.cjs"])
+  for (const file of [
+    "ui-editor-p4.cjs",
+    "ui-fast-p3.cjs",
+    "ui-v9.cjs",
+    "ui-v9-details.cjs",
+  ])
     run(process.execPath, ["tests/" + file]);
 }
 if (mode !== "ui")
@@ -75,7 +83,12 @@ if (mode !== "native")
   ])
     if (
       mode !== "all" ||
-      !["ui-editor-p4.cjs", "ui-fast-p3.cjs", "ui-v9.cjs", "ui-v9-details.cjs"].includes(file)
+      ![
+        "ui-editor-p4.cjs",
+        "ui-fast-p3.cjs",
+        "ui-v9.cjs",
+        "ui-v9-details.cjs",
+      ].includes(file)
     )
       run(process.execPath, ["tests/" + file]);
 

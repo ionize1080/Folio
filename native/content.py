@@ -13,9 +13,10 @@ def raw_strings(v):
 
 def map_objects(page):
     stream=ContentStream(page.get('/Contents'),page.pdf)
-    objects=[]; start=None; shown=[]
+    objects=[]; start=None; shown=[];path_started=False
     fonts=page['/Resources'].get('/XObject',{});fonts=fonts.get_object() if hasattr(fonts,'get_object') else fonts
     for i,(args,op) in enumerate(stream.operations):
+        if op in (b'm',b'l',b'c',b'v',b'y',b're'):path_started=True
         if op==b'BT':start=i;shown=[]
         if op in TEXT:
             strings=args[0] if op==b'TJ' else [args[-1]]
@@ -24,7 +25,12 @@ def map_objects(page):
         elif op==b'ET':
             for o in shown:o['end']=i;o['single']=len(shown)==1
             start=None;shown=[]
-        elif op in PAINT:objects.append({'type':'path','at':i})
+        elif op in PAINT:
+            # Empty paint operators create no PDFium object. Counting them
+            # shifts every following index (common in SVG-generated PDFs).
+            if path_started:objects.append({'type':'path','at':i})
+            path_started=False
+        elif op==b'n':path_started=False
         elif op==b'Do':
             ob=fonts.get(args[0]);ob=ob.get_object() if ob else {}
             objects.append({'type':'form' if ob.get('/Subtype')=='/Form' else 'image','at':i})
@@ -58,6 +64,8 @@ def compose(data,edits,blocks,inspect,fragment,progress=None):
     for e in edits:bypage.setdefault(e['page'],{'edits':[],'blocks':[]})['edits'].append(e)
     # blocks can be an iterator read from a JSON-lines file. At most one page's result is held per fragment.
     def form(page,blob,align_top=False,ocr_layer=False):
+        from generated_cmaps import repair
+        blob=repair(blob)
         source=PdfReader(io.BytesIO(blob));p=source.pages[0]
         # Reuse identical font/CMap streams without retaining one complete source reader per page.
         visited=set()

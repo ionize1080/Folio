@@ -34,6 +34,16 @@ export function mergeCandidates(candidates, pageWidth, pageHeight) {
     rotation: sorted[0].rotation || 0,
     directionSupported: sorted.every((p) => p.supported !== false),
     lineStarts: sorted.length === 1 ? sorted[0].lineStarts : undefined,
+    softBreaks: (() => {
+      let offset = 0;
+      const breaks = [];
+      for (const p of sorted) {
+        for (const n of p.lineStarts?.slice(1) || [])
+          breaks.push(offset + n - 1);
+        offset += p.text.length + 1;
+      }
+      return breaks;
+    })(),
     sources: sorted.flatMap((p) => p.sources),
     pageWidth,
     pageHeight,

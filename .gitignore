@@ -1,4 +1,5 @@
 node_modules/
+.venv/
 native/vendor/
 native/models/*
 !native/models/manifest.json

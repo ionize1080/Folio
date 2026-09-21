@@ -2,7 +2,7 @@
 def inspect_tables(data, number):
     import fitz
     with fitz.open(stream=data,filetype='pdf') as doc:
-        page=doc[number-1];result=[]
+        page=doc[number-1];page.set_rotation(0);result=[]
         drawings=page.get_drawings()
         for i,t in enumerate(page.find_tables().tables):
             # At least a two-dimensional grid; prose aligned in columns is not a table.
@@ -19,4 +19,6 @@ def inspect_tables(data, number):
                     cells.append({'id':f't{i}-r{row}-c{col}','row':row,'column':col,'bounds':list(box),'fill':list(fill) if fill else None,'stroke':list(border.get('color') or (0,0,0)),'borderWidth':border.get('width',.5)})
             styles={(tuple(round(v,4) for v in d['color']),round(d.get('width',.5),3),d.get('dashes','[] 0')) for d in borders}
             result.append({'structureSupported':len(styles)<=1 and all(d.get('dashes','[] 0') in ('[] 0','[] 0.0') for d in borders),'id':f't{i}','bounds':list(t.bbox),'rows':t.row_count,'columns':t.col_count,'cells':cells})
+        from sparse_tables import candidates
+        result.extend(candidates(page,drawings,result))
         return result

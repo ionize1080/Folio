@@ -88,10 +88,25 @@ export function sourceStyles(model, objects) {
     cursor = start + text.length;
   }
   model.runs = runs;
-  const main = [...runs].sort((a, b) => b.end - b.start - (a.end - a.start))[0];
+  const weights = new Map();
+  for (const r of runs) {
+    const key = JSON.stringify([
+      r.fontKey,
+      r.fontName,
+      r.size,
+      r.bold,
+      r.italic,
+    ]);
+    const entry = weights.get(key) || { run: r, count: 0 };
+    entry.count += r.end - r.start;
+    weights.set(key, entry);
+  }
+  const main = [...weights.values()].sort((a, b) => b.count - a.count)[0]?.run;
   if (main) {
     model.fontKey = main.fontKey;
     model.fontName = main.fontName;
+    model.fontResolution = main.fontResolution;
+    model.fontOriginalName = main.fontOriginalName;
     model.charSpacing = main.charSpacing;
     model.wordSpacing = main.wordSpacing;
     model.bold = main.bold;
@@ -206,6 +221,10 @@ export function editStyles(runs, oldText, newText, base = {}) {
     oldText.at(-1 - b) === newText.at(-1 - b)
   )
     b++;
+  // The native input uses UTF-16, but a style range must never bisect a
+  // supplementary character when two emoji share their high/low surrogate.
+  if (a > 0 && /[\uDC00-\uDFFF]/.test(oldText[a] || newText[a] || "")) a--;
+  if (b > 0 && /[\uDC00-\uDFFF]/.test(oldText[oldText.length - b] || "")) b--;
   const oldEnd = oldText.length - b,
     newEnd = newText.length - b,
     delta = newEnd - oldEnd;
@@ -236,6 +255,25 @@ export function editStyles(runs, oldText, newText, base = {}) {
     if (end > start) merged.push(r);
   }
   return merged;
+}
+
+export function editSoftBreaks(breaks, oldText, newText) {
+  let a = 0,
+    b = 0;
+  while (a < oldText.length && a < newText.length && oldText[a] === newText[a])
+    a++;
+  while (
+    b < oldText.length - a &&
+    b < newText.length - a &&
+    oldText.at(-1 - b) === newText.at(-1 - b)
+  )
+    b++;
+  const oldEnd = oldText.length - b,
+    delta = newText.length - oldText.length;
+  return (breaks || [])
+    .filter((n) => n < a || n >= oldEnd)
+    .map((n) => (n < a ? n : n + delta))
+    .filter((n) => newText[n] === "\n");
 }
 
 // Apply only the explicit selection. A collapsed caret sets the typing style.

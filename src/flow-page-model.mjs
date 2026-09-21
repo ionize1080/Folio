@@ -1,5 +1,6 @@
 import { sourceStyles } from "./flow-style.mjs";
 import { paragraphCandidates, mergeCandidates } from "./flow-model.mjs";
+import { horizontalRows } from "./flow-regions.mjs";
 
 const area = (b) => Math.max(0, b[2] - b[0]) * Math.max(0, b[3] - b[1]);
 export const intersects = (a, b, t = 0) =>
@@ -24,22 +25,20 @@ export function pageCandidates(objects, w, h, regions = [], tables = []) {
   const sortedObstacles = objects
     .map((o) => ({ o, b: topBounds(o, h) }))
     .sort((a, b) => a.b[1] - b.b[1]);
-  // Repeated native line starts establish gutters even when AI labels the whole page as text.
+  // Establish gutters from reconstructed lines, never from style fragments.
+  // Repeated full lines crossing a proposed cut disprove a page-wide column.
+  const lines = horizontalRows(objects, h);
   const lanes = [];
-  for (const o of objects.filter(
-    (o) =>
-      o.type === "text" &&
-      o.flowEditable &&
-      o.bounds[2] - o.bounds[0] > w * 0.14 &&
-      o.bounds[2] - o.bounds[0] < w * 0.48,
+  for (const o of lines.filter(
+    (o) => o.end - o.u > w * 0.14 && o.end - o.u < w * 0.48,
   )) {
-    let lane = lanes.find((l) => Math.abs(l.x - o.bounds[0]) < o.size * 2.5);
+    let lane = lanes.find((l) => Math.abs(l.x - o.u) < o.size * 2.5);
     if (!lane) {
-      lane = { x: o.bounds[0], left: [], right: [] };
+      lane = { x: o.u, left: [], right: [] };
       lanes.push(lane);
     }
-    lane.left.push(o.bounds[0]);
-    lane.right.push(o.bounds[2]);
+    lane.left.push(o.u);
+    lane.right.push(o.end);
   }
   const median = (a) => [...a].sort((a, b) => a - b)[Math.floor(a.length / 2)];
   const strong = lanes
@@ -48,7 +47,10 @@ export function pageCandidates(objects, w, h, regions = [], tables = []) {
   const cuts = strong
     .slice(1)
     .map((l, i) => (median(strong[i].right) + median(l.left)) / 2)
-    .filter((c, i) => median(strong[i].right) < median(strong[i + 1].left));
+    .filter((c, i) => median(strong[i].right) < median(strong[i + 1].left))
+    .filter(
+      (c) => lines.filter((l) => l.u < c - 2 && l.end > c + 2).length < 3,
+    );
   const cellObjects = new Map();
   const cellList = tables.flatMap((t) =>
     t.cells.map((c) => ({ ...c, tableId: t.id })),

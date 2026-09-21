@@ -12,7 +12,7 @@ const root=path.resolve(__dirname,'..'),out=path.join(root,'tests/output'),check
   const fixture=path.join(out,'p4-narrow.pdf'),saved=path.join(out,'p4-electron-saved.pdf');fs.rmSync(saved,{force:true});
   await app.evaluate(({dialog},{fixture,saved})=>{dialog.showOpenDialog=async()=>({canceled:false,filePaths:[fixture]});dialog.showSaveDialog=async()=>({canceled:false,filePath:saved});},{fixture,saved});
   await page.locator('[data-action="open"]').first().click();await page.waitForSelector('body.has-document');
-  assert((await page.title()).includes('RC1-P4'));assert.equal(await page.evaluate(()=>typeof require),'undefined');
+  assert((await page.title()).includes(require('../package.json').releaseChannel.toUpperCase()));assert.equal(await page.evaluate(()=>typeof require),'undefined');
   await page.locator('[data-action="flow-edit"]').click();
   await page.locator('[data-cell-id="t0-r0-c0"]').click();
   await page.waitForFunction(()=>/完成/.test(document.querySelector('#pe-status')?.textContent));

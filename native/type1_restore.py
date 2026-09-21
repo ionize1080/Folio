@@ -16,6 +16,9 @@ def restore_type1(blob,unicode_map,name):
     matrix=font['FontMatrix']
     if any(abs(a-b)>1e-8 for a,b in zip(matrix,[.001,0,0,.001,0,0])):raise ValueError('Nonstandard Type1 matrix')
     glyphs=font.getGlyphSet();order=['.notdef']+[g for g in glyphs if g!='.notdef'];encoding=font['Encoding'];cmap={}
+    if unicode_map is None:
+        from fontTools.agl import toUnicode
+        unicode_map={chr(i):toUnicode(g) for i,g in enumerate(encoding) if g in glyphs and g!='.notdef'}
     for code,char in unicode_map.items():
         if not isinstance(code,str) or len(code)!=1 or not isinstance(char,str) or len(char)!=1:continue
         n=ord(code)

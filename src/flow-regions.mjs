@@ -50,6 +50,54 @@ function project(o, h, d) {
         : o.matrix[4] * vx + (h - o.matrix[5]) * vy,
   };
 }
+// A style change creates another PDF text object, not another line or column.
+export function visualRows(items, d) {
+  items = [...items].sort(
+    (a, b) => a.base - b.base || a.u - b.u || a.o.index - b.o.index,
+  );
+  const rows = [];
+  for (const p of items) {
+    const size = p.o.size;
+    let row = rows
+      .slice(-32)
+      .find(
+        (r) =>
+          Math.abs(r.base - p.base) <= Math.max(1, size * 0.22) &&
+          p.u >= r.end - size * 0.3 &&
+          p.u - r.end <= Math.max(3, size * 2.1),
+      );
+    if (!row) {
+      row = { base: p.base, u: p.u, end: p.end, size, parts: [], d };
+      rows.push(row);
+    }
+    row.parts.push(p);
+    row.end = Math.max(row.end, p.end);
+    row.size = Math.max(row.size, size);
+  }
+  return rows.sort((a, b) => a.base - b.base || a.u - b.u);
+}
+export function horizontalRows(objects, h) {
+  const d = {
+    writingMode: "horizontal-tb",
+    direction: "ltr",
+    rotation: 0,
+    supported: true,
+  };
+  return visualRows(
+    objects
+      .filter(
+        (o) =>
+          o.type === "text" &&
+          o.flowEditable &&
+          o.text?.trim() &&
+          o.size > 0 &&
+          textDirection(o).rotation === 0 &&
+          textDirection(o).writingMode === "horizontal-tb",
+      )
+      .map((o) => project(o, h, d)),
+    d,
+  );
+}
 export function connectedParagraphs(objects, h, barriers = objects) {
   const buckets = new Map();
   for (const o of objects) {
@@ -97,27 +145,7 @@ export function connectedParagraphs(objects, h, barriers = objects) {
   };
   const output = [];
   for (const { d, items } of buckets.values()) {
-    items.sort((a, b) => a.base - b.base || a.u - b.u || a.o.index - b.o.index);
-    const rows = [];
-    for (const p of items) {
-      const size = p.o.size;
-      let row = rows
-        .slice(-32)
-        .find(
-          (r) =>
-            Math.abs(r.base - p.base) <= Math.max(1, size * 0.22) &&
-            p.u >= r.end - size * 0.3 &&
-            p.u - r.end <= Math.max(3, size * 2.1),
-        );
-      if (!row) {
-        row = { base: p.base, u: p.u, end: p.end, size, parts: [], d };
-        rows.push(row);
-      }
-      row.parts.push(p);
-      row.end = Math.max(row.end, p.end);
-      row.size = Math.max(row.size, size);
-    }
-    rows.sort((a, b) => a.base - b.base || a.u - b.u);
+    const rows = visualRows(items, d);
     const paragraphs = [];
     for (const row of rows) {
       row.parts.sort((a, b) => a.u - b.u || a.o.index - b.o.index);

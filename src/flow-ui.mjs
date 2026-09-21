@@ -1,8 +1,9 @@
 import { FastFonts, fastLayout, canFast } from "./fast-layout.mjs";
 import { nativeRequest, releaseSource } from "./native-source.mjs";
 import { fontLabel } from "./font-label.mjs";
+import { displayToPage, pageTransform, turn } from "./page-coordinates.mjs";
 import { joinModels, splitModel, unionFrames } from "./flow-structure.mjs";
-import { editStyles, rangeStyle } from "./flow-style.mjs";
+import { editStyles, editSoftBreaks, rangeStyle } from "./flow-style.mjs";
 import { icons } from "./icons.mjs";
 import {
   pageCandidates,
@@ -46,12 +47,12 @@ export function installFlowUI(ctx) {
     const page = S.page,
       info = S.info.pages[page - 1];
     if (
-      surface.rotation(page) % 360 ||
+      surface.rotation(page) % 90 ||
       info.userUnit !== 1 ||
       info.box.x !== 0 ||
       info.box.y !== 0
     )
-      throw Error("此页旋转或坐标单位暂不支持页面编辑，请使用未旋转原页");
+      throw Error("此页坐标原点或单位暂不支持页面编辑，原文已保留");
     opening = true;
     toast("正在识别当前页的文字与版面…");
     const source = S.bytes,
@@ -64,6 +65,11 @@ export function installFlowUI(ctx) {
         return;
       }
       const [w, h] = result.size;
+      if (
+        Math.abs(w - info.box.width) > 0.1 ||
+        Math.abs(h - info.box.height) > 0.1
+      )
+        throw Error("此页裁剪框与原页尺寸不同，暂不支持原位编辑");
       session = createSession({ page, w, h, result, ai, source });
       S.flowEdit = session;
       await session.mount();
@@ -388,7 +394,32 @@ export function installFlowUI(ctx) {
       status("已恢复自动结构；退出本段后重新选择");
     });
     function scale() {
-      return layer.getBoundingClientRect().width / w || 1;
+      return (
+        layer.getBoundingClientRect().width /
+          (turn(surface.rotation(page)) % 180 ? h : w) || 1
+      );
+    }
+    function point(e) {
+      const r = layer.getBoundingClientRect(),
+        z = scale();
+      return displayToPage(
+        (e.clientX - r.left) / z,
+        (e.clientY - r.top) / z,
+        w,
+        h,
+        surface.rotation(page),
+      );
+    }
+    function positionLayer() {
+      const shell = layer.parentElement;
+      if (!shell) return;
+      const angle = turn(surface.rotation(page)),
+        z = shell.clientWidth / (angle % 180 ? h : w);
+      layer.style.width = w * z + "px";
+      layer.style.height = h * z + "px";
+      layer.style.transformOrigin = "0 0";
+      layer.style.transform =
+        "matrix(" + pageTransform(w * z, h * z, angle).join(",") + ")";
     }
     function mount() {
       if (closed) return;
@@ -408,6 +439,7 @@ export function installFlowUI(ctx) {
       document
         .querySelector('[data-action="flow-edit"]')
         ?.setAttribute("aria-pressed", "true");
+      positionLayer();
       positionFrame();
     }
     const observer = new MutationObserver(() => {
@@ -416,6 +448,7 @@ export function installFlowUI(ctx) {
     });
     observer.observe(surface.host, { childList: true, subtree: true });
     const resizeObserver = new ResizeObserver(() => {
+      positionLayer();
       positionFrame();
       if (fastReady && preview?.version === 1 && !showingPrecise)
         fastFonts.paint(
@@ -696,10 +729,12 @@ export function installFlowUI(ctx) {
       bar.querySelectorAll("[data-frame]").forEach((e) => {
         e.value = +model.frame[e.dataset.frame].toFixed(1);
         e.disabled =
-          !!model.frames || (!!model.cell && e.dataset.frame !== "height");
+          !!model.frames ||
+          !!model.cell?.inferred ||
+          (!!model.cell && e.dataset.frame !== "height");
       });
       move.hidden = !!model.cell || !!model.frames;
-      resize.hidden = !!model.frames;
+      resize.hidden = !!model.frames || !!model.cell?.inferred;
       resize.title = model.cell
         ? "拖动增加行高，同一行及后续行同步调整"
         : "拖动调整段落宽度与高度";
@@ -713,9 +748,8 @@ export function installFlowUI(ctx) {
     function activate(m, flowId, e) {
       // Retain the document-space click while background preparation may scroll.
       if (e && Number.isFinite(e.clientX)) {
-        const r = layer.getBoundingClientRect(),
-          z = scale();
-        e = { pdfX: (e.clientX - r.left) / z, pdfY: (e.clientY - r.top) / z };
+        const p = point(e);
+        e = { pdfX: p.x, pdfY: p.y };
       }
       return new Promise((resolve, reject) => {
         pendingActivation?.resolve(false);
@@ -780,7 +814,7 @@ export function installFlowUI(ctx) {
         model.growthDirection = suggested.direction;
         model.growthReason = suggested.reason;
       }
-      model.growth ||= model.cell ? "down" : "fixed";
+      model.growth ||= model.cell && !model.cell.inferred ? "down" : "fixed";
       delete model.typingStyle;
       initial = JSON.stringify({ ...model, fastLayout: undefined });
       history = [];
@@ -804,8 +838,12 @@ export function installFlowUI(ctx) {
                 if (id === activeId) fastReady = true;
               })
               .catch((e) => {
-                status("字体载入失败：" + e.message, true);
-                throw e;
+                if (id !== activeId) return;
+                fastReady = false;
+                const button = bar.querySelector("#pe-refine");
+                button.textContent = "快速字体不可用";
+                button.title = e.message;
+                status("原文字位已保留；快速字体不可用：" + e.message, true);
               })
           : Promise.resolve(),
       ]);
@@ -934,7 +972,7 @@ export function installFlowUI(ctx) {
       const p = await background.getPage(1);
       if (closed || serial !== backgroundSerial) return;
       const z = scale() * Math.min(devicePixelRatio || 1, 3),
-        v = p.getViewport({ scale: z });
+        v = p.getViewport({ scale: z, rotation: 0 });
       const canvas = document.createElement("canvas");
       canvas.width = Math.ceil(v.width);
       canvas.height = Math.ceil(v.height);
@@ -1015,7 +1053,12 @@ export function installFlowUI(ctx) {
                 schedulePrecise();
               }
             })
-            .catch((e) => status(e.message, true));
+            .catch((e) => {
+              if (closed || id !== active || revision !== rev) return;
+              fastReady = false;
+              status("快速字体不可用，正在尝试原生排版…");
+              timer = setTimeout(() => guarded(reflow), 0);
+            });
         } else {
           fastInk.hidden = true;
           status("正在精排…");
@@ -1349,7 +1392,7 @@ export function installFlowUI(ctx) {
             );
             const old = m.frame.height,
               limit = Math.min(14400, Math.max(old, h - m.frame.y));
-            if (table && limit > old + 0.5) {
+            if (table && !table.inferred && limit > old + 0.5) {
               let trial = await window.desktop.flowLayout({
                 ...m,
                 frame: { ...m.frame, height: limit },
@@ -1652,6 +1695,7 @@ export function installFlowUI(ctx) {
       if (!pendingHistory && !composing) remember();
       pendingHistory = false;
       const old = model.text;
+      model.softBreaks = editSoftBreaks(model.softBreaks, old, input.value);
       model.runs = editStyles(model.runs || [], old, input.value, model);
       if (model.typingStyle) {
         let a = 0,
@@ -1887,10 +1931,9 @@ export function installFlowUI(ctx) {
     listen(layer, "pointerdown", (e) => {
       if (e.target === resize || e.target.closest("button")) return;
       if (newMode && !busy) {
-        const r = layer.getBoundingClientRect(),
-          z = scale(),
-          x = Math.max(0, Math.min(w - 80, (e.clientX - r.left) / z)),
-          y = Math.max(0, Math.min(h - 40, (e.clientY - r.top) / z));
+        const p = point(e),
+          x = Math.max(0, Math.min(w - 80, p.x)),
+          y = Math.max(0, Math.min(h - 40, p.y));
         newMode = false;
         bar.querySelector("#pe-new").setAttribute("aria-pressed", "false");
         const nearest = [...candidates]
@@ -1952,10 +1995,7 @@ export function installFlowUI(ctx) {
         return;
       }
       if (!model || busy || composing) return;
-      const r = layer.getBoundingClientRect(),
-        z = scale(),
-        x = (e.clientX - r.left) / z,
-        y = (e.clientY - r.top) / z;
+      const { x, y } = point(e);
       const f = model.frame;
       if (x < f.x || x > f.x + f.width || y < f.y || y > f.y + f.height) return;
       e.preventDefault();
@@ -1975,13 +2015,8 @@ export function installFlowUI(ctx) {
     });
     listen(layer, "pointermove", (e) => {
       if (layer.dataset.selecting !== "true" || !model) return;
-      const r = layer.getBoundingClientRect(),
-        z = scale(),
-        end = hitOffset(
-          preview?.glyphs || [],
-          (e.clientX - r.left) / z,
-          (e.clientY - r.top) / z,
-        );
+      const p = point(e),
+        end = hitOffset(preview?.glyphs || [], p.x, p.y, preview?.anchors);
       input.setSelectionRange(
         Math.min(pointerAnchor, end),
         Math.max(pointerAnchor, end),
@@ -2009,19 +2044,15 @@ export function installFlowUI(ctx) {
       e.stopPropagation();
       remember();
       move.setPointerCapture(e.pointerId);
-      const x = e.clientX,
-        y = e.clientY,
+      const startPoint = point(e),
+        x = startPoint.x,
+        y = startPoint.y,
         f = { ...model.frame },
         z = scale();
       move.onpointermove = (q) => {
-        model.frame.x = Math.max(
-          -14400,
-          Math.min(14400, f.x + (q.clientX - x) / z),
-        );
-        model.frame.y = Math.max(
-          -14400,
-          Math.min(14400, f.y + (q.clientY - y) / z),
-        );
+        const p = point(q);
+        model.frame.x = Math.max(-14400, Math.min(14400, f.x + p.x - x));
+        model.frame.y = Math.max(-14400, Math.min(14400, f.y + p.y - y));
         model.growth = "fixed";
         positionFrame();
         queue();
@@ -2037,6 +2068,8 @@ export function installFlowUI(ctx) {
         (t) => t.id === model.cell.tableId,
       );
       if (!table) throw Error("未找到单元格所属表格，草稿已保留");
+      if (table.inferred)
+        throw Error("此表格按原边界编辑；可显示溢出，暂不自动移动边框");
       const base = model.tableBaseFrame || clone(model.frame),
         bounds = model.tableBaseCell || clone(model.cell.bounds);
       model.tableBaseFrame = base;
@@ -2053,25 +2086,24 @@ export function installFlowUI(ctx) {
       model.allowOverflow = false;
     }
     listen(resize, "pointerdown", (e) => {
-      if (!model || busy) return;
+      if (!model || busy || model.cell?.inferred) return;
       e.preventDefault();
       e.stopPropagation();
       remember();
       resize.setPointerCapture(e.pointerId);
-      const x = e.clientX,
-        y = e.clientY,
+      const startPoint = point(e),
+        x = startPoint.x,
+        y = startPoint.y,
         f = { ...model.frame },
         z = scale();
       resize.onpointermove = (q) => {
-        if (model.cell) setCellHeight(f.height + (q.clientY - y) / z);
+        const p = point(q);
+        if (model.cell) setCellHeight(f.height + p.y - y);
         else {
-          model.frame.width = Math.max(
-            10,
-            Math.min(14400, f.width + (q.clientX - x) / z),
-          );
+          model.frame.width = Math.max(10, Math.min(14400, f.width + p.x - x));
           model.frame.height = Math.max(
             10,
-            Math.min(14400, f.height + (q.clientY - y) / z),
+            Math.min(14400, f.height + p.y - y),
           );
         }
         positionFrame();
@@ -2179,6 +2211,7 @@ export function installFlowUI(ctx) {
         if (
           !model ||
           model.frames ||
+          model.cell?.inferred ||
           (model.cell && e.dataset.frame !== "height")
         )
           return;

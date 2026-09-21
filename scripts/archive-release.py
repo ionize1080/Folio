@@ -16,7 +16,7 @@ with zipfile.ZipFile(files[0], 'w', zipfile.ZIP_DEFLATED, compresslevel=6) as z:
 with zipfile.ZipFile(files[1], 'w', zipfile.ZIP_DEFLATED, compresslevel=6) as z:
     for f in sorted(root.rglob('*')):
         rel = f.relative_to(root)
-        if not f.is_file() or any(p in ['.git', 'node_modules', 'dist', 'deliverables', '__pycache__'] for p in rel.parts):
+        if not f.is_file() or any(p in ['.git', '.venv', 'node_modules', 'dist', 'deliverables', '__pycache__'] for p in rel.parts):
             continue
         if len(rel.parts) == 1 and (f.name.startswith('diagnose-') or f.name == 'verify-calibration-cause.mjs'):
             continue

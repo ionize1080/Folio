@@ -5,7 +5,12 @@ import io,sys
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).parent/'vendor'))
 def opentype(blob):
-    if blob[:4] in (b'OTTO',b'\0\1\0\0',b'true'):return blob
+    if blob[:4] in (b'OTTO',b'\0\1\0\0',b'true'):
+        from font_sfnt import normalize
+        return normalize(blob)
+    if blob.startswith((b'%!', b'\x80\x01')):
+        from type1_restore import restore_type1
+        return restore_type1(blob,None,'Embedded Type1')[0]
     if blob[:1]!=b'\x01':raise ValueError('此字体格式尚不能用于快速预览，请使用精排模式')
     import fitz
     from fontTools.cffLib import CFFFontSet

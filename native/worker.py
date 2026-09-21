@@ -356,11 +356,17 @@ def run(args):
   if not isinstance(page,int) or not 1<=page<=len(CACHED_PDF):raise ValueError('页码无效')
   return recognize(CACHED_PDF,p.raw,args)
  data=Path(args['input']).read_bytes() if 'input' in args else base64.b64decode(args['bytes'])
+ if args.get('command') in ('inspect','apply'):
+  from content_layers import reopen
+  numbers=([args.get('page',1)] if args.get('command')=='inspect' else [e.get('page',1) for e in args.get('edits',[])])
+  data=reopen(data,numbers)
  with p.PdfDocument(data) as pdf:
   cmd=args['command'];page=args.get('page',1)
   if not isinstance(page,int) or not 1<=page<=len(pdf):raise ValueError('页码无效')
   if cmd=='inspect':
-   page_no=page;page=pdf[page-1];tp=page.get_textpage();out={'objects':[describe(p.raw,p.raw.FPDFPage_GetObject(page,i),i,tp) for i in range(p.raw.FPDFPage_CountObjects(page))],'size':page.get_size()};
+   page_no=page;page=pdf[page-1];rotation=page.get_rotation();page.set_rotation(0);tp=page.get_textpage();box=page.get_mediabox()
+   out={'objects':[describe(p.raw,p.raw.FPDFPage_GetObject(page,i),i,tp) for i in range(p.raw.FPDFPage_CountObjects(page))],
+        'size':[box[2]-box[0],box[3]-box[1]],'pageRotation':rotation,'pageBox':list(box)}
    from original_layout import inspect as inspect_origins
    inspect_origins(p.raw,page,tp,out['objects'],out['size'][1]);tp.close();page.close()
    from content import check_editable
@@ -379,7 +385,7 @@ def run(args):
    if report['count'] or editreport['count']:
     bad=(report['issues']+editreport['issues'])[0];raise ValueError(f"第 {bad['page']} 页有字体未覆盖字符："+' '.join(c['code'] for c in bad['characters'])+'；请在 OCR 问题列表校对或排除此条')
    def inspect(number):
-    page=pdf[number-1];tp=page.get_textpage();des=[describe(p.raw,p.raw.FPDFPage_GetObject(page,i),i,tp) for i in range(p.raw.FPDFPage_CountObjects(page))];tp.close();page.close();return des
+    page=pdf[number-1];page.set_rotation(0);tp=page.get_textpage();des=[describe(p.raw,p.raw.FPDFPage_GetObject(page,i),i,tp) for i in range(p.raw.FPDFPage_CountObjects(page))];tp.close();page.close();return des
    def fragment(width,height,edits,bs):
     d=p.PdfDocument.new();pg=d.new_page(width,height);pg.close()
     try:return render_fragment(d,p.raw,[{**e,'page':1} for e in edits],bs)

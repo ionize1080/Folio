@@ -159,6 +159,7 @@ export function fastLayout(m, measure) {
     close = /[，。！？；：、）】》〉」』,.!?;:%\)\]]/u,
     open = /[（【《〈「『\(\[]/u;
   const tokens = Array.from(m.text);
+  const softBreaks = new Set(m.softBreaks || []);
   let previous = "",
     cachedRun = null,
     cachedStyle = null;
@@ -203,6 +204,10 @@ export function fastLayout(m, measure) {
   }
   for (let ti = 0; ti < tokens.length; ti++) {
     const ch = tokens[ti];
+    const soft =
+      ch === "\n" &&
+      softBreaks.has(offset) &&
+      (!geometrySame || m.layoutMode === "reflow");
     while (ri < runs.length && runs[ri].end <= offset) ri++;
     const run = runs[ri]?.start <= offset ? runs[ri] : null;
     if (cachedStyle === null || cachedRun !== run) {
@@ -213,16 +218,26 @@ export function fastLayout(m, measure) {
       size = style.size || m.size;
     const measured =
       ch === "\n"
-        ? { width: 0, fontKey: null }
+        ? {
+            width:
+              soft &&
+              /[A-Za-z0-9]/.test(tokens[ti - 1] || "") &&
+              /[A-Za-z0-9]/.test(tokens[ti + 1] || "")
+                ? measure(" ", style).width
+                : 0,
+            fontKey: null,
+          }
         : ch === "\t"
           ? { ...measure(" ", style), width: measure(" ", style).width * 4 }
           : measure(ch, style);
     const scale = (style.horizontalScale || 100) / 100,
       width = measured.width * scale;
     const advance =
-      (vertical ? size : width) +
-      (style.charSpacing || 0) +
-      (ch === " " ? style.wordSpacing || 0 : 0);
+      ch === "\n"
+        ? width
+        : (vertical ? size : width) +
+          (style.charSpacing || 0) +
+          (ch === " " ? style.wordSpacing || 0 : 0);
     if (
       ch !== "\n" &&
       pen + (vertical ? size : width) >
@@ -339,7 +354,7 @@ export function fastLayout(m, measure) {
         match: "fallback",
         confidence: 0,
       });
-    if (ch === "\n") nextLine(true);
+    if (ch === "\n" && !soft) nextLine(true);
     else pen += advance;
     previous = ch;
   }

@@ -26,6 +26,13 @@ def number(value, lo, hi):
 def validate(m):
     if not isinstance(m, dict) or not isinstance(m.get('text'), str) or len(m['text']) > 100000:
         raise ValueError('单个文本流限 100,000 字符')
+    soft=m.get('softBreaks',[])
+    if not isinstance(soft,list) or len(soft)>len(m['text']):raise ValueError('软换行位置无效')
+    breaks=set();offset=0
+    for ch in m['text']:
+        if ch=='\n':breaks.add(offset)
+        offset+=len(ch.encode('utf-16-le'))//2
+    if any(type(n) is not int or n not in breaks for n in soft):raise ValueError('软换行位置无效')
     w, h = number(m.get('pageWidth'), 36, 14400), number(m.get('pageHeight'), 36, 14400)
     f = m['frame']
     number(f['x'], -14400, 14400); number(f['y'], -14400, 14400)
@@ -67,14 +74,21 @@ def styled_html(m):
     runs=sorted(runs,key=lambda r:r.get('start',0))
     defaults={k:m.get(k) for k in ('fontKey','fontName','fontResolution','fontOriginalName','size','color','charSpacing','wordSpacing','bold','italic','latinFontKey','cjkFontKey','latinFontName','cjkFontName')}
     definitions={};fonts={};css=[];fallback=0;fallback_details=[];spacing_limited=False;ri=0;offset=0;paragraphs=[];parts=[];segment='';last=None
+    soft=set(m.get('softBreaks') or [])
     def flush():
         nonlocal segment
         if segment:parts.append('<span class="%s">%s</span>'%(last,escape(segment)));segment=''
-    for ch in text:
+    for ci,ch in enumerate(text):
         while ri<len(runs) and runs[ri].get('end',0)<=offset:ri+=1
         style={**defaults,**(runs[ri] if ri<len(runs) and runs[ri].get('start',0)<=offset<runs[ri].get('end',0) else {})}
         offset+=len(ch.encode('utf-16-le'))//2
         if ch=='\n':
+            if offset-1 in soft:
+                # Extraction line boundaries are not paragraph boundaries.
+                # A real newline typed by the user has no softBreaks entry.
+                before=text[ci-1] if ci else '';after=text[ci+1] if ci+1<len(text) else ''
+                if before and after and before.isascii() and before.isalnum() and after.isascii() and after.isalnum():segment+=' '
+                continue
             flush();paragraphs.append(''.join(parts) or '<br/>');parts=[];last=None;continue
         key=(style.get('latinFontKey') if ord(ch)<0x300 else style.get('cjkFontKey')) or style.get('fontKey')
         if key not in fonts:fonts[key]=load_font(key)
@@ -245,7 +259,7 @@ def analyze(data, page_number):
         _AI = RapidLayout(RapidLayoutInput(model_type=ModelType.PP_LAYOUT_CDLA,
                           model_dir_or_path=str(path), engine_cfg={'intra_op_num_threads': 2}, conf_thresh=.5))
     with fitz.open(stream=data, filetype='pdf') as doc:
-        p = doc[page_number-1]; scale = min(1.5, 1600/max(p.rect.width, p.rect.height))
+        p = doc[page_number-1];p.set_rotation(0); scale = min(1.5, 1600/max(p.rect.width, p.rect.height))
         pix = p.get_pixmap(matrix=fitz.Matrix(scale, scale), alpha=False)
         # RapidLayout's ndarray contract is BGR (its loader converts to RGB).
         image = np.frombuffer(pix.samples, dtype=np.uint8).reshape(pix.height, pix.width, 3)[:, :, ::-1].copy()
@@ -259,11 +273,15 @@ def analyze(data, page_number):
 
 
 def blank_anchors(text, positions, model):
-    anchors = {}; offset = 0
-    for i, line in enumerate(text.split('\n')):
-        if not line:
-            p = next((p for p in positions if p['id'] == 'p'+str(i) and p['open'] & 1), None)
-            if p:
-                r = p['rect']; anchors[str(offset)] = {'x': r[0], 'y': r[1], 'h': model['size']*model['lineHeight'], 'line': -1}
-        offset += len(line.encode('utf-16-le'))//2 + 1
+    anchors = {}; offset = 0; paragraph = 0; content = False
+    soft = set(model.get('softBreaks') or [])
+    for ch in text + '\n':
+        if ch == '\n' and offset not in soft:
+            if not content:
+                p = next((p for p in positions if p['id'] == 'p'+str(paragraph) and p['open'] & 1), None)
+                if p:
+                    r = p['rect']; anchors[str(offset)] = {'x': r[0], 'y': r[1], 'h': model['size']*model['lineHeight'], 'line': -1}
+            paragraph += 1; content = False
+        elif ch != '\n':content = True
+        offset += len(ch.encode('utf-16-le'))//2
     return anchors
