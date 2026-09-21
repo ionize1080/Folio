@@ -176,14 +176,15 @@ const root = path.resolve(__dirname, ".."),
       );
       await page.locator('[data-action="save"]').click();
       await page.waitForFunction(
-        async () => {
+        async (expectedName) => {
           const { S } = await import("./app.mjs");
           return (
             !S.busy &&
+            document.querySelector("#doc-name").textContent === expectedName &&
             !document.querySelector("#dirty-dot").classList.contains("changed")
           );
         },
-        null,
+        path.basename(saved),
         { timeout: 60000 },
       );
       assert(fs.statSync(saved).size > 100);
