@@ -1,0 +1,107 @@
+name: Publish verified Folio 1.2 RC1-P4
+on:
+  push:
+    branches: [codex/release-1.2-rc1-p4]
+    paths: [.github/workflows/release-rc1-p4.yml]
+  workflow_dispatch:
+permissions:
+  actions: read
+  contents: write
+concurrency:
+  group: folio-release-v1.2.0-rc1-p4
+  cancel-in-progress: false
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ionize1080/Folio
+      VERIFIED_RUN: "35558160658"
+      VERIFIED_SHA: 017062def8f324a82de02f9f08261fbd437c8645
+    steps:
+      - name: Verify exact Windows artifacts and publish release
+        shell: python
+        run: |
+          """Publish only the exact successful Windows build selected in workflow env."""
+          import hashlib,json,os,subprocess,shutil,zipfile
+          from pathlib import Path
+          repo='ionize1080/Folio'; run=int(os.environ['VERIFIED_RUN']); sha=os.environ['VERIFIED_SHA']
+          tag='v1.2.0-rc1-p4'; prefix='Folio-PDF-Studio-1.2.0-RC1-P4'
+          def api(endpoint):return json.loads(subprocess.check_output(['gh','api',f'repos/{repo}/{endpoint}']))
+          def digest(file):
+              with file.open('rb') as f:return hashlib.file_digest(f,'sha256').hexdigest()
+          result=api(f'actions/runs/{run}')
+          assert result['status']=='completed' and result['conclusion']=='success'
+          assert result['head_sha']==sha and result['path']=='.github/workflows/folio-editor-p4.yml'
+          jobs=api(f'actions/runs/{run}/jobs')['jobs'];windows=next(j for j in jobs if j['name']=='windows');assert windows['conclusion']=='success'
+          for step in ('Run npm test','Run npm run build:win','Run npm run test:package','Run node tests/electron-v12.cjs','Run node tests/electron-p4.cjs'):
+              assert any(s['name']==step and s['conclusion']=='success' for s in windows['steps']),step
+          names=['folio-p4-portable','folio-p4-source','folio-p4-windows-validation','folio-p4-checksums']
+          artifacts=api(f'actions/runs/{run}/artifacts')['artifacts']
+          for name in names:
+              matches=[a for a in artifacts if a['name']==name and not a['expired']];assert len(matches)==1,name
+              subprocess.run(['gh','run','download',str(run),'--name',name,'--dir','download/'+name],check=True)
+          src=Path('download');out=Path('release');out.mkdir(exist_ok=True)
+          portable=src/'folio-p4-portable'/f'{prefix}-win-x64.zip';source=src/'folio-p4-source'/f'{prefix}-source.zip'
+          validation=src/'folio-p4-windows-validation'
+          load=lambda p:json.loads(p.read_text(encoding='utf-8'))
+          standard=load(validation/'v12-electron-report.json');editor=load(validation/'p4-electron-report.json');fast=load(validation/'p3-ui-report.json');narrow=load(validation/'p4/narrow-regression/report.json')
+          for report in (standard,editor):assert report['platform']=='win32' and not report['errors'] and len(report['checks'])>=2
+          assert not fast['errors'] and fast['perf']['requests']==0
+          assert not narrow['errors'] and not narrow.get('fatal') and narrow['saved'] and narrow['heightEnabled'] and not narrow['bold']['overflow']
+          assert standard['exe_sha256']==editor['exe_sha256'] and standard['asar_sha256']==editor['asar_sha256']
+          expected={x['file']:x for x in load(src/'folio-p4-checksums'/f'{prefix}-SHA256.json')}
+          for f in (portable,source):
+              assert f.stat().st_size==expected[f.name]['bytes'] and digest(f)==expected[f.name]['sha256']
+          with zipfile.ZipFile(portable) as z:
+              assert z.testzip() is None
+              for name,key in [('Folio.exe','exe_sha256'),('resources/app.asar','asar_sha256')]:
+                  with z.open('Folio-PDF-Studio/'+name) as f:assert hashlib.file_digest(f,'sha256').hexdigest()==editor[key]
+          with zipfile.ZipFile(source) as z:
+              assert z.testzip() is None
+              p=json.loads(z.read('Folio-PDF-Studio-source/package.json'));assert p['version']=='1.2.0' and p['releaseChannel']=='rc1-p4'
+              assert 'Folio-PDF-Studio-source/tests/electron-p4.cjs' in z.namelist()
+          shutil.copyfile(portable,out/f'{prefix}-portable-win-x64.zip');shutil.copyfile(source,out/source.name)
+          results={'sourceCommit':sha,'windowsRun':result['html_url'],'packagedElectron':standard,'packagedEditor':editor,'fastEditorBrowser':fast,'narrowTableBrowser':{'saved':narrow['saved'],'heightEnabled':narrow['heightEnabled'],'errors':narrow['errors']}}
+          (out/f'{prefix}-validation.json').write_text(json.dumps(results,ensure_ascii=False,indent=2),encoding='utf-8')
+          (out/f'{prefix}-SHA256.txt').write_text('\n'.join(f'{digest(f)}  {f.name}' for f in sorted(out.iterdir()))+'\n',encoding='utf-8')
+          notes=f'''## 更新内容
+          - 修复点击编辑后光标错位：按字符位置命中，并保留异步进入编辑前的PDF坐标。
+          - 修复文字溢出后预览覆盖下方内容：未确认溢出时裁切到编辑框，完整草稿仍保留，可选择扩框或保留溢出。
+          - 修复窄单元格加粗后陷入“扩大边界—无法保存”的循环；开放行高调整，整行边框及后续行同步移动。
+          - 在文字、字体度量及段落参数不变时，粗斜体和颜色修改优先保留原字位，避免只改格式就推移后续表格。
+          - 点击原文进入编辑时保留原版式，避免仅因获得焦点就自动增加行高。
+          
+          ## Windows验证
+          本发布包通过原生Windows GitHub Actions上的完整单元、原生引擎与浏览器UI回归、打包检查，以及实际Folio.exe的打开、编辑、保存测试。新增EXE回归验证14pt窄单元格加粗、增加24pt行高、实际保存及表格边界回读。
+          - [Windows测试与构建记录]({result['html_url']})
+          - 已验证源码：{sha}
+          - [编辑修复 PR #7](https://github.com/ionize1080/Folio/pull/7)
+          
+          附件直接采用该成功构建的源码包和portable包，不重新构建；校验ZIP、Folio.exe及app.asar的SHA-256。附验证JSON和SHA256.txt。
+          
+          ## 已知限制
+          - 字体缺字（如部分文档中的℃）仍可能触发替代字体、重排和行高变化，尚不能保证所有字体完全保真。
+          - 自动测试不等同于真实中文输入法、混合DPI、不同显卡及大型实际扫描年鉴的人工验收。
+          - 本版继承P3/P2的大文件、复杂文字与OCR限制。标记为Pre-release，不替代当前稳定Latest。
+          
+          ## 下载与运行
+          下载portable-win-x64.zip，完整解压后运行Folio.exe，无需另装Python、Node或OCR模型，请保留整个目录。
+          source.zip为完整离线源码交付包，不同于GitHub自动生成的Source code存档。
+          '''
+          Path('release-notes.md').write_text(notes,encoding='utf-8')
+          files=sorted(out.iterdir());assert len(files)==4
+          matches=[r for r in api('releases?per_page=100') if r['tag_name']==tag]
+          if not matches:
+              subprocess.run(['gh','release','create',tag,*map(str,files),'--target',sha,'--title','Folio PDF Studio 1.2.0 RC1-P4','--notes-file','release-notes.md','--draft','--prerelease','--latest=false'],check=True)
+              matches=[r for r in api('releases?per_page=100') if r['tag_name']==tag]
+          assert len(matches)==1
+          release=matches[0];assert release['draft'] and release['prerelease'] and release['target_commitish']==sha
+          assert {a['name']:a['size'] for a in release['assets']}=={f.name:f.stat().st_size for f in files}
+          assert all(a['state']=='uploaded' for a in release['assets'])
+          assert release['body'].strip()==notes.strip()
+          for f in files:
+              asset=next(a for a in release['assets'] if a['name']==f.name);assert asset['digest']=='sha256:'+digest(f)
+          subprocess.run(['gh','api','--method','PATCH',f"repos/{repo}/releases/{release['id']}",'-F','draft=false','-F','prerelease=true','-f','make_latest=false','--silent'],check=True)
+          published=api('releases/tags/'+tag);assert not published['draft'] and published['prerelease'];print(published['html_url'])
