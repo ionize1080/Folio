@@ -8,6 +8,7 @@ concurrency:
   cancel-in-progress: true
 permissions:
   contents: read
+  actions: read
 jobs:
   windows:
     runs-on: windows-latest
@@ -39,7 +40,36 @@ jobs:
       - run: python tests/public-corpus-p5.py
       - run: python tests/editor-p5.py
       - run: python tests/editor-p6.py
+      - uses: actions/cache/restore@v4
+        id: corpus-cache
+        with:
+          path: tests/output/p6/originals
+          key: p6-public-corpus-${{ hashFiles('tests/public-corpus-p6.json') }}
+      # Optional bootstrap from this repository's earlier complete download.
+      # Every PDF is still checked against its pinned SHA-256 by the test.
+      - uses: actions/download-artifact@v4
+        if: steps.corpus-cache.outputs.cache-hit != 'true'
+        continue-on-error: true
+        with:
+          name: folio-p6-windows-validation
+          run-id: 35808785466
+          github-token: ${{ github.token }}
+          path: .corpus-seed
+      - name: Restore downloaded public PDFs
+        if: steps.corpus-cache.outputs.cache-hit != 'true'
+        shell: python
+        run: |
+          from pathlib import Path
+          import shutil
+          source=Path('.corpus-seed/p6/originals')
+          target=Path('tests/output/p6/originals');target.mkdir(parents=True,exist_ok=True)
+          for file in source.glob('*.pdf'):shutil.copyfile(file,target/file.name)
       - run: python tests/public-corpus-p6.py
+      - uses: actions/cache/save@v4
+        if: steps.corpus-cache.outputs.cache-hit != 'true'
+        with:
+          path: tests/output/p6/originals
+          key: p6-public-corpus-${{ hashFiles('tests/public-corpus-p6.json') }}
       - run: npm run build:win
       - run: npm run test:package
       - run: node tests/electron-p5.cjs
@@ -76,4 +106,3 @@ jobs:
         with:
           name: folio-p6-checksums
           path: deliverables/*-SHA256.json
-

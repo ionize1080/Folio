@@ -82,11 +82,11 @@ def recommend(font_key, missing='', sample=''):
     from system_fonts import catalog
     source=load_font(font_key)
     if not source:return []
-    coverage=source['coverage']; chars=''.join(dict.fromkeys(c for c in sample if ord(c) in coverage and not c.isspace()))
+    source_coverage=source['coverage']; chars=''.join(dict.fromkeys(c for c in sample if ord(c) in source_coverage and not c.isspace()))
     if len(chars)<8:
         cjk=any(ord(c)>=0x2e80 for c in missing)
-        preferred=[cp for cp in sorted(coverage) if (0x2e80<=cp<=0x9fff if cjk else 65<=cp<=122)]
-        chosen=set(preferred);rest=[cp for cp in sorted(coverage) if cp>=33 and cp not in chosen]
+        preferred=[cp for cp in sorted(source_coverage) if (0x2e80<=cp<=0x9fff if cjk else 65<=cp<=122)]
+        chosen=set(preferred);rest=[cp for cp in sorted(source_coverage) if cp>=33 and cp not in chosen]
         chars+=''.join(chr(cp) for cp in preferred+rest if chr(cp) not in chars)[:16-len(chars)]
     # Spread evidence across the subset rather than comparing a single common glyph.
     chars=chars[:16]; required={ord(c) for c in missing if not c.isspace()}
@@ -137,4 +137,3 @@ def fallback(font_key, character):
     _fallback_faces.move_to_end(bucket)
     while len(_fallback_faces)>64:_fallback_faces.popitem(last=False)
     return face
-

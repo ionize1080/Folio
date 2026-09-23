@@ -98,6 +98,19 @@ p.insert_text((46,80),'\u0301',fontname='Marks',fontsize=12)
 gs,complete=map_glyphs(p,'e\u0301');assert complete and gs[-1]['end']==2
 checks.append('Zero-width combining marks in separate font spans remain in the exact caret map')
 
+# Exercise the real installed-font catalog: an empty result must not disguise
+# a scoring exception. A changed leading character reuses per-glyph features.
+from fast_layout import font_data
+import font_similarity as similarity
+from system_fonts import catalog
+key=font_data('builtin-latin')['key'];sample='ABCDEFGHIJKLMNOP'
+matches=similarity.recommend(key,'',sample)
+assert any(v['exactGlyphs']==16 and v['confidence']=='高' for v in matches),matches
+count=len(similarity._glyph_features)
+again=similarity.recommend(key,'','9'+sample)
+assert again and len(similarity._glyph_features)-count<=len(catalog())+1
+checks.append('Real catalog recommendations find the exact face and reuse cached glyphs after a leading-character edit')
+
 # Deep indirect object chains: keep structure instead of deleting tags/outlines.
 w=PdfWriter();w.add_blank_page(width=300,height=400);node=D({N('/Value'):I(1)})
 for i in range(800):node=D({N('/Next'):w._add_object(node)})
