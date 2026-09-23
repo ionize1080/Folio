@@ -87,7 +87,7 @@ def normalize(blob):
         raise ValueError('字体缺少必要表：'+', '.join(t.decode('ascii') for t in sorted(missing)))
     if len(parts[b'head'])<54:raise ValueError('字体 head 表无效')
     changed = False
-    if b'name' not in parts:
+    if not parts.get(b'name'):
         # This metadata is optional in PDF programs. Rebuild it without changing
         # outlines, glyph order, advances or the PDF character mapping.
         from fontTools.ttLib import TTFont,newTable
@@ -96,7 +96,7 @@ def normalize(blob):
         for key,value in {1:family,2:'Regular',3:family,4:family,6:family.replace(' ','')}.items():
             name.setName(value,key,3,1,0x409)
         parts[b'name']=name.compile(font);changed=True
-    if b'post' not in parts:
+    if not parts.get(b'post'):
         # Format 3 carries metrics, without a glyph-name array. PDF.js also
         # constructs this format for embedded fonts. No glyph indices change.
         italic = bool(struct.unpack_from('>H', parts[b'head'], 44)[0] & 2)
@@ -109,7 +109,7 @@ def normalize(blob):
     if not 1 <= metrics <= count or len(parts[b'hmtx']) < 4*metrics+2*(count-metrics):
         raise ValueError('字体字宽数量不一致')
     maximum = max(struct.unpack_from('>H', parts[b'hmtx'], 4*i)[0] for i in range(metrics))
-    if b'OS/2' not in parts:
+    if not parts.get(b'OS/2'):
         # PDF subsets may omit Windows metadata. Recover conservative metrics
         # from existing head/hhea/hmtx; never change outline or advance tables.
         # OpenType OS/2 v4 layout: Microsoft OpenType specification.

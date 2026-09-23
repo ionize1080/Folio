@@ -45,6 +45,7 @@ const checks = [],
         for (const font of Object.values(inspected.fonts)) {
           if (!font.fontKey || seen.has(font.fontKey)) continue;
           seen.add(font.fontKey);
+          console.log('Checking font', doc.id, pn, font.fontName, font.fontKey);
           // Font keys are content-addressed and shared by the inspect/layout workers.
           const result = await page.evaluate(async (key) => {
             const f = await window.desktop.native({

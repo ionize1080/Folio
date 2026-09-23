@@ -29,6 +29,15 @@ assert after['name'].getDebugName(1).startswith('Folio Embedded')
 (OUT/'p6-missing-name.ttf').write_bytes(fixed)
 checks.append('Missing name metadata repaired without changing glyf/hmtx')
 
+# RFC 9110 subsets carry a present but zero-length OS/2 table. Treat empty
+# optional metadata like missing metadata while retaining every glyph metric.
+parts=tables(fixed);parts[b'OS/2']=b'';empty=build(fixed[:4],parts)
+repaired=normalize(empty);after=TTFont(io.BytesIO(repaired))
+assert after.getTableData('glyf')==before and after.getTableData('hmtx')==widths
+assert after['OS/2'].usWeightClass==400
+(OUT/'p6-empty-os2.ttf').write_bytes(repaired)
+checks.append('Zero-length OS/2 metadata repaired without changing outlines or advances')
+
 # Nonzero CropBox + all four rotations: replace with the same text in color and
 # compare character origins, page boxes, other page pixels, and reopenability.
 for angle in [0,90,180,270]:
