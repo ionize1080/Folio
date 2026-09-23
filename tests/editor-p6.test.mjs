@@ -106,6 +106,18 @@ const object = (index, text, x, base, width, fontName = "FreeMono") => ({
   matrix: [1, 0, 0, 1, x, base],
   bounds: [x, base - 2, x + width, base + 8],
 });
+test("one source object crossing cell borders remains an original row", () => {
+  const src = object(0, "Left label Right value", 20, 100, 220);
+  const grid = [{id:"table", cells:[
+    {id:"left",bounds:[10,690,100,712],row:0,column:0},
+    {id:"right",bounds:[100,690,260,712],row:0,column:1},
+  ]}];
+  const cs = pageCandidates([src],600,800,[],grid);
+  const row = cs.find(c=>c.model.text.includes("Left label"));
+  assert(row && !row.model.cell && row.model.structureWarning);
+  assert(row.model.frame.x <= 20);
+  assert.equal(row.model.sources.length,1);
+});
 test("floating baseline noise cannot detach command arguments or merge prose into code", () => {
   const cs = pageCandidates(
     [

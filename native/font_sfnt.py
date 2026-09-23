@@ -81,6 +81,10 @@ def glyph_flags(parts):
 
 def normalize(blob):
     parts = tables(blob)
+    # Empty optional hint/kerning tables have no content to preserve and are
+    # rejected by OTS. Required outlines and metrics are validated below.
+    for tag in (b'cvt ',b'fpgm',b'prep',b'kern',b'gasp'):
+        if tag in parts and not parts[tag]:del parts[tag]
     required = {b'head', b'hhea', b'maxp', b'hmtx', b'cmap'}
     missing = required - parts.keys()
     if missing:

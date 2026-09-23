@@ -89,6 +89,15 @@ res=layout(m);assert res['mappingComplete'] and not res['overflow'];assert max(g
 blob=base64.b64decode(res['fragment']);doc=fitz.open(stream=blob,filetype='pdf');assert '😀' in doc[0].get_text()
 checks.append('Combining marks, symbols and supplementary emoji retain complete UTF-16 hit-test offsets and exported Unicode')
 
+# Separate zero-width combining mark spans disappear from MuPDF rawdict on
+# some wraps. Display-list mapping must retain the mark and its exact offset.
+from story import map_glyphs
+d=fitz.open();p=d.new_page();p.insert_text((40,80),'e',fontsize=12)
+p.insert_font(fontname='Marks',fontfile=str(ROOT/'native/fonts/DejaVuSans.ttf'))
+p.insert_text((46,80),'\u0301',fontname='Marks',fontsize=12)
+gs,complete=map_glyphs(p,'e\u0301');assert complete and gs[-1]['end']==2
+checks.append('Zero-width combining marks in separate font spans remain in the exact caret map')
+
 # Deep indirect object chains: keep structure instead of deleting tags/outlines.
 w=PdfWriter();w.add_blank_page(width=300,height=400);node=D({N('/Value'):I(1)})
 for i in range(800):node=D({N('/Next'):w._add_object(node)})

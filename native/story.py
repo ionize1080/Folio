@@ -211,6 +211,9 @@ def layout(model):
         frame_overset=any(g['x']<f['x']-.5 or g['x']+g['w']>f['x']+f['width']+.5 or g['y']+g['h']>f['y']+f['height']+.5 for g in glyphs)
         svg = page.get_svg_image(text_as_path=True)
         page.set_mediabox(original_box)
+        if map_ok:
+            from text_semantics import mark_text
+            mark_text(page,text)
         doc.subset_fonts()
         blob = repair(doc.tobytes(garbage=3, deflate=True))
     result = {'engine': 'MuPDF Story', 'layoutMode':'段落重排', 'engineVersion': fitz.VersionBind, 'fallbackCount':fallback_count, 'fallbackDetails':fallback_details, 'spacingLimited':spacing_limited,
@@ -260,7 +263,51 @@ def map_glyphs(page, text):
                     cursor += count
             line_id += 1
     if text[cursor:].strip(' \t\r\n\u200b\ufeff\u00ad'): ok = False
-    return out, ok
+    if ok:return out, True
+    # Structured extraction drops zero-width marks in a separate font span.
+    # The generated display list retains them. Retry its exact paint order;
+    # never skip unmatched source letters or infer positions from neighbours.
+    cursor=0;out=[];line_id=0;baseline=None;faces={}
+    def same_glyph(span,cp,gid):
+        name=span['font']
+        if name not in faces:
+            matches=[]
+            for entry in page.get_fonts(full=True):
+                try:
+                    from fontTools.ttLib import TTFont
+                    data=page.parent.extract_font(entry[0])[3]
+                    meta=TTFont(io.BytesIO(data))
+                    names=[entry[3],meta['name'].getDebugName(6)]
+                    if 'CFF ' in meta:names+=meta['CFF '].cff.fontNames
+                    names=[v.split('+')[-1] for v in names if v]
+                    # MuPDF's display-list font name is bounded to 31 bytes.
+                    if not any(name.split('+')[-1] in (v,v[:31]) for v in names):continue
+                    matches.append(fitz.Font(fontbuffer=data))
+                except Exception:continue
+            faces[name]=matches[0] if len(matches)==1 else None
+        font=faces[name]
+        return font is not None and gid>0 and font.has_glyph(cp)==gid
+    for span in page.get_texttrace():
+        for cp,gid,origin,bbox in span['chars']:
+            ch=chr(cp)
+            while cursor<len(text) and text[cursor] in ' \t\n\r\u200b\ufeff\u00ad' and text[cursor]!=ch:cursor+=1
+            if cursor>=len(text):
+                if ch.isspace():continue
+                return out,False
+            count=1
+            if ch!=text[cursor]:
+                normalized=unicodedata.normalize('NFKC',ch);decomposed=unicodedata.normalize('NFD',ch)
+                if normalized and text.startswith(normalized,cursor):count=len(normalized)
+                elif decomposed and text.startswith(decomposed,cursor):count=len(decomposed)
+                elif unicodedata.normalize('NFKC',text[cursor])==normalized:pass
+                elif ch.isspace():continue
+                elif not same_glyph(span,ord(text[cursor]),gid):return out,False
+            x0,y0,x1,y1=bbox
+            if baseline is not None and abs(origin[1]-baseline)>span['size']*.5:line_id+=1
+            baseline=origin[1]
+            out.append({'start':offsets[cursor],'end':offsets[cursor+count],'x':x0,'y':y0,'w':max(0,x1-x0),'h':y1-y0,'line':line_id,'originX':origin[0],'baseline':origin[1],'size':span['size']})
+            cursor+=count
+    return out,not text[cursor:].strip(' \t\r\n\u200b\ufeff\u00ad')
 
 
 def analyze(data, page_number):

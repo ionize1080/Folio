@@ -72,6 +72,15 @@ export function pageCandidates(objects, w, h, regions = [], tables = []) {
   // A detector rectangle is not proof of a cell. Multiple separated columns
   // on several baselines are an unsafe grid: expose the original row elements.
   const unsafe = new Set();
+  // A single PDF text object may paint several cells. Ownership is the whole
+  // object: assigning it by its centre would hide its left-hand glyphs and
+  // remove neighbouring cells on save. Keep that object as an original row.
+  for (const o of objects.filter((o) => o.type === "text" && o.text?.trim())) {
+    const b = topBounds(o, h);
+    const touched = allCells.filter((c) => intersects(b, c.bounds, 1));
+    if (touched.length > 1)
+      for (const c of touched) unsafe.add(c.id);
+  }
   for (const cell of allCells) {
     const src = objects.filter(
       (o) =>

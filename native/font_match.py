@@ -7,7 +7,7 @@ from functools import lru_cache
 # Embedded Windows Python must resolve the shipped converter on the first CID font,
 # without relying on a previous Type1/browser-font request to alter sys.path.
 sys.path.insert(0,str(Path(__file__).parent/'vendor'))
-CACHE=Path(tempfile.gettempdir())/'folio-fonts-v13'
+CACHE=Path(tempfile.gettempdir())/'folio-fonts-v14'
 
 def checksum(data):
     data+=b'\0'*((-len(data))%4)

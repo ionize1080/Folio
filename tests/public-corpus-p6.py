@@ -15,7 +15,13 @@ for item in json.loads((ROOT/'tests/public-corpus-p6.json').read_text(encoding='
  source=cache/(item['id']+'.pdf')
  if not source.exists():
   request=urllib.request.Request(item['url'],headers={'User-Agent':'Mozilla/5.0 (Folio regression corpus)'})
-  with urllib.request.urlopen(request,timeout=180) as response:data=response.read()
+  for attempt in range(3):
+   try:
+    with urllib.request.urlopen(request,timeout=180) as response:data=response.read()
+    break
+   except Exception:
+    if attempt==2:raise
+    time.sleep(2*(attempt+1))
   assert hashlib.sha256(data).hexdigest()==item['sha256'],item['id'];source.write_bytes(data)
  assert hashlib.sha256(source.read_bytes()).hexdigest()==item['sha256'],item['id']
  with pikepdf.open(source) as pdf:assert len(pdf.pages)==item['pages']

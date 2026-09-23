@@ -37,8 +37,12 @@ def restore_type1(blob,unicode_map,name,segments=None):
     fb=FontBuilder(1000,isTTF=False);fb.setupGlyphOrder(order);fb.setupCharacterMap(cmap)
     fb.setupHorizontalMetrics(metrics);fb.setupHorizontalHeader(ascent=1000,descent=-250)
     ps='FolioRestored-'+''.join(c for c in name.split('+')[-1] if c.isalnum())[:45]
-    fb.setupNameTable({'familyName':name.split('+')[-1],'styleName':'Regular','uniqueFontIdentifier':ps,'fullName':name.split('+')[-1],'psName':ps})
-    fb.setupOS2(sTypoAscender=1000,sTypoDescender=-250,usWinAscent=1100,usWinDescent=300)
-    fb.setupPost();fb.setupCFF(ps,{'FullName':name.split('+')[-1],'FamilyName':name.split('+')[-1],'Weight':'Regular'},chars,{})
+    info=font.font.get('FontInfo',{});weight=str(info.get('Weight','Regular'))
+    angle=float(info.get('ItalicAngle',0));bold=any(v in weight.lower() for v in ('bold','demi','black'));italic=bool(angle)
+    style=' '.join(v for v,on in [('Bold',bold),('Italic',italic)] if on) or 'Regular'
+    fb.setupNameTable({'familyName':name.split('+')[-1],'styleName':style,'uniqueFontIdentifier':ps,'fullName':name.split('+')[-1],'psName':ps})
+    fb.setupOS2(sTypoAscender=1000,sTypoDescender=-250,usWinAscent=1100,usWinDescent=300,usWeightClass=700 if bold else 400,fsSelection=(32 if bold else 0)|(1 if italic else 0)|(64 if not bold and not italic else 0))
+    fb.setupPost(italicAngle=angle);fb.setupCFF(ps,{'FullName':name.split('+')[-1],'FamilyName':name.split('+')[-1],'Weight':weight,'ItalicAngle':angle},chars,{})
+    fb.font['head'].macStyle=(1 if bold else 0)|(2 if italic else 0)
     out=io.BytesIO();fb.save(out)
     return out.getvalue(),set(cmap)
