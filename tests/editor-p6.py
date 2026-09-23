@@ -151,6 +151,22 @@ m['fastLayout']=dict(version=1,text='9A',glyphs=gs,anchors=[])
 result=layout(m);r,ms=models(base64.b64decode(result['fragment']))
 assert any(p['text']=='9A' for p in ms),[p['text'] for p in ms]
 checks.append('Explicit generated text reopens without invented spaces in preserved wide glyph slots')
+# Conversely, an explicit space may have the same origin as the next letter.
+# Zero-ink space objects cannot be discarded from the logical paragraph.
+m['text']='A B';gs=[dict(text=ch,start=i,end=i+1,originX=30 if i==0 else 40,baseline=60,x=30 if i==0 else 40,y=48,w=7 if ch!=' ' else 0,h=12,size=12,fontKey=key,color='#000000',scale=1)for i,ch in enumerate('A B')]
+m['fastLayout']=dict(version=1,text=m['text'],glyphs=gs,anchors=[])
+result=layout(m);_,ms=models(base64.b64decode(result['fragment']))
+assert any(p['text']=='A B' for p in ms),[p['text'] for p in ms]
+
+
+# Inferred source word spaces have logical offsets but no original operator.
+# Keep them as explicit spaces when writing individually marked glyphs.
+d=fitz.open();p=d.new_page();p.insert_text((40,80),'After',fontname='tiro',fontsize=12);p.insert_text((40+fitz.get_text_length('After',fontname='tiro',fontsize=12)+3,80),'that',fontname='tiro',fontsize=12)
+raw=d.tobytes();r,ms=models(raw);m=next(m for m in ms if m['text']=='After that')
+assert any(g.get('synthetic') and g['text']==' ' for g in m['originalLayout']['glyphs'])
+m['text']='9fter that';result=layout(m);_,reopened=models(save(raw,m,result))
+assert any(m['text']=='9fter that' for m in reopened),[m['text'] for m in reopened]
+checks.append('Inferred source word spaces survive anchored export and exact editable text reopening')
 
 # Deep indirect object chains: keep structure instead of deleting tags/outlines.
 w=PdfWriter();w.add_blank_page(width=300,height=400);node=D({N('/Value'):I(1)})

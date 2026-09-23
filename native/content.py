@@ -103,10 +103,15 @@ def check_editable(page,descriptions):
                 # proves the intended text without changing raw signatures.
                 actual=a.get('actualText')
                 if actual is not None and b.get('text','').strip()==actual.strip():
-                    following=mapped[position+1].get('actualText') if position+1<len(mapped) else None
-                    # Nonpainting space objects are omitted by paragraph
-                    # extraction. Retain their existing PDFium word separator.
-                    if not following or not following.isspace():b['text']=actual
+                    b['text']=actual
+                    # Paragraph extraction omits zero-ink whitespace objects.
+                    # Carry their explicit characters on the preceding painted
+                    # object, even when the source space shared the next origin.
+                    if not actual.isspace():
+                        for next_position in range(position+1,len(mapped)):
+                            value=mapped[next_position].get('actualText')
+                            if not isinstance(value,str) or not value.isspace():break
+                            b['text']+=value
                     b['textSpacingExplicit']=True
                 b['textGroup']=a.get('begin')
                 b['independentFlow']=bool(a.get('single') or safe.get(a['at']) is not None)

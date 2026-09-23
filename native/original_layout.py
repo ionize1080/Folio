@@ -143,7 +143,10 @@ def render(m):
         if t['path'] not in names:
             names[t['path']]='F'+str(len(names));page.insert_font(fontname=names[t['path']],fontfile=t['path'])
         color=tuple(int(t['color'][j:j+2],16)/255 for j in (1,3,5))
-        if not t['synthetic'] and i>=painted:
+        # Source gaps represented as logical spaces must be emitted explicitly.
+        # They paint no ink, but otherwise ActualText on adjacent letters can
+        # suppress the reader's geometric word separator on reopening.
+        if (not t['synthetic'] or t['text'].isspace()) and i>=painted:
             scalar,actual,count=cluster(positioned,i,t['coverage']);painted=i+count
             page.insert_text((x,y),scalar,fontsize=t['size'],fontname=names[t['path']],color=color,morph=(fitz.Point(x,y),fitz.Matrix(t['scale'],1)))
             from text_semantics import mark_text
