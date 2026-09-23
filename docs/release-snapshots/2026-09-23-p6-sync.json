@@ -1,0 +1,105 @@
+{
+  "capturedAt": "2026-09-23",
+  "repository": "ionize1080/Folio",
+  "originalLatest": "v1.2.0-rc1-p1",
+  "mainBefore": "0b1cfa0cfb685f8d8bbd5ee04b0042574a85a8d5",
+  "releaseBranchBefore": "d7da3515e5d477122197639dc202c58584b5b21f",
+  "releases": [
+    {
+      "id": 391189950,
+      "tag_name": "v1.2.0-rc1-p1",
+      "target_commitish": "c2a425e798d72178c198c7e4b25de62ebc1b879a",
+      "name": "Folio PDF Studio 1.2.0 RC1-P1",
+      "body": "## 更新内容\n- 连续输入复用已经匹配的字体；仅在替代字体也缺字时重新分析，避免每个新字重复遍历系统字体。\n- 缓存字体覆盖表和字体选择结果，减少原字位排版中的重复读取。\n- 过时草稿停止继续进行扩容重排。\n- 句号等标点处的光标改用字号和基线计算，保留真实的小字号差异。\n- 自动书签移至顶部常驻工具栏。\n\n## 验证与性能\nWindows 完整回归、打包检查，以及打包后 EXE 的启动、编辑和保存测试通过。\n中文测试样本的连续输入后端排版中位耗时约从 317 ms 降至 65 ms（约 4.8 倍）。首次字体匹配仍有额外开销；此数据不代表用户具体 PDF 或电脑的端到端耗时。\n\n验收记录：https://github.com/ionize1080/Folio/actions/runs/35301324064\n已测试源码：c2a425e798d72178c198c7e4b25de62ebc1b879a\n\n## 下载与运行\n下载 portable-win-x64.zip，完整解压后运行 Folio.exe；无需额外安装 Python、Node 或 OCR 模型。请保留完整目录。\n附带 source.zip、验证记录和 SHA-256 校验文件。此版本已设为仓库 Latest 下载版，GitHub 的 Pre-release 标记已取消；版本名称仍为 RC1-P1。此操作未重建程序，也不表示下述已知问题已修复。\n\n## 当前已知问题与下一步\n- 部分未嵌入字体的数字可能在段落编辑后发生替代；标题与正文的段落边界仍需改进。\n- 部分旋转扫描表格存在文字行方向误判、框内漏字或跨单元格合并；局部方向重试及结果合并修复尚未发布。\n- 后续计划和实现边界见主线 README：https://github.com/ionize1080/Folio#readme\n",
+      "draft": false,
+      "prerelease": false,
+      "created_at": "2026-09-18T02:56:50Z",
+      "updated_at": "2026-09-18T08:44:45Z",
+      "published_at": "2026-09-18T03:14:25Z",
+      "html_url": "https://github.com/ionize1080/Folio/releases/tag/v1.2.0-rc1-p1",
+      "backup_tag": "backup-v1.2.0-rc1-p1-20260923",
+      "assets": [
+        {
+          "id": 571692435,
+          "name": "Folio-PDF-Studio-1.2.0-RC1-P1-portable-win-x64.zip",
+          "size": 406924493,
+          "digest": "sha256:9863235394173cce2fec04387bcad416151caa1a29591c716f80364b91b83a6c",
+          "content_type": "application/zip",
+          "browser_download_url": "https://github.com/ionize1080/Folio/releases/download/v1.2.0-rc1-p1/Folio-PDF-Studio-1.2.0-RC1-P1-portable-win-x64.zip"
+        },
+        {
+          "id": 571692445,
+          "name": "Folio-PDF-Studio-1.2.0-RC1-P1-SHA256.txt",
+          "size": 336,
+          "digest": "sha256:ada50d9829f7e40bf8621ec9d9b351d6af4d9be63f7708a3e6f0def904f9373f",
+          "content_type": "text/plain; charset=utf-8",
+          "browser_download_url": "https://github.com/ionize1080/Folio/releases/download/v1.2.0-rc1-p1/Folio-PDF-Studio-1.2.0-RC1-P1-SHA256.txt"
+        },
+        {
+          "id": 571692438,
+          "name": "Folio-PDF-Studio-1.2.0-RC1-P1-source.zip",
+          "size": 242657134,
+          "digest": "sha256:4b961b8a01e185519be7b701e229b1bcd4aafabe1e450e472b466a5c6d7ee22b",
+          "content_type": "application/zip",
+          "browser_download_url": "https://github.com/ionize1080/Folio/releases/download/v1.2.0-rc1-p1/Folio-PDF-Studio-1.2.0-RC1-P1-source.zip"
+        },
+        {
+          "id": 571692440,
+          "name": "Folio-PDF-Studio-1.2.0-RC1-P1-validation.json",
+          "size": 1300,
+          "digest": "sha256:f2a21e10a47f3c52959b5cd34a41a99caeefc4634573509aeaaa2d242ed2bc24",
+          "content_type": "application/json",
+          "browser_download_url": "https://github.com/ionize1080/Folio/releases/download/v1.2.0-rc1-p1/Folio-PDF-Studio-1.2.0-RC1-P1-validation.json"
+        }
+      ]
+    },
+    {
+      "id": 394302713,
+      "tag_name": "v1.2.0-rc1-p6",
+      "target_commitish": "0b1cfa0cfb685f8d8bbd5ee04b0042574a85a8d5",
+      "name": "Folio PDF Studio 1.2.0 RC1-P6",
+      "body": "## 编辑修复\n- 新增默认非阻断的边界、重叠和页外内容通知；继续输入、选择、撤销和保存，详情按需展开，完成编辑后保留查看入口。编辑时页外文字和光标可见，导出仍保持原纸张大小。\n- 使用字体原始分数字宽，局部修改优先保留其他行字位；修复代码片段顺序、表格跨格对象误归属和过小单元格无入口。\n- 恢复 MingLiU、缺 name/空 OS2、Type1、raw CID CFF 等嵌入字体；保留真实粗斜体标识，修复零宽重音、emoji 和连字符语义；修复 CID 导出实际字形与 fi/fl 原连字叠印，增加双引擎墨迹检查。\n- 字体推荐改为有界单字形缓存并过滤过期响应；实际目录检查确认返回有效候选。\n- 修改页单独预览，保存时完整合成；修复深层对象递归失败和非零 CropBox 坐标，保留原页面框和旋转。\n\n## 验证\n127 项 JavaScript 单元测试、P6 原生 13 项专项和完整旧版本原生/界面回归通过。\nWindows 上检查 10 份公开文档的 50 个抽样页，并在打包后的 Folio.exe 中加载全部可解析字体；实际验证页外持续编辑与保存、非阻断通知、CropBox、中英文年报和 SDK 修改保存重开。\n本地另完成 13 份文档 65 页界面复验，累计含复测 2111 个操作检查点；65 页保存重开，260 个未修改页面像素一致。最终样本中 43/65 没有超过 1 pt 的未改字符字位移动，其余存在局部或段落重排。58/65 页重开后完整目标仍在单个编辑块内，7 页仍发生段落拆分；保留词间空白的完整目标检查为 51/65，保留换行的逐字检查为 48/65；5 个复杂混排用例保留草稿并提示能力限制。\n5 份完整原件（194 至 2696 页）新增文本框写回通过；这不是全书逐页编辑测试。\nWindows 验收：https://github.com/ionize1080/Folio/actions/runs/35818217755\n源码审计与限制：https://github.com/ionize1080/Folio/blob/0b1cfa0cfb685f8d8bbd5ee04b0042574a85a8d5/docs/RC1-P6-editor-audit.md\n\n## 下载与边界\n完整解压 portable-win-x64.zip，运行 Folio.exe；无需额外安装 Python、Node 或 OCR 模型。\nsource.zip 包含源码与离线资源，validation.json 和 SHA256.txt 用于核验。\n此版本为预发布。任意扩写不能保证所有原字位不变；旋转文本的复杂字形、复杂字符合成粗斜体、Type3、部分特殊编码/阅读方向及非 1 UserUnit 仍有限制。几何提示非阻断，内容归属或字位完整性校验继续生效并保留草稿。\n",
+      "draft": false,
+      "prerelease": true,
+      "created_at": "2026-09-23T04:24:24Z",
+      "updated_at": "2026-09-23T04:38:58Z",
+      "published_at": "2026-09-23T04:38:58Z",
+      "html_url": "https://github.com/ionize1080/Folio/releases/tag/v1.2.0-rc1-p6",
+      "backup_tag": "backup-v1.2.0-rc1-p6-20260923",
+      "assets": [
+        {
+          "id": 582971902,
+          "name": "Folio-PDF-Studio-1.2.0-RC1-P6-portable-win-x64.zip",
+          "size": 407882839,
+          "digest": "sha256:8135e85b361b65fcba7c77ca2771bf20813d59746b37cefbb44c18610242cf3f",
+          "content_type": "application/zip",
+          "browser_download_url": "https://github.com/ionize1080/Folio/releases/download/v1.2.0-rc1-p6/Folio-PDF-Studio-1.2.0-RC1-P6-portable-win-x64.zip"
+        },
+        {
+          "id": 582971903,
+          "name": "Folio-PDF-Studio-1.2.0-RC1-P6-SHA256.txt",
+          "size": 336,
+          "digest": "sha256:6c8d6de69c458c9d2bfcd5048d0a93f50890d9ffc68da148157cab31b3cd8dc2",
+          "content_type": "text/plain; charset=utf-8",
+          "browser_download_url": "https://github.com/ionize1080/Folio/releases/download/v1.2.0-rc1-p6/Folio-PDF-Studio-1.2.0-RC1-P6-SHA256.txt"
+        },
+        {
+          "id": 582971901,
+          "name": "Folio-PDF-Studio-1.2.0-RC1-P6-source.zip",
+          "size": 242817754,
+          "digest": "sha256:c8321071c55fa5a1a5fbe3ae2858f80519826e550f86a2bdb4a76b43ce87a274",
+          "content_type": "application/zip",
+          "browser_download_url": "https://github.com/ionize1080/Folio/releases/download/v1.2.0-rc1-p6/Folio-PDF-Studio-1.2.0-RC1-P6-source.zip"
+        },
+        {
+          "id": 582971904,
+          "name": "Folio-PDF-Studio-1.2.0-RC1-P6-validation.json",
+          "size": 169275,
+          "digest": "sha256:92d452225443c3e3f7ad22b579e99602c770e38f1525aa7397e6c57f33ac3e96",
+          "content_type": "application/json",
+          "browser_download_url": "https://github.com/ionize1080/Folio/releases/download/v1.2.0-rc1-p6/Folio-PDF-Studio-1.2.0-RC1-P6-validation.json"
+        }
+      ]
+    }
+  ]
+}

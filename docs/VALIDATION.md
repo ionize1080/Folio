@@ -1,12 +1,49 @@
-# Folio 0.3.0 validation
+# 当前验证：1.2.0 RC1-P6
 
-2026-09-11. Runtime validation is performed on Linux Chromium and Python, not on a Windows desktop.
+更新：2026-09-23。程序提交为 `0b1cfa0cfb685f8d8bbd5ee04b0042574a85a8d5`，发布标签为 `v1.2.0-rc1-p6`。本次主线同步只增加发布流程和文档；原 portable、source、validation 和 SHA256 附件保持不变。
 
-- Core: 18 tests. Outline/action preservation, eight destinations/null/zero, batch/history, 10k-bookmark serialization, rules, shortcut contexts, save/protection, existing output replacement and failed replacement safety, rotated whitespace and field-level arithmetic reports.
-- Existing UI: 19 checks on the 258-page supplied reference. Five layouts, anchored zoom, generation, text selection/search, shortcuts, menus, batch edits, save/history/recovery, DPR 1/1.5/2.
-- New UI: 8 actual-native-engine flows. Frame retention, DPR2 tiles, whitespace preview, native text edits, undo/redo, combined save, OCR correction/preview, final searchable save. Exact frame counts are in v3-ui-report.json.
-- Native: 7 grouped checks. Native Chinese text/path edits, untouched-page pixels, stale identity rejection, existing text skip, offline reference OCR, searchable dual-layer output with pixel-identical scan appearance, alignment and manual correction. Exact timing is in v3-native-report.json.
+## Windows 发布门禁
 
-Models are verified against upstream SHA-256 values. CPython/wheel hashes and CRCs are checked; VC dependencies are bundled from Microsoft's official redistributable. Folio.exe PE32+/AMD64/version/icon and all packaged application/native files are checked against source. The rebuild reuses the validated Electron runtime from the preserved 0.2 package; BUILD-INFO records the runtime archive hash. The default build path verifies an official Electron ZIP.
+[成功运行 35818217755](https://github.com/ionize1080/Folio/actions/runs/35818217755) 使用 Windows GitHub Actions，按 [P6 工作流](../.github/workflows/folio-editor-p6.yml) 执行：
 
-No actual Windows launch, file picker/ReplaceFileW execution, antivirus behavior, driver-specific rendering or mixed-monitor DPI test was available. OCR sample success does not guarantee perfect accuracy on other scans. Object editing supports simple top-level objects; replacement text uses the embedded font. Complex clipping/forms/special text modes remain read-only. OCR positioning is line-based; complex layouts require review. Page extraction still uses opened source bytes. Digital signature preservation, PDF/A and encrypted editing are not certified.
+| 检查 | 已记录结果 / 范围 |
+| --- | --- |
+| JavaScript 单元回归 | 127 项通过 |
+| P6 原生专项 | 13 项通过，涵盖字体元数据、CropBox 四方向、ActualText、溢出、组合字符及深层对象 |
+| 旧版回归 | 原生 PDF/OCR、OCR 调度、浏览器界面及 P4/P5/P1 等专项进入完整流程 |
+| 公开文档 | P6 固定语料 10 份、50 页；此前 P5 语料 23 页 |
+| 真实 Folio.exe | P6、P5、窄表格及既有功能共 4 组；页外持续输入、非阻断通知、CropBox、中英文年报和 SDK 保存重开 |
+| 字体加载 | 178 项可解析字体在打包 Chromium 中加载通过 |
+| 发布一致性 | 8 份验收 JSON 无错误；4 组 EXE 验收记录的 EXE/app.asar 哈希与 portable ZIP 一致 |
+
+这是 Windows 自动化与实际 EXE 验收，不等于用户 Windows 11 电脑上的人工测试。真实中文输入法、混合 DPI、显卡差异及全部 Windows 10/11 硬件配置仍待覆盖。
+
+## 本地实文档复验
+
+以下为 P6 发布时记录的本地引擎/界面测试，不能将其 65 页口径写成全部 Windows EXE 人工操作。来源、原因和修复见 [P6 编辑审计](RC1-P6-editor-audit.md)。
+
+| 指标 | 结果与含义 |
+| --- | --- |
+| 文档与操作范围 | 13 份文档、65 个编辑页；累计含复测 2,111 个操作检查点 |
+| 保存重开 | 65/65 页完成；260 个未修改页面像素一致 |
+| 未改字符字位 | 43/65 页未出现超过 1 pt 的移动；其他页存在局部或段落重排 |
+| 单个编辑块完整目标 | 58/65；7 页保存后拆成多个编辑块 |
+| 保留词间空白 | 51/65；去空白归一化通过不能替代这个检查 |
+| 保留换行逐字比对 | 48/65；不能据此宣称代码格式完全保真 |
+| 复杂混排 | 5 个用例保留草稿并提示能力限制 |
+| 完整文件写回 | 5 份 194–2696 页原件新增文本框写回通过；不是全书逐页编辑 |
+
+字体推荐的 45 字体受控对照：首字符变化后约 701 ms → 388 ms；冷启动仍约 0.9 秒。该结果不外推至上千字体、所有机器或所有文档。
+
+## 文件大小与剩余范围
+
+- 普通工作区源 PDF 上限 768 MiB，工程 1 GiB；独立大文件阅读/书签通道入口上限 8 GiB。
+- 大于 4 GiB 的稀疏 PDF 验证了大偏移读取等路径；真实 0.75/1.5/3/>4 GiB 年鉴在不同内存机器的吞吐、峰值内存和中断恢复仍需验收。
+- OCR 疑难框诊断与 0°/180°候选已实现，但漏字、低分、跨格合并及局部补识别状态合并仍需扩充样本。
+- Type3、非 1 UserUnit、不能验证的编码/方向及部分复杂字符合成粗斜体仍受限。几何通知非阻断不取消内容完整性检查。
+
+## 附件与追踪
+
+[Release](https://github.com/ionize1080/Folio/releases/tag/v1.2.0-rc1-p6) 的 `validation.json` 保存 Windows 原始报告，`SHA256.txt` 校验已验证附件。本次文档包另有 JSON，明确标记程序提交与文档提交。
+
+备份、合并和 Latest 切换见 [同步记录](RELEASE-SYNC-2026-09-23.md)。原通用验证页已保留为 [0.3 历史记录](VALIDATION-0.3.md)；[1.2 RC1](VALIDATION-1.2.md)、[P1](PATCH-1.2-RC1-P1.md)、[P4](editor-p4-validation.md) 和 [P5](RC1-P5-editor-audit.md) 继续保留各自历史结论。
