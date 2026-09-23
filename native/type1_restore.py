@@ -17,7 +17,21 @@ def restore_type1(blob,unicode_map,name,segments=None):
     with tempfile.NamedTemporaryFile(suffix='.pfa',delete=False) as f:
         f.write(blob);path=f.name
     try:
-        font=T1Font(path);font.parse()
+        font=T1Font(path)
+        try:font.parse()
+        except KeyError as error:
+            # Subrs is optional when no charstring calls a local subroutine.
+            # fontTools has already parsed the dictionary at this point, but
+            # has not decrypted any charstring. Resume that bounded step.
+            if error.args!=('Subrs',):raise
+            from fontTools.misc import eexec,psCharStrings
+            private=font.font['Private'];subrs=private.setdefault('Subrs',[])
+            length=private.get('lenIV',4)
+            if length<0:raise ValueError('Unsupported Type1 lenIV')
+            for glyph,data in list(font.font['CharStrings'].items()):
+                decoded,_=eexec.decrypt(data,4330)
+                font.font['CharStrings'][glyph]=psCharStrings.T1CharString(decoded[length:],subrs=subrs)
+            del font.data
     finally:os.unlink(path)
     matrix=font['FontMatrix']
     if any(abs(a-b)>1e-8 for a,b in zip(matrix,[.001,0,0,.001,0,0])):raise ValueError('Nonstandard Type1 matrix')

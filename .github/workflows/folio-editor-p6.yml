@@ -64,6 +64,7 @@ jobs:
           source=Path('.corpus-seed/p6/originals')
           target=Path('tests/output/p6/originals');target.mkdir(parents=True,exist_ok=True)
           for file in source.glob('*.pdf'):shutil.copyfile(file,target/file.name)
+          shutil.rmtree('.corpus-seed',ignore_errors=True)
       - run: python tests/public-corpus-p6.py
       - uses: actions/cache/save@v4
         if: steps.corpus-cache.outputs.cache-hit != 'true'

@@ -284,9 +284,11 @@ def map_glyphs(page, text):
                     if not any(name.split('+')[-1] in (v,v[:31]) for v in names):continue
                     matches.append(fitz.Font(fontbuffer=data))
                 except Exception:continue
-            faces[name]=matches[0] if len(matches)==1 else None
-        font=faces[name]
-        return font is not None and gid>0 and font.has_glyph(cp)==gid
+            faces[name]=matches
+        # Spacing variants can share a name. An alias is safe only when every
+        # possible face proves the same Unicode -> glyph mapping.
+        matches=faces[name]
+        return bool(matches) and gid>0 and all(font.has_glyph(cp)==gid for font in matches)
     for span in page.get_texttrace():
         for cp,gid,origin,bbox in span['chars']:
             ch=chr(cp)
