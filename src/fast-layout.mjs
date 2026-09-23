@@ -1,3 +1,4 @@
+import { sourceLigature } from "./ligatures.mjs";
 import { preserveLine } from "./preserve-lines.mjs";
 // Deterministic browser layout. O(characters + runs); measuring is cached by face,
 // size and character. Hard source line breaks are retained in the text model.
@@ -632,7 +633,8 @@ export class FastFonts {
       c.rect(clipFrame.x, clipFrame.y, clipFrame.width, clipFrame.height);
       c.clip();
     }
-    for (const g of layout.glyphs) {
+    for (let index = 0; index < layout.glyphs.length; index++) {
+      const g = layout.glyphs[index];
       if (
         clipFrame &&
         (g.y > b + g.size ||
@@ -644,6 +646,8 @@ export class FastFonts {
       if (!g.text.trim()) continue;
       const f = this.fonts.get(g.fontKey);
       if (!f) continue;
+      const cluster = sourceLigature(layout.glyphs, index, f.coverage);
+      index += cluster.count - 1;
       c.save();
       c.translate(g.originX, g.baseline);
       c.rotate((g.rotation * Math.PI) / 180);
@@ -651,10 +655,10 @@ export class FastFonts {
       c.font = `${g.size}px "${f.family}"`;
       c.fillStyle = g.color;
       c.strokeStyle = g.color;
-      c.fillText(g.text, 0, 0);
+      c.fillText(cluster.text, 0, 0);
       if (g.bold && !g.fontBold) {
         c.lineWidth = g.strokeWidth || g.size * 0.025;
-        c.strokeText(g.text, 0, 0);
+        c.strokeText(cluster.text, 0, 0);
       }
       c.restore();
     }

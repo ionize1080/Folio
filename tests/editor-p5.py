@@ -32,7 +32,7 @@ import runpy
 runpy.run_path(str(ROOT/'tests/fixture-cid-p5.py'))
 r,ms=models((OUT/'p5-cid.pdf').read_bytes());assert ms[0]['text']=='中文'
 assert all(f['fontResolution']=='embedded' for f in r['fonts'].values())
-font=TTFont(load_font(ms[0]['fontKey'])['path']);assert font.getBestCmap()[0x4e2d]=='cid00020' and font.getBestCmap()[0x6587]=='cid00005'
+font=TTFont(load_font(ms[0]['fontKey'])['path']);assert font.getGlyphID(font.getBestCmap()[0x4e2d])==1 and font.getGlyphID(font.getBestCmap()[0x6587])==2
 checks.append('Non-identity CFF charset maps CID 20/5 to GID 1/2 without replacing the embedded font')
 
 # PDF-style subset omits both cmap and post; its PDF ToUnicode remains intact.

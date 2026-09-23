@@ -198,7 +198,7 @@ const checks = [],
     checks.push(
       "Nonzero CropBox hit testing, one-character edit, save and reopen retain the correct text",
     );
-    for (const id of ["hsbc-en", "hsbc-zh"]) {
+    for (const id of ["hsbc-en", "hsbc-zh", "esp-idf"]) {
       const doc = inventory.find((x) => x.id === id);
       await open(doc.path);
       const before = await input.inputValue();
@@ -215,7 +215,7 @@ const checks = [],
       assert.equal(lineText(await input.inputValue()), lineText(final));
     }
     checks.push(
-      "English and Chinese annual reports accept ordinary edits and preserve editable text after actual file save/reopen",
+      "English and Chinese annual reports and CID CFF SDK instructions accept ordinary edits and preserve editable text after actual file save/reopen",
     );
     assert.deepEqual(errors, []);
     const exe = await app.evaluate(() => process.execPath),

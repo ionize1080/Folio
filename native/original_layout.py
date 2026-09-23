@@ -93,7 +93,7 @@ def render(m):
         if old_index is not None and old_index+1<len(gs) and abs(gs[old_index+1]['baseline']-source['baseline'])<.5:
             original_advance=gs[old_index+1]['originX']-source['originX']
             if original_advance>=0:advance=original_advance
-        tokens.append({'text':ch,'path':path,'size':size,'scale':scale,'color':source['style']['color'],'advance':advance,'width':width,'old':mapping.get(i),'synthetic':bool(source.get('synthetic') and ch==source['text'] and i in mapping),'start':offsets[i],'end':offsets[i]+len(ch.encode('utf-16-le'))//2})
+        tokens.append({'text':ch,'path':path,'size':size,'scale':scale,'color':source['style']['color'],'coverage':actual['coverage'],'advance':advance,'width':width,'old':mapping.get(i),'synthetic':bool(source.get('synthetic') and ch==source['text'] and i in mapping),'start':offsets[i],'end':offsets[i]+len(ch.encode('utf-16-le'))//2})
     lines=[]
     for i,g in enumerate(gs):
         if not lines or abs(g['baseline']-gs[lines[-1][-1]]['baseline'])>.5:lines.append([])
@@ -135,15 +135,19 @@ def render(m):
             g=gs[i-delta];placement[i]=(g['originX'],g['baseline'])
         mode='局部行重排'
     doc=fitz.open();page=doc.new_page(width=m['pageWidth'],height=m['pageHeight']);names={};mapped=[]
+    from ligatures import cluster
+    painted=0
+    positioned=[{**t,'originX':placement[i][0],'baseline':placement[i][1]} for i,t in enumerate(tokens)]
     for i,t in enumerate(tokens):
         x,y=placement[i];font=fonts[t['path']]
         if t['path'] not in names:
             names[t['path']]='F'+str(len(names));page.insert_font(fontname=names[t['path']],fontfile=t['path'])
         color=tuple(int(t['color'][j:j+2],16)/255 for j in (1,3,5))
-        if not t['synthetic']:
-            page.insert_text((x,y),t['text'],fontsize=t['size'],fontname=names[t['path']],color=color,morph=(fitz.Point(x,y),fitz.Matrix(t['scale'],1)))
+        if not t['synthetic'] and i>=painted:
+            scalar,actual,count=cluster(positioned,i,t['coverage']);painted=i+count
+            page.insert_text((x,y),scalar,fontsize=t['size'],fontname=names[t['path']],color=color,morph=(fitz.Point(x,y),fitz.Matrix(t['scale'],1)))
             from text_semantics import mark_text
-            mark_text(page,t['text'])
+            mark_text(page,actual)
         source=gs[t['old']] if t['old'] is not None else None
         if source and abs(x-source['originX'])<.001 and abs(y-source['baseline'])<.001:
             box={k:source[k] for k in ('x','y','w','h')}

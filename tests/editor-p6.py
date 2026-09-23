@@ -22,6 +22,38 @@ def save(raw,m,result):
  out=worker.run({'command':'apply','bytes':base64.b64encode(raw).decode(),'edits':[{'page':1,'type':'flow','sources':m.get('sources',[]),'model':m,'fragment':result['fragment']}]})
  return base64.b64decode(out['bytes'])
 
+# Compare actual ink, not only ActualText. The original nonidentity OTTO is
+# accepted by MuPDF; canonical output must paint the same ink in both engines.
+import runpy
+runpy.run_path(str(ROOT/'tests/fixture-cid-p5.py'))
+cid_original=(OUT/'p5-cid.pdf').read_bytes()
+for raw_cff in [False,True]:
+ raw=cid_original
+ if raw_cff:
+  w=PdfWriter(clone_from=PdfReader(io.BytesIO(raw)));f=w.pages[0]['/Resources']['/Font']['/F1'].get_object();program=f['/DescendantFonts'][0]['/FontDescriptor']['/FontFile3'].get_object()
+  program.set_data(TTFont(io.BytesIO(program.get_data())).getTableData('CFF '));program[N('/Subtype')]=N('/CIDFontType0C');buf=io.BytesIO();w.write(buf);raw=buf.getvalue()
+ r,ms=models(raw);m=ms[0];result=layout(m);saved=save(raw,m,result)
+ a=fitz.open(stream=raw,filetype='pdf');b=fitz.open(stream=saved,filetype='pdf')
+ ap=a[0].get_pixmap(matrix=fitz.Matrix(2,2));bp=b[0].get_pixmap(matrix=fitz.Matrix(2,2));assert ap.samples==bp.samples
+ with pdfium.PdfDocument(saved) as pdf:
+  pix=pdf[0].render(scale=2).to_pil().convert('RGB');ink=sum(v<128 for v in pix.tobytes());expected=sum(v<128 for v in ap.samples)
+  assert expected>1000 and abs(ink-expected)<expected*.02,(ink,expected)
+ _,reopened=models(saved);assert reopened[0]['text']=='中文'
+checks.append('Nonidentity raw CFF and OTTO export preserve exact MuPDF ink and matching PDFium ink, not merely ActualText')
+
+# PDFium splits a standard ligature into logical f/i sharing one origin.
+# Both native paths must paint the original ligature once and keep caret offsets.
+d=fitz.open();p=d.new_page();p.insert_font(fontname='Ligature',fontfile=str(ROOT/'native/fonts/DejaVuSans.ttf'));p.insert_text((40,80),'ﬁx',fontname='Ligature',fontsize=24);raw=d.tobytes();r,ms=models(raw);m=ms[0]
+assert m['text']=='fix';gs=m['originalLayout']['glyphs'];assert gs[0]['originX']==gs[1]['originX']
+expected=d[0].get_pixmap(matrix=fitz.Matrix(2,2)).samples
+for fast in [False,True]:
+ if fast:m['fastLayout']=dict(version=1,text=m['text'],glyphs=[{**g,'fontKey':m['fontKey'],'size':24,'color':m['color'],'scale':1} for g in gs],anchors=[])
+ result=layout(m);b=fitz.open(stream=base64.b64decode(result['fragment']),filetype='pdf')
+ assert b[0].get_pixmap(matrix=fitz.Matrix(2,2)).samples==expected
+ assert [(g['start'],g['end'])for g in result['glyphs']]==[(0,1),(1,2),(2,3)]
+ assert 'fix' in b[0].get_text()
+checks.append('Source fi ligature paints once with identical ink in anchored and fast export while preserving logical selection offsets')
+
 # Missing name is browser metadata, not a missing outline. Preserve real metrics.
 f=TTFont(ROOT/'native/fonts/DejaVuSans.ttf');before=f.getTableData('glyf');widths=f.getTableData('hmtx');del f['name'];buf=io.BytesIO();f.save(buf)
 fixed=normalize(buf.getvalue());after=TTFont(io.BytesIO(fixed));assert after.getTableData('glyf')==before and after.getTableData('hmtx')==widths

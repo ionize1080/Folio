@@ -16,7 +16,19 @@ def read_cff(blob):
 
 def opentype(blob,mapping=None):
     if blob[:4] in (b'OTTO',b'\0\1\0\0',b'true'):
-        from font_sfnt import normalize
+        from font_sfnt import normalize,tables,build
+        if blob[:4]==b'OTTO':
+            parts=tables(blob)
+            if b'CFF ' in parts:
+                cff,top=read_cff(parts[b'CFF '])
+                order=list(top.charset)
+                if hasattr(top,'ROS') and any(name!=('.notdef' if gid==0 else 'cid%05d'%gid) for gid,name in enumerate(order)):
+                    renamed={name:('.notdef' if gid==0 else 'cid%05d'%gid) for gid,name in enumerate(order)}
+                    top.CharStrings.charStrings={renamed[name]:value for name,value in top.CharStrings.charStrings.items()}
+                    top.charset=[renamed[name] for name in order];top.ROS=('Adobe','Identity',0);top.CIDCount=len(order)
+                    from types import SimpleNamespace
+                    out=io.BytesIO();cff.compile(out,SimpleNamespace(recalcBBoxes=False,getGlyphOrder=lambda:top.charset))
+                    parts[b'CFF ']=out.getvalue();blob=build(blob[:4],parts)
         return normalize(blob)
     if blob.startswith((b'%!', b'\x80\x01')):
         from type1_restore import restore_type1
@@ -27,6 +39,15 @@ def opentype(blob,mapping=None):
     from fontTools.ttLib import newTable
     from fontTools.pens.boundsPen import BoundsPen
     cff,top=read_cff(blob);order=list(top.charset)
+    if hasattr(top,'ROS'):
+        # MuPDF's PDF writer emits the OpenType GID as the character code.
+        # A nonidentity CID charset would make PDF readers paint a different
+        # outline. Canonicalize only CID names; retain GID order, programs,
+        # FDSelect/FDArray, hinting and subroutines byte-for-byte in meaning.
+        renamed={name:('.notdef' if gid==0 else 'cid%05d'%gid) for gid,name in enumerate(order)}
+        top.CharStrings.charStrings={renamed[name]:value for name,value in top.CharStrings.charStrings.items()}
+        top.charset=[renamed[name] for name in order];order=list(top.charset)
+        top.ROS=('Adobe','Identity',0);top.CIDCount=len(order)
     face=fitz.Font(fontbuffer=blob);cmap={}
     source=mapping if mapping is not None else {cp:face.has_glyph(cp) for cp in face.valid_codepoints()}
     for cp,gid in source.items():

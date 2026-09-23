@@ -45,7 +45,9 @@ def render(m):
     gs=layout.get('glyphs',[])
     if not isinstance(gs,list) or len(gs)>100000 or ''.join(g.get('text','') for g in gs)!=m['text']:raise ValueError('快速排版字符映射不完整')
     doc=fitz.open();page=doc.new_page(width=m['pageWidth'],height=m['pageHeight']);fonts={};names={};offset=0
-    for g in gs:
+    from ligatures import cluster
+    painted=0
+    for index,g in enumerate(gs):
         ch=g['text'];end=offset+len(ch.encode('utf-16-le'))//2
         if g.get('start')!=offset or g.get('end')!=end:raise ValueError('快速排版选区映射无效')
         offset=end
@@ -78,10 +80,12 @@ def render(m):
         stroke=g.get('strokeWidth',0) if bold else 0
         if not isinstance(stroke,(int,float)) or not math.isfinite(stroke) or not 0<=stroke<=20:raise ValueError('描边无效')
         stroke=stroke or g['size']*.025
-        page.insert_text((x,y),ch,fontsize=g['size'],fontname=names[key],color=rgb,fill=rgb,render_mode=2 if bold else 0,
+        if index<painted:continue
+        scalar,actual,count=cluster(gs,index,font['coverage']);painted=index+count
+        page.insert_text((x,y),scalar,fontsize=g['size'],fontname=names[key],color=rgb,fill=rgb,render_mode=2 if bold else 0,
                          border_width=stroke/g['size'],rotate=(-angle)%360,morph=(fitz.Point(x,y),matrix))
         from text_semantics import mark_text
-        mark_text(page,ch)
+        mark_text(page,actual)
     from text_semantics import expand_preview
     original_box,preview_bounds=expand_preview(page)
     svg=page.get_svg_image(text_as_path=True);page.set_mediabox(original_box)

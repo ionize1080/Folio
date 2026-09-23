@@ -117,7 +117,10 @@ def inspect_fonts(data,page_number,objects,mapped,stream):
                             cmap={chr(code):chr(cp) for code in cids if code<=65535
                                 for cp in [fitz.mupdf.pdf_lookup_cmap(predefined,code)] if 0<cp<=0x10ffff and not 0xd800<=cp<=0xdfff}
                     for code,char in cmap.items():
-                        if not isinstance(code,str) or len(code)!=1 or not isinstance(char,str) or len(char)!=1:continue
+                        if not isinstance(code,str) or len(code)!=1 or not isinstance(char,str):continue
+                        from ligatures import LIGATURES
+                        char=LIGATURES.get(char,char)
+                        if len(char)!=1:continue
                         n=ord(code)
                         if cids is not None:g=cids.get(n,0)
                         else:g=int.from_bytes(raw[2*n:2*n+2],'big') if raw is not None else n

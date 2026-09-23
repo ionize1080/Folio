@@ -230,3 +230,14 @@ test("short insert preserves preceding and following lines and their fractional 
     assert.equal(after.baseline, before.baseline);
   }
 });
+
+import { sourceLigature } from "../src/ligatures.mjs";
+test("source ligatures keep exact logical offsets and never merge ordinary distinct or mixed-style glyphs", () => {
+ const glyphs = [..."ffi"].map((text,i)=>({text,start:i,end:i+1,fontKey:"face",size:12,originX:30,baseline:50,color:"#000000"}));
+ const before=structuredClone(glyphs), coverage=new Set([0xfb03,0xfb00,0xfb01]);
+ assert.deepEqual(sourceLigature(glyphs,0,coverage),{text:"ﬃ",count:3});
+ assert.deepEqual(glyphs,before);
+ glyphs[1].originX=34;assert.equal(sourceLigature(glyphs,0,coverage).count,1);
+ glyphs[1].originX=30;glyphs[1].color="#ff0000";assert.equal(sourceLigature(glyphs,0,coverage).count,1);
+ assert.equal(sourceLigature(before,0,new Set()).count,1);
+});

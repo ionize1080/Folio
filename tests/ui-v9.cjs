@@ -69,6 +69,8 @@ let browser,server,activePage;const errors=[],checks=[];
  checks.push('responsive editor has no horizontal scroll and fixed visible completion actions');
  await page.locator('[data-action="flow-edit"]').click();await page.waitForSelector('.page-edit-hit');await page.locator('#pe-more').click();await page.locator('#pe-tables').click();await page.locator('#pe-close-properties').click();
  const cell=page.locator('.table-cell-hit').first();await cell.click();await page.waitForFunction(()=>/完成/.test(document.querySelector('#pe-status')?.textContent)&&!document.querySelector('.page-edit-input').disabled&&document.querySelector('.page-edit-input').value.trim()==='Cell 1-1');
+ // P6 preserves row geometry by default; growth is an explicit user choice.
+ await page.locator('#pe-more').click();await page.locator('#pe-growth').selectOption('down');await page.locator('#pe-close-properties').click();
  await page.locator('.page-edit-input').evaluate(el=>{el.focus();el.select();document.execCommand('insertText',false,'Table cell expands the whole row. '.repeat(7));});
  await page.waitForFunction(()=>/(?:自动重排|段落重排|原始字位|局部行重排|快速排版)完成/.test(document.querySelector('#pe-status').textContent),{timeout:30000});
  assert.equal(await page.locator('.pe-notice').isHidden(),true,'row growth should not collide with old row positions');
@@ -83,3 +85,4 @@ await page.locator('#pe-done').click();await page.waitForFunction(()=>!window.__
  const edited=await page.evaluate(async()=>Array.from(await window.__qa.S.pdf.getData()));fs.writeFileSync(path.join(out,'v9-edited.pdf'),Buffer.from(edited));
  assert.deepEqual(errors,[]);fs.writeFileSync(path.join(out,'v9-ui-report.json'),JSON.stringify({checks,errors},null,2));console.log(JSON.stringify({checks,errors}));
 })().catch(async e=>{console.error(e);if(activePage){console.error('STATUS',await activePage.locator('#pe-status').textContent().catch(()=>''));console.error('ERRORS',errors);await activePage.screenshot({path:path.join(out,'v9-failure.png')});}process.exitCode=1;}).finally(async()=>{await browser?.close();server?.close();bridge.cancel();layout.close();});
+
