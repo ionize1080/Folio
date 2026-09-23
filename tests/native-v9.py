@@ -48,7 +48,11 @@ check('Placement above or below original page content matches saved rendering')
 # Fixed frame: full text retained after explicitly allowing overflow.
 a.update(frame={'x':40,'y':750,'width':170,'height':20},text='Keep all this overflow text. '*8,size=12,allowOverflow=True)
 e=entry(a);assert len(e['ink'])>100
-doc=apply([e],'v9-native-overflow.pdf');text=unicodedata.normalize('NFKC',doc[0].get_text(clip=fitz.INFINITE_RECT()));assert text.count('Keep all this overflow text.')==8
+doc=apply([e],'v9-native-overflow.pdf');text=unicodedata.normalize('NFKC',doc[0].get_text(clip=fitz.INFINITE_RECT()))
+# A PDF reader may insert physical line breaks inside the marked paragraph.
+# Check every original character and word space, including the off-page tail.
+saved_text=text[text.index('Keep all this'):].replace('\n','').rstrip()
+assert saved_text==a['text'].rstrip(),repr(saved_text)
 assert doc[0].rect.height==800
 check('Explicit overflow retains text beyond the original frame and preserves the page crop')
 # Font selection coverage and glyph preview / output agreement.
@@ -58,3 +62,4 @@ rr=layout(m);assert rr['fallbackCount']==2 and [x['text'] for x in rr['fallbackD
 doc=apply([entry(m)],'v9-native-fonts.pdf');assert 'Hello 中文' in doc[0].get_text()
 check('Chosen font is embedded; missing Chinese characters report only the necessary fallback')
 (out/'v9-native-report.json').write_text(json.dumps({'checks':checks},ensure_ascii=False,indent=2))
+
