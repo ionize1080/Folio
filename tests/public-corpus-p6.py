@@ -18,7 +18,7 @@ for item in json.loads((ROOT/'tests/public-corpus-p6.json').read_text(encoding='
   with urllib.request.urlopen(request,timeout=180) as response:data=response.read()
   assert hashlib.sha256(data).hexdigest()==item['sha256'],item['id'];source.write_bytes(data)
  assert hashlib.sha256(source.read_bytes()).hexdigest()==item['sha256'],item['id']
- reader=PdfReader(source);assert len(reader.pages)==item['pages']
+ with pikepdf.open(source) as pdf:assert len(pdf.pages)==item['pages']
  sample=OUT/'samples'/(item['id']+'-5pages.pdf')
  if item['pages']==5:shutil.copyfile(source,sample)
  else:

@@ -162,6 +162,7 @@ const checks = [],
     await page.keyboard.insertText("TAIL42");
     await stable();
     assert.equal(await input.inputValue(), long + "TAIL42");
+    assert.equal(await page.locator("#page-number").inputValue(), "1");
     assert.equal(
       await page.locator(".page-edit-caret").evaluate((e) => e.hidden),
       false,

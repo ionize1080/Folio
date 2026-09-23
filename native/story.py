@@ -187,7 +187,8 @@ def layout(model):
         story.draw(dev); frames.append(list(rect))
         if not more: break
     writer.end_page(); writer.close()
-    blob=buf.getvalue()
+    from generated_cmaps import repair
+    blob=repair(buf.getvalue())
     if m['align']=='justify' and text:
         from justify import justify_fragment
         with fitz.open(stream=blob,filetype='pdf') as raw:
@@ -211,7 +212,7 @@ def layout(model):
         svg = page.get_svg_image(text_as_path=True)
         page.set_mediabox(original_box)
         doc.subset_fonts()
-        blob = doc.tobytes(garbage=3, deflate=True)
+        blob = repair(doc.tobytes(garbage=3, deflate=True))
     result = {'engine': 'MuPDF Story', 'layoutMode':'段落重排', 'engineVersion': fitz.VersionBind, 'fallbackCount':fallback_count, 'fallbackDetails':fallback_details, 'spacingLimited':spacing_limited,
             'fragment': base64.b64encode(blob).decode(), 'svg': svg,
             'glyphs': glyphs, 'positions': positions, 'frames': frames,'previewBounds':preview_bounds,'frameOverset':frame_overset,
@@ -246,7 +247,10 @@ def map_glyphs(page, text):
                         if not ch.isspace(): ok = False
                         continue
                     if ch != text[cursor]:
+                        decomposed=unicodedata.normalize('NFD',ch)
                         if normalized and text.startswith(normalized, cursor): count = len(normalized)
+                        elif decomposed and text.startswith(decomposed,cursor):count=len(decomposed)
+                        elif unicodedata.normalize('NFKC',text[cursor])==normalized:count=1
                         elif ch.isspace(): continue
                         else: ok = False; continue
                     x0, y0, x1, y1 = c['bbox']

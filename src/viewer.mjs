@@ -310,6 +310,13 @@ export class PageSurface {
           this.distance(b, x + w / 2, y + h / 2),
       )
       .slice(0, 8);
+    // Keep the active editor mounted while its caret travels into the
+    // pasteboard. Scroll position must not silently select the next PDF page.
+    const editingPage = this.s.flowEdit?.editing ? this.s.flowEdit.page : null;
+    const editingBox =
+      editingPage && this.boxes.find((b) => b.page === editingPage);
+    if (editingBox && !wanted.some((b) => b.page === editingPage))
+      wanted.push(editingBox);
     const keep = new Set(wanted.map((b) => b.page));
     for (const [p, e] of this.entries)
       if (!keep.has(p) && this.entries.size > 6) {
@@ -333,7 +340,8 @@ export class PageSurface {
       (b) => this.distance(b, x + w / 2, y + h / 2) === 0,
     );
     const b = visible.find((b) => b.page === this.s.page) || wanted[0];
-    if (b) this.activate(b.page);
+    if (editingBox) this.activate(editingPage);
+    else if (b) this.activate(b.page);
     this.scheduleTiles();
   }
   async ensure(b) {

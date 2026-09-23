@@ -4191,5 +4191,5 @@ body:not(.has-document) .viewer-toolbar {
 
 .document-preflight{margin-left:12px;border:0;background:transparent;color:#956217;cursor:pointer;font:inherit;text-decoration:underline;text-underline-offset:3px}
 
-body.page-edit-mode .pdf-page:has(.page-edit-layer){overflow:visible;z-index:16}
+body.page-edit-mode :is(.pdf-page,#page-shell):has(.page-edit-layer){overflow:visible;z-index:16}
 .page-edit-overflow-hit{position:absolute;pointer-events:auto;cursor:text}

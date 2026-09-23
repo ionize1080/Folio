@@ -70,8 +70,15 @@ res=layout(m);assert res['mappingComplete'] and res['frameOverset'] and not res[
 assert len(res['glyphs'])>100
 blob=base64.b64decode(res['fragment']);doc=fitz.open(stream=blob,filetype='pdf');assert doc[0].rect==fitz.Rect(0,0,200,120)
 (OUT/'p6-overflow-layout.json').write_text(json.dumps(res))
-d=fitz.open();p=d.new_page(width=420,height=320);p.insert_text((40,90),'Keep editing 2026',fontsize=14);p.insert_text((40,112),'Neighbouring content',fontsize=12);(OUT/'p6-overflow.pdf').write_bytes(d.tobytes())
+d=fitz.open();p=d.new_page(width=420,height=320);p.insert_text((40,90),'Keep editing 2026',fontsize=14);p.insert_text((40,112),'Neighbouring content',fontsize=12);d.new_page(width=420,height=320).insert_text((40,80),'The next page must not steal editing focus');(OUT/'p6-overflow.pdf').write_bytes(d.tobytes())
 checks.append('Overflow preview exposes the final line while preserving the exported page size')
+
+# Mixed combining / supplementary characters use actual coverage and repaired
+# UTF-16 ToUnicode before hit testing, not only during final PDF composition.
+m=dict(text='café e\u0301 Ω µ ± → 😀',pageWidth=400,pageHeight=300,frame=dict(x=20,y=30,width=350,height=200),size=12,lineHeight=1.3,color='#000000',align='left',allowOverflow=True,layoutMode='reflow')
+res=layout(m);assert res['mappingComplete'] and not res['overflow'];assert max(g['end'] for g in res['glyphs'])==len(m['text'].encode('utf-16-le'))//2
+blob=base64.b64decode(res['fragment']);doc=fitz.open(stream=blob,filetype='pdf');assert '😀' in doc[0].get_text()
+checks.append('Combining marks, symbols and supplementary emoji retain complete UTF-16 hit-test offsets and exported Unicode')
 
 # Deep indirect object chains: keep structure instead of deleting tags/outlines.
 w=PdfWriter();w.add_blank_page(width=300,height=400);node=D({N('/Value'):I(1)})

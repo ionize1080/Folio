@@ -1722,6 +1722,24 @@ export function installFlowUI(ctx) {
       composition.style.left = c.x * z + "px";
       composition.style.top = c.y * z + "px";
       composition.style.fontSize = model.size * z + "px";
+      if (!caret.hidden && document.activeElement === input) {
+        const v = surface.host.getBoundingClientRect(),
+          r = caret.getBoundingClientRect();
+        const dx =
+          r.left < v.left + 8
+            ? r.left - v.left - 8
+            : r.right > v.right - 8
+              ? r.right - v.right + 8
+              : 0;
+        const dy =
+          r.top < v.top + 8
+            ? r.top - v.top - 8
+            : r.bottom > v.bottom - 8
+              ? r.bottom - v.bottom + 8
+              : 0;
+        if (dx || dy)
+          surface.host.scrollBy({ left: dx, top: dy, behavior: "instant" });
+      }
     }
     listen(input, "beforeinput", (e) => {
       if (!composing && !e.isComposing) {
