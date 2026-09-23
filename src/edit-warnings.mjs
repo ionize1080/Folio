@@ -22,8 +22,8 @@ export function editWarnings(model, layout, conflicts = []) {
   if (frame) messages.push("文字超出文本框，可继续编辑或调整尺寸");
   if (overlap.length) messages.push(`${overlap.length} 处可能遮挡，可继续编辑`);
   return {
-    page,
-    frame,
+    pageClipped: page,
+    frameOverset: frame,
     overlap: overlap.length,
     integrity,
     messages,

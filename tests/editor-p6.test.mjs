@@ -17,8 +17,8 @@ test("geometry notices distinguish page clipping, frame overset and ownership fa
     { kind: "text", bounds: [99, 30, 101, 40] },
   ]);
   assert(
-    warning.page &&
-      warning.frame &&
+    warning.pageClipped &&
+      warning.frameOverset &&
       warning.overlap === 1 &&
       !warning.integrity,
   );
@@ -240,4 +240,15 @@ test("source ligatures keep exact logical offsets and never merge ordinary disti
  glyphs[1].originX=34;assert.equal(sourceLigature(glyphs,0,coverage).count,1);
  glyphs[1].originX=30;glyphs[1].color="#ff0000";assert.equal(sourceLigature(glyphs,0,coverage).count,1);
  assert.equal(sourceLigature(before,0,new Set()).count,1);
+});
+
+import { encodeProject, decodeProject } from "../src/project.mjs";
+test("nonblocking preflight round trips through a project without confusing page geometry and page numbers", async () => {
+ const preflight=editWarnings({pageWidth:100,pageHeight:100},{mappingComplete:true,frameOverset:true,glyphs:[{x:98,y:30,w:8,h:10}]});
+ const state={nodes:[],ocr:[],annotations:[],nativeEdits:[{page:1,type:"flow",preflight}]};
+ const saved=await encodeProject(new Uint8Array([37,80,68,70]),"test.pdf",state,{local:true});
+ const reopened=await decodeProject(saved,{local:true});
+ assert.deepEqual(reopened.state.nativeEdits[0].preflight,preflight);
+ const bad=await encodeProject(new Uint8Array([37,80,68,70]),"test.pdf",{...state,nativeEdits:[{page:false}]},{local:true});
+ await assert.rejects(decodeProject(bad,{local:true}),/工程数值无效/);
 });

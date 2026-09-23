@@ -163,15 +163,15 @@ export function installFlowUI(ctx) {
         height: (bottom - top) * z + "px",
       });
       warningSummary.hidden = !warning.messages.length;
-      warningSummary.textContent = warning.page
+      warningSummary.textContent = warning.pageClipped
         ? "页外内容 · 查看"
-        : warning.frame
+        : warning.frameOverset
           ? "文本框溢出 · 可继续"
           : warning.overlap
             ? `${warning.overlap} 处遮挡 · 可继续`
             : "结构提示 · 查看";
       warningSummary.title = warning.messages.join("；");
-      warningSummary.classList.toggle("page-clipped", warning.page);
+      warningSummary.classList.toggle("page-clipped", warning.pageClipped);
       warningSummary.setAttribute("aria-expanded", String(noticeOpen));
       bar.querySelector("#pe-warning").textContent =
         warning.messages.join("；");
@@ -179,7 +179,7 @@ export function installFlowUI(ctx) {
         !noticeOpen || !warning.messages.length || ignoreConflicts;
       bar.querySelector("#pe-accept").hidden = true;
       bar.querySelector("#pe-overflow").hidden =
-        !warning.frame && !warning.page;
+        !warning.frameOverset && !warning.pageClipped;
       bar.querySelector("#pe-overflow").textContent = "定位输入末尾";
       return warning;
     }
