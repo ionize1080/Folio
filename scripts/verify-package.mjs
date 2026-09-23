@@ -33,7 +33,28 @@ assert.equal(
 );
 assert(RE.Resource.IconGroupEntry.fromEntries(res.entries).length > 0);
 const archive = path.join(out, "resources/app.asar"),
-  packed = asar.listPackage(archive).map((name) => name.split(path.sep).join("/"));
+  packed = asar
+    .listPackage(archive)
+    .map((name) => name.split(path.sep).join("/"));
+const packageInfo = JSON.parse(
+  asar.extractFile(archive, "package.json").toString("utf8"),
+);
+const releaseLabel =
+  packageInfo.version +
+  (packageInfo.releaseChannel
+    ? " " + packageInfo.releaseChannel.toUpperCase()
+    : "");
+const indexHTML = asar.extractFile(archive, "src/index.html").toString("utf8");
+assert(
+  indexHTML.includes(
+    `<title>${packageInfo.productName} ${releaseLabel}</title>`,
+  ),
+  "packaged window title differs from release version",
+);
+assert(
+  indexHTML.includes(`<span class="version">${releaseLabel}</span>`),
+  "packaged visible version differs from release version",
+);
 for (const f of [
   "native-bridge.cjs",
   "large-files.cjs",
@@ -100,7 +121,9 @@ for (const f of [
 ]) {
   assert(packed.includes("/" + f), `missing ${f}`);
   assert.equal(
-    createHash("sha256").update(asar.extractFile(archive, path.normalize(f))).digest("hex"),
+    createHash("sha256")
+      .update(asar.extractFile(archive, path.normalize(f)))
+      .digest("hex"),
     createHash("sha256")
       .update(await fs.readFile(path.join(root, f)))
       .digest("hex"),
@@ -115,7 +138,9 @@ for (const f of packed) {
   const st = await fs.stat(local).catch(() => null);
   if (!st?.isFile()) continue;
   assert.equal(
-    createHash("sha256").update(asar.extractFile(archive, path.normalize(rel))).digest("hex"),
+    createHash("sha256")
+      .update(asar.extractFile(archive, path.normalize(rel)))
+      .digest("hex"),
     createHash("sha256")
       .update(await fs.readFile(local))
       .digest("hex"),

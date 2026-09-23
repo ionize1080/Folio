@@ -50,7 +50,8 @@ const root = path.resolve(__dirname, ".."),
       await page.locator('[data-action="flow-edit"]').click();
       if (cellCount !== null)
         await page.waitForFunction(
-          (count) => document.querySelectorAll(".table-cell-hit").length === count,
+          (count) =>
+            document.querySelectorAll(".table-cell-hit").length === count,
           cellCount,
         );
       await page.locator(".page-edit-hit:not(.unavailable)").first().click();
@@ -125,7 +126,11 @@ const root = path.resolve(__dirname, ".."),
       "Public English Type1 and Chinese/Arabic embedded fonts pass actual Chromium FontFace loading",
     );
     await open(path.join(out, "p5-missing-post.pdf"));
-    assert((await page.title()).includes("RC1-P5"));
+    assert(
+      (await page.title()).includes(
+        require("../package.json").releaseChannel.toUpperCase(),
+      ),
+    );
     const font = JSON.parse(
       fs.readFileSync(path.join(out, "p5-font.json"), "utf8"),
     );
@@ -219,7 +224,10 @@ const root = path.resolve(__dirname, ".."),
     await open(path.join(out, "p5-sparse.pdf"), 12);
     // The selected cell is replaced by its input, so eleven other hit targets remain.
     assert.equal(await page.locator(".table-cell-hit").count(), 11);
-    assert.equal((await page.locator(".page-edit-input").inputValue()).trim(), "Cell 0,0");
+    assert.equal(
+      (await page.locator(".page-edit-input").inputValue()).trim(),
+      "Cell 0,0",
+    );
     await page.locator("#pe-more").click();
     await page.locator(".pe-position>summary").click();
     assert(await page.locator('[data-frame="height"]').isDisabled());
