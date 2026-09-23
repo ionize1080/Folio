@@ -238,6 +238,8 @@ export function connectedParagraphs(objects, h, barriers = objects) {
           const prev = row.parts[i - 1];
           if (
             prev &&
+            !(prev.o.textSpacingExplicit && p.o.textSpacingExplicit &&
+              p.o.index === prev.o.index + 1) &&
             p.u - prev.end > p.o.size * 0.2 &&
             /[A-Za-z0-9]$/.test(text) &&
             /^[A-Za-z0-9]/.test(p.o.text)

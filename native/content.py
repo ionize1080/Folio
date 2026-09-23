@@ -13,15 +13,26 @@ def raw_strings(v):
 
 def map_objects(page):
     stream=ContentStream(page.get('/Contents'),page.pdf)
-    objects=[]; start=None; shown=[];path_started=False
+    objects=[]; start=None; shown=[];path_started=False;marks=[]
     fonts=page['/Resources'].get('/XObject',{});fonts=fonts.get_object() if hasattr(fonts,'get_object') else fonts
     for i,(args,op) in enumerate(stream.operations):
+        if op in (b'BDC',b'BMC'):
+            value=args[1].get('/ActualText') if op==b'BDC' and len(args)>1 and isinstance(args[1],dict) else None
+            if isinstance(value,ByteStringObject):
+                try:value=bytes(value).decode('utf-16')
+                except UnicodeError:value=None
+            marks.append({'text':value,'objects':[]})
+        elif op==b'EMC' and marks:
+            mark=marks.pop()
+            if isinstance(mark['text'],str) and len(mark['text'])==1 and len(mark['objects'])==1:
+                mark['objects'][0]['actualText']=mark['text']
         if op in (b'm',b'l',b'c',b'v',b'y',b're'):path_started=True
         if op==b'BT':start=i;shown=[]
         if op in TEXT:
             strings=args[0] if op==b'TJ' else [args[-1]]
             if any(isinstance(x,(str,bytes)) and len(x) for x in strings):
                 objects.append({'type':'text','at':i,'begin':start,'end':None});shown.append(objects[-1])
+                for mark in marks:mark['objects'].append(objects[-1])
         elif op==b'ET':
             for o in shown:o['end']=i;o['single']=len(shown)==1
             start=None;shown=[]
@@ -82,11 +93,21 @@ def check_editable(page,descriptions):
         safe=advances(page,stream)
         if len(mapped)!=len(descriptions) or any(a['type']!=b['type'] for a,b in zip(mapped,descriptions)):
             mapped=align_text_objects(page,stream,mapped,descriptions)
-        for a,b in zip(mapped,descriptions):
+        for position,(a,b) in enumerate(zip(mapped,descriptions)):
             if a.get('unmapped'):
                 b['editable']=False;b['flowEditable']=False;b['reason']='此对象无法验证内容流对应关系，保留原对象；已验证的文字可独立编辑';continue
             b['flowEditable']=bool((b['editable'] or b.get('simpleText')) and a['type']=='text')
             if a['type']=='text':
+                # PDFium can invent a trailing space after a narrow glyph kept
+                # in a wider original slot. A one-character ActualText scope
+                # proves the intended text without changing raw signatures.
+                actual=a.get('actualText')
+                if actual is not None and b.get('text','').strip()==actual.strip():
+                    following=mapped[position+1].get('actualText') if position+1<len(mapped) else None
+                    # Nonpainting space objects are omitted by paragraph
+                    # extraction. Retain their existing PDFium word separator.
+                    if not following or not following.isspace():b['text']=actual
+                    b['textSpacingExplicit']=True
                 b['textGroup']=a.get('begin')
                 b['independentFlow']=bool(a.get('single') or safe.get(a['at']) is not None)
                 b['flowEditable']=b['flowEditable'] and b['independentFlow']

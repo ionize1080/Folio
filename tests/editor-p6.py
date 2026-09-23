@@ -111,6 +111,15 @@ again=similarity.recommend(key,'','9'+sample)
 assert again and len(similarity._glyph_features)-count<=len(catalog())+1
 checks.append('Real catalog recommendations find the exact face and reuse cached glyphs after a leading-character edit')
 
+# Retaining a full-width slot for a narrow replacement must not create an
+# inferred space when reopening. Explicit marked text wins over geometry.
+m=dict(text='9A',pageWidth=300,pageHeight=200,frame=dict(x=30,y=40,width=100,height=30),size=12,lineHeight=1.2,color='#000000',align='left',allowOverflow=True)
+gs=[dict(text=ch,start=i,end=i+1,originX=30+i*16,baseline=60,x=30+i*16,y=48,w=7,h=12,size=12,fontKey=key,color='#000000',scale=1)for i,ch in enumerate('9A')]
+m['fastLayout']=dict(version=1,text='9A',glyphs=gs,anchors=[])
+result=layout(m);r,ms=models(base64.b64decode(result['fragment']))
+assert any(p['text']=='9A' for p in ms),[p['text'] for p in ms]
+checks.append('Explicit generated text reopens without invented spaces in preserved wide glyph slots')
+
 # Deep indirect object chains: keep structure instead of deleting tags/outlines.
 w=PdfWriter();w.add_blank_page(width=300,height=400);node=D({N('/Value'):I(1)})
 for i in range(800):node=D({N('/Next'):w._add_object(node)})
