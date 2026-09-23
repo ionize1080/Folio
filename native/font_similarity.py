@@ -7,16 +7,42 @@ from collections import OrderedDict
 from pathlib import Path
 from font_match import load_font
 
+# Cache glyphs independently: inserting one leading character must not reraster
+# every installed face. Outline masks are bounded to approximately 32 MiB.
+_glyph_features=OrderedDict()
+
+@lru_cache(maxsize=2048)
+def coverage(path,face,stamp):
+    from fontTools.ttLib import TTFont
+    font=TTFont(path,fontNumber=face,lazy=True)
+    try:
+        # A packed bitset costs 139 KiB even for a huge CJK face; Latin faces
+        # use only their highest scalar. It avoids thousands of Python integers.
+        cmap=font.getBestCmap() or {};bits=bytearray((max(cmap,default=0)//8)+1)
+        for cp in cmap:bits[cp//8]|=1<<(cp%8)
+        return bytes(bits),bool(font.get('OS/2') and font['OS/2'].fsType & 2)
+    finally:font.close()
+
+def covers(bits,cp):return cp//8<len(bits) and bool(bits[cp//8] & (1<<(cp%8)))
+
 @lru_cache(maxsize=128)
 def features(path, face, stamp, characters):
     from fontTools.ttLib import TTFont
     from fontTools.pens.recordingPen import DecomposingRecordingPen
     from fontTools.pens.basePen import BasePen
     from PIL import Image, ImageDraw, ImageChops
+    bits,restricted=coverage(path,face,stamp)
+    out={};pending=[]
+    for ch in characters:
+        key=(path,face,stamp,ch)
+        if key in _glyph_features:
+            out[ch]=_glyph_features[key];_glyph_features.move_to_end(key)
+        elif covers(bits,ord(ch)):pending.append(ch)
+    if not pending:return out,bits,restricted
     font=TTFont(path,fontNumber=face,lazy=True)
     try:
         cmap=font.getBestCmap() or {}; units=font['head'].unitsPerEm
-        glyphs=font.getGlyphSet(); out={}
+        glyphs=font.getGlyphSet()
         class RasterPen(BasePen):
             def __init__(self): super().__init__(glyphs); self.contours=[];self.points=[]
             def _moveTo(self,p): self.points=[p]
@@ -32,7 +58,7 @@ def features(path, face, stamp, characters):
                     t=i/12;u=1-t;self.points.append((u*u*p[0]+2*u*t*a[0]+t*t*b[0],u*u*p[1]+2*u*t*a[1]+t*t*b[1]))
             def _closePath(self): self.contours.append(self.points);self.points=[]
             def _endPath(self): self._closePath()
-        for ch in characters:
+        for ch in pending:
             name=cmap.get(ord(ch))
             if not name:continue
             g=glyphs[name];pen=DecomposingRecordingPen(glyphs);g.draw(pen)
@@ -46,7 +72,9 @@ def features(path, face, stamp, characters):
                 img=ImageChops.logical_xor(img,part)
             mask=int.from_bytes(img.tobytes(),'big')
             out[ch]=(signature,advance,mask)
-        return out, set(cmap), bool(font.get('OS/2') and font['OS/2'].fsType & 2)
+            _glyph_features[(path,face,stamp,ch)]=out[ch]
+            while len(_glyph_features)>32768:_glyph_features.popitem(last=False)
+        return out,bits,restricted
     finally:font.close()
 
 @lru_cache(maxsize=128)
@@ -68,8 +96,10 @@ def recommend(font_key, missing='', sample=''):
     ranked=[]
     for item in catalog().values():
         try:
-            cand,cmap,restricted=features(item['path'],item['face'],Path(item['path']).stat().st_mtime_ns,chars)
-            if restricted or not required.issubset(cmap):continue
+            stamp=Path(item['path']).stat().st_mtime_ns
+            bits,restricted=coverage(item['path'],item['face'],stamp)
+            if restricted or not all(covers(bits,cp) for cp in required):continue
+            cand,_,_=features(item['path'],item['face'],stamp,chars)
             shared=[c for c in chars if c in ref and c in cand]
             if len(shared)<min(4,len(ref)):continue
             exact=0;scores=[]
@@ -107,3 +137,4 @@ def fallback(font_key, character):
     _fallback_faces.move_to_end(bucket)
     while len(_fallback_faces)>64:_fallback_faces.popitem(last=False)
     return face
+

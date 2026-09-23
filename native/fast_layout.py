@@ -32,7 +32,8 @@ def font_data(key):
         match=resolve_name(name)
         if match and match.get('fontResolution')=='system-name' and match['fontKey']!=actual:system_key=match['fontKey']
     font=fitz.Font(fontbuffer=blob)
-    return {'key':actual,'name':name,'base64':base64.b64encode(blob).decode(),'coverage':coverage,'systemKey':system_key,
+    advances={str(cp):font.glyph_advance(cp) for cp in coverage}
+    return {'advances':advances,'key':actual,'name':name,'base64':base64.b64encode(blob).decode(),'coverage':coverage,'systemKey':system_key,
             'fontBold':bool(font.flags.get('bold')),'fontItalic':bool(font.flags.get('italic'))}
 
 
@@ -79,10 +80,15 @@ def render(m):
         stroke=stroke or g['size']*.025
         page.insert_text((x,y),ch,fontsize=g['size'],fontname=names[key],color=rgb,fill=rgb,render_mode=2 if bold else 0,
                          border_width=stroke/g['size'],rotate=(-angle)%360,morph=(fitz.Point(x,y),matrix))
-    svg=page.get_svg_image(text_as_path=True);doc.subset_fonts();blob=doc.tobytes(garbage=3,deflate=True);doc.close()
+        from text_semantics import mark_text
+        mark_text(page,ch)
+    from text_semantics import expand_preview
+    original_box,preview_bounds=expand_preview(page)
+    svg=page.get_svg_image(text_as_path=True);page.set_mediabox(original_box)
+    doc.subset_fonts();blob=doc.tobytes(garbage=3,deflate=True);doc.close()
     f=m['frame'];overflow=any(g['x']<f['x']-.5 or g['y']<f['y']-.5 or g['x']+g['w']>f['x']+f['width']+.5 or g['y']+g['h']>f['y']+f['height']+.5 for g in gs if g['text'].strip())
     return {'engine':'Folio fast anchored layout','layoutMode':'快速排版','fragment':base64.b64encode(blob).decode(),'svg':svg,'glyphs':gs,
-            'anchors':layout.get('anchors',[]),'frames':[[f['x'],f['y'],f['x']+f['width'],f['y']+f['height']]],'overflow':overflow and not m.get('allowOverflow'),
+            'anchors':layout.get('anchors',[]),'frames':[[f['x'],f['y'],f['x']+f['width'],f['y']+f['height']]],'previewBounds':preview_bounds,'frameOverset':overflow,'overflow':overflow and not m.get('allowOverflow'),
             'mappingComplete':True,'fallbackCount':layout.get('fallbackCount',0),'fallbackDetails':layout.get('fallbackDetails',[]),'spacingLimited':False}
 
 def styled_story(m,result):
@@ -93,7 +99,13 @@ def styled_story(m,result):
     if not any(r.get('bold') or r.get('italic') for r in [m]+m.get('runs',[])):return result
     if not result['mappingComplete'] or result['overflow']:return result
     if any(unicodedata.combining(c) or unicodedata.bidirectional(c) in ('R','AL','AN') or 0x900<=ord(c)<=0x109f for c in m['text']):
-        raise ValueError('复杂字形的粗斜体精排尚未通过验证，请保留当前结果')
+        synthetic=False
+        for style in [m]+m.get('runs',[]):
+            key=style.get('fontKey') or m.get('fontKey')
+            face=font_data(key) if key else {'fontBold':False,'fontItalic':False}
+            synthetic=synthetic or bool(style.get('bold') and not face['fontBold'] or style.get('italic') and not face['fontItalic'])
+        if not synthetic:return result
+        raise ValueError('复杂字形的合成粗斜体尚未通过验证，请选择真实粗斜体字体')
     from font_match import load_font
     from font_similarity import fallback
     from copy import deepcopy
@@ -105,7 +117,8 @@ def styled_story(m,result):
         font=load_font(key)
         if not font or ord(ch) not in font['coverage']:
             actual=fallback(key,ch) if font and not ch.isspace() else None
-            key=Path(actual['path']).stem if actual else font_data('builtin-latin' if ord(ch)<0x300 else 'builtin-cjk')['key']
+            from story import builtin_name
+            key=Path(actual['path']).stem if actual else font_data('builtin-latin' if builtin_name(ord(ch))=='DejaVuSans.ttf' else 'builtin-cjk')['key']
         g=mapped.get(offset)
         if g is None:
             if not ch.isspace():raise ValueError('精排字位不完整')

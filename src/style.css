@@ -4181,3 +4181,15 @@ body:not(.has-document) .viewer-toolbar {
 .page-edit-layer.compare-original .page-edit-fast {
   visibility: hidden;
 }
+
+
+/* Nonmodal preflight: stable status row, expandable details overlay. */
+.page-edit-bar .pe-notice { position:absolute; top:100%; left:12px; right:12px; z-index:35; box-shadow:0 3px 12px #18213818; }
+.pe-warning-summary { color:#8a5b10; font-size:12px; white-space:nowrap; }
+.pe-warning-summary.page-clipped { color:#a84b1d; font-weight:600; }
+.page-edit-ink { max-width:none; max-height:none; }
+
+.document-preflight{margin-left:12px;border:0;background:transparent;color:#956217;cursor:pointer;font:inherit;text-decoration:underline;text-underline-offset:3px}
+
+body.page-edit-mode .pdf-page:has(.page-edit-layer){overflow:visible;z-index:16}
+.page-edit-overflow-hit{position:absolute;pointer-events:auto;cursor:text}

@@ -1,3 +1,4 @@
+import { pagePreview, disposePreview } from "./page-preview.mjs";
 import { openLargeWorkspace } from "./large-workspace.mjs";
 import DOMPurify from "./vendor/purify.es.mjs";
 import { nativeRequest, releaseSource } from "./native-source.mjs";
@@ -168,7 +169,36 @@ function toast(text) {
 function status(text) {
   $("#status").textContent = text;
 }
+function updatePreflight() {
+  const notices = (S.nativeEdits || []).filter(
+    (e) => e.preflight?.messages?.length,
+  );
+  let button = $("#document-preflight");
+  if (!button) {
+    button = document.createElement("button");
+    button.id = "document-preflight";
+    button.className = "document-preflight";
+    button.setAttribute("aria-label", "查看编辑提示");
+    $("#status").after(button);
+    button.onclick = () => {
+      const items = (S.nativeEdits || []).filter(
+        (e) => e.preflight?.messages?.length,
+      );
+      toast(
+        items
+          .map((e) => `第 ${e.page} 页：${e.preflight.messages.join("；")}`)
+          .join("\n"),
+      );
+    };
+  }
+  button.hidden = !notices.length;
+  button.textContent = `${notices.length} 项编辑提示`;
+  button.title = notices
+    .map((e) => `第 ${e.page} 页：${e.preflight.messages.join("；")}`)
+    .join("\n");
+}
 function setDirty(value = true) {
+  updatePreflight();
   S.dirty = value;
   $("#dirty-dot").classList.toggle("changed", value);
   window.desktop?.setDirty(value);
@@ -3697,7 +3727,10 @@ new ResizeObserver(() => {
   }, 180);
 }).observe($("#canvas-host"));
 window.desktop?.onClose(async () => {
-  if (largeWorkspace) { await guarded(() => largeWorkspace.close()); return; }
+  if (largeWorkspace) {
+    await guarded(() => largeWorkspace.close());
+    return;
+  }
   if (S.busy) {
     toast("正在处理文档，请完成后关闭");
     return;
@@ -3726,6 +3759,7 @@ $("#file-input").onchange = async (e) => {
     );
 };
 
+let previewWorker;
 async function refreshNative(
   edits = S.nativeEdits,
   ocr = S.ocr,
@@ -3736,31 +3770,58 @@ async function refreshNative(
     token = documentSession.capture();
   setBusy(true, "正在生成内容预览…");
   try {
-    const bytes =
-      edits.length || ocr.length
-        ? new Uint8Array(
-            (
+    const source = S.bytes,
+      versionEdits = immutableEdits(edits),
+      versionOCR = ocr;
+    const keys = new Map();
+    for (const entry of [...versionEdits, ...versionOCR]) {
+      const key = editIdentity(entry);
+      keys.set(entry.page, (keys.get(entry.page) || "") + ":" + key);
+    }
+    // Share a PDF.js worker across single-page previews. Each PDF document
+    // still owns and releases its own fonts, images and render resources.
+    previewWorker ||= new pdfjs.PDFWorker({ name: "Folio page previews" });
+    const pdf = pagePreview(
+      S.pdf,
+      keys,
+      async (number) => {
+        const result = await nativeRequest({
+          command: "flow-background",
+          bytes: source,
+          page: number,
+          edits: versionEdits,
+          ocr: reference ? [] : versionOCR,
+          ocrReference: reference,
+        });
+        return pdfjs.getDocument({
+          data: Uint8Array.from(atob(result.pdf), (c) => c.charCodeAt(0)),
+          worker: previewWorker,
+          cMapUrl: new URL("./vendor/cmaps/", import.meta.url).href,
+          cMapPacked: true,
+          standardFontDataUrl: new URL(
+            "./vendor/standard_fonts/",
+            import.meta.url,
+          ).href,
+          wasmUrl: new URL("./vendor/wasm/", import.meta.url).href,
+          isEvalSupported: false,
+          enableXfa: false,
+        }).promise;
+      },
+      async () =>
+        versionEdits.length || versionOCR.length
+          ? (
               await nativeRequest({
                 command: "apply",
-                bytes: S.bytes,
-                edits,
-                ocr: reference ? [] : ocr,
+                bytes: source,
+                edits: versionEdits,
+                ocr: reference ? [] : versionOCR,
                 ocrReference: reference,
               })
-            ).bytes,
-          )
-        : new Uint8Array(S.bytes);
-    const pdf = await pdfjs.getDocument({
-      data: bytes,
-      cMapUrl: new URL("./vendor/cmaps/", import.meta.url).href,
-      cMapPacked: true,
-      standardFontDataUrl: new URL("./vendor/standard_fonts/", import.meta.url)
-        .href,
-      wasmUrl: new URL("./vendor/wasm/", import.meta.url).href,
-      isEvalSupported: false,
-      enableXfa: false,
-    }).promise;
+            ).bytes
+          : new Uint8Array(source),
+    );
     try {
+      await pdf.getPage(S.page);
       documentSession.assert(token);
     } catch (e) {
       await pdf.destroy();
@@ -3779,7 +3840,7 @@ async function refreshNative(
       await surface.refresh(anchor).catch(() => {});
       throw e;
     }
-    await old.destroy();
+    await disposePreview(old);
   } finally {
     setBusy(false);
   }
@@ -4198,14 +4259,24 @@ document.addEventListener("keydown", (e) => {
 });
 
 async function openIncoming(f) {
-  if (S.busy) { if(f.large) await window.desktop.largeRelease(f.handle); return; }
+  if (S.busy) {
+    if (f.large) await window.desktop.largeRelease(f.handle);
+    return;
+  }
   if (f.large) {
-    if (largeWorkspace) { await window.desktop.largeRelease(f.handle); throw Error("请先关闭大文件工作区"); }
+    if (largeWorkspace) {
+      await window.desktop.largeRelease(f.handle);
+      throw Error("请先关闭大文件工作区");
+    }
     await openLargeWorkspace(f, {
       originalDirty: !!(S.dirty || S.flowDraftDirty),
-      confirmDiscard: text => confirmDialog("关闭大文件", text, "丢弃并关闭"),
-      onReady: workspace => { largeWorkspace=workspace; },
-      onClose: () => { largeWorkspace=null; },
+      confirmDiscard: (text) => confirmDialog("关闭大文件", text, "丢弃并关闭"),
+      onReady: (workspace) => {
+        largeWorkspace = workspace;
+      },
+      onClose: () => {
+        largeWorkspace = null;
+      },
     });
     return;
   }

@@ -37,14 +37,54 @@ def map_objects(page):
         elif op in (b'sh',b'INLINE IMAGE'):objects.append({'type':'shading' if op==b'sh' else 'image','at':i})
     return stream,objects
 
+def align_text_objects(page,stream,mapped,descriptions):
+    """Recover text ownership only when non-path order AND decoded text agree.
+    PDFium may coalesce path paints. Those paths remain read-only; no guessed
+    operator is ever deleted to make object counts agree.
+    """
+    from pypdf._cmap import get_encoding
+    left=[m for m in mapped if m['type']!='path']
+    right=[d for d in descriptions if d['type']!='path']
+    if len(left)!=len(right) or any(a['type']!=b['type'] for a,b in zip(left,right)):
+        raise ValueError('页面对象与内容流无法可靠对应，仍可新增文字')
+    fonts=page['/Resources'].get('/Font',{});fonts=fonts.get_object() if hasattr(fonts,'get_object') else fonts
+    cache={};decoded={};font=None;stack=[]
+    for at,(args,op) in enumerate(stream.operations):
+        if op==b'q':stack.append(font)
+        elif op==b'Q':font=stack.pop() if stack else None
+        elif op==b'Tf':font=args[0]
+        elif op in TEXT:
+            if font not in cache:cache[font]=get_encoding(fonts[font].get_object())
+            encoding,cmap=cache[font];out=[]
+            values=args[0] if op==b'TJ' else [args[-1]]
+            for v in values:
+                if not isinstance(v,(str,bytes)):continue
+                raw=v.original_bytes if isinstance(v,TextStringObject) else bytes(v)
+                text=raw.decode(encoding,errors='strict') if isinstance(encoding,str) else ''.join(encoding[c] for c in raw)
+                out.append(''.join(cmap.get(c,c) for c in text))
+            decoded[at]=''.join(out)
+    # PDFium synthesizes spaces from TJ offsets and reverses RTL extraction.
+    # Only space-equivalent strings receive writable ownership. Unsupported
+    # encodings/RTL objects keep their original stream and remain read-only.
+    compact=lambda text: ''.join(c for c in text if c not in ' \r\n')
+    verified=[]
+    for a,b in zip(left,right):
+        ok=a['type']=='text' and bool(compact(b.get('text',''))) and compact(decoded.get(a['at'],''))==compact(b.get('text',''))
+        verified.append(a if ok else {**a,'unmapped':True})
+    if not any(not a.get('unmapped') for a in verified):raise ValueError('无法验证文字与内容流的对应关系')
+    remaining=iter(verified)
+    return [{'type':d['type'],'at':None,'unmapped':True} if d['type']=='path' else next(remaining) for d in descriptions]
+
 def check_editable(page,descriptions):
     try:
         stream,mapped=map_objects(page)
         from text_advance import advances
         safe=advances(page,stream)
         if len(mapped)!=len(descriptions) or any(a['type']!=b['type'] for a,b in zip(mapped,descriptions)):
-            raise ValueError('页面对象与内容流无法可靠对应，暂不修改原对象；仍可新增文字')
+            mapped=align_text_objects(page,stream,mapped,descriptions)
         for a,b in zip(mapped,descriptions):
+            if a.get('unmapped'):
+                b['editable']=False;b['flowEditable']=False;b['reason']='此对象无法验证内容流对应关系，保留原对象；已验证的文字可独立编辑';continue
             b['flowEditable']=bool((b['editable'] or b.get('simpleText')) and a['type']=='text')
             if a['type']=='text':
                 b['textGroup']=a.get('begin')
@@ -59,7 +99,8 @@ def check_editable(page,descriptions):
         return None
 
 def compose(data,edits,blocks,inspect,fragment,progress=None):
-    reader=PdfReader(io.BytesIO(data));writer=PdfWriter(clone_from=reader)
+    from pdf_writer import clone_document
+    reader=PdfReader(io.BytesIO(data));writer=clone_document(reader)
     bypage={};stream_cache={}
     for e in edits:bypage.setdefault(e['page'],{'edits':[],'blocks':[]})['edits'].append(e)
     # blocks can be an iterator read from a JSON-lines file. At most one page's result is held per fragment.
@@ -94,7 +135,7 @@ def compose(data,edits,blocks,inspect,fragment,progress=None):
         if align_top:
             # Preserve intentional outside-page text in the form; the page itself remains the visible crop.
             x[NameObject('/BBox')]=ArrayObject([FloatObject(v) for v in [-14400,-14400,28800,28800]])
-            x[NameObject('/Matrix')]=ArrayObject([FloatObject(v) for v in [1,0,0,1,0,float(page.mediabox.top)-float(p.mediabox.top)]])
+            x[NameObject('/Matrix')]=ArrayObject([FloatObject(v) for v in [1,0,0,1,float(page.cropbox.left),float(page.cropbox.top)-float(p.mediabox.top)]])
         x[NameObject("/FolioLayerVersion")]=NumberObject(2)
         x[NameObject("/FolioLayerKind")]=NameObject("/OCR" if ocr_layer else "/Content")
         if ocr_layer:x[NameObject("/FolioOCRVersion")]=NumberObject(1)
@@ -142,8 +183,7 @@ def compose(data,edits,blocks,inspect,fragment,progress=None):
                 layout=PdfReader(io.BytesIO(blob))
                 if len(layout.pages)!=1:raise ValueError('排版片段须为单页')
                 lp=layout.pages[0]
-                if abs(float(lp.mediabox.width)-width)>2.5 or abs(float(lp.mediabox.height)-height)>2.5:raise ValueError('排版页面尺寸与原件不一致')
-                if any(abs(float(v))>.01 for v in page.mediabox[:2]):raise ValueError('此页坐标原点暂不支持流式替换')
+                if abs(float(lp.mediabox.width)-float(page.cropbox.width))>2.5 or abs(float(lp.mediabox.height)-float(page.cropbox.height))>2.5:raise ValueError('排版页面尺寸与原件不一致')
                 flow_blobs.append((blob,True,bool((flow.get('model') or {}).get('behindPage')),False))
         from table_resize import changes,transform
         growths=changes(es)

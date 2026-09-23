@@ -1,3 +1,4 @@
+import { preserveLine } from "./preserve-lines.mjs";
 // Deterministic browser layout. O(characters + runs); measuring is cached by face,
 // size and character. Hard source line breaks are retained in the text model.
 const unsupported = /[\p{Mark}\u0590-\u109f\u200c\u200d]/u;
@@ -10,7 +11,7 @@ export function canFast(m) {
     (m.columns || 1) === 1 &&
     !m.behindPage &&
     m.layerOrder == null &&
-    !m.cell &&
+    !m.tableGrowth &&
     !["down", "right", "auto"].includes(m.growth)
   );
 }
@@ -319,6 +320,10 @@ export function fastLayout(m, measure) {
       line,
       advance,
       fontKey: measured.fontKey,
+      sourceFontKey: measured.fallback
+        ? null
+        : (ch.codePointAt(0) < 0x300 ? style.latinFontKey : style.cjkFontKey) ||
+          style.fontKey,
       color: style.color || m.color,
       bold: !!style.bold,
       italic: !!style.italic,
@@ -388,6 +393,7 @@ export function fastLayout(m, measure) {
       w: vertical ? last.size : 1,
       vertical: !!vertical,
     };
+  const localLine = !geometrySame && preserveLine(m, gs, anchors);
   const overflow = gs.some(
     (g) =>
       g.text.trim() &&
@@ -401,11 +407,16 @@ export function fastLayout(m, measure) {
     text: m.text,
     glyphs: gs,
     anchors,
+    frameOverset: overflow,
     overflow: overflow && !m.allowOverflow,
     mappingComplete: true,
     fallbackCount: details.length,
     fallbackDetails: details,
-    layoutMode: geometrySame ? "原始字位" : "快速排版",
+    layoutMode: geometrySame
+      ? "原始字位"
+      : localLine
+        ? "局部行重排"
+        : "快速排版",
   };
 }
 const fontCache = new Map();
@@ -437,7 +448,13 @@ export class FastFonts {
             coverage: new Set(data.coverage),
           };
         })().catch((e) => {
-          fontCache.delete(key);
+          // Content-keyed malformed fonts are deterministic failures. Retain
+          // their rejection for this session instead of retransferring on keys.
+          if (
+            e?.name !== "SyntaxError" &&
+            !/invalid font|OTS|font data/i.test(e?.message || "")
+          )
+            fontCache.delete(key);
           throw e;
         }),
       );
@@ -482,8 +499,14 @@ export class FastFonts {
         !f?.coverage.has(cp) ||
         (f.fontBold && !style.bold) ||
         (f.fontItalic && !style.italic)
-      )
-        keys.add(cp < 0x300 ? "builtin-latin" : "builtin-cjk");
+      ) {
+        const primary =
+          cp >= 0x2e80 && cp <= 0x9fff ? "builtin-cjk" : "builtin-latin";
+        keys.add(primary);
+        const face = this.fonts.get(primary);
+        if (face && !face.coverage.has(cp))
+          keys.add(primary === "builtin-cjk" ? "builtin-latin" : "builtin-cjk");
+      }
     }
     return keys;
   }
@@ -522,7 +545,9 @@ export class FastFonts {
       (f.fontItalic && !s.italic)
     ) {
       f = this.fonts.get(
-        ch.codePointAt(0) < 0x300 ? "builtin-latin" : "builtin-cjk",
+        this.fonts.get("builtin-latin")?.coverage.has(ch.codePointAt(0))
+          ? "builtin-latin"
+          : "builtin-cjk",
       );
       fallback = true;
     }
@@ -534,7 +559,9 @@ export class FastFonts {
       this.ctx.font = `${s.size}px "${f.family}"`;
       const t = this.ctx.measureText(ch);
       metrics = {
-        width: t.width,
+        // PDF advances are unhinted. Chromium may round small embedded
+        // TrueType widths to whole pixels; never use those for PDF placement.
+        width: (f.advances?.[ch.codePointAt(0)] ?? t.width / s.size) * s.size,
         inkLeft: t.actualBoundingBoxLeft,
         inkWidth: t.actualBoundingBoxLeft + t.actualBoundingBoxRight,
         ascent: t.actualBoundingBoxAscent,
@@ -576,10 +603,8 @@ export class FastFonts {
       canvas.height = 1;
       return;
     }
-    l = Math.max(0, l);
-    t = Math.max(0, t);
-    r = Math.min(w, r);
-    b = Math.min(h, b);
+    // The page edge is a warning, not an editing clip. Keep the canvas and caret
+    // reachable on the pasteboard; the PDF page retains its physical bounds.
     const cw = Math.max(1, r - l),
       ch = Math.max(1, b - t),
       z = Math.min(

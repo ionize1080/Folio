@@ -77,7 +77,8 @@ def render(m):
         font=source_fonts[key]
         if not font:return None
         if any(run.get(k,m.get(k))!=source['style'].get(k) for k in ('fontKey','size','color')):return None
-        if run.get('bold') or run.get('italic'):return None
+        if any(bool(run.get(k,m.get(k)))!=bool(source['style'].get(k)) for k in ('bold','italic')):return None
+        if source['style'].get('syntheticBold') or source['style'].get('syntheticItalic'):return None
         actual=font
         if ord(ch) not in font['coverage']:
             actual=fallback(key,ch)
@@ -139,12 +140,18 @@ def render(m):
         if t['path'] not in names:
             names[t['path']]='F'+str(len(names));page.insert_font(fontname=names[t['path']],fontfile=t['path'])
         color=tuple(int(t['color'][j:j+2],16)/255 for j in (1,3,5))
-        if not t['synthetic']:page.insert_text((x,y),t['text'],fontsize=t['size'],fontname=names[t['path']],color=color,morph=(fitz.Point(x,y),fitz.Matrix(t['scale'],1)))
+        if not t['synthetic']:
+            page.insert_text((x,y),t['text'],fontsize=t['size'],fontname=names[t['path']],color=color,morph=(fitz.Point(x,y),fitz.Matrix(t['scale'],1)))
+            from text_semantics import mark_text
+            mark_text(page,t['text'])
         source=gs[t['old']] if t['old'] is not None else None
         if source and abs(x-source['originX'])<.001 and abs(y-source['baseline'])<.001:
             box={k:source[k] for k in ('x','y','w','h')}
         else:box={'x':x,'y':y-t['size']*.85,'w':t['width'],'h':t['size']}
         mapped.append({**box,'start':t['start'],'end':t['end'],'baseline':y,'line':round(y,3),'size':t['size']})
-    svg=page.get_svg_image(text_as_path=True);doc.subset_fonts();blob=doc.tobytes(garbage=3,deflate=True);doc.close()
+    from text_semantics import expand_preview
+    original_box,preview_bounds=expand_preview(page)
+    svg=page.get_svg_image(text_as_path=True);page.set_mediabox(original_box)
+    doc.subset_fonts();blob=doc.tobytes(garbage=3,deflate=True);doc.close()
     f=m['frame'];overflow=any(g['x']+g['w']>f['x']+f['width']+.5 or g['y']+g['h']>f['y']+f['height']+.5 for g in mapped)
-    return {'engine':'Folio anchored layout / MuPDF','layoutMode':mode,'engineVersion':fitz.VersionBind,'fragment':base64.b64encode(blob).decode(),'svg':svg,'glyphs':mapped,'positions':[], 'anchors':[], 'frames':[[f['x'],f['y'],f['x']+f['width'],f['y']+f['height']]],'overflow':overflow,'mappingComplete':True,'fallbackCount':len(details),'fallbackDetails':details,'spacingLimited':False}
+    return {'engine':'Folio anchored layout / MuPDF','layoutMode':mode,'engineVersion':fitz.VersionBind,'fragment':base64.b64encode(blob).decode(),'svg':svg,'previewBounds':preview_bounds,'glyphs':mapped,'positions':[], 'anchors':[], 'frames':[[f['x'],f['y'],f['x']+f['width'],f['y']+f['height']]],'frameOverset':overflow,'overflow':overflow and not m.get('allowOverflow'),'mappingComplete':True,'fallbackCount':len(details),'fallbackDetails':details,'spacingLimited':False}

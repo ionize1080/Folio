@@ -18,7 +18,18 @@ export function pageCandidates(objects, w, h, regions = [], tables = []) {
   // Baseline / grouping thresholds must use its effective page-space size.
   objects = objects.map((o) =>
     o.type === "text"
-      ? { ...o, size: o.size * Math.hypot(o.matrix[2], o.matrix[3]) }
+      ? {
+          ...o,
+          size: o.size * Math.hypot(o.matrix[2], o.matrix[3]),
+          matrix:
+            o.glyphs?.length && !o.matrix[1] && !o.matrix[2]
+              ? [
+                  ...o.matrix.slice(0, 4),
+                  o.glyphs[0].originX,
+                  h - o.glyphs[0].baseline,
+                ]
+              : o.matrix,
+        }
       : o,
   );
   const objectByIndex = new Map(objects.map((o) => [o.index, o]));
@@ -28,6 +39,9 @@ export function pageCandidates(objects, w, h, regions = [], tables = []) {
   // Establish gutters from reconstructed lines, never from style fragments.
   // Repeated full lines crossing a proposed cut disprove a page-wide column.
   const lines = horizontalRows(objects, h);
+  const rowByIndex = new Map(
+    lines.flatMap((row) => row.parts.map((p) => [p.o.index, row])),
+  );
   const lanes = [];
   for (const o of lines.filter(
     (o) => o.end - o.u > w * 0.14 && o.end - o.u < w * 0.48,
@@ -52,24 +66,59 @@ export function pageCandidates(objects, w, h, regions = [], tables = []) {
       (c) => lines.filter((l) => l.u < c - 2 && l.end > c + 2).length < 3,
     );
   const cellObjects = new Map();
-  const cellList = tables.flatMap((t) =>
+  const allCells = tables.flatMap((t) =>
     t.cells.map((c) => ({ ...c, tableId: t.id })),
+  );
+  // A detector rectangle is not proof of a cell. Multiple separated columns
+  // on several baselines are an unsafe grid: expose the original row elements.
+  const unsafe = new Set();
+  for (const cell of allCells) {
+    const src = objects.filter(
+      (o) =>
+        o.type === "text" &&
+        o.text?.trim() &&
+        intersects(topBounds(o, h), cell.bounds, 1),
+    );
+    const rows = horizontalRows(src, h);
+    const multi = rows.filter((row, i) =>
+      rows.some(
+        (other, j) =>
+          i !== j &&
+          Math.abs(row.base - other.base) < Math.max(1, row.size * 0.25) &&
+          Math.max(row.u, other.u) - Math.min(row.end, other.end) > row.size,
+      ),
+    );
+    if (new Set(multi.map((row) => Math.round(row.base / 2))).size >= 2)
+      unsafe.add(cell.id);
+  }
+  const cellList = allCells.filter(
+    (c) =>
+      !unsafe.has(c.id) &&
+      c.bounds[2] - c.bounds[0] >= 2 &&
+      c.bounds[3] - c.bounds[1] >= 2,
   );
   const groups = new Map();
   for (const o of objects.filter((o) => o.type === "text" && o.flowEditable)) {
     const b = topBounds(o, h),
       x = (b[0] + b[2]) / 2,
       y = (b[1] + b[3]) / 2;
-    const cell = cellList.find(
+    const cell = allCells.find(
       (c) =>
         x > c.bounds[0] &&
         x < c.bounds[2] &&
         y > c.bounds[1] &&
         y < c.bounds[3],
     );
-    if (cell) {
+    if (cell && cellList.includes(cell)) {
       if (!cellObjects.has(cell.id)) cellObjects.set(cell.id, []);
       cellObjects.get(cell.id).push(o);
+      continue;
+    }
+    if (cell && unsafe.has(cell.id)) {
+      const key = `uncertain:${cell.id}:${Math.round(o.matrix[5] / Math.max(1, o.size * 0.3))}`;
+      if (!groups.has(key)) groups.set(key, []);
+      o.structureWarning = "表格网格不确定，按原始行编辑";
+      groups.get(key).push(o);
       continue;
     }
     let r = regions
@@ -94,7 +143,10 @@ export function pageCandidates(objects, w, h, regions = [], tables = []) {
             r.bounds[0] - b[2] < o.size * 3,
         );
     // In tables, no vertical aggregation across rows or cells.
-    const column = cuts.some((c) => b[0] < c - 2 && b[2] > c + 2)
+    const physicalRow = rowByIndex.get(o.index);
+    const rowLeft = physicalRow?.u ?? b[0],
+      rowRight = physicalRow?.end ?? b[2];
+    const column = cuts.some((c) => rowLeft < c - 2 && rowRight > c + 2)
       ? "span"
       : cuts.filter((c) => x > c).length;
     const key =
@@ -201,6 +253,8 @@ export function pageCandidates(objects, w, h, regions = [], tables = []) {
       };
     }
     sourceStyles(m, src);
+    if (src.some((o) => o.structureWarning))
+      m.structureWarning = "表格网格不确定，按原始行编辑";
     if (!m.writingMode?.startsWith("vertical"))
       m.originalBaseline = h - firstBase;
     m.baselineOffset =
@@ -234,8 +288,7 @@ export function pageCandidates(objects, w, h, regions = [], tables = []) {
           font: "sans",
         };
     const [x, y, r, b] = cell.bounds,
-      pad = 2;
-    if (r - x < 14 || b - y < 14) continue;
+      pad = Math.min(2, (r - x) / 10, (b - y) / 10);
     m.frame = {
       x: x + pad,
       y: y + pad,
@@ -258,10 +311,13 @@ export function pageCandidates(objects, w, h, regions = [], tables = []) {
             : "left";
       const firstBase = Math.max(...src.map((o) => o.matrix[5]));
       m.frame.y = Math.max(
-        y + 1,
-        Math.min(b - 11, h - firstBase - m.size * (m.lineHeight / 2 + 0.3)),
+        y + pad,
+        Math.min(
+          b - Math.min(11, b - y - pad),
+          h - firstBase - m.size * (m.lineHeight / 2 + 0.3),
+        ),
       );
-      m.frame.height = b - m.frame.y - 1;
+      m.frame.height = Math.max(1, b - m.frame.y - pad);
     }
     m.cell = { ...cell };
     const fill = src.find((o) => o.fill)?.fill;

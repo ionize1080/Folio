@@ -1,0 +1,212 @@
+[
+  {
+    "id": "hsbc-en",
+    "title": "HSBC Annual Report 2025 (English)",
+    "url": "https://www.hsbc.com/-/files/hsbc/investors/hsbc-results/2025/annual/pdfs/hsbc-holdings-plc/260225-annual-report-and-accounts-2025.pdf?download=1",
+    "pages": 372,
+    "sha256": "94aab2f5c83d1060ee95d344f1915833869fe4502dc635e4ab9ca84f496ee94b",
+    "selected": [
+      7,
+      14,
+      68,
+      262,
+      302
+    ],
+    "types": [
+      "多栏股东函",
+      "财务摘要",
+      "财务正文",
+      "审计意见",
+      "财务表格"
+    ]
+  },
+  {
+    "id": "hsbc-zh",
+    "title": "汇丰2025年报（中文）",
+    "url": "https://www.hsbc.com/-/files/hsbc/investors/hsbc-results/2025/annual/pdfs/hsbc-holdings-plc/260325-annual-report-and-accounts-2025-chinese.pdf?download=1",
+    "pages": 372,
+    "sha256": "4446593bac018b655d02df9218f770b06275e64dd5a70890ed3b754654d70ef4",
+    "selected": [
+      7,
+      14,
+      68,
+      262,
+      302
+    ],
+    "types": [
+      "多栏中文函件",
+      "指标及图表",
+      "中文财务正文",
+      "审计意见",
+      "财务表格"
+    ]
+  },
+  {
+    "id": "nist",
+    "title": "NIST SP 800-53 Rev.5",
+    "url": "https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-53r5.pdf",
+    "pages": 492,
+    "sha256": "fc63bcd61715d0181dd8e85998b1e6201ae3515fc6626102101cab1841e11ec6",
+    "selected": [
+      20,
+      29,
+      35,
+      75,
+      465
+    ],
+    "types": [
+      "勘误表",
+      "规范正文",
+      "控制分类表",
+      "嵌套条款",
+      "附录"
+    ]
+  },
+  {
+    "id": "esp-idf",
+    "title": "ESP-IDF ESP32 Programming Guide v4.4.8",
+    "url": "https://docs.espressif.com/projects/esp-idf/en/v4.4.8/esp32/esp-idf-en-v4.4.8-esp32.pdf",
+    "pages": 2696,
+    "sha256": "a62e81473bb7de393f3c0761ace3b57dc318b2ad05411f99179ad7c34cf16fb0",
+    "selected": [
+      14,
+      18,
+      400,
+      2040,
+      2090
+    ],
+    "types": [
+      "SDK入门",
+      "引脚表",
+      "API签名",
+      "配置说明",
+      "构建代码"
+    ]
+  },
+  {
+    "id": "gnu-make",
+    "title": "GNU Make 4.4.1 manual",
+    "url": "https://www.gnu.org/software/make/manual/make.pdf",
+    "pages": 229,
+    "sha256": "a4bc06026984382815e392159e60a4bc356cac6c5b81e5ae84fa4f58f621f4d3",
+    "selected": [
+      15,
+      16,
+      31,
+      110,
+      203
+    ],
+    "types": [
+      "语法说明",
+      "Makefile代码",
+      "解析说明",
+      "函数说明",
+      "复杂代码"
+    ]
+  },
+  {
+    "id": "http-rfc9110",
+    "title": "RFC 9110 HTTP Semantics",
+    "url": "https://www.rfc-editor.org/rfc/rfc9110.pdf",
+    "pages": 194,
+    "sha256": "60b30efa1048900833d1758440247fe8ac85a3134f2327388dcb24e07d814c89",
+    "selected": [
+      12,
+      15,
+      23,
+      58,
+      106
+    ],
+    "types": [
+      "协议概述",
+      "ABNF语法",
+      "报文示例",
+      "方法表",
+      "状态码"
+    ]
+  },
+  {
+    "id": "lm358",
+    "title": "TI LM358 datasheet Rev.AB",
+    "url": "https://www.ti.com/lit/ds/symlink/lm358.pdf",
+    "pages": 68,
+    "sha256": "a7974fc4789744083355cba47b9ba35218aa3a5afc59a73ec6978db2a241c9e0",
+    "selected": [
+      1,
+      3,
+      6,
+      25,
+      51
+    ],
+    "types": [
+      "双栏产品说明",
+      "管脚及表格",
+      "电气特性表",
+      "框图及正文",
+      "工程尺寸图"
+    ]
+  },
+  {
+    "id": "attention-paper",
+    "title": "Attention Is All You Need",
+    "url": "https://arxiv.org/pdf/1706.03762",
+    "pages": 15,
+    "sha256": "bdfaa68d8984f0dc02beaca527b76f207d99b666d31d1da728ee0728182df697",
+    "selected": [
+      2,
+      4,
+      6,
+      8,
+      9
+    ],
+    "types": [
+      "论文正文",
+      "公式及示意图",
+      "公式及复杂度表",
+      "实验结果",
+      "消融结果表"
+    ]
+  },
+  {
+    "id": "irs-w4",
+    "title": "IRS Form W-4 2026",
+    "url": "https://www.irs.gov/pub/irs-pdf/fw4.pdf",
+    "pages": 5,
+    "sha256": "92444d8856ce55d9e25dca8b6d1420634fc68b11e1ab1f760916ea29ddd312b2",
+    "selected": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "types": [
+      "交互表单",
+      "双栏说明",
+      "工作表",
+      "计算表",
+      "密集数字矩阵"
+    ]
+  },
+  {
+    "id": "unicode-ch2",
+    "title": "Unicode 15.0 Chapter 2",
+    "url": "https://www.unicode.org/versions/Unicode15.0.0/ch02.pdf",
+    "pages": 63,
+    "sha256": "48bf8252049e8489fc26cddad64f7728d96c82762e48b441624e786c454910e0",
+    "selected": [
+      7,
+      9,
+      13,
+      40,
+      51
+    ],
+    "types": [
+      "原则表",
+      "字形与字符表",
+      "双向及多语文字",
+      "组合附加符",
+      "规范等价"
+    ]
+  }
+]

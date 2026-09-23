@@ -52,8 +52,19 @@ function project(o, h, d) {
 }
 // A style change creates another PDF text object, not another line or column.
 export function visualRows(items, d, gapEm = 2.1) {
-  items = [...items].sort(
-    (a, b) => a.base - b.base || a.u - b.u || a.o.index - b.o.index,
+  // Floating point text matrices on one baseline may differ by 1e-4 pt.
+  // Cluster before horizontal ordering; otherwise a suffix is visited first.
+  const bands = [];
+  for (const item of [...items].sort((a, b) => a.base - b.base)) {
+    let band = bands.at(-1);
+    if (!band || item.base - band.base > 0.2) {
+      band = { base: item.base, items: [] };
+      bands.push(band);
+    }
+    band.items.push(item);
+  }
+  items = bands.flatMap((b) =>
+    b.items.sort((a, b) => a.u - b.u || a.o.index - b.o.index),
   );
   const rows = [];
   for (const p of items) {
@@ -156,6 +167,23 @@ export function connectedParagraphs(objects, h, barriers = objects) {
         .map((p) => p.o.text)
         .join("")
         .trim();
+      const letters = row.parts.reduce((n, p) => n + p.o.text.trim().length, 0);
+      row.code =
+        row.parts.reduce(
+          (n, p) =>
+            n +
+            (/Mono|Courier|Consolas|CMTT/i.test(p.o.fontName || "")
+              ? p.o.text.trim().length
+              : 0),
+          0,
+        ) >
+        letters * 0.8;
+      row.heavy =
+        row.parts.reduce(
+          (n, p) => n + (p.o.bold ? p.o.text.trim().length : 0),
+          0,
+        ) >
+        letters * 0.8;
       let parent = null;
       if (!item.test(row.text) && !heading.test(row.text) && d.supported) {
         for (const p of paragraphs.slice(-32).reverse()) {
@@ -169,8 +197,18 @@ export function connectedParagraphs(objects, h, barriers = objects) {
           )
             continue;
           if (item.test(last.text) || heading.test(last.text)) continue;
+          if (row.code !== last.code || row.heavy !== last.heavy) continue;
+          if (
+            !row.code &&
+            (/[:：]$/.test(last.text) ||
+              (row.heavy && last.text.length < 32 && row.text.length < 32))
+          )
+            continue;
           // A short preceding line is a boundary, not a bridge to a wider block.
-          if (last.end - last.u < Math.min(6 * s, (row.end - row.u) * 0.65))
+          if (
+            !row.code &&
+            last.end - last.u < Math.min(6 * s, (row.end - row.u) * 0.65)
+          )
             continue;
           if (Math.abs(p.u - row.u) > s * 2.2 || last.end < p.end - s * 2)
             continue;
@@ -221,6 +259,7 @@ export function connectedParagraphs(objects, h, barriers = objects) {
         id: "paragraph-" + output.length,
         text,
         lineStarts,
+        hardLineBreaks: p.rows.every((r) => r.code),
         ...d,
         sources: src.map((o) => ({ index: o.index, signature: o.signature })),
         bounds,

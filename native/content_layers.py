@@ -79,7 +79,8 @@ def expand_page(page):
 
 def reopen(data,numbers):
     if b'/FolioLayerVersion' not in data:return data
-    reader=PdfReader(io.BytesIO(data));writer=PdfWriter(clone_from=reader);changed=False
+    from pdf_writer import clone_document
+    reader=PdfReader(io.BytesIO(data));writer=clone_document(reader);changed=False
     for n in sorted(set(numbers)):
         if 1<=n<=len(writer.pages):changed=expand_page(writer.pages[n-1]) or changed
     if not changed:return data

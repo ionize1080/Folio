@@ -12,8 +12,8 @@ function validateModel(m) {
   if (!f) throw Error("缺少文本框");
   n(f.x, -14400, 14400, "文本框 X");
   n(f.y, -14400, 14400, "文本框 Y");
-  n(f.width, 10, 14400, "文本框宽度");
-  n(f.height, 10, 14400, "文本框高度");
+  n(f.width, 1, 14400, "文本框宽度");
+  n(f.height, 1, 14400, "文本框高度");
 
   n(m.paragraphGap ?? 0, 0, 100, "段后间距");
   const columns = n(m.columns || 1, 1, 3, "栏数");

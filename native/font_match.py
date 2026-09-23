@@ -7,7 +7,7 @@ from functools import lru_cache
 # Embedded Windows Python must resolve the shipped converter on the first CID font,
 # without relying on a previous Type1/browser-font request to alter sys.path.
 sys.path.insert(0,str(Path(__file__).parent/'vendor'))
-CACHE=Path(tempfile.gettempdir())/'folio-fonts-v11'
+CACHE=Path(tempfile.gettempdir())/'folio-fonts-v12'
 
 def checksum(data):
     data+=b'\0'*((-len(data))%4)
@@ -31,16 +31,20 @@ def unicode_cmap(blob,mapping):
 def cff_cids(blob):
     """CID-keyed CFF charset defines CID -> GID; CID is not a glyph index."""
     from fontTools.ttLib import TTFont
-    if blob[:4]!=b'OTTO':raise ValueError('此 CID CFF 封装暂不支持，请明确选择替代字体')
-    font=TTFont(io.BytesIO(blob),lazy=True)
+    if blob[:4]==b'OTTO':
+        font=TTFont(io.BytesIO(blob),lazy=True);top=font['CFF '].cff.topDictIndex[0]
+    elif blob[:1]==b'\x01':
+        from browser_fonts import read_cff
+        font=None;_,top=read_cff(blob)
+    else:raise ValueError('此 CID CFF 封装暂不支持，请明确选择替代字体')
     try:
-        top=font['CFF '].cff.topDictIndex[0]
         if not hasattr(top,'ROS'):raise ValueError('CID 字体缺少字符集合映射')
         mapping={0:0}
         for gid,name in enumerate(top.charset):
             if name.startswith('cid') and name[3:].isdigit():mapping[int(name[3:])]=gid
         return mapping
-    finally:font.close()
+    finally:
+        if font is not None:font.close()
 
 def load_font(key):
     if not isinstance(key,str) or not re.fullmatch('[0-9a-f]{32}',key):return None
@@ -85,17 +89,33 @@ def inspect_fonts(data,page_number,objects,mapped,stream):
                     if ext in ('pfa','pfb'):
                         from type1_restore import restore_type1
                         cmap,_=parse_unicode(f) if f.get('/ToUnicode') else (None,None)
-                        blob,coverage=restore_type1(blob,cmap,name)
+                        descriptor=f.get('/FontDescriptor',{}).get_object()
+                        program=descriptor.get('/FontFile')
+                        program=program.get_object() if program else {}
+                        segments=tuple(int(program.get(k,-1)) for k in ('/Length1','/Length2','/Length3'))
+                        blob,coverage=restore_type1(blob,cmap,name,segments)
                     if not coverage:raise ValueError('原字体 Unicode 映射不完整，需要选择可用字体')
                 else:
                     if f.get('/Subtype')!='/Type0' or f.get('/Encoding') not in ('/Identity-H','/Identity-V'):raise ValueError(reason)
                     cid=f['/DescendantFonts'][0].get_object()
                     if cid.get('/Subtype') not in ('/CIDFontType2','/CIDFontType0'):raise ValueError(reason)
                     _,ext,_,blob=doc.extract_font(ref.idnum)
-                    cmap,_=parse_unicode(f);gid_map=cid.get('/CIDToGIDMap','/Identity')
+                    cmap,_=parse_unicode(f)
+                    if str(f.get('/ToUnicode')) in ('/Identity-H','/Identity-V'):
+                        # Named Identity ToUnicode maps two-byte codes to the
+                        # same Unicode scalar, independently of CIDToGIDMap.
+                        cmap={chr(cp):chr(cp) for cp in range(65536) if not 0xd800<=cp<=0xdfff}
+                    gid_map=cid.get('/CIDToGIDMap','/Identity')
                     if hasattr(gid_map,'get_object'):gid_map=gid_map.get_object()
                     raw=gid_map.get_data() if hasattr(gid_map,'get_data') else None
                     mapping={};cids=cff_cids(blob) if cid.get('/Subtype')=='/CIDFontType0' else None
+                    if not cmap and cids is not None:
+                        info=cid.get('/CIDSystemInfo',{});info=info.get_object() if hasattr(info,'get_object') else info
+                        registry=str(info.get('/Registry',''));ordering=str(info.get('/Ordering',''))
+                        if registry=='Adobe' and ordering in ('GB1','CNS1','Japan1','Korea1'):
+                            predefined=fitz.mupdf.pdf_load_system_cmap(f'Adobe-{ordering}-UCS2')
+                            cmap={chr(code):chr(cp) for code in cids if code<=65535
+                                for cp in [fitz.mupdf.pdf_lookup_cmap(predefined,code)] if 0<cp<=0x10ffff and not 0xd800<=cp<=0xdfff}
                     for code,char in cmap.items():
                         if not isinstance(code,str) or len(code)!=1 or not isinstance(char,str) or len(char)!=1:continue
                         n=ord(code)
@@ -103,6 +123,9 @@ def inspect_fonts(data,page_number,objects,mapped,stream):
                         else:g=int.from_bytes(raw[2*n:2*n+2],'big') if raw is not None else n
                         if g:mapping[ord(char)]=g
                     if not mapping:raise ValueError(reason)
+                    if blob[:1]==b'\x01':
+                        from browser_fonts import opentype
+                        blob=opentype(blob,mapping)
                     blob,coverage=unicode_cmap(blob,mapping)
                 from browser_fonts import opentype
                 blob=opentype(blob)
@@ -134,7 +157,10 @@ def inspect_fonts(data,page_number,objects,mapped,stream):
                     finally:
                         if os.path.exists(tmp):os.unlink(tmp)
                 reason=''
-            except (KeyError,ValueError,TypeError,IndexError,struct.error,ImportError,RuntimeError) as e: key=None;reason=str(e) or reason
+            except Exception as e:
+                # Recovery is per font. A malformed Type1/CFF must not hide every
+                # editable object on an otherwise readable page.
+                key=None;reason=type(e).__name__+': '+(str(e) or reason)
             meta={'fontKey':key,'fontName':name.split('+')[-1],'fontFallback':reason,'fontSubset':bool(re.match(r'^[A-Z]{6}\+',name)),
                   'writingMode':'vertical-rl' if f.get('/Encoding')=='/Identity-V' else 'horizontal-tb', 'fontOriginalName':name, 'fontResolution':'embedded' if key else 'unresolved',
                   'fontEmbedded':bool(embedded),'fontBrowserReady':bool(key)}

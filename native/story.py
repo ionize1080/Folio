@@ -36,7 +36,7 @@ def validate(m):
     w, h = number(m.get('pageWidth'), 36, 14400), number(m.get('pageHeight'), 36, 14400)
     f = m['frame']
     number(f['x'], -14400, 14400); number(f['y'], -14400, 14400)
-    number(f['width'], 10, 14400); number(f['height'], 10, 14400)
+    number(f['width'], 1, 14400); number(f['height'], 1, 14400)
     number(m['size'], 4, 150); number(m['lineHeight'], 1, 3)
     number(m.get('paragraphGap', 0), 0, 100)
     n = number(m.get('columns', 1), 1, 3)
@@ -65,6 +65,13 @@ def resources():
 def fallback_coverage(path):
     import fitz
     return set(fitz.Font(fontfile=path).valid_codepoints())
+
+def builtin_name(cp):
+    # Coverage, not a Latin/CJK threshold, decides Greek, combining marks,
+    # mathematical symbols and supplementary emoji.
+    for name in ('DejaVuSans.ttf','NotoSansSC.ttf'):
+        if cp in fallback_coverage(str(ROOT/'fonts'/name)):return name
+    return 'NotoSansSC.ttf'
 
 def styled_html(m):
     import fitz
@@ -110,8 +117,8 @@ def styled_html(m):
         if not covered:
             if (key or style.get('fontName') not in (None,'内置替代字体')) and not ch.isspace():
                 fallback+=1
-                if len(fallback_details)<300:fallback_details.append({'start':offset-len(ch.encode('utf-16-le'))//2,'end':offset,'text':ch,'original':(font or {}).get('name',style.get('fontName') or '不可用字体'),'actual':'DejaVu Sans' if ord(ch)<0x300 else 'Noto Sans SC'})
-            path=str(ROOT/'fonts'/('DejaVuSans.ttf' if ord(ch)<0x300 else 'NotoSansSC.ttf'))
+                if len(fallback_details)<300:fallback_details.append({'start':offset-len(ch.encode('utf-16-le'))//2,'end':offset,'text':ch,'original':(font or {}).get('name',style.get('fontName') or '不可用字体'),'actual':builtin_name(ord(ch)).removesuffix('.ttf')})
+            path=str(ROOT/'fonts'/builtin_name(ord(ch)))
             if not ch.isspace() and ord(ch) not in fallback_coverage(path):raise ValueError('所选字体和内置替代字体均未覆盖字符：'+ch)
         else:path=font['path']
         spec=(path,round(spacing,4),round(word,4),size,color,bool(style.get('bold')),bool(style.get('italic')))
@@ -189,20 +196,27 @@ def layout(model):
         blob=justify_fragment(blob,m,frames,gs)
     with fitz.open(stream=blob, filetype='pdf') as doc:
         page = doc[0]
+        from text_semantics import expand_preview
+        original_box,preview_bounds=expand_preview(page)
         glyphs, map_ok = map_glyphs(page, text)
+        for g in glyphs:
+            for key in ('x','originX'):g[key]+=preview_bounds['x']
+            for key in ('y','baseline'):g[key]+=preview_bounds['y']
         # Also catch long unbreakable tokens, whose horizontal overflow does not
         # necessarily set Story's continuation flag.
         outside = any(not any(g['x'] >= r[0]-.5 and g['x']+g['w'] <= r[2]+.5 and
                               g['y']+g['h'] <= r[3]+size*.4 for r in frames) for g in glyphs)
-        overflow = bool(more or outside)
+        overflow = bool(more or (outside and not m.get('allowOverflow')))
+        frame_overset=any(g['x']<f['x']-.5 or g['x']+g['w']>f['x']+f['width']+.5 or g['y']+g['h']>f['y']+f['height']+.5 for g in glyphs)
         svg = page.get_svg_image(text_as_path=True)
+        page.set_mediabox(original_box)
         doc.subset_fonts()
         blob = doc.tobytes(garbage=3, deflate=True)
     result = {'engine': 'MuPDF Story', 'layoutMode':'段落重排', 'engineVersion': fitz.VersionBind, 'fallbackCount':fallback_count, 'fallbackDetails':fallback_details, 'spacingLimited':spacing_limited,
             'fragment': base64.b64encode(blob).decode(), 'svg': svg,
-            'glyphs': glyphs, 'positions': positions, 'frames': frames,
+            'glyphs': glyphs, 'positions': positions, 'frames': frames,'previewBounds':preview_bounds,'frameOverset':frame_overset,
             'anchors': blank_anchors(text, positions, m),
-            'overflow': overflow, 'mappingComplete': map_ok or overflow,
+            'overflow': overflow, 'mappingComplete': map_ok,
             'elapsedMs': round((time.perf_counter()-started)*1000, 2)}
     from fast_layout import styled_story
     return styled_story(m,result)

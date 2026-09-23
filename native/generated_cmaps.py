@@ -23,7 +23,11 @@ def parse_unicode(font, parser):
     from pypdf.generic import DictionaryObject,NameObject,DecodedStreamObject
     cmap=font.get('/ToUnicode')
     if cmap:
-        raw=cmap.get_object().get_data();fixed=repair_map(raw)
+        resolved=cmap.get_object()
+        # Named CMaps are handled by the PDF parser, not stream-byte repair.
+        if not hasattr(resolved,'get_data'):
+            return parser(font)
+        raw=resolved.get_data();fixed=repair_map(raw)
         if fixed!=raw:
             font=DictionaryObject(dict(font));stream=DecodedStreamObject();stream.set_data(fixed)
             font[NameObject('/ToUnicode')]=stream

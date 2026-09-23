@@ -5,6 +5,7 @@ Keep PDF character/CID/GID maps separate from the Unicode cmap built for editing
 """
 import math
 import struct
+import hashlib
 
 MAGIC = (b'\0\1\0\0', b'OTTO', b'true')
 
@@ -41,14 +42,60 @@ def build(version, parts):
     struct.pack_into('>I', out, head+8, (0xb1b0afba-checksum(bytes(out))) & 0xffffffff)
     return bytes(out)
 
+def glyph_flags(parts):
+    """Repair only reserved flags in bounded simple-glyph flag arrays.
+
+    PDF.js sanitizeGlyph uses the same separation between flags and coordinates.
+    Never scan or mask arbitrary outline, instruction or composite bytes.
+    """
+    if b'glyf' not in parts or b'loca' not in parts:return
+    count=struct.unpack_from('>H',parts[b'maxp'],4)[0]
+    short=struct.unpack_from('>h',parts[b'head'],50)[0]==0
+    size=2 if short else 4
+    if len(parts[b'loca'])<(count+1)*size:raise ValueError('字体 loca 表不完整')
+    offsets=struct.unpack_from('>'+('H' if short else 'I')*(count+1),parts[b'loca'])
+    if short:offsets=[v*2 for v in offsets]
+    data=bytearray(parts[b'glyf'])
+    for a,b in zip(offsets,offsets[1:]):
+        if not 0<=a<=b<=len(data):raise ValueError('字体字形范围无效')
+        if a==b:continue
+        if b-a<10:raise ValueError('字体字形头不完整')
+        contours=struct.unpack_from('>h',data,a)[0]
+        if contours<=0:continue
+        end=a+10+2*contours
+        if end+2>b:raise ValueError('字体轮廓点表不完整')
+        points=struct.unpack_from('>H',data,end-2)[0]+1
+        instructions=struct.unpack_from('>H',data,end)[0]
+        pos=end+2+instructions;seen=0;coordinates=0
+        while seen<points:
+            if pos>=b:raise ValueError('字体字形标记不完整')
+            flag=data[pos]&0x7f;data[pos]=flag;pos+=1;repeat=1
+            if flag&8:
+                if pos>=b:raise ValueError('字体重复点标记不完整')
+                repeat+=data[pos];pos+=1
+            seen+=repeat
+            if seen>points:raise ValueError('字体重复点数量无效')
+            coordinates+=repeat*((1 if flag&2 else 0 if flag&16 else 2)+(1 if flag&4 else 0 if flag&32 else 2))
+        if pos+coordinates>b:raise ValueError('字体字形坐标不完整')
+    parts[b'glyf']=bytes(data)
+
 def normalize(blob):
     parts = tables(blob)
-    required = {b'head', b'hhea', b'maxp', b'hmtx', b'cmap', b'name'}
+    required = {b'head', b'hhea', b'maxp', b'hmtx', b'cmap'}
     missing = required - parts.keys()
     if missing:
         raise ValueError('字体缺少必要表：'+', '.join(t.decode('ascii') for t in sorted(missing)))
     if len(parts[b'head'])<54:raise ValueError('字体 head 表无效')
     changed = False
+    if b'name' not in parts:
+        # This metadata is optional in PDF programs. Rebuild it without changing
+        # outlines, glyph order, advances or the PDF character mapping.
+        from fontTools.ttLib import TTFont,newTable
+        font=TTFont();name=newTable('name');name.names=[]
+        family='Folio Embedded '+hashlib.sha256(blob).hexdigest()[:12]
+        for key,value in {1:family,2:'Regular',3:family,4:family,6:family.replace(' ','')}.items():
+            name.setName(value,key,3,1,0x409)
+        parts[b'name']=name.compile(font);changed=True
     if b'post' not in parts:
         # Format 3 carries metrics, without a glyph-name array. PDF.js also
         # constructs this format for embedded fonts. No glyph indices change.
@@ -84,4 +131,7 @@ def normalize(blob):
     if struct.unpack_from('>H', parts[b'hhea'], 10)[0] < maximum:
         header = bytearray(parts[b'hhea']); struct.pack_into('>H', header, 10, maximum)
         parts[b'hhea'] = bytes(header); changed = True
-    return build(b'\0\1\0\0' if blob[:4] == b'true' else blob[:4], parts) if changed or blob[:4] == b'true' else blob
+    glyph_flags(parts)
+    # Rebuild directory search parameters and checksums even if no table was
+    # missing: PDF subsets can have invalid rangeShift with otherwise valid data.
+    return build(b'\0\1\0\0' if blob[:4] == b'true' else blob[:4], parts)

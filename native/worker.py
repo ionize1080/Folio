@@ -342,7 +342,13 @@ def run(args):
   # Compose just the active page, not all pages of a yearbook on each activation.
   from pypdf import PdfReader,PdfWriter
   raw=Path(args['input']).read_bytes() if 'input' in args else base64.b64decode(args['bytes'])
-  reader=PdfReader(io.BytesIO(raw));number=args.get('page',1);writer=PdfWriter();writer.add_page(reader.pages[number-1]);buf=io.BytesIO();writer.write(buf)
+  # QPDF copies a bounded page graph and preserves widget appearances/forms;
+  # pypdf add_page can follow deep article/destination chains into other pages.
+  import pikepdf
+  number=args.get('page',1);buf=io.BytesIO()
+  with pikepdf.open(io.BytesIO(raw)) as original:
+   if not isinstance(number,int) or not 1<=number<=len(original.pages):raise ValueError('页码无效')
+   selected=pikepdf.Pdf.new();selected.add_pages_from(original,[number-1]);selected.save(buf)
   edits=[{**e,'page':1} for e in args.get('edits',[]) if e['page']==number]
   blocks=[{**b,'page':1} for b in read_blocks(args) if b['page']==number]
   data=run({'command':'apply','page':1,'bytes':base64.b64encode(buf.getvalue()).decode(),'edits':edits,'blocks':blocks,'ocr':blocks})['bytes']
@@ -364,7 +370,7 @@ def run(args):
   cmd=args['command'];page=args.get('page',1)
   if not isinstance(page,int) or not 1<=page<=len(pdf):raise ValueError('页码无效')
   if cmd=='inspect':
-   page_no=page;page=pdf[page-1];rotation=page.get_rotation();page.set_rotation(0);tp=page.get_textpage();box=page.get_mediabox()
+   page_no=page;page=pdf[page-1];rotation=page.get_rotation();page.set_rotation(0);tp=page.get_textpage();box=page.get_mediabox();crop=page.get_bbox()
    out={'objects':[describe(p.raw,p.raw.FPDFPage_GetObject(page,i),i,tp) for i in range(p.raw.FPDFPage_CountObjects(page))],
         'size':[box[2]-box[0],box[3]-box[1]],'pageRotation':rotation,'pageBox':list(box)}
    from original_layout import inspect as inspect_origins
@@ -378,6 +384,15 @@ def run(args):
    out['fonts']=inspect_fonts(data,page_no,out['objects'],mapped,map_objects(pg)[0])
    from table_geometry import inspect_tables
    out['tables']=inspect_tables(data,page_no)
+   # PDFium object coordinates are in PDF user space; the visible editor uses
+   # the CropBox's top-left origin. Keep raw signatures for write ownership.
+   left,bottom,right,top=crop;old_height=out['size'][1]
+   for o in out['objects']:
+    o['bounds']=[o['bounds'][0]-left,o['bounds'][1]-bottom,o['bounds'][2]-left,o['bounds'][3]-bottom]
+    o['matrix'][4]-=left;o['matrix'][5]-=bottom
+    for g in o.get('glyphs',[]):
+     g['x']-=left;g['originX']-=left;g['y']-=old_height-top;g['baseline']-=old_height-top
+   out['size']=[right-left,top-bottom];out['pageOrigin']=[left,bottom];out['pageBox']=list(crop)
    return out
   if cmd=='apply':
    from content import compose

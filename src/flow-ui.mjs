@@ -1,3 +1,4 @@
+import { editWarnings } from "./edit-warnings.mjs";
 import { FastFonts, fastLayout, canFast } from "./fast-layout.mjs";
 import { nativeRequest, releaseSource } from "./native-source.mjs";
 import { fontLabel } from "./font-label.mjs";
@@ -46,12 +47,7 @@ export function installFlowUI(ctx) {
     if (!window.desktop?.flowLayout) throw Error("页面编辑需要完整桌面运行包");
     const page = S.page,
       info = S.info.pages[page - 1];
-    if (
-      surface.rotation(page) % 90 ||
-      info.userUnit !== 1 ||
-      info.box.x !== 0 ||
-      info.box.y !== 0
-    )
+    if (surface.rotation(page) % 90 || info.userUnit !== 1)
       throw Error("此页坐标原点或单位暂不支持页面编辑，原文已保留");
     opening = true;
     toast("正在识别当前页的文字与版面…");
@@ -123,12 +119,77 @@ export function installFlowUI(ctx) {
       linkMode = false;
     const bar = document.createElement("div");
     bar.className = "page-edit-bar";
-    bar.innerHTML = `<div class="pe-primary"><strong>页面编辑</strong><button id="pe-font" title="选择字体">原文样式</button><label>字号 <input id="pe-size" type="number" min="4" max="150" step="0.5" value="12"></label><button id="pe-bold" title="粗体">B</button><button id="pe-italic" title="斜体"><i>I</i></button><input id="pe-color" type="color" value="#202020" aria-label="文字颜色"><select id="pe-align" aria-label="对齐"><option value="left">左对齐</option><option value="justify">两端对齐</option><option value="center">居中</option><option value="right">右对齐</option></select><button id="pe-more" aria-expanded="false"><i data-icon="sliders"></i>格式</button></div><div class="pe-actions"><button id="pe-cancel">取消本段</button><button id="pe-done" class="primary">完成编辑</button></div><aside class="pe-properties" hidden><div class="pe-panel-heading"><strong>文字与布局</strong><button id="pe-close-properties" aria-label="关闭格式面板">×</button></div><div class="pe-properties-grid"><label>排版方式<select id="pe-layout-mode"><option value="preserve">优先保留原字位</option><option value="reflow">重新排版整段</option></select></label><label>字距（pt）<input id="pe-spacing" type="number" min="-2" max="10" step="0.1" value="0"></label><label>行距（倍）<input id="pe-leading" type="number" min="1" max="3" step="0.1" value="1.4"></label><label>分栏<select id="pe-columns"><option value="1">单栏</option><option value="2">双栏续排</option><option value="3">三栏续排</option></select></label><label>首行缩进（pt）<input id="pe-indent" type="number" min="0" step="0.5" value="0"></label><label>段前距（pt）<input id="pe-before" type="number" min="0" max="100" value="0"></label><label>段后距（pt）<input id="pe-after" type="number" min="0" max="100" value="0"></label><label>扩展方向<select id="pe-growth"><option value="auto">自动预选</option><option value="down">向下</option><option value="right">向右</option><option value="fixed">固定文本框</option></select></label></div><p id="pe-growth-reason"></p><details class="pe-position"><summary>位置与尺寸</summary><div class="pe-properties-grid"><label>X（pt）<input data-frame="x" type="number" step="1"></label><label>Y（pt）<input data-frame="y" type="number" step="1"></label><label>宽度（pt）<input data-frame="width" type="number" min="10"></label><label>高度（pt）<input data-frame="height" type="number" min="10"></label></div></details><button id="pe-recommend">重新评估方向</button><div class="pe-object-tools"><button id="pe-tables"><i data-icon="table"></i>表格单元格</button><button id="pe-link">接续段落</button><button id="pe-new">添加文字</button><button id="pe-compare">本段原文对照</button><button id="pe-full-diff">全页输出对照</button><label>格式刷范围<select id="pe-style-scope"><option value="all">字符与段落</option><option value="character">仅字符</option><option value="paragraph">仅段落</option></select></label><button id="pe-copy-style">吸取样式</button><button id="pe-paste-style" disabled>应用样式</button><button id="pe-problems">查看遮挡</button><button id="pe-default-style">设为新增默认</button><label>新增样式<select id="pe-new-style"><option value="nearby">沿用附近文字</option><option value="default">使用默认样式</option></select></label></div><details class="pe-layers"><summary>叠放与选择</summary><label>相对原页面<select id="pe-page-layer"><option value="above">位于原页面上方</option><option value="below">位于原页面下方</option></select></label><div class="pe-object-tools"><button data-order="up">上移一层</button><button data-order="down">下移一层</button><button data-order="top">置于顶层</button><button data-order="bottom">置于底层</button></div><select id="pe-overlap-select" aria-label="选择重叠段落"><option value="">选择重叠段落…</option></select></details><p class="pe-scope">修改范围：当前段落。接续后仅影响所选段落。</p></aside><aside class="pe-font-panel" hidden><div class="pe-panel-heading"><strong>选择字体</strong><button id="pe-close-font" aria-label="关闭字体选择">×</button></div><button id="pe-font-match">按原文字形推荐</button><p id="pe-font-evidence">缺字自动优先匹配原字体轮廓与字宽。</p><input id="pe-font-search" type="search" placeholder="搜索字体名称…" aria-label="搜索字体"><label>应用于<select id="pe-font-script"><option value="all">全部文字</option><option value="latin">英文字母与数字</option><option value="cjk">中文等非拉丁文字</option></select></label><div id="pe-font-list"></div><p>有选区时应用于选区；没有选区时用于后续输入。换行效果直接显示在原页。</p></aside><div class="pe-notice" hidden><span id="pe-warning"></span><button id="pe-accept">保留重叠</button><button id="pe-overflow">显示溢出并保留</button><label class="pe-session-warning"><input id="pe-warning-only" type="checkbox">本次仅标记</label></div><div class="pe-status-row"><span id="pe-font-source" title="当前字符的字体解析来源"></span><span id="pe-status" role="status" aria-live="polite"></span><button id="pe-fallback" hidden>字体替代详情</button></div><aside id="pe-fallback-panel" class="pe-font-panel" hidden></aside>`;
+    bar.innerHTML = `<div class="pe-primary"><strong>页面编辑</strong><button id="pe-font" title="选择字体">原文样式</button><label>字号 <input id="pe-size" type="number" min="4" max="150" step="0.5" value="12"></label><button id="pe-bold" title="粗体">B</button><button id="pe-italic" title="斜体"><i>I</i></button><input id="pe-color" type="color" value="#202020" aria-label="文字颜色"><select id="pe-align" aria-label="对齐"><option value="left">左对齐</option><option value="justify">两端对齐</option><option value="center">居中</option><option value="right">右对齐</option></select><button id="pe-more" aria-expanded="false"><i data-icon="sliders"></i>格式</button></div><div class="pe-actions"><button id="pe-cancel">取消本段</button><button id="pe-done" class="primary">完成编辑</button></div><aside class="pe-properties" hidden><div class="pe-panel-heading"><strong>文字与布局</strong><button id="pe-close-properties" aria-label="关闭格式面板">×</button></div><div class="pe-properties-grid"><label>排版方式<select id="pe-layout-mode"><option value="preserve">优先保留原字位</option><option value="reflow">重新排版整段</option></select></label><label>字距（pt）<input id="pe-spacing" type="number" min="-2" max="10" step="0.1" value="0"></label><label>行距（倍）<input id="pe-leading" type="number" min="1" max="3" step="0.1" value="1.4"></label><label>分栏<select id="pe-columns"><option value="1">单栏</option><option value="2">双栏续排</option><option value="3">三栏续排</option></select></label><label>首行缩进（pt）<input id="pe-indent" type="number" min="0" step="0.5" value="0"></label><label>段前距（pt）<input id="pe-before" type="number" min="0" max="100" value="0"></label><label>段后距（pt）<input id="pe-after" type="number" min="0" max="100" value="0"></label><label>扩展方向<select id="pe-growth"><option value="auto">自动预选</option><option value="down">向下</option><option value="right">向右</option><option value="fixed">固定文本框</option></select></label></div><p id="pe-growth-reason"></p><details class="pe-position"><summary>位置与尺寸</summary><div class="pe-properties-grid"><label>X（pt）<input data-frame="x" type="number" step="1"></label><label>Y（pt）<input data-frame="y" type="number" step="1"></label><label>宽度（pt）<input data-frame="width" type="number" min="1"></label><label>高度（pt）<input data-frame="height" type="number" min="1"></label></div></details><button id="pe-recommend">重新评估方向</button><div class="pe-object-tools"><button id="pe-tables"><i data-icon="table"></i>表格单元格</button><button id="pe-link">接续段落</button><button id="pe-new">添加文字</button><button id="pe-compare">本段原文对照</button><button id="pe-full-diff">全页输出对照</button><label>格式刷范围<select id="pe-style-scope"><option value="all">字符与段落</option><option value="character">仅字符</option><option value="paragraph">仅段落</option></select></label><button id="pe-copy-style">吸取样式</button><button id="pe-paste-style" disabled>应用样式</button><button id="pe-problems">查看遮挡</button><button id="pe-default-style">设为新增默认</button><label>新增样式<select id="pe-new-style"><option value="nearby">沿用附近文字</option><option value="default">使用默认样式</option></select></label></div><details class="pe-layers"><summary>叠放与选择</summary><label>相对原页面<select id="pe-page-layer"><option value="above">位于原页面上方</option><option value="below">位于原页面下方</option></select></label><div class="pe-object-tools"><button data-order="up">上移一层</button><button data-order="down">下移一层</button><button data-order="top">置于顶层</button><button data-order="bottom">置于底层</button></div><select id="pe-overlap-select" aria-label="选择重叠段落"><option value="">选择重叠段落…</option></select></details><p class="pe-scope">修改范围：当前段落。接续后仅影响所选段落。</p></aside><aside class="pe-font-panel" hidden><div class="pe-panel-heading"><strong>选择字体</strong><button id="pe-close-font" aria-label="关闭字体选择">×</button></div><button id="pe-font-match">按原文字形推荐</button><p id="pe-font-evidence">缺字自动优先匹配原字体轮廓与字宽。</p><input id="pe-font-search" type="search" placeholder="搜索字体名称…" aria-label="搜索字体"><label>应用于<select id="pe-font-script"><option value="all">全部文字</option><option value="latin">英文字母与数字</option><option value="cjk">中文等非拉丁文字</option></select></label><div id="pe-font-list"></div><p>有选区时应用于选区；没有选区时用于后续输入。换行效果直接显示在原页。</p></aside><div class="pe-notice" hidden><span id="pe-warning"></span><button id="pe-accept">保留重叠</button><button id="pe-overflow">显示溢出并保留</button><label class="pe-session-warning"><input id="pe-warning-only" type="checkbox">本次仅标记</label></div><div class="pe-status-row"><span id="pe-font-source" title="当前字符的字体解析来源"></span><span id="pe-status" role="status" aria-live="polite"></span><button id="pe-fallback" hidden>字体替代详情</button></div><aside id="pe-fallback-panel" class="pe-font-panel" hidden></aside>`;
     let fontCatalog = null,
       styleClipboard = null,
       lastConflicts = [],
       acceptedConflicts = "",
-      ignoreConflicts = false;
+      ignoreConflicts = false,
+      noticeOpen = false;
+    const warningSummary = document.createElement("button");
+    warningSummary.id = "pe-warning-summary";
+    warningSummary.className = "pe-warning-summary";
+    warningSummary.hidden = true;
+    bar.querySelector(".pe-status-row").append(warningSummary);
+    warningSummary.addEventListener("click", () => {
+      noticeOpen = !noticeOpen;
+      updateWarnings(preview, lastConflicts);
+    });
+    function updateWarnings(res, conflicts = []) {
+      if (!model) return;
+      const warning = editWarnings(model, res, conflicts);
+      const gs = res?.glyphs || [],
+        z = scale();
+      let left = 0,
+        top = 0,
+        right = w,
+        bottom = h;
+      for (const g of gs) {
+        left = Math.min(left, g.x);
+        top = Math.min(top, g.y);
+        right = Math.max(right, g.x + g.w);
+        bottom = Math.max(bottom, g.y + g.h);
+      }
+      let hit = layer.querySelector(".page-edit-overflow-hit");
+      if (!hit) {
+        hit = document.createElement("div");
+        hit.className = "page-edit-overflow-hit";
+        layer.prepend(hit);
+      }
+      Object.assign(hit.style, {
+        left: left * z + "px",
+        top: top * z + "px",
+        width: (right - left) * z + "px",
+        height: (bottom - top) * z + "px",
+      });
+      warningSummary.hidden = !warning.messages.length;
+      warningSummary.textContent = warning.page
+        ? "页外内容 · 查看"
+        : warning.frame
+          ? "文本框溢出 · 可继续"
+          : warning.overlap
+            ? `${warning.overlap} 处遮挡 · 可继续`
+            : "结构提示 · 查看";
+      warningSummary.title = warning.messages.join("；");
+      warningSummary.classList.toggle("page-clipped", warning.page);
+      warningSummary.setAttribute("aria-expanded", String(noticeOpen));
+      bar.querySelector("#pe-warning").textContent =
+        warning.messages.join("；");
+      bar.querySelector(".pe-notice").hidden =
+        !noticeOpen || !warning.messages.length || ignoreConflicts;
+      bar.querySelector("#pe-accept").hidden = true;
+      bar.querySelector("#pe-overflow").hidden =
+        !warning.frame && !warning.page;
+      bar.querySelector("#pe-overflow").textContent = "定位输入末尾";
+      return warning;
+    }
+    function sizeInk(res) {
+      const b = res?.previewBounds || { width: w, height: h };
+      ink.style.left = (100 * (b.x || 0)) / w + "%";
+      ink.style.top = (100 * (b.y || 0)) / h + "%";
+      ink.style.width = (100 * b.width) / w + "%";
+      ink.style.height = (100 * b.height) / h + "%";
+    }
     const fastFonts = new FastFonts(call);
     let fastReady = false,
       precise = null,
@@ -800,6 +861,7 @@ export function installFlowUI(ctx) {
         throw Error("此阅读方向或倾斜角度尚不支持可靠编辑，原文已保留");
       await finish(false);
       model = positioned(m, tableRows(null));
+      model.allowOverflow = true;
       model.text = model.text.replace(/\r\n?/g, "\n");
       id = flowId || crypto.randomUUID();
       if (!model.growthDirection) {
@@ -814,7 +876,7 @@ export function installFlowUI(ctx) {
         model.growthDirection = suggested.direction;
         model.growthReason = suggested.reason;
       }
-      model.growth ||= model.cell && !model.cell.inferred ? "down" : "fixed";
+      model.growth ||= "fixed";
       delete model.typingStyle;
       initial = JSON.stringify({ ...model, fastLayout: undefined });
       history = [];
@@ -1017,6 +1079,7 @@ export function installFlowUI(ctx) {
       future = [];
     }
     function queue() {
+      if (model) model.allowOverflow = true;
       revision++;
       validRevision = -1;
       clearTimeout(timer);
@@ -1095,11 +1158,7 @@ export function installFlowUI(ctx) {
         bar.querySelector("#pe-fallback").hidden = !res.fallbackCount;
         bar.querySelector("#pe-fallback").textContent =
           `${res.fallbackCount} 字替代 · 查看`;
-        bar.querySelector(".pe-notice").hidden = !res.overflow;
-        bar.querySelector("#pe-warning").textContent =
-          "内容超出当前框，可扩大文本框或保留溢出。";
-        bar.querySelector("#pe-overflow").hidden = !res.overflow;
-        bar.querySelector("#pe-accept").hidden = true;
+        updateWarnings(res, lastConflicts);
         status(
           `${res.layoutMode}完成 · ${model.text.length} 字符 · ${(performance.now() - t).toFixed(1)} ms${res.overflow ? " · 内容溢出" : ""}`,
         );
@@ -1135,18 +1194,9 @@ export function installFlowUI(ctx) {
         validRevision = -1;
         status("同一源对象已有另一项修改，请先完成或撤销该修改", true);
       }
-      const signature = JSON.stringify(
-        conflicts.map((c) => [c.kind, c.bounds]),
-      );
-      const warn =
-        conflicts.length && !ignoreConflicts && signature !== acceptedConflicts;
-      bar.querySelector(".pe-notice").hidden = !(res.overflow || warn);
-      if (!res.overflow) {
-        bar.querySelector("#pe-warning").textContent =
-          `${conflicts.length} 处可能遮挡 · 可以继续调整或保留效果`;
-        bar.querySelector("#pe-accept").hidden = !warn;
-      }
+      updateWarnings(res, conflicts);
     }
+
     function schedulePrecise() {
       clearTimeout(preciseTimer);
       const button = bar.querySelector("#pe-refine");
@@ -1334,8 +1384,7 @@ export function installFlowUI(ctx) {
               ? m.growth
               : m.growthDirection || "down";
           if (
-            res.overflow &&
-            !m.allowOverflow &&
+            (res.frameOverset || res.overflow) &&
             !m.cell &&
             !m.frames &&
             direction !== "fixed"
@@ -1356,6 +1405,7 @@ export function installFlowUI(ctx) {
             if (limit > original + 0.5) {
               const trial = await window.desktop.flowLayout({
                 ...m,
+                allowOverflow: false,
                 frame: { ...m.frame, [dimension]: limit },
               });
               if (closed || rev !== revision) return;
@@ -1367,6 +1417,7 @@ export function installFlowUI(ctx) {
                   const mid = (lo + hi) / 2,
                     test = await window.desktop.flowLayout({
                       ...m,
+                      allowOverflow: false,
                       frame: { ...m.frame, [dimension]: mid },
                     });
                   if (closed || rev !== revision) return;
@@ -1382,9 +1433,8 @@ export function installFlowUI(ctx) {
             }
           }
           if (
-            res.overflow &&
+            (res.frameOverset || res.overflow) &&
             m.cell &&
-            !m.allowOverflow &&
             direction !== "fixed"
           ) {
             const table = (result.tables || []).find(
@@ -1395,6 +1445,7 @@ export function installFlowUI(ctx) {
             if (table && !table.inferred && limit > old + 0.5) {
               let trial = await window.desktop.flowLayout({
                 ...m,
+                allowOverflow: false,
                 frame: { ...m.frame, height: limit },
               });
               if (closed || rev !== revision) return;
@@ -1406,6 +1457,7 @@ export function installFlowUI(ctx) {
                   const mid = (lo + hi) / 2,
                     r = await window.desktop.flowLayout({
                       ...m,
+                      allowOverflow: false,
                       frame: { ...m.frame, height: mid },
                     });
                   if (closed || rev !== revision) return;
@@ -1446,6 +1498,7 @@ export function installFlowUI(ctx) {
               initial = JSON.stringify({ ...model, fastLayout: undefined });
           }
           preview = res;
+          sizeInk(res);
           ink.src = imageURL(res.svg);
           await ink.decode();
           if (closed || rev !== revision) return;
@@ -1532,21 +1585,7 @@ export function installFlowUI(ctx) {
           lastConflicts = conflicts;
           showCollisions(conflicts);
           drawOverlapSelect();
-          const signature = JSON.stringify(
-            conflicts.map((c) => [c.kind, c.bounds]),
-          );
-          const warning = bar.querySelector(".pe-notice");
-          warning.hidden = !(
-            res.overflow ||
-            (conflicts.length &&
-              !ignoreConflicts &&
-              signature !== acceptedConflicts)
-          );
-          bar.querySelector("#pe-warning").textContent = res.overflow
-            ? "内容超出当前框，可换方向、调整尺寸，或显示溢出并保留。"
-            : `${conflicts.length} 处可能遮挡 · 可以继续调整或保留效果`;
-          bar.querySelector("#pe-accept").hidden = res.overflow;
-          bar.querySelector("#pe-overflow").hidden = !res.overflow;
+          updateWarnings(res, conflicts);
           bar.querySelector("#pe-fallback").hidden = !res.fallbackCount;
           bar.querySelector("#pe-fallback").textContent =
             `${res.fallbackCount || 0} 字替代 · 查看`;
@@ -1651,7 +1690,7 @@ export function installFlowUI(ctx) {
       const rawCaret =
           preview?.anchors?.[cursor] || caretRect(glyphs, cursor, model),
         z = scale();
-      const clipped = preview?.overflow && !model.allowOverflow;
+      const clipped = false; // Never clip the editing caret to an inferred frame.
       const f = model.frame;
       const outside =
         clipped &&
@@ -1998,7 +2037,17 @@ export function installFlowUI(ctx) {
       if (!model || busy || composing) return;
       const { x, y } = point(e);
       const f = model.frame;
-      if (x < f.x || x > f.x + f.width || y < f.y || y > f.y + f.height) return;
+      if (
+        (x < f.x || x > f.x + f.width || y < f.y || y > f.y + f.height) &&
+        !(preview?.glyphs || []).some(
+          (g) =>
+            x >= g.x - 2 &&
+            x <= g.x + g.w + 2 &&
+            y >= g.y - 2 &&
+            y <= g.y + g.h + 2,
+        )
+      )
+        return;
       e.preventDefault();
       e.stopPropagation();
       input.focus({ preventScroll: true });
@@ -2343,14 +2392,15 @@ export function installFlowUI(ctx) {
     });
     listen(bar.querySelector("#pe-warning-only"), "change", (e) => {
       ignoreConflicts = e.target.checked;
-      if (ignoreConflicts) bar.querySelector(".pe-notice").hidden = true;
+      if (ignoreConflicts) noticeOpen = false;
+      updateWarnings(preview, lastConflicts);
     });
     listen(bar.querySelector("#pe-overflow"), "click", () => {
       if (!model) return;
-      remember();
-      model.allowOverflow = true;
-      queue();
       input.focus({ preventScroll: true });
+      input.setSelectionRange(model.text.length, model.text.length);
+      selection();
+      caret.scrollIntoView({ block: "nearest", inline: "nearest" });
     });
     listen(bar.querySelector("#pe-full-diff"), "click", () =>
       guarded(() => ctx.openPageDiff()),
@@ -2385,6 +2435,7 @@ export function installFlowUI(ctx) {
     });
     listen(bar.querySelector("#pe-problems"), "click", () => {
       ignoreConflicts = false;
+      noticeOpen = true;
       acceptedConflicts = "";
       bar.querySelector("#pe-warning-only").checked = false;
       queue();
@@ -2663,6 +2714,8 @@ export function installFlowUI(ctx) {
         }
         const target = id,
           key = model.fontKey,
+          requestRevision = revision,
+          requestText = model.text,
           button = bar.querySelector("#pe-font-match");
         button.disabled = true;
         bar.querySelector("#pe-font-evidence").textContent =
@@ -2673,7 +2726,18 @@ export function installFlowUI(ctx) {
             sample: model.text,
             missing: model.text,
           });
-          if (closed || target !== id || key !== model?.fontKey) return;
+          if (
+            closed ||
+            target !== id ||
+            key !== model?.fontKey ||
+            requestRevision !== revision ||
+            requestText !== model.text
+          ) {
+            if (!closed)
+              bar.querySelector("#pe-font-evidence").textContent =
+                "文字已更新，旧推荐已忽略；可重新推荐。";
+            return;
+          }
           fontRecommendations = r.fonts;
           drawFonts();
           bar.querySelector("#pe-font-evidence").textContent = r.fonts.length
@@ -2753,6 +2817,9 @@ export function installFlowUI(ctx) {
       fastInk.hidden = true;
       showingPrecise = false;
       model = null;
+      layer.querySelector(".page-edit-overflow-hit")?.remove();
+      warningSummary.hidden = true;
+      noticeOpen = false;
       preview = null;
       initial = null;
       id = null;
@@ -2795,6 +2862,7 @@ export function installFlowUI(ctx) {
             model: clone(model),
             fragment: preview.fragment,
             ink: clone(preview.glyphs),
+            preflight: editWarnings(model, preview, lastConflicts),
           };
           const at = (S.nativeEdits || []).findIndex((e) => e.id === id);
           if (at < 0) edits.push(entry);
@@ -2868,13 +2936,8 @@ export function installFlowUI(ctx) {
           bar.querySelector("#pe-status").title = ai.error || "";
         }
         if (model) return; // Do not replace hit regions while a user is editing.
-        candidates = pageCandidates(
-          result.objects,
-          w,
-          h,
-          ai.regions || [],
-          result.tables || [],
-        );
+        // Freeze hit regions for this editing session. AI remains a growth
+        // hint; its arrival time must not change the user's click ownership.
         candidateButtons();
       },
       draft: () =>

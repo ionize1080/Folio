@@ -38,7 +38,7 @@ export function mergeCandidates(candidates, pageWidth, pageHeight) {
       let offset = 0;
       const breaks = [];
       for (const p of sorted) {
-        for (const n of p.lineStarts?.slice(1) || [])
+        for (const n of p.hardLineBreaks ? [] : p.lineStarts?.slice(1) || [])
           breaks.push(offset + n - 1);
         offset += p.text.length + 1;
       }

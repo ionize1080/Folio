@@ -4,10 +4,16 @@ No guessed coverage: only PDF ToUnicode -> encoding -> existing glyph mappings.
 import io, tempfile, os, sys
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).parent/'vendor'))
-def restore_type1(blob,unicode_map,name):
+def restore_type1(blob,unicode_map,name,segments=None):
     from fontTools.t1Lib import T1Font
     from fontTools.fontBuilder import FontBuilder
     from fontTools.pens.t2CharStringPen import T2CharStringPen
+    if segments and not blob.startswith(b'\x80\x01'):
+        a,b,c=segments
+        # A PDF FontFile may deliberately omit the PFA padding/trailer. Accept
+        # that form only when the descriptor lengths bound the entire program.
+        if c==0 and a>0 and b>0 and a+b==len(blob) and b'eexec' in blob[max(0,a-64):a]:
+            blob+=b'\n'+b'0'*512+b'\ncleartomark\n'
     with tempfile.NamedTemporaryFile(suffix='.pfa',delete=False) as f:
         f.write(blob);path=f.name
     try:
