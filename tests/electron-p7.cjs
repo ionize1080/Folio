@@ -104,8 +104,14 @@ const checks = [],
     const inspected = await page.evaluate(async(bytes) => window.desktop.native({
       command:"inspect",bytes:new Uint8Array(bytes),page:1
     }),Array.from(fs.readFileSync(file)));
-    const text=inspected.objects.filter(o=>o.type==='text').map(o=>o.text).join('');
-    assert(text.includes('Shared 2025') && text.includes('Shared 2026'));
+    // Inspect carries explicit nonpainting spaces on the preceding painted
+    // object as well. Raw object concatenation would double-count that space;
+    // verify the reopened paragraph model and independent PDF text engines.
+    const {pageCandidates}=await import(require('node:url').pathToFileURL(path.join(root,'src/flow-page-model.mjs')).href);
+    assert.deepEqual(pageCandidates(inspected.objects,...inspected.size,[],inspected.tables)
+      .map(c=>c.model.text).sort(),['Shared 2025','Shared 2026']);
+    require('node:child_process').execFileSync(process.env.FOLIO_PYTHON || 'python', ['-c',
+      "import sys,fitz,pypdfium2 as p; f=sys.argv[1]; a=fitz.open(f); b=p.PdfDocument(f); texts=[[x.get_text() for x in a],[x.get_textpage().get_text_range() for x in b]]; assert all(t[0].count('Shared 2025')==1 and t[0].count('Shared 2026')==1 and t[1].strip()=='Shared 2026' for t in texts), texts", file], {stdio:'pipe'});
     const untouched = await page.evaluate(async(bytes) => window.desktop.native({
       command:"inspect",bytes:new Uint8Array(bytes),page:2
     }),Array.from(fs.readFileSync(file)));
