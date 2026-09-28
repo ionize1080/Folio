@@ -53,6 +53,18 @@ with fitz.open(stream=changed,filetype='pdf') as doc:assert doc[0].get_text().co
 _,again=models(changed);assert {m['text'].strip() for m in again}=={'Shared 2025','Shared 2026'}
 checks.append('Same-page repeated Do and cross-page shared Form: exact dual-engine expansion, one instance edited, siblings and other page unchanged')
 
+# Short/long replacements and complete deletion use the same shared instance.
+for text in ['Short','Shared 2026 added phrase','Shared 2026 '+('A long edit contains 2026 words. '*12),'']:
+ r,ms=models(raw);m=ms[0];m.update(text=text,allowOverflow=True,layoutMode='reflow')
+ m['runs']=[{**m['runs'][0],'start':0,'end':len(text)}] if text else []
+ changed=save(raw,m);after=inspect(changed)
+ assert pixels(raw,1)==pixels(changed,1)
+ logical=''.join(o.get('text','') for o in after['objects'])
+ assert 'Shared 2026' in logical  # The untouched same-page instance.
+ if text:assert text.replace(' ','') in logical.replace(' ','').replace('\r','').replace('\n','')
+ else:assert logical.count('Shared 2026')==1
+checks.append('Shared Form instance supports short/long replacement and complete deletion without changing other-page content')
+
 # Both local scopes deliberately use /F1 with different fonts.
 w=PdfWriter();refs={}
 for k,font,text in [('A','helv','Regular 2026'),('B','tiro','Serif 2026')]:

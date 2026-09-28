@@ -9,7 +9,7 @@ def graphics_version(pages):
         return isinstance(value,dict) and value.get('/S')=='/Transparency'
     for page in pages:
         content=page.get_contents()
-        if content and b'/ActualText' in content.get_data():required=max(required,(1,4))
+        if content is not None and b'/ActualText' in content.get_data():required=max(required,(1,4))
         if group(page.get('/Group',{})):required=max(required,(1,4))
         pending.append(page.get('/Resources',{}))
     while pending:

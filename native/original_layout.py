@@ -158,7 +158,12 @@ def render(m):
         source=gs[t['old']] if t['old'] is not None else None
         if source and abs(x-source['originX'])<.001 and abs(y-source['baseline'])<.001:
             box={k:source[k] for k in ('x','y','w','h')}
-        else:box={'x':x,'y':y-t['size']*.85,'w':t['width'],'h':t['size']}
+        else:
+            # Hit-testing/overset uses actual ink, not a full advance/em box.
+            # A changed terminal digit can have the same slot yet less ink.
+            bb=font.glyph_bbox(ord(t['text']))
+            box={'x':x+bb.x0*t['size']*t['scale'],'y':y-bb.y1*t['size'],
+                 'w':max(0,bb.width*t['size']*t['scale']),'h':max(0,bb.height*t['size'])}
         mapped.append({**box,'start':t['start'],'end':t['end'],'baseline':y,'line':round(y,3),'size':t['size']})
     from text_semantics import expand_preview
     original_box,preview_bounds=expand_preview(page)

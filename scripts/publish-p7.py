@@ -7,7 +7,7 @@ for key,file in {'p7Editor':'p7-electron-report.json','p6Editor':'p6-electron-re
  report=json.loads((root/'folio-p7-windows-validation'/file).read_text(encoding='utf-8'));assert not report['errors'],key;reports[key]=report
 packaged=['p7Editor','p6Editor','p5Editor','narrowTable','existingFeatures']
 for key in packaged:assert reports[key]['platform']=='win32'
-assert len(reports['p7Native']['checks'])>=10
+assert len(reports['p7Native']['checks'])>=11
 assert reports['publicCorpus']['pages']==50 and len(reports['publicCorpus']['documents'])==10
 portable=root/'folio-p7-portable'/f'{prefix}-win-x64.zip';source=root/'folio-p7-source'/f'{prefix}-source.zip'
 with zipfile.ZipFile(portable) as z:
