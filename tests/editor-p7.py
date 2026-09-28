@@ -65,6 +65,12 @@ for text in ['Short','Shared 2026 added phrase','Shared 2026 '+('A long edit con
  else:assert logical.count('Shared 2026')==1
 checks.append('Shared Form instance supports short/long replacement and complete deletion without changing other-page content')
 
+# Repeated source glyphs supply their own ink bounds for tight-frame previews.
+r,ms=models(raw);m=ms[0];m['text']=m['text'].replace('2026','2022');res=layout(m)
+g=res['glyphs'][-1];ref=next(g for g in m['originalLayout']['glyphs'] if g['text']=='2')
+assert abs(g['w']-ref['w'])<.001 and abs(g['h']-ref['h'])<.001
+assert not res['frameOverset']
+
 # Both local scopes deliberately use /F1 with different fonts.
 w=PdfWriter();refs={}
 for k,font,text in [('A','helv','Regular 2026'),('B','tiro','Serif 2026')]:
@@ -102,6 +108,9 @@ checks.append('Inline and named ActualText singleton replacement changes both vi
 
 # Multi-object semantics must not silently retain a stale combined value.
 w=PdfWriter();pg=w.add_page(source('A'));st=ContentStream(pg.get('/Contents'),w);st.operations=[([N('/Span'),D({N('/ActualText'):TextStringObject('AB')})],b'BDC')]+st.operations+st.operations+[([],b'EMC')];pg[N('/Contents')]=w._add_object(st);r=inspect(dump(w));assert not any(o.get('flowEditable') for o in r['objects']);checks.append('Shared multi-object ActualText is explicitly protected against partial replacement')
+# An image/path in the scope is also semantic content, not a spare decoration.
+st.operations=[([N('/Span'),D({N('/ActualText'):TextStringObject('A')})],b'BDC')]+source('A').get_contents().operations+[([I(20),I(20),I(10),I(10)],b're'),([],b'f'),([],b'EMC')]
+pg[N('/Contents')]=w._add_object(st);r=inspect(dump(w));assert not any(o.get('flowEditable') or o.get('editable') for o in r['objects'])
 
 # Equal payload does not imply equal resource semantics.
 a=Stream();a.set_data(b'\x00\x01');a[N('/Subtype')]=N('/Type1C');b=Stream();b.set_data(b'\x00\x01');b[N('/Subtype')]=N('/CIDFontType0C');assert stream_identity(a)!=stream_identity(b)

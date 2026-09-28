@@ -16,6 +16,7 @@ def map_objects(page):
     objects=[]; start=None; shown=[];path_started=False;marks=[];graphics={};graphics_stack=[]
     fonts=page['/Resources'].get('/XObject',{});fonts=fonts.get_object() if hasattr(fonts,'get_object') else fonts
     for i,(args,op) in enumerate(stream.operations):
+        previous_count=len(objects)
         if op==b'q':graphics_stack.append(graphics.copy())
         elif op==b'Q':graphics=graphics_stack.pop() if graphics_stack else {}
         elif op==b'gs' and args:
@@ -59,6 +60,8 @@ def map_objects(page):
             ob=fonts.get(args[0]);ob=ob.get_object() if ob else {}
             objects.append({'type':'form' if ob.get('/Subtype')=='/Form' else 'image','at':i})
         elif op in (b'sh',b'INLINE IMAGE'):objects.append({'type':'shading' if op==b'sh' else 'image','at':i})
+        if op not in TEXT and len(objects)>previous_count:
+            for mark in marks:mark['objects'].extend(objects[previous_count:])
     return stream,objects
 
 def decoded_texts(page,stream):
@@ -114,6 +117,8 @@ def check_editable(page,descriptions):
         if len(mapped)!=len(descriptions) or any(a['type']!=b['type'] for a,b in zip(mapped,descriptions)):
             mapped=align_text_objects(page,stream,mapped,descriptions)
         for position,(a,b) in enumerate(zip(mapped,descriptions)):
+            if a['type']!='text' and a.get('semanticScopes'):
+                b['editable']=False;b['flowEditable']=False;b['reason']='此图形对象属于替代文字语义范围，保留原对象';continue
             if a.get('unmapped'):
                 b['editable']=False;b['flowEditable']=False;b['reason']='此对象无法验证内容流对应关系，保留原对象；已验证的文字可独立编辑';continue
             b['flowEditable']=bool((b['editable'] or b.get('simpleText')) and a['type']=='text')

@@ -253,3 +253,24 @@ test("same-slot correction retains untouched PDF ink despite rounded browser met
   assert.equal(r.glyphs[0].x, 40);
   assert.equal(r.glyphs[2].w, 5);
 });
+
+test("terminal equal-width digit keeps its source line when advance exceeds ink", () => {
+  const m = model("2026", {
+    frame: { x: 40, y: 50, width: 22, height: 13 },
+    sources: [{ index: 0 }],
+  });
+  const glyphs = [...m.text].map((text, i) => ({
+    text, originX: 40 + i * 6, baseline: 60,
+    x: 40 + i * 6, y: 51, w: 4, h: 9,
+  }));
+  sourceStyles(m, [o(0, "2026", 40, 60, 22, {fontKey: "a".repeat(32), glyphs})]);
+  const metric = (ch) => ({width: ch === "W" ? 12 : 6,
+    inkWidth: ch === "W" ? 11 : 4, ascent: 9, inkHeight: 9, fontKey: m.fontKey});
+  m.text = "2025";
+  const r = fastLayout(m, metric);
+  assert.equal(r.layoutMode, "原始字位");
+  assert.deepEqual(r.glyphs.map(g => [g.originX, g.baseline]), glyphs.map(g => [g.originX, g.baseline]));
+  assert.equal(r.overflow, false);
+  m.text = "202W";
+  assert.notEqual(fastLayout(m, metric).layoutMode, "原始字位");
+});

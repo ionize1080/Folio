@@ -96,11 +96,15 @@ export function fastLayout(m, measure) {
       }
       if (ch !== old.text) {
         const next = byOffset.get(at + ch.length);
+        const st = { ...m, ...old.style };
+        // A tight source ink box excludes the terminal glyph's side bearing.
+        // Its original advance still belongs to this slot, just as in native
+        // anchored layout; equal-width digit edits must not wrap the word.
         const available =
           next && Math.abs(next.baseline - old.baseline) < 0.5
             ? next.originX - old.originX
-            : f.x + f.width - old.originX;
-        const st = { ...m, ...old.style };
+            : Math.max(f.x + f.width - old.originX,
+                measure(old.text, st).width * (st.horizontalScale || 100) / 100);
         if (
           (measure(ch, st).width * (st.horizontalScale || 100)) / 100 >
           available + 0.25

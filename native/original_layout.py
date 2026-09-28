@@ -95,7 +95,7 @@ def render(m):
         if old_index is not None and old_index+1<len(gs) and abs(gs[old_index+1]['baseline']-source['baseline'])<.5:
             original_advance=gs[old_index+1]['originX']-source['originX']
             if original_advance>=0:advance=original_advance
-        tokens.append({'text':ch,'path':path,'size':size,'scale':scale,'color':source['style']['color'],'coverage':actual['coverage'],'advance':advance,'width':width,'referenceWidth':reference_width,'old':mapping.get(i),'synthetic':bool(source.get('synthetic') and ch==source['text'] and i in mapping),'start':offsets[i],'end':offsets[i]+len(ch.encode('utf-16-le'))//2})
+        tokens.append({'text':ch,'path':path,'size':size,'scale':scale,'color':source['style']['color'],'coverage':actual['coverage'],'advance':advance,'width':width,'referenceWidth':reference_width,'fontKey':key,'fallbackFont':path!=font['path'],'old':mapping.get(i),'synthetic':bool(source.get('synthetic') and ch==source['text'] and i in mapping),'start':offsets[i],'end':offsets[i]+len(ch.encode('utf-16-le'))//2})
     lines=[]
     for i,g in enumerate(gs):
         if not lines or abs(g['baseline']-gs[lines[-1][-1]]['baseline'])>.5:lines.append([])
@@ -142,6 +142,7 @@ def render(m):
     from ligatures import cluster
     painted=0
     positioned=[{**t,'originX':placement[i][0],'baseline':placement[i][1]} for i,t in enumerate(tokens)]
+    source_ink={(g['text'],g['style'].get('fontKey'),g['style'].get('size'),g['style'].get('horizontalScale',100)):g for g in gs}
     for i,t in enumerate(tokens):
         x,y=placement[i];font=fonts[t['path']]
         if t['path'] not in names:
@@ -159,11 +160,12 @@ def render(m):
         if source and abs(x-source['originX'])<.001 and abs(y-source['baseline'])<.001:
             box={k:source[k] for k in ('x','y','w','h')}
         else:
-            # Hit-testing/overset uses actual ink, not a full advance/em box.
-            # A changed terminal digit can have the same slot yet less ink.
-            bb=font.glyph_bbox(ord(t['text']))
-            box={'x':x+bb.x0*t['size']*t['scale'],'y':y-bb.y1*t['size'],
-                 'w':max(0,bb.width*t['size']*t['scale']),'h':max(0,bb.height*t['size'])}
+            # Reuse measured ink for an existing glyph of the same source face.
+            # Font.glyph_bbox can return the *global font box* for some CID
+            # subsets; that box can be twice as wide as this glyph's advance.
+            ref=None if t['fallbackFont'] else source_ink.get((t['text'],t['fontKey'],t['size'],t['scale']*100))
+            if ref:box={'x':x+ref['x']-ref['originX'],'y':y+ref['y']-ref['baseline'],'w':ref['w'],'h':ref['h']}
+            else:box={'x':x,'y':y-t['size']*.85,'w':t['width'],'h':t['size']}
         mapped.append({**box,'start':t['start'],'end':t['end'],'baseline':y,'line':round(y,3),'size':t['size']})
     from text_semantics import expand_preview
     original_box,preview_bounds=expand_preview(page)
