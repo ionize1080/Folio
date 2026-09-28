@@ -15,7 +15,7 @@ RESOURCE_OPERATORS = {b'Tf':('/Font',0),b'Do':('/XObject',0),b'gs':('/ExtGState'
 def eligible(form):
     return (form.get('/Subtype')=='/Form' and form.get('/FolioLayerVersion')==2
         and form.get('/FolioLayerKind')=='/Content'
-        and not any(k in form for k in ('/Group','/OC','/Ref','/StructParent')))
+        and not any(k in form for k in ('/Group','/OC','/Ref','/StructParent','/StructParents')))
 
 def expand_page(page):
     resources=page.get('/Resources',DictionaryObject()).get_object()

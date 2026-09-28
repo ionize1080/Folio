@@ -1,10 +1,14 @@
 # Folio PDF Studio
 
-> 当前主线与最新下载版本为 **1.2.0 RC1-P6**。版本仍处于 RC 阶段；GitHub Latest 表示当前下载入口，不代表所有已知限制已解决。新增非阻断碰撞/越界通知，并修复原字位、嵌入字体、CID 导出、连字、段落/表格识别和保存问题。原因、验收与剩余限制见 [P6 编辑审计](docs/RC1-P6-editor-audit.md)。大文件通道上限 8 GiB，实际验收范围以测试记录为准。
+> **RC1-P7 修复版**：普通嵌套包装 PDF 编辑、局部双栏识别、ActualText 语义和资源隔离修复。
+> [P7 下载](https://github.com/ionize1080/Folio/releases/tag/v1.2.0-rc1-p7) · [P7 审计与限制](docs/RC1-P7-editor-audit.md) · [P7 发布说明](docs/RELEASE-P7.md)。以下 P6 记录作为历史验收基线保留；GitHub Latest 与最新 RC 预发布入口可能不同。
+
+
+> 此前基线版本为 **1.2.0 RC1-P6**。版本仍处于 RC 阶段；GitHub Latest 表示当前下载入口，不代表所有已知限制已解决。新增非阻断碰撞/越界通知，并修复原字位、嵌入字体、CID 导出、连字、段落/表格识别和保存问题。原因、验收与剩余限制见 [P6 编辑审计](docs/RC1-P6-editor-audit.md)。大文件通道上限 8 GiB，实际验收范围以测试记录为准。
 
 面向 Windows x64 的离线 PDF 工作台，重点解决长文档的**书签生成与整理、页面内文字编辑、OCR 识别与校对**。阅读、版面分析、字体匹配和 OCR 在本地运行；完整便携包无需另装 Python、Node.js 或模型。
 
-**当前下载版：1.2.0 RC1-P6（RC）** · [下载与校验文件](https://github.com/ionize1080/Folio/releases/tag/v1.2.0-rc1-p6) · [编辑修复与验收](docs/RC1-P6-editor-audit.md)
+**P6 历史下载版：1.2.0 RC1-P6（RC）** · [下载与校验文件](https://github.com/ionize1080/Folio/releases/tag/v1.2.0-rc1-p6) · [编辑修复与验收](docs/RC1-P6-editor-audit.md)
 
 > 本轮 13 份文档、65 页复验，累计含复测 2,111 个操作检查点。65 页保存重开、260 个未改页面像素一致；保留词间空白检查为 51/65，保留换行的逐字检查为 48/65。7 页仍有段落拆分，另有空白/换行差异及 5 个复杂混排用例受限。保存成功不代表所有字位和像素不变。GitHub [Latest](https://github.com/ionize1080/Folio/releases/latest) 指向 P6；完整限制与平台范围见 [当前验证记录](docs/VALIDATION.md)。
 

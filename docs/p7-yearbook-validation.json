@@ -1,0 +1,247 @@
+{
+  "sha256": "b1fedc7a4ac4aa79da1baa624538cfd528f5e5aea87281a06814ce445dc874c6",
+  "pages": [
+    {
+      "page": 1,
+      "editable": 0,
+      "nested": 0,
+      "models": 0,
+      "mupdfPixelsExact": true,
+      "textExact": true,
+      "pdfiumMaxChannelDifference": 0,
+      "pdfiumChangedChannels": 0
+    },
+    {
+      "page": 2,
+      "editable": 7,
+      "nested": 0,
+      "models": 7,
+      "mupdfPixelsExact": true,
+      "textExact": true,
+      "pdfiumMaxChannelDifference": 1,
+      "pdfiumChangedChannels": 219
+    },
+    {
+      "page": 3,
+      "editable": 55,
+      "nested": 0,
+      "models": 12,
+      "mupdfPixelsExact": true,
+      "textExact": true,
+      "pdfiumMaxChannelDifference": 1,
+      "pdfiumChangedChannels": 3
+    },
+    {
+      "page": 4,
+      "editable": 90,
+      "nested": 0,
+      "models": 41,
+      "mupdfPixelsExact": true,
+      "textExact": true,
+      "pdfiumMaxChannelDifference": 0,
+      "pdfiumChangedChannels": 0
+    },
+    {
+      "page": 5,
+      "editable": 111,
+      "nested": 0,
+      "models": 31,
+      "mupdfPixelsExact": true,
+      "textExact": true,
+      "pdfiumMaxChannelDifference": 1,
+      "pdfiumChangedChannels": 245
+    },
+    {
+      "page": 6,
+      "editable": 87,
+      "nested": 0,
+      "models": 43,
+      "mupdfPixelsExact": true,
+      "textExact": true,
+      "pdfiumMaxChannelDifference": 0,
+      "pdfiumChangedChannels": 0
+    },
+    {
+      "page": 7,
+      "editable": 54,
+      "nested": 0,
+      "models": 15,
+      "mupdfPixelsExact": true,
+      "textExact": true,
+      "pdfiumMaxChannelDifference": 1,
+      "pdfiumChangedChannels": 32
+    },
+    {
+      "page": 8,
+      "editable": 81,
+      "nested": 0,
+      "models": 37,
+      "mupdfPixelsExact": true,
+      "textExact": true,
+      "pdfiumMaxChannelDifference": 1,
+      "pdfiumChangedChannels": 8
+    },
+    {
+      "page": 9,
+      "editable": 67,
+      "nested": 0,
+      "models": 14,
+      "mupdfPixelsExact": true,
+      "textExact": true,
+      "pdfiumMaxChannelDifference": 0,
+      "pdfiumChangedChannels": 0
+    },
+    {
+      "page": 10,
+      "editable": 25,
+      "nested": 0,
+      "models": 10,
+      "mupdfPixelsExact": true,
+      "textExact": true,
+      "pdfiumMaxChannelDifference": 0,
+      "pdfiumChangedChannels": 0
+    },
+    {
+      "page": 11,
+      "editable": 56,
+      "nested": 0,
+      "models": 17,
+      "mupdfPixelsExact": true,
+      "textExact": true,
+      "pdfiumMaxChannelDifference": 0,
+      "pdfiumChangedChannels": 0
+    },
+    {
+      "page": 12,
+      "editable": 177,
+      "nested": 2,
+      "models": 34,
+      "mupdfPixelsExact": true,
+      "textExact": true,
+      "pdfiumMaxChannelDifference": 1,
+      "pdfiumChangedChannels": 55
+    },
+    {
+      "page": 13,
+      "editable": 192,
+      "nested": 1,
+      "models": 21,
+      "mupdfPixelsExact": true,
+      "textExact": true,
+      "pdfiumMaxChannelDifference": 0,
+      "pdfiumChangedChannels": 0
+    },
+    {
+      "page": 14,
+      "editable": 199,
+      "nested": 2,
+      "models": 24,
+      "mupdfPixelsExact": true,
+      "textExact": true,
+      "pdfiumMaxChannelDifference": 0,
+      "pdfiumChangedChannels": 0
+    },
+    {
+      "page": 15,
+      "editable": 194,
+      "nested": 1,
+      "models": 42,
+      "mupdfPixelsExact": true,
+      "textExact": true,
+      "pdfiumMaxChannelDifference": 0,
+      "pdfiumChangedChannels": 0
+    },
+    {
+      "page": 16,
+      "editable": 128,
+      "nested": 2,
+      "models": 31,
+      "mupdfPixelsExact": true,
+      "textExact": true,
+      "pdfiumMaxChannelDifference": 0,
+      "pdfiumChangedChannels": 0
+    },
+    {
+      "page": 17,
+      "editable": 139,
+      "nested": 0,
+      "models": 27,
+      "mupdfPixelsExact": true,
+      "textExact": true,
+      "pdfiumMaxChannelDifference": 1,
+      "pdfiumChangedChannels": 26
+    },
+    {
+      "page": 18,
+      "editable": 32,
+      "nested": 0,
+      "models": 5,
+      "mupdfPixelsExact": true,
+      "textExact": true,
+      "pdfiumMaxChannelDifference": 1,
+      "pdfiumChangedChannels": 107
+    },
+    {
+      "page": 19,
+      "editable": 38,
+      "nested": 1,
+      "models": 12,
+      "mupdfPixelsExact": true,
+      "textExact": true,
+      "pdfiumMaxChannelDifference": 0,
+      "pdfiumChangedChannels": 0,
+      "columnsSeparated": true
+    },
+    {
+      "page": 20,
+      "editable": 55,
+      "nested": 2,
+      "models": 12,
+      "mupdfPixelsExact": true,
+      "textExact": true,
+      "pdfiumMaxChannelDifference": 0,
+      "pdfiumChangedChannels": 0
+    }
+  ],
+  "edits": [
+    {
+      "page": 2,
+      "mappingComplete": true,
+      "overflow": false,
+      "frameOverset": true,
+      "layoutMode": "原始字位",
+      "otherPagesExact": 19,
+      "reopen": true
+    },
+    {
+      "page": 12,
+      "mappingComplete": true,
+      "overflow": false,
+      "frameOverset": true,
+      "layoutMode": "原始字位",
+      "otherPagesExact": 19,
+      "reopen": true
+    },
+    {
+      "page": 19,
+      "mappingComplete": true,
+      "overflow": false,
+      "frameOverset": false,
+      "layoutMode": "原始字位",
+      "otherPagesExact": 19,
+      "reopen": true
+    },
+    {
+      "page": 20,
+      "mappingComplete": true,
+      "overflow": false,
+      "frameOverset": false,
+      "layoutMode": "原始字位",
+      "otherPagesExact": 19,
+      "reopen": true
+    }
+  ],
+  "errors": [],
+  "platform": "linux",
+  "scope": "Private 20-page sample; no full yearbook or native Windows sample claim"
+}

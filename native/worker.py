@@ -363,7 +363,7 @@ def run(args):
   return recognize(CACHED_PDF,p.raw,args)
  data=Path(args['input']).read_bytes() if 'input' in args else base64.b64decode(args['bytes'])
  if args.get('command') in ('inspect','apply'):
-  from content_layers import reopen
+  from form_compat import reopen
   numbers=([args.get('page',1)] if args.get('command')=='inspect' else [e.get('page',1) for e in args.get('edits',[])])
   data=reopen(data,numbers)
  with p.PdfDocument(data) as pdf:
@@ -373,6 +373,8 @@ def run(args):
    page_no=page;page=pdf[page-1];rotation=page.get_rotation();page.set_rotation(0);tp=page.get_textpage();box=page.get_mediabox();crop=page.get_bbox()
    out={'objects':[describe(p.raw,p.raw.FPDFPage_GetObject(page,i),i,tp) for i in range(p.raw.FPDFPage_CountObjects(page))],
         'size':[box[2]-box[0],box[3]-box[1]],'pageRotation':rotation,'pageBox':list(box)}
+   from form_diagnostics import annotate
+   annotate(p.raw,page,out['objects'])
    from original_layout import inspect as inspect_origins
    inspect_origins(p.raw,page,tp,out['objects'],out['size'][1]);tp.close();page.close()
    from content import check_editable
@@ -393,6 +395,11 @@ def run(args):
     for g in o.get('glyphs',[]):
      g['x']-=left;g['originX']-=left;g['y']-=old_height-top;g['baseline']-=old_height-top
    out['size']=[right-left,top-bottom];out['pageOrigin']=[left,bottom];out['pageBox']=list(crop)
+   editable=sum(bool(o.get('flowEditable')) for o in out['objects'])
+   nested=sum(o.get('nestedContent',{}).get('text',0) for o in out['objects'])
+   out['editSummary']={'editableTextObjects':editable,'nestedTextObjects':nested}
+   if not editable:
+    out['editSummary']['message']=('文字位于受保护的复合对象内，暂不能安全替换；可添加文字' if nested else '本页没有可安全替换的文字；扫描页可先 OCR，也可添加文字')
    return out
   if cmd=='apply':
    from content import compose

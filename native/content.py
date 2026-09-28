@@ -13,25 +13,38 @@ def raw_strings(v):
 
 def map_objects(page):
     stream=ContentStream(page.get('/Contents'),page.pdf)
-    objects=[]; start=None; shown=[];path_started=False;marks=[]
+    objects=[]; start=None; shown=[];path_started=False;marks=[];graphics={};graphics_stack=[]
     fonts=page['/Resources'].get('/XObject',{});fonts=fonts.get_object() if hasattr(fonts,'get_object') else fonts
     for i,(args,op) in enumerate(stream.operations):
+        if op==b'q':graphics_stack.append(graphics.copy())
+        elif op==b'Q':graphics=graphics_stack.pop() if graphics_stack else {}
+        elif op==b'gs' and args:
+            gs=page['/Resources'].get('/ExtGState',{});gs=gs.get_object() if hasattr(gs,'get_object') else gs
+            state=gs.get(args[0],{});state=state.get_object() if hasattr(state,'get_object') else state
+            graphics.update(state)
         if op in (b'BDC',b'BMC'):
-            value=args[1].get('/ActualText') if op==b'BDC' and len(args)>1 and isinstance(args[1],dict) else None
+            properties=args[1] if op==b'BDC' and len(args)>1 else {}
+            if isinstance(properties,NameObject):
+                table=page['/Resources'].get('/Properties',{});table=table.get_object() if hasattr(table,'get_object') else table
+                properties=table.get(properties,{})
+            properties=properties.get_object() if hasattr(properties,'get_object') else properties
+            value=properties.get('/ActualText') if isinstance(properties,dict) else None
             if isinstance(value,ByteStringObject):
                 try:value=bytes(value).decode('utf-16')
                 except UnicodeError:value=None
-            marks.append({'text':value,'objects':[]})
+            marks.append({'text':value,'objects':[],'at':i})
         elif op==b'EMC' and marks:
             mark=marks.pop()
-            if isinstance(mark['text'],str) and len(mark['text'])==1 and len(mark['objects'])==1:
-                mark['objects'][0]['actualText']=mark['text']
+            if isinstance(mark['text'],str):
+                for obj in mark['objects']:obj.setdefault('semanticScopes',[]).append({'at':mark['at'],'end':i,'count':len(mark['objects']),'text':mark['text']})
+                if len(mark['objects'])==1:mark['objects'][0]['actualText']=mark['text']
         if op in (b'm',b'l',b'c',b'v',b'y',b're'):path_started=True
         if op==b'BT':start=i;shown=[]
         if op in TEXT:
             strings=args[0] if op==b'TJ' else [args[-1]]
             if any(isinstance(x,(str,bytes)) and len(x) for x in strings):
-                objects.append({'type':'text','at':i,'begin':start,'end':None});shown.append(objects[-1])
+                complex_state=(str(graphics.get('/BM','/Normal')) not in ('/Normal','/Compatible') or str(graphics.get('/SMask','/None'))!='/None' or any(float(graphics.get(k,1))!=1 for k in ('/ca','/CA')) or any(k in graphics for k in ('/TR','/TR2','/HT')))
+                objects.append({'type':'text','at':i,'begin':start,'end':None,'complexGraphics':complex_state});shown.append(objects[-1])
                 for mark in marks:mark['objects'].append(objects[-1])
         elif op==b'ET':
             for o in shown:o['end']=i;o['single']=len(shown)==1
@@ -48,16 +61,8 @@ def map_objects(page):
         elif op in (b'sh',b'INLINE IMAGE'):objects.append({'type':'shading' if op==b'sh' else 'image','at':i})
     return stream,objects
 
-def align_text_objects(page,stream,mapped,descriptions):
-    """Recover text ownership only when non-path order AND decoded text agree.
-    PDFium may coalesce path paints. Those paths remain read-only; no guessed
-    operator is ever deleted to make object counts agree.
-    """
+def decoded_texts(page,stream):
     from pypdf._cmap import get_encoding
-    left=[m for m in mapped if m['type']!='path']
-    right=[d for d in descriptions if d['type']!='path']
-    if len(left)!=len(right) or any(a['type']!=b['type'] for a,b in zip(left,right)):
-        raise ValueError('页面对象与内容流无法可靠对应，仍可新增文字')
     fonts=page['/Resources'].get('/Font',{});fonts=fonts.get_object() if hasattr(fonts,'get_object') else fonts
     cache={};decoded={};font=None;stack=[]
     for at,(args,op) in enumerate(stream.operations):
@@ -74,6 +79,19 @@ def align_text_objects(page,stream,mapped,descriptions):
                 text=raw.decode(encoding,errors='strict') if isinstance(encoding,str) else ''.join(encoding[c] for c in raw)
                 out.append(''.join(cmap.get(c,c) for c in text))
             decoded[at]=''.join(out)
+    return decoded
+
+def align_text_objects(page,stream,mapped,descriptions):
+    """Recover text ownership only when non-path order AND decoded text agree.
+    PDFium may coalesce path paints. Those paths remain read-only; no guessed
+    operator is ever deleted to make object counts agree.
+    """
+    from pypdf._cmap import get_encoding
+    left=[m for m in mapped if m['type']!='path']
+    right=[d for d in descriptions if d['type']!='path']
+    if len(left)!=len(right) or any(a['type']!=b['type'] for a,b in zip(left,right)):
+        raise ValueError('页面对象与内容流无法可靠对应，仍可新增文字')
+    decoded=decoded_texts(page,stream)
     # PDFium synthesizes spaces from TJ offsets and reverses RTL extraction.
     # Only space-equivalent strings receive writable ownership. Unsupported
     # encodings/RTL objects keep their original stream and remain read-only.
@@ -91,6 +109,8 @@ def check_editable(page,descriptions):
         stream,mapped=map_objects(page)
         from text_advance import advances
         safe=advances(page,stream)
+        try:decoded=decoded_texts(page,stream)
+        except Exception:decoded={}
         if len(mapped)!=len(descriptions) or any(a['type']!=b['type'] for a,b in zip(mapped,descriptions)):
             mapped=align_text_objects(page,stream,mapped,descriptions)
         for position,(a,b) in enumerate(zip(mapped,descriptions)):
@@ -98,10 +118,22 @@ def check_editable(page,descriptions):
                 b['editable']=False;b['flowEditable']=False;b['reason']='此对象无法验证内容流对应关系，保留原对象；已验证的文字可独立编辑';continue
             b['flowEditable']=bool((b['editable'] or b.get('simpleText')) and a['type']=='text')
             if a['type']=='text':
+                if a.get('complexGraphics'):
+                    b['editable']=False;b['flowEditable']=False;b['reason']='此文字含透明度、混合或传递函数，保留原绘制状态';continue
+                source_text=decoded.get(a['at'])
+                # PDFium's object extraction can attach a generated separator
+                # between distant calls to the preceding object. It has no
+                # source glyph and can make exact layout mapping fail.
+                if isinstance(source_text,str) and b.get('text','').rstrip(' ')==source_text.rstrip(' '):
+                    b['text']=source_text
+                if any(scope['count'] != 1 for scope in a.get('semanticScopes',[])):
+                    b['editable']=False;b['flowEditable']=False;b['reason']='多个文字对象共用替代文字语义，需整体语义编辑；保留原对象';continue
                 # PDFium can invent a trailing space after a narrow glyph kept
                 # in a wider original slot. A one-character ActualText scope
                 # proves the intended text without changing raw signatures.
                 actual=a.get('actualText')
+                if actual is not None and b.get('text','').strip()!=actual.strip():
+                    b['editable']=False;b['flowEditable']=False;b['reason']='替代文字与可见字形不一致，保留原语义';continue
                 if actual is not None and b.get('text','').strip()==actual.strip():
                     b['text']=actual
                     # Paragraph extraction omits zero-ink whitespace objects.
@@ -124,6 +156,28 @@ def check_editable(page,descriptions):
             b['editable']=False;b['flowEditable']=False;b['reason']=str(e)
         return None
 
+def clear_actual_text(page,stream,mapped):
+    # Detach named/shared property dictionaries before changing this invocation.
+    for scope in mapped.get('semanticScopes',[]):
+        if scope['count'] != 1:raise ValueError('不能局部删除共用替代文字语义')
+        at=scope['at'];args,op=stream.operations[at];props=args[1]
+        if isinstance(props,NameObject):props=page['/Resources']['/Properties'][props].get_object()
+        props=DictionaryObject(dict(props));props.pop('/ActualText',None)
+        stream.operations[at]=([args[0],props],op)
+
+
+def stream_identity(stream):
+    # Only deduplicate leaf streams with scalar dictionaries. Child references,
+    # resources, Decode parameters and complex dictionaries need graph identity.
+    values={}
+    for key,value in stream.items():
+        if key in ('/Length','/Filter','/DecodeParms'):continue
+        if isinstance(value,IndirectObject) or isinstance(value,(dict,list,tuple)):return None
+        if not isinstance(value,(str,bytes,int,float,bool)):return None
+        values[str(key)]=(type(value).__name__,repr(value))
+    import json
+    return hashlib.sha256(json.dumps(values,sort_keys=True).encode()+b'\0'+stream.get_data()).hexdigest()
+
 def compose(data,edits,blocks,inspect,fragment,progress=None):
     from pdf_writer import clone_document
     reader=PdfReader(io.BytesIO(data));writer=clone_document(reader)
@@ -141,10 +195,10 @@ def compose(data,edits,blocks,inspect,fragment,progress=None):
                 if value.idnum in visited:return
                 visited.add(value.idnum);obj=value.get_object()
                 if isinstance(obj,StreamObject):
-                    digest=hashlib.sha256(obj.get_data()).hexdigest()
-                    if digest in stream_cache:
+                    digest=stream_identity(obj)
+                    if digest is not None and digest in stream_cache:
                         writer._id_translated.setdefault(id(source),{'PreventGC':source})[value.idnum]=stream_cache[digest]
-                    else:stream_cache[digest]=value.clone(writer).idnum
+                    elif digest is not None:stream_cache[digest]=value.clone(writer).idnum
                     return
                 value=obj
             if isinstance(value,DictionaryObject):
@@ -249,6 +303,7 @@ def compose(data,edits,blocks,inspect,fragment,progress=None):
                     after[m['at']]=image_operations(writer,page,stream.operations[m['at']],e.get('matrix',d['matrix']),ctm,e.get('crop'),e.get('imageData'),e.get('imageFit','contain'))
                     omit.add(m['at']);continue
                 if m['type']=='text':
+                    clear_actual_text(page,stream,m)
                     omit.add(m['at']);position=m['end']
                     # Keep advances and quote side effects, without retaining the source strings.
                     if safe.get(m['at']) is not None:replacements[m['at']]=safe[m['at']]
@@ -313,4 +368,6 @@ def compose(data,edits,blocks,inspect,fragment,progress=None):
         current=p;group.append({**b,'page':1})
     if current is not None:process(current,group)
     for number in sorted(list(bypage)):process(number,[])
+    from pdf_features import ensure_version
+    ensure_version(writer)
     output=io.BytesIO();writer.write(output);return output.getvalue()

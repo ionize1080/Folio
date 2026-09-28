@@ -65,7 +65,7 @@ def render(m):
     # New style runs must equal the inherited source style to retain positions.
     offsets=[];offset=0
     for ch in text:offsets.append(offset);offset+=len(ch.encode('utf-16-le'))//2
-    fonts={};source_fonts={};details=[];tokens=[]
+    fonts={};source_fonts={};source_faces={};details=[];tokens=[]
     matcher=difflib.SequenceMatcher(None,old,text,autojunk=False);mapping={}
     for a,b,n in matcher.get_matching_blocks():
         for j in range(n):mapping[b+j]=a+j
@@ -88,12 +88,14 @@ def render(m):
         if path not in fonts:fonts[path]=fitz.Font(fontfile=path)
         size=source['style']['size'];scale=source['style'].get('horizontalScale',100)/100
         width=fonts[path].text_length(ch,fontsize=size)*scale
+        if font['path'] not in source_faces:source_faces[font['path']]=fitz.Font(fontfile=font['path'])
+        reference_width=source_faces[font['path']].text_length(gs[min(i,len(gs)-1)]['text'],fontsize=size)*scale
         advance=width+source['style'].get('charSpacing',0)+(source['style'].get('wordSpacing',0) if ch==' ' else 0)
         old_index=mapping.get(i)
         if old_index is not None and old_index+1<len(gs) and abs(gs[old_index+1]['baseline']-source['baseline'])<.5:
             original_advance=gs[old_index+1]['originX']-source['originX']
             if original_advance>=0:advance=original_advance
-        tokens.append({'text':ch,'path':path,'size':size,'scale':scale,'color':source['style']['color'],'coverage':actual['coverage'],'advance':advance,'width':width,'old':mapping.get(i),'synthetic':bool(source.get('synthetic') and ch==source['text'] and i in mapping),'start':offsets[i],'end':offsets[i]+len(ch.encode('utf-16-le'))//2})
+        tokens.append({'text':ch,'path':path,'size':size,'scale':scale,'color':source['style']['color'],'coverage':actual['coverage'],'advance':advance,'width':width,'referenceWidth':reference_width,'old':mapping.get(i),'synthetic':bool(source.get('synthetic') and ch==source['text'] and i in mapping),'start':offsets[i],'end':offsets[i]+len(ch.encode('utf-16-le'))//2})
     lines=[]
     for i,g in enumerate(gs):
         if not lines or abs(g['baseline']-gs[lines[-1][-1]]['baseline'])>.5:lines.append([])
@@ -104,7 +106,9 @@ def render(m):
     if exact:
         for i,t in enumerate(tokens):
             g=gs[i];nextg=gs[i+1] if i+1<len(gs) and abs(gs[i+1]['baseline']-g['baseline'])<.5 else None
-            slot=nextg['originX']-g['originX'] if nextg else m['frame']['x']+m['frame']['width']-g['originX']
+            # The frame may be the tight ink box. The original terminal glyph's
+            # advance can extend past its ink; equal-width corrections still fit.
+            slot=nextg['originX']-g['originX'] if nextg else max(m['frame']['x']+m['frame']['width']-g['originX'],t['referenceWidth'])
             if t['text']!=g['text'] and t['width']>slot+.25:exact=False;break
         if exact:
             placement={i:(g['originX'],g['baseline']) for i,g in enumerate(gs)}

@@ -2936,7 +2936,7 @@ export function installFlowUI(ctx) {
     status(
       candidates.length
         ? `第 ${page} 页 · 点击原页文字开始编辑 · 版式分析在后台进行`
-        : `第 ${page} 页 · 没有可直接替换的文字，可在格式面板添加文字；版式分析在后台进行`,
+        : `第 ${page} 页 · ${result.editSummary?.message || "没有可直接替换的文字，可在格式面板添加文字"}`,
     );
     return {
       page,

@@ -48,23 +48,30 @@ export function pageCandidates(objects, w, h, regions = [], tables = []) {
   )) {
     let lane = lanes.find((l) => Math.abs(l.x - o.u) < o.size * 2.5);
     if (!lane) {
-      lane = { x: o.u, left: [], right: [] };
+      lane = { x: o.u, left: [], right: [], rows: [] };
       lanes.push(lane);
     }
     lane.left.push(o.u);
     lane.right.push(o.end);
+    lane.rows.push(o);
   }
   const median = (a) => [...a].sort((a, b) => a - b)[Math.floor(a.length / 2)];
   const strong = lanes
     .filter((l) => l.left.length >= 3)
     .sort((a, b) => a.x - b.x);
-  const cuts = strong
-    .slice(1)
-    .map((l, i) => (median(strong[i].right) + median(l.left)) / 2)
-    .filter((c, i) => median(strong[i].right) < median(strong[i + 1].left))
-    .filter(
-      (c) => lines.filter((l) => l.u < c - 2 && l.end > c + 2).length < 3,
-    );
+  const cuts = strong.slice(1).flatMap((right, i) => {
+    const left = strong[i];
+    const x = (median(left.right) + median(right.left)) / 2;
+    if (median(left.right) >= median(right.left)) return [];
+    // Evidence is local to simultaneous body rows. Three spanning title lines
+    // above a two-column article cannot erase its gutter.
+    const paired = left.rows.filter((a) => right.rows.some((b) =>
+      Math.abs(a.base - b.base) <= Math.max(1, Math.min(a.size, b.size) * .3) &&
+      b.u - a.end >= Math.max(3, Math.min(a.size, b.size) * .8)));
+    if (paired.length < 3) return [];
+    return [{ x, top: Math.min(...paired.map((r) => r.base - r.size * 2)),
+      bottom: Math.max(...paired.map((r) => r.base + r.size * 2)) }];
+  });
   const cellObjects = new Map();
   const allCells = tables.flatMap((t) =>
     t.cells.map((c) => ({ ...c, tableId: t.id })),
@@ -155,9 +162,10 @@ export function pageCandidates(objects, w, h, regions = [], tables = []) {
     const physicalRow = rowByIndex.get(o.index);
     const rowLeft = physicalRow?.u ?? b[0],
       rowRight = physicalRow?.end ?? b[2];
-    const column = cuts.some((c) => rowLeft < c - 2 && rowRight > c + 2)
+    const activeCuts = cuts.filter((c) => y >= c.top && y <= c.bottom);
+    const column = activeCuts.some((c) => rowLeft < c.x - 2 && rowRight > c.x + 2)
       ? "span"
-      : cuts.filter((c) => x > c).length;
+      : activeCuts.filter((c) => x > c.x).length;
     const key =
       (r?.kind === "table"
         ? `${r.i}:${r.kind === "table" ? Math.round(o.matrix[5] / 3) : ""}`
