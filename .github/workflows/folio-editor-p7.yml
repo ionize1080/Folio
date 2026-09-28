@@ -23,6 +23,7 @@ jobs:
         with:
           python-version: "3.12"
       - run: npm ci
+      - run: npm audit --audit-level=high
       - run: python -m pip install -r tests/requirements.txt
       - run: python -m pip install --target native/vendor fonttools==4.61.1
       - name: Include fontTools license

@@ -9,6 +9,7 @@ import { createRequire } from "node:module";
 import { execFileSync } from "node:child_process";
 import * as PE from "pe-library";
 import * as ResEdit from "resedit";
+import extract from "@electron-internal/extract-zip";
 const require = createRequire(import.meta.url),
   asar = require("@electron/asar"),
   { downloadArtifact } = require("@electron/get");
@@ -62,13 +63,13 @@ await fs.rm(out, { recursive: true, force: true });
 await fs.rm(stage, { recursive: true, force: true });
 await fs.mkdir(out, { recursive: true });
 await fs.mkdir(stage, { recursive: true });
-// extract-zip is part of the locked Electron development dependencies.
+// Use Electron's pinned extractor only after checking the official ZIP hash.
 if (base)
   await fs.cp(base, out, {
     recursive: true,
     filter: (p) => !path.basename(p).startsWith(".Folio.exe."),
   });
-else await require("extract-zip")(runtime, { dir: out });
+else await extract(runtime, { dir: out });
 for (const item of [
   "src",
   "node_modules/opencc-js",

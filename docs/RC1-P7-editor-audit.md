@@ -20,6 +20,7 @@
 | 末字等宽纠错触发不必要重排 | 紧边界是墨迹框，末字 advance 大于墨迹宽 | 快速预览与原生排版都将原末字 advance 纳入原字位槽宽；同字同字体同尺寸复用已测墨迹，避免 CID 全字体边界造成误报 |
 | PDFium 附加空格导致映射不完整 | 不同调用间的几何分隔空格被附在前一个文字对象上 | 与内容流解码一致时恢复实际尾部空格数；真实空格不统一 trim |
 | 低版本 PDF 中已存在透明组 | 只沿用原文件声明 | 检查图形资源及 ActualText 的已知最低版本，只提升不足的有效版本 |
+| 构建依赖高危路径穿越公告 | 旧 `extract-zip 2.0.1` 带两项符号链接路径公告 | 移除旧包，固定 Electron 已采用的 `@electron-internal/extract-zip 1.0.5`；仅处理校验过官方 SHA256 的 Electron ZIP，完整构建验证；npm audit 门禁 |
 | 复合对象提示含糊 | 图片与嵌套文字都显示同一个只读原因 | 有深度、实例和循环预算的递归文字统计；扫描页提示 OCR，复合文字提示容器限制 |
 
 ## 验证范围
@@ -54,3 +55,5 @@
 4. [MuPDF pdf-clean.c](https://github.com/ArtifexSoftware/mupdf/blob/master/source/pdf/pdf-clean.c)：实例复制、资源处理、循环检测，以及新页内容流避免共享内容副作用。实际依赖固定为 PyMuPDF 1.26.6。
 5. [PDF-XChange 对 XForm 的公开说明](https://forum.pdf-xchange.com/viewtopic.php?p=141454)：参见上一轮研究中的厂商案例；本轮工程实现不依赖其闭源算法。
 6. [PDF Association 规范档案](https://pdfa.org/resource/pdf-specification-archive/)：规范版本与特征的依据。源代码 main/master 链接为审阅参考；运行依赖以 requirements/package-lock 为准。
+
+构建依赖依据：[GHSA-jmr9-qjv8-65gv](https://github.com/advisories/GHSA-jmr9-qjv8-65gv)、[GHSA-7pqw-9j4j-h8q3](https://github.com/advisories/GHSA-7pqw-9j4j-h8q3)、[Electron 提取器](https://github.com/electron/extract-zip)。提取器 API 为 Electron 内部用途，因此固定精确版本，仅用于官方 Electron 运行时；未来升级需再次检查 API。2026-09-28 的 npm audit 全依赖结果为 0 项公告，不等同于完整产品安全审计。
