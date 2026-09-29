@@ -1822,6 +1822,28 @@ export function installFlowUI(ctx) {
       model.text = input.value;
       queue();
     });
+    function restoreDraftHistory(redo) {
+      const from = redo ? future : history,
+        to = redo ? history : future,
+        entry = from.pop();
+      if (!entry) return;
+      to.push({
+        model: clone({ ...model, fastLayout: undefined }),
+        start: input.selectionStart,
+        end: input.selectionEnd,
+      });
+      model = entry.model;
+      input.value = model.text;
+      input.setSelectionRange(entry.start, entry.end);
+      showFields();
+      revision++;
+      validRevision = -1;
+      status("正在恢复布局…");
+      guarded(async () => {
+        await prepareBackground(null, true);
+        queue();
+      });
+    }
     listen(input, "keydown", (e) => {
       if (e.isComposing || composing || e.keyCode === 229) return;
       if (e.key === "Escape") {
@@ -1898,26 +1920,7 @@ export function installFlowUI(ctx) {
         e.preventDefault();
         e.stopPropagation();
         const redo = e.key.toLowerCase() === "y" || e.shiftKey;
-        const from = redo ? future : history,
-          to = redo ? history : future,
-          entry = from.pop();
-        if (!entry) return;
-        to.push({
-          model: clone({ ...model, fastLayout: undefined }),
-          start: input.selectionStart,
-          end: input.selectionEnd,
-        });
-        model = entry.model;
-        input.value = model.text;
-        input.setSelectionRange(entry.start, entry.end);
-        showFields();
-        revision++;
-        validRevision = -1;
-        status("正在恢复布局…");
-        guarded(async () => {
-          await prepareBackground(null, true);
-          queue();
-        });
+        restoreDraftHistory(redo);
         return;
       }
       if (ctrl && e.key === "Enter") {
@@ -2136,6 +2139,17 @@ export function installFlowUI(ctx) {
       };
     });
     listen(move, "keydown", (e) => {
+      if (
+        model &&
+        !busy &&
+        (e.ctrlKey || e.metaKey) &&
+        ["z", "y"].includes(e.key.toLowerCase())
+      ) {
+        e.preventDefault();
+        e.stopPropagation();
+        restoreDraftHistory(e.key.toLowerCase() === "y" || e.shiftKey);
+        return;
+      }
       if (
         !model ||
         model.cell ||

@@ -83,6 +83,8 @@ for (const f of [
   "src/region-select.mjs",
   "src/copy-region-ui.mjs",
   "ocr-jobs.cjs",
+  "ocr-review-merge.cjs",
+  "ocr-reading-order.cjs",
   "src/bookmark-tools.mjs",
   "src/bookmark-ui.mjs",
   "src/page-picker.mjs",

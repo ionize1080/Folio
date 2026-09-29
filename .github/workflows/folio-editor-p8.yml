@@ -70,6 +70,8 @@ jobs:
           for file in source.glob('*.pdf'):shutil.copyfile(file,target/file.name)
           shutil.rmtree('.corpus-seed',ignore_errors=True)
       - run: python tests/public-corpus-p6.py
+      - run: python tests/public-text-p8.py
+      - run: python tests/editor-p8-contracts.py
       - uses: actions/cache/save@v4
         if: steps.corpus-cache.outputs.cache-hit != 'true'
         with:
@@ -101,6 +103,11 @@ jobs:
         with:
           name: folio-p8-windows-validation
           path: tests/output/
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: folio-p8-screenshots
+          path: tests/output/*-*.png
       - name: Archive tested build
         run: python scripts/archive-release.py deliverables
       - uses: actions/upload-artifact@v4

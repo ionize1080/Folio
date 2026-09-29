@@ -90,6 +90,8 @@ def render(m):
     original_box,preview_bounds=expand_preview(page)
     svg=page.get_svg_image(text_as_path=True);page.set_mediabox(original_box)
     doc.subset_fonts();blob=doc.tobytes(garbage=3,deflate=True);doc.close()
+    from generated_cmaps import repair
+    blob=repair(blob,generated=True)
     f=m['frame'];overflow=any(g['x']<f['x']-.5 or g['y']<f['y']-.5 or g['x']+g['w']>f['x']+f['width']+.5 or g['y']+g['h']>f['y']+f['height']+.5 for g in gs if g['text'].strip())
     return {'engine':'Folio fast anchored layout','layoutMode':'快速排版','fragment':base64.b64encode(blob).decode(),'svg':svg,'glyphs':gs,
             'anchors':layout.get('anchors',[]),'frames':[[f['x'],f['y'],f['x']+f['width'],f['y']+f['height']]],'previewBounds':preview_bounds,'frameOverset':overflow,'overflow':overflow and not m.get('allowOverflow'),

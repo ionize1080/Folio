@@ -11,7 +11,7 @@ export function sourceStyles(model, objects) {
     .sort((a, b) => order.get(a.index) - order.get(b.index));
   for (const o of src) {
     const text = o.text.replace(/[\r\n]+/g, "");
-    if (!text) continue;
+    if (!text || (o.textSpacingExplicit && !text.trim())) continue;
     while (
       cursor < model.text.length &&
       /\s/.test(model.text[cursor]) &&

@@ -96,9 +96,14 @@ def render(m):
             original_advance=gs[old_index+1]['originX']-source['originX']
             if original_advance>=0:advance=original_advance
         tokens.append({'text':ch,'path':path,'size':size,'scale':scale,'color':source['style']['color'],'coverage':actual['coverage'],'advance':advance,'width':width,'referenceWidth':reference_width,'fontKey':key,'fallbackFont':path!=font['path'],'old':mapping.get(i),'synthetic':bool(source.get('synthetic') and ch==source['text'] and i in mapping),'start':offsets[i],'end':offsets[i]+len(ch.encode('utf-16-le'))//2})
+    boundaries=set();previous=None
+    for i,g in enumerate(gs):
+        if not g['text'].strip():continue
+        if previous and abs(previous['baseline']-g['baseline'])<.5 and g['originX']-(previous['x']+previous['w'])>max(12,g['style']['size']*1.5):boundaries.add(i)
+        previous=g
     lines=[]
     for i,g in enumerate(gs):
-        if not lines or abs(g['baseline']-gs[lines[-1][-1]]['baseline'])>.5:lines.append([])
+        if not lines or i in boundaries or abs(g['baseline']-gs[lines[-1][-1]]['baseline'])>.5:lines.append([])
         lines[-1].append(i)
     placement={};mode='原始字位'
     # With equal character counts keep anchors when replacements fit their slots.
@@ -124,6 +129,8 @@ def render(m):
             end=lines[last][-1]+1+delta;cursor=begin;trial={}
             for li in range(first,last+1):
                 x=gs[lines[li][0]]['originX'];base=gs[lines[li][0]]['baseline'];right=m['frame']['x']+m['frame']['width']
+                next_index=lines[li][-1]+1
+                if next_index in boundaries:right=gs[next_index]['originX']-m['size']*.3
                 while cursor<end:
                     t=tokens[cursor]
                     if x+t['width']>right+.25:break
@@ -132,8 +139,11 @@ def render(m):
                     trial[cursor]=(x,base);x+=t['advance'];cursor+=1
             if cursor==end:
                 placement.update(trial);fit=True;break
+            if lines[last][-1]+1 in boundaries:break
             last+=1
-        if not fit:return None
+        if not fit:
+            if boundaries:raise ValueError('原文含固定列间距；本次修改无法保留各列位置，请缩短修改或明确选择段落重排')
+            return None
         for i in range(begin):placement[i]=(gs[i]['originX'],gs[i]['baseline'])
         for i in range(end,len(tokens)):
             g=gs[i-delta];placement[i]=(g['originX'],g['baseline'])
@@ -171,5 +181,7 @@ def render(m):
     original_box,preview_bounds=expand_preview(page)
     svg=page.get_svg_image(text_as_path=True);page.set_mediabox(original_box)
     doc.subset_fonts();blob=doc.tobytes(garbage=3,deflate=True);doc.close()
+    from generated_cmaps import repair
+    blob=repair(blob,generated=True)
     f=m['frame'];overflow=any(g['x']+g['w']>f['x']+f['width']+.5 or g['y']+g['h']>f['y']+f['height']+.5 for g in mapped)
     return {'engine':'Folio anchored layout / MuPDF','layoutMode':mode,'engineVersion':fitz.VersionBind,'fragment':base64.b64encode(blob).decode(),'svg':svg,'previewBounds':preview_bounds,'glyphs':mapped,'positions':[], 'anchors':[], 'frames':[[f['x'],f['y'],f['x']+f['width'],f['y']+f['height']]],'frameOverset':overflow,'overflow':overflow and not m.get('allowOverflow'),'mappingComplete':True,'fallbackCount':len(details),'fallbackDetails':details,'spacingLimited':False}

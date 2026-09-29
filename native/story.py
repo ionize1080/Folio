@@ -211,11 +211,11 @@ def layout(model):
         frame_overset=any(g['x']<f['x']-.5 or g['x']+g['w']>f['x']+f['width']+.5 or g['y']+g['h']>f['y']+f['height']+.5 for g in glyphs)
         svg = page.get_svg_image(text_as_path=True)
         page.set_mediabox(original_box)
-        if map_ok:
-            from text_semantics import mark_text
-            mark_text(page,text)
         doc.subset_fonts()
-        blob = repair(doc.tobytes(garbage=3, deflate=True))
+        blob = repair(doc.tobytes(garbage=3, deflate=True),generated=True)
+        if map_ok:
+            from text_semantics import mark_shows
+            blob=mark_shows(blob,text)
     result = {'engine': 'MuPDF Story', 'layoutMode':'段落重排', 'engineVersion': fitz.VersionBind, 'fallbackCount':fallback_count, 'fallbackDetails':fallback_details, 'spacingLimited':spacing_limited,
             'fragment': base64.b64encode(blob).decode(), 'svg': svg,
             'glyphs': glyphs, 'positions': positions, 'frames': frames,'previewBounds':preview_bounds,'frameOverset':frame_overset,

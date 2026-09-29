@@ -1,3 +1,4 @@
+const { readingOrder } = require("./ocr-reading-order.cjs");
 // Conservative merge: manually reviewed geometry/text wins over overlapping new
 // detections. Keep every unmatched manual block, including explicit exclusions.
 function bounds(b) {
@@ -39,13 +40,6 @@ function mergeReview(fresh, previous, { regionQuad = null } = {}) {
         (old) => old.page === b.page && overlap(old, b) > 0.35,
       ),
   );
-  return output
-    .concat(protectedBlocks.map((b) => ({ ...b })))
-    .sort(
-      (a, b) =>
-        a.page - b.page ||
-        bounds(b)[3] - bounds(a)[3] ||
-        bounds(a)[0] - bounds(b)[0],
-    );
+  return readingOrder(output.concat(protectedBlocks.map((b) => ({ ...b }))));
 }
 module.exports = { mergeReview };

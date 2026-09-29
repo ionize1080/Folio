@@ -1,3 +1,4 @@
+import { hardGapStarts } from "./hard-gaps.mjs";
 // Keep untouched physical lines when a local edit fits its original line.
 // Added/deleted hard breaks, changed formatting or insufficient space use the
 // normal paragraph layout; never force characters into overlapping slots.
@@ -59,16 +60,19 @@ export function preserveLine(model, glyphs, anchors) {
     Math.abs(source[start].baseline - source[end].baseline) > 0.5
   )
     return false;
+  const boundaries = hardGapStarts(source);
   let lo = start,
     hi = end;
   while (
     lo > 0 &&
+    !boundaries.has(lo) &&
     source[lo - 1].text !== "\n" &&
     Math.abs(source[lo - 1].baseline - source[start].baseline) < 0.5
   )
     lo--;
   while (
     hi + 1 < source.length &&
+    !boundaries.has(hi + 1) &&
     source[hi].text !== "\n" &&
     Math.abs(source[hi + 1].baseline - source[start].baseline) < 0.5
   )
@@ -84,10 +88,12 @@ export function preserveLine(model, glyphs, anchors) {
     Math.abs(g.scale - (s.style?.horizontalScale ?? 100) / 100) < 0.001;
   const placements = [];
   let x = source[lo].originX;
-  const right = Math.max(
-    model.frame.x + model.frame.width,
-    ...source.slice(lo, hi + 1).map((g) => g.x + g.w),
-  );
+  const right = boundaries.has(hi + 1)
+    ? source[hi + 1].originX - model.size * 0.3
+    : Math.max(
+        model.frame.x + model.frame.width,
+        ...source.slice(lo, hi + 1).map((g) => g.x + g.w),
+      );
   for (const g of glyphs) {
     const oldAt =
       g.start < a
@@ -108,7 +114,7 @@ export function preserveLine(model, glyphs, anchors) {
       });
     } else {
       const ox = g.start < a && before ? before.originX : x;
-      if (g.text !== "\n" && ox + (g.x - g.originX) + g.w > right + 0.25)
+      if (g.text.trim() && ox + (g.x - g.originX) + g.w > right + 0.25)
         return false;
       placements.push({ g, x: ox, y: source[lo].baseline, source: before });
       const next = before && byOffset.get(before.end);

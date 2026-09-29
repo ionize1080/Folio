@@ -33,12 +33,14 @@ def parse_unicode(font, parser):
             font[NameObject('/ToUnicode')]=stream
     return parser(font)
 
-def repair(blob):
+def repair(blob, generated=False):
     import fitz
     with fitz.open(stream=blob,filetype='pdf') as doc:
         changed=False;seen=set()
         for page in doc:
             for font in page.get_fonts(full=True):
+                if generated and doc.xref_get_key(font[0],'Subtype')==('name','/Type0') and doc.xref_get_key(font[0],'Encoding')==('name','/Identity-H'):
+                    doc.xref_set_key(font[0],'FolioGIDEncoding','/Identity');changed=True
                 kind,value=doc.xref_get_key(font[0],'ToUnicode')
                 if kind!='xref':continue
                 ref=int(value.split()[0])

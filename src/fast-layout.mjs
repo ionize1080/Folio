@@ -1,3 +1,4 @@
+import { hardGapStarts } from "./hard-gaps.mjs";
 import { sourceLigature } from "./ligatures.mjs";
 import { preserveLine } from "./preserve-lines.mjs";
 // Deterministic browser layout. O(characters + runs); measuring is cached by face,
@@ -103,8 +104,11 @@ export function fastLayout(m, measure) {
         const available =
           next && Math.abs(next.baseline - old.baseline) < 0.5
             ? next.originX - old.originX
-            : Math.max(f.x + f.width - old.originX,
-                measure(old.text, st).width * (st.horizontalScale || 100) / 100);
+            : Math.max(
+                f.x + f.width - old.originX,
+                (measure(old.text, st).width * (st.horizontalScale || 100)) /
+                  100,
+              );
         if (
           (measure(ch, st).width * (st.horizontalScale || 100)) / 100 >
           available + 0.25
@@ -399,6 +403,15 @@ export function fastLayout(m, measure) {
       vertical: !!vertical,
     };
   const localLine = !geometrySame && preserveLine(m, gs, anchors);
+  if (
+    !geometrySame &&
+    !localLine &&
+    m.layoutMode !== "reflow" &&
+    hardGapStarts(original).size
+  )
+    throw Error(
+      "原文含固定列间距；本次修改无法保留各列位置，请缩短修改或明确选择段落重排",
+    );
   const overflow = gs.some(
     (g) =>
       g.text.trim() &&

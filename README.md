@@ -1,16 +1,9 @@
 # Folio PDF Studio
 
-> **RC1-P7 修复版**：普通嵌套包装 PDF 编辑、局部双栏识别、ActualText 语义和资源隔离修复。
-> [P7 下载](https://github.com/ionize1080/Folio/releases/tag/v1.2.0-rc1-p7) · [P7 审计与限制](docs/RC1-P7-editor-audit.md) · [P7 发布说明](docs/RELEASE-P7.md)。以下 P6 记录作为历史验收基线保留；GitHub Latest 与最新 RC 预发布入口可能不同。
-
-
-> 此前基线版本为 **1.2.0 RC1-P6**。版本仍处于 RC 阶段；GitHub Latest 表示当前下载入口，不代表所有已知限制已解决。新增非阻断碰撞/越界通知，并修复原字位、嵌入字体、CID 导出、连字、段落/表格识别和保存问题。原因、验收与剩余限制见 [P6 编辑审计](docs/RC1-P6-editor-audit.md)。大文件通道上限 8 GiB，实际验收范围以测试记录为准。
+> **1.2.0 正式通道**：文本框约束移动、方向键微调、图片调整与扫描增强，以及连续编辑/OCR/原生任务可靠性修复。
+> [下载 1.2.0](https://github.com/ionize1080/Folio/releases/tag/v1.2.0) · [发布说明与限制](docs/RELEASE-1.2.0.md) · [验收入口](docs/VALIDATION.md)。发布附件由完整 Windows 回归门控。
 
 面向 Windows x64 的离线 PDF 工作台，重点解决长文档的**书签生成与整理、页面内文字编辑、OCR 识别与校对**。阅读、版面分析、字体匹配和 OCR 在本地运行；完整便携包无需另装 Python、Node.js 或模型。
-
-**P6 历史下载版：1.2.0 RC1-P6（RC）** · [下载与校验文件](https://github.com/ionize1080/Folio/releases/tag/v1.2.0-rc1-p6) · [编辑修复与验收](docs/RC1-P6-editor-audit.md)
-
-> 本轮 13 份文档、65 页复验，累计含复测 2,111 个操作检查点。65 页保存重开、260 个未改页面像素一致；保留词间空白检查为 51/65，保留换行的逐字检查为 48/65。7 页仍有段落拆分，另有空白/换行差异及 5 个复杂混排用例受限。保存成功不代表所有字位和像素不变。GitHub [Latest](https://github.com/ionize1080/Folio/releases/latest) 指向 P6；完整限制与平台范围见 [当前验证记录](docs/VALIDATION.md)。
 
 [已实现功能](#已实现功能) · [项目架构](#项目架构) · [已知问题](#已知问题与适用边界) · [下一步计划](#下一步功能计划) · [开发与测试](#开发构建与测试)
 
@@ -20,16 +13,14 @@
 
 | 文件 | 用途 |
 | --- | --- |
-| `Folio-PDF-Studio-1.2.0-RC1-P6-portable-win-x64.zip` | Windows x64 便携运行包，完整解压后运行 `Folio.exe` |
-| `Folio-PDF-Studio-1.2.0-RC1-P6-source.zip` | 完整离线源码交付包，包含随包引擎、模型及运行资源 |
-| `Folio-PDF-Studio-1.2.0-RC1-P6-validation.json` | Windows 打包程序与界面验证记录 |
-| `Folio-PDF-Studio-1.2.0-RC1-P6-SHA256.txt` | 原始程序、源码和验证记录的 SHA-256 校验值 |
-| `Folio-PDF-Studio-1.2.0-RC1-P6-docs-20260923.zip` | 本次同步的 README、架构、计划、验证和备份说明 |
-| `Folio-PDF-Studio-1.2.0-RC1-P6-docs-20260923.json` | 文档包校验值、主线提交与已验证程序提交的对应关系 |
+| `Folio-PDF-Studio-1.2.0-portable-win-x64.zip` | 完整便携包，解压后运行 `Folio.exe` |
+| `Folio-PDF-Studio-1.2.0-source.zip` | 完整离线源码与随包运行资源 |
+| `Folio-PDF-Studio-1.2.0-validation.json` | 同提交 Windows 回归及公开样本结果 |
+| `Folio-PDF-Studio-1.2.0-SHA256.txt` | 附件校验值 |
 
 请保留解压后的完整目录，包括 `resources`、`locales` 和 DLL。GitHub 自动生成的 **Source code (zip/tar.gz)** 是仓库快照，与上述完整离线 `source.zip` 的资产范围不同。
 
-程序和完整离线源码附件保持 Windows 已验证提交 `0b1cfa0` 的原文件与哈希。本次主线更新包括发布脚本和文档；最新文档见上表文档包或仓库。旧分支、原 Latest P1 和更新前 P6 的独立备份见 [同步与回退记录](docs/RELEASE-SYNC-2026-09-23.md)。
+历史 RC 附件及备份保留；旧版本验收记录不作为本版通过证据。
 
 基本流程：打开或拖入 PDF → 编辑书签、页面内容或校对 OCR → 应用修改 → 保存 PDF。“完成编辑”或“应用修改”更新当前会话，**仍需保存文件**。需要继续调整段落结构、OCR 校对和内容编辑时，通过“更多工具 → 导入 / 导出”保存 `.folio` 工程。
 
@@ -38,6 +29,8 @@
 | `Ctrl+O` / `Ctrl+S` / `Ctrl+Shift+S` | 打开 / 保存 / 另存为 |
 | `Ctrl+F` / `F3` / `Shift+F3` | 搜索正文 / 下一个 / 上一个结果 |
 | `Ctrl+Z` / `Ctrl+Y` | 撤销 / 重做，输入期间优先作用于当前段落 |
+| 移动手柄方向键 / `Shift`＋方向键 | 1 pt / 10 pt 微调文本框；输入文字时不移动文本框 |
+| `Shift`＋拖动文本框 | 按主位移约束水平或垂直 |
 | `Ctrl+Enter` | 页面编辑中完成当前段；OCR 校对中确认并前往下一处 |
 | `Ctrl+Shift+B` | 从选中文字或当前视图新建书签 |
 | `F2` / `Delete` | 书签树中改名 / 删除所选子树 |
@@ -48,7 +41,7 @@
 
 ## 已实现功能
 
-以下以 **1.2.0 RC1-P6** 源码为基线。功能存在并不表示任意 PDF 都能无损处理；复杂结构和已知缺陷单独列在后文。
+以下基础功能沿用 P6/P7；本版新增及修复见 [1.2.0 发布说明](docs/RELEASE-1.2.0.md)。功能存在并不表示任意 PDF 都能无损处理；复杂结构和已知缺陷单独列在后文。
 
 ### 1. 阅读、定位与日常文档操作
 
@@ -101,6 +94,7 @@
 
 ### 4. 图片、对象与简单表格
 
+- 图片支持亮度/对比度、直方图与色阶、曲线、模糊、锐化、扫描增强和原图对照。
 - 提供文字、路径等对象的受限编辑入口；图片实例可替换、设置适配方式和可恢复裁切，保留源图供工程续编。
 - 简单有线表格支持单元格文字、行高联动、行列插入/删除、列宽调整、矩形合并/拆分、排版预览及撤销。
 - 表格可导出 CSV 和 XLSX。XLSX 单元格按文本写入，保留前导零、长编号、日期原文和合并范围；CSV 处理引号、换行及易被解释为公式的开头。

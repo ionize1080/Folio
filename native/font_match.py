@@ -28,7 +28,7 @@ def unicode_cmap(blob,mapping):
     tables[b'cmap']=struct.pack('>HHHHI',0,1,3,10,12)+sub
     return normalize(build(blob[:4],tables)),set(u for u,g in pairs)
 
-def cff_cids(blob):
+def cff_cids(blob, generated_identity=False):
     """CID-keyed CFF charset defines CID -> GID; CID is not a glyph index."""
     from fontTools.ttLib import TTFont
     if blob[:4]==b'OTTO':
@@ -38,7 +38,11 @@ def cff_cids(blob):
         font=None;_,top=read_cff(blob)
     else:raise ValueError('此 CID CFF 封装暂不支持，请明确选择替代字体')
     try:
-        if not hasattr(top,'ROS'):raise ValueError('CID 字体缺少字符集合映射')
+        if not hasattr(top,'ROS'):
+            # Our MuPDF writer emits name-keyed CFF with explicit GID codes.
+            # Never infer this for arbitrary imported CID fonts.
+            if generated_identity:return {gid:gid for gid in range(len(top.charset))}
+            raise ValueError('CID 字体缺少字符集合映射')
         mapping={0:0}
         for gid,name in enumerate(top.charset):
             if name.startswith('cid') and name[3:].isdigit():mapping[int(name[3:])]=gid
@@ -108,7 +112,7 @@ def inspect_fonts(data,page_number,objects,mapped,stream):
                     gid_map=cid.get('/CIDToGIDMap','/Identity')
                     if hasattr(gid_map,'get_object'):gid_map=gid_map.get_object()
                     raw=gid_map.get_data() if hasattr(gid_map,'get_data') else None
-                    mapping={};cids=cff_cids(blob) if cid.get('/Subtype')=='/CIDFontType0' else None
+                    mapping={};cids=cff_cids(blob, f.get('/FolioGIDEncoding')=='/Identity') if cid.get('/Subtype')=='/CIDFontType0' else None
                     if not cmap and cids is not None:
                         info=cid.get('/CIDSystemInfo',{});info=info.get_object() if hasattr(info,'get_object') else info
                         registry=str(info.get('/Registry',''));ordering=str(info.get('/Ordering',''))

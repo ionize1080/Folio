@@ -292,7 +292,8 @@ def recognize(pdf,r,args):
   seen.append(b);unique.append(b)
  region_quad=[native(pt) for pt in [[0,0],[img.width,0],[img.width,img.height],[0,img.height]]] if region else None
  img.close();bmp.close();page.close()
- return {'regionQuad':region_quad,'rss':sample_memory(),'blocks':unique,'skipped':False,'seconds':recognized-rendered,'diagnostics':diagnostics,'profile':profile,'timing':{'load':loaded-started,'render':rendered-loaded,'recognize':recognized-rendered,'total':time.perf_counter()-started},'engine':'RapidOCR / ONNX Runtime CPU','threads':threads,'batch':batch}
+ from ocr_reading_order import reading_order
+ return {'regionQuad':region_quad,'rss':sample_memory(),'blocks':reading_order(unique),'skipped':False,'seconds':recognized-rendered,'diagnostics':diagnostics,'profile':profile,'timing':{'load':loaded-started,'render':rendered-loaded,'recognize':recognized-rendered,'total':time.perf_counter()-started},'engine':'RapidOCR / ONNX Runtime CPU','threads':threads,'batch':batch}
 
 def run(args):
  global CACHED_PDF,CACHED_PATH

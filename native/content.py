@@ -33,9 +33,12 @@ def map_objects(page):
             if isinstance(value,ByteStringObject):
                 try:value=bytes(value).decode('utf-16')
                 except UnicodeError:value=None
-            marks.append({'text':value,'mcid':properties.get('/MCID') if isinstance(properties,dict) else None,'objects':[],'at':i})
+            marks.append({'flowText':properties.get('/FolioText') if isinstance(properties,dict) and args[0]=='/FolioParagraph' else None,'text':value,'mcid':properties.get('/MCID') if isinstance(properties,dict) else None,'objects':[],'at':i})
         elif op==b'EMC' and marks:
             mark=marks.pop()
+            if isinstance(mark.get('flowText'),str):
+                for obj in mark['objects']:
+                    obj.setdefault('flowGroup',mark['at']);obj.setdefault('flowText',mark['flowText'])
             if mark['mcid'] is not None:
                 for obj in mark['objects']:obj.setdefault('structureScopes',[]).append({'at':mark['at'],'end':i,'count':len(mark['objects']),'mcid':int(mark['mcid'])})
             if isinstance(mark['text'],str):
@@ -152,6 +155,7 @@ def check_editable(page,descriptions):
                             if not isinstance(value,str) or not value.isspace():break
                             b['text']+=value
                     b['textSpacingExplicit']=True
+                if 'flowGroup' in a:b.update(flowGroup=a['flowGroup'],flowText=a['flowText'])
                 b['textGroup']=a.get('begin')
                 b['independentFlow']=bool(a.get('single') or safe.get(a['at']) is not None)
                 b['flowEditable']=b['flowEditable'] and b['independentFlow']
@@ -245,6 +249,7 @@ def compose(data,edits,blocks,inspect,fragment,progress=None):
         flow_indices=set(); flow_blobs=[]; original_patches={}; inline_flows={}
         if flows:
             desc=inspect(number);mapped=check_editable(page,desc)
+            fonts_checked=False
             for flow in flows:
                 sources=flow.get('sources',[]);indices={e.get('index') for e in sources}
                 if len(indices)!=len(sources) or indices & flow_indices:raise ValueError('文本流包含重复原对象')
@@ -263,6 +268,14 @@ def compose(data,edits,blocks,inspect,fragment,progress=None):
                     original_patches[mapped[sources[0]['index']]['at']]=patch
                     flow_indices.update(indices)
                     continue
+                model=flow.get('model') or {}
+                if model.get('text') and sources and not fonts_checked:
+                    from font_match import inspect_fonts
+                    inspect_fonts(data,number,desc,mapped,map_objects(page)[0]);fonts_checked=True
+                if model.get('text') and any(desc[source['index']].get('fontResolution')=='metric-substitute' for source in sources):
+                    styles=model.get('runs') or [model]
+                    if any(style.get('fontResolution',model.get('fontResolution'))=='metric-substitute' for style in styles):
+                        raise ValueError('原字体未嵌入，本次修改需要重绘；请在字体栏明确选择并确认替代字体后再应用。草稿已保留')
                 for source in sources:replace.append({**source,'delete':True,'_flowDelete':True})
                 flow_indices.update(indices)
                 if (flow.get('model') or {}).get('text') == '':continue
@@ -272,13 +285,31 @@ def compose(data,edits,blocks,inspect,fragment,progress=None):
                 if len(layout.pages)!=1:raise ValueError('排版片段须为单页')
                 lp=layout.pages[0]
                 if abs(float(lp.mediabox.width)-float(page.cropbox.width))>2.5 or abs(float(lp.mediabox.height)-float(page.cropbox.height))>2.5:raise ValueError('排版页面尺寸与原件不一致')
+                from text_semantics import mark_paragraph
+                blob=mark_paragraph(blob,(flow.get('model') or {}).get('text',''))
                 structured=[scope for source in sources for scope in mapped[source['index']].get('structureScopes',[])]
+                preserve_site=bool(sources) and not (flow.get('model') or {}).get('behindPage') and (flow.get('model') or {}).get('layerOrder') is None
                 if structured:
                     scopes={(s['at'],s['end'],s['count'],s['mcid']) for s in structured}
                     if len(scopes)!=1 or structured[0]['count']!=len(sources) or len(structured)!=len(sources):raise ValueError('带标签文字需在同一完整 MCID 范围内编辑，草稿已保留')
                     scope=structured[0];ends=[mapped[source['index']].get('end') for source in sources]
                     if any(end is None or not scope['at']<end<scope['end'] for end in ends):raise ValueError('标签位于文字对象内部，暂不能安全重排')
+                if structured or preserve_site:
+                    ends=[mapped[source['index']].get('end') for source in sources]
+                    if any(end is None for end in ends):raise ValueError('原文绘制范围不完整，草稿已保留')
                     position=max(ends);original_stream,_=map_objects(page)
+                    first=min(mapped[source['index']]['at'] for source in sources)
+                    # A paragraph cannot jump across an overlapping foreign paint.
+                    # Disjoint paints have identical pixels at either ordering.
+                    f=(flow.get('model') or {}).get('frame',{})
+                    if f:
+                        left=float(page.cropbox.left)+f['x'];top=float(page.cropbox.top)-f['y']
+                        box=[left,top-f['height'],left+f['width'],top]
+                        for j,item in enumerate(mapped):
+                            if j in indices or item.get('at') is None or not first<=item['at']<=position:continue
+                            other=desc[j].get('bounds')
+                            if other and min(box[2],other[2])>max(box[0],other[0])+.1 and min(box[3],other[3])>max(box[1],other[1])+.1:
+                                raise ValueError('原文与其他绘制对象交错重叠，请分别编辑或明确调整图层，草稿已保留')
                     ctm=[1,0,0,1,0,0];stack=[]
                     for ar,op in original_stream.operations[:position+1]:
                         if op==b'q':stack.append(ctm[:])

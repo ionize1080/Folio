@@ -144,8 +144,9 @@ const root = path.resolve(__dirname, ".."),
     await page.locator('[data-adjust="contrast"]').fill("22");
     await page.locator('[data-adjust="blur"]').fill("0.5");
     await page.locator('[data-adjust="sharpen"]').fill("80");
-    const curve = page.locator("[data-curve]"),
-      box = await curve.boundingBox();
+    const curve = page.locator("[data-curve]");
+    await curve.scrollIntoViewIfNeeded();
+    const box = await curve.boundingBox();
     await page.mouse.click(box.x + box.width * 0.5, box.y + box.height * 0.4);
     await page.locator("[data-curve-y]").fill("160");
     await page.locator("[data-curve-y]").press("Tab");

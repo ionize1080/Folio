@@ -83,6 +83,8 @@ for (const item of [
   "flow-layout.cjs",
   "flow-validation.cjs",
   "ocr-jobs.cjs",
+  "ocr-review-merge.cjs",
+  "ocr-reading-order.cjs",
   "preload.cjs",
   "LICENSE",
   "THIRD-PARTY-NOTICES.md",

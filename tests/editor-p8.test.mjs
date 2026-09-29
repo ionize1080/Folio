@@ -96,3 +96,71 @@ test(
     }
   },
 );
+
+test("OCR full gutter reads down columns; a spanning title precedes both columns", () => {
+  const { readingOrder } = require("../ocr-reading-order.cjs");
+  const q = (text, x, y, width = 80) => ({
+    page: 1,
+    text,
+    quad: [
+      [x, y],
+      [x + width, y],
+      [x + width, y - 10],
+      [x, y - 10],
+    ],
+  });
+  const blocks = [
+    q("L1", 0, 80),
+    q("R1", 150, 80),
+    q("L2", 0, 65),
+    q("R2", 150, 65),
+    q("Title", 0, 120, 230),
+  ];
+  assert.deepEqual(
+    readingOrder(blocks).map((b) => b.text),
+    ["Title", "L1", "L2", "R1", "R2"],
+  );
+});
+
+test("fast local edits preserve fixed TJ column origins", async () => {
+  const { fastLayout } = await import("../src/fast-layout.mjs");
+  const style = {
+    fontKey: "test",
+    size: 12,
+    color: "#000000",
+    horizontalScale: 100,
+  };
+  const model = {
+    ...style,
+    text: "DD F",
+    frame: { x: 20, y: 20, width: 130, height: 30 },
+    align: "left",
+    lineHeight: 1.4,
+    charSpacing: 0,
+    wordSpacing: 0,
+    firstIndent: 0,
+    paragraphBefore: 0,
+    paragraphGap: 0,
+  };
+  const glyphs = [
+    { text: "C", start: 0, end: 1, originX: 20, x: 20, w: 6 },
+    { text: " ", start: 1, end: 2, originX: 26, x: 26, w: 74, synthetic: true },
+    { text: "F", start: 2, end: 3, originX: 100, x: 100, w: 6 },
+  ].map((g) => ({ ...g, baseline: 35, y: 25, h: 12, style }));
+  model.originalLayout = {
+    text: "C F",
+    frame: { ...model.frame },
+    settings: { ...model },
+    glyphs,
+  };
+  model.runs = [{ ...style, start: 0, end: 4 }];
+  const result = fastLayout(model, () => ({
+    width: 6,
+    key: "test",
+    name: "test",
+    covered: true,
+    inkWidth: 6,
+    inkHeight: 12,
+  }));
+  assert.equal(result.glyphs.at(-1).originX, 100);
+});

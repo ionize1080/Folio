@@ -1,0 +1,65 @@
+[
+  {
+    "id": "lm358",
+    "title": "TI LM358 datasheet Rev.AB",
+    "url": "https://www.ti.com/lit/ds/symlink/lm358.pdf",
+    "pages": 68,
+    "sha256": "618a685fe56ee7318e0a07cd2f98cd87d0d9549ccd1c828d6d4174875554ca97",
+    "selected": [
+      1,
+      3,
+      6,
+      25,
+      51
+    ],
+    "types": [
+      "双栏产品说明",
+      "管脚及表格",
+      "电气特性表",
+      "框图及正文",
+      "工程尺寸图"
+    ]
+  },
+  {
+    "id": "irs-w4",
+    "title": "IRS Form W-4 2026",
+    "url": "https://www.irs.gov/pub/irs-pdf/fw4.pdf",
+    "pages": 5,
+    "sha256": "92444d8856ce55d9e25dca8b6d1420634fc68b11e1ab1f760916ea29ddd312b2",
+    "selected": [
+      1,
+      2,
+      3,
+      4,
+      5
+    ],
+    "types": [
+      "交互表单",
+      "双栏说明",
+      "工作表",
+      "计算表",
+      "密集数字矩阵"
+    ]
+  },
+  {
+    "id": "gnu-make",
+    "title": "GNU Make 4.4.1 manual",
+    "url": "https://www.gnu.org/software/make/manual/make.pdf",
+    "pages": 229,
+    "sha256": "a4bc06026984382815e392159e60a4bc356cac6c5b81e5ae84fa4f58f621f4d3",
+    "selected": [
+      15,
+      16,
+      31,
+      110,
+      203
+    ],
+    "types": [
+      "语法说明",
+      "Makefile代码",
+      "解析说明",
+      "函数说明",
+      "复杂代码"
+    ]
+  }
+]

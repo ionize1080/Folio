@@ -65,12 +65,22 @@ export function pageCandidates(objects, w, h, regions = [], tables = []) {
     if (median(left.right) >= median(right.left)) return [];
     // Evidence is local to simultaneous body rows. Three spanning title lines
     // above a two-column article cannot erase its gutter.
-    const paired = left.rows.filter((a) => right.rows.some((b) =>
-      Math.abs(a.base - b.base) <= Math.max(1, Math.min(a.size, b.size) * .3) &&
-      b.u - a.end >= Math.max(3, Math.min(a.size, b.size) * .8)));
+    const paired = left.rows.filter((a) =>
+      right.rows.some(
+        (b) =>
+          Math.abs(a.base - b.base) <=
+            Math.max(1, Math.min(a.size, b.size) * 0.3) &&
+          b.u - a.end >= Math.max(3, Math.min(a.size, b.size) * 0.8),
+      ),
+    );
     if (paired.length < 3) return [];
-    return [{ x, top: Math.min(...paired.map((r) => r.base - r.size * 2)),
-      bottom: Math.max(...paired.map((r) => r.base + r.size * 2)) }];
+    return [
+      {
+        x,
+        top: Math.min(...paired.map((r) => r.base - r.size * 2)),
+        bottom: Math.max(...paired.map((r) => r.base + r.size * 2)),
+      },
+    ];
   });
   const cellObjects = new Map();
   const allCells = tables.flatMap((t) =>
@@ -85,8 +95,7 @@ export function pageCandidates(objects, w, h, regions = [], tables = []) {
   for (const o of objects.filter((o) => o.type === "text" && o.text?.trim())) {
     const b = topBounds(o, h);
     const touched = allCells.filter((c) => intersects(b, c.bounds, 1));
-    if (touched.length > 1)
-      for (const c of touched) unsafe.add(c.id);
+    if (touched.length > 1) for (const c of touched) unsafe.add(c.id);
   }
   for (const cell of allCells) {
     const src = objects.filter(
@@ -130,6 +139,12 @@ export function pageCandidates(objects, w, h, regions = [], tables = []) {
       cellObjects.get(cell.id).push(o);
       continue;
     }
+    if (o.flowGroup != null) {
+      const key = `folio:${o.flowGroup}`;
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(o);
+      continue;
+    }
     if (cell && unsafe.has(cell.id)) {
       const key = `uncertain:${cell.id}:${Math.round(o.matrix[5] / Math.max(1, o.size * 0.3))}`;
       if (!groups.has(key)) groups.set(key, []);
@@ -163,7 +178,9 @@ export function pageCandidates(objects, w, h, regions = [], tables = []) {
     const rowLeft = physicalRow?.u ?? b[0],
       rowRight = physicalRow?.end ?? b[2];
     const activeCuts = cuts.filter((c) => y >= c.top && y <= c.bottom);
-    const column = activeCuts.some((c) => rowLeft < c.x - 2 && rowRight > c.x + 2)
+    const column = activeCuts.some(
+      (c) => rowLeft < c.x - 2 && rowRight > c.x + 2,
+    )
       ? "span"
       : activeCuts.filter((c) => x > c.x).length;
     const key =
@@ -176,9 +193,29 @@ export function pageCandidates(objects, w, h, regions = [], tables = []) {
     groups.get(key).push(o);
   }
   const barriers = objects.filter((o) => o.type === "path");
-  let candidates = [...groups.values()].flatMap((g) =>
-    paragraphCandidates(g, h, barriers),
-  );
+  let candidates = [...groups.values()].flatMap((g) => {
+    const cs = paragraphCandidates(g, h, barriers);
+    if (!cs.length || g[0].flowGroup == null) return cs;
+    const src = [...g].sort((a, b) => a.index - b.index);
+    const text = src[0].flowText;
+    const compact = (s) => s.replace(/\s/g, "");
+    if (
+      typeof text !== "string" ||
+      compact(src.map((o) => o.text).join("")) !== compact(text)
+    )
+      return cs;
+    const merged = mergeCandidates(cs, w, h);
+    return [
+      {
+        ...cs[0],
+        ...merged,
+        text,
+        hardLineBreaks: true,
+        lineStarts: [0],
+        sources: src.map((o) => ({ index: o.index, signature: o.signature })),
+      },
+    ];
+  });
   // Native deletion now preserves advances inside shared BT groups; never merge columns by BT identity.
   candidates = candidates.map((c, i) => {
     const cs = [c];
