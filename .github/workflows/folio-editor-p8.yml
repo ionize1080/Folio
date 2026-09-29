@@ -79,23 +79,31 @@ jobs:
           key: p6-public-corpus-${{ hashFiles('tests/public-corpus-p6.json') }}
       - run: npm run build:win
       - run: npm run test:package
+        id: package
       - run: node tests/electron-p5.cjs
+        if: ${{ !cancelled() && steps.package.outcome == 'success' }}
         env:
           FOLIO_EXE: ${{ github.workspace }}\dist\Folio-PDF-Studio-win-x64\Folio.exe
       - run: node tests/electron-p6.cjs
+        if: ${{ !cancelled() && steps.package.outcome == 'success' }}
         env:
           FOLIO_EXE: ${{ github.workspace }}\dist\Folio-PDF-Studio-win-x64\Folio.exe
       - run: node tests/electron-p8.cjs
+        if: ${{ !cancelled() && steps.package.outcome == 'success' }}
         env:
           FOLIO_EXE: ${{ github.workspace }}\dist\Folio-PDF-Studio-win-x64\Folio.exe
       - run: node tests/electron-p7.cjs
+        if: ${{ !cancelled() && steps.package.outcome == 'success' }}
         env:
           FOLIO_EXE: ${{ github.workspace }}\dist\Folio-PDF-Studio-win-x64\Folio.exe
       - run: npm test
+        if: ${{ !cancelled() && steps.package.outcome == 'success' }}
       - run: node tests/electron-v12.cjs
+        if: ${{ !cancelled() && steps.package.outcome == 'success' }}
         env:
           FOLIO_EXE: ${{ github.workspace }}\dist\Folio-PDF-Studio-win-x64\Folio.exe
       - run: node tests/electron-p4.cjs
+        if: ${{ !cancelled() && steps.package.outcome == 'success' }}
         env:
           FOLIO_EXE: ${{ github.workspace }}\dist\Folio-PDF-Studio-win-x64\Folio.exe
       - uses: actions/upload-artifact@v4

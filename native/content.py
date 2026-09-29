@@ -301,15 +301,18 @@ def compose(data,edits,blocks,inspect,fragment,progress=None):
                     first=min(mapped[source['index']]['at'] for source in sources)
                     # A paragraph cannot jump across an overlapping foreign paint.
                     # Disjoint paints have identical pixels at either ordering.
-                    f=(flow.get('model') or {}).get('frame',{})
-                    if f:
-                        left=float(page.cropbox.left)+f['x'];top=float(page.cropbox.top)-f['y']
-                        box=[left,top-f['height'],left+f['width'],top]
-                        for j,item in enumerate(mapped):
-                            if j in indices or item.get('at') is None or not first<=item['at']<=position:continue
-                            other=desc[j].get('bounds')
-                            if other and min(box[2],other[2])>max(box[0],other[0])+.1 and min(box[3],other[3])>max(box[1],other[1])+.1:
-                                raise ValueError('原文与其他绘制对象交错重叠，请分别编辑或明确调整图层，草稿已保留')
+                    # Use painted ink, not the padded editing frame. A frame
+                    # may legitimately overlap the next heading while no glyph
+                    # does (common in dense annual reports).
+                    import fitz
+                    with fitz.open(stream=blob,filetype='pdf') as fragment_doc:
+                        left=float(page.cropbox.left);top=float(page.cropbox.top)
+                        ink_boxes=[[left+x0,top-y1,left+x1,top-y0] for kind,(x0,y0,x1,y1) in fragment_doc[0].get_bboxlog() if kind.startswith(('fill-','stroke-')) and x1>x0 and y1>y0]
+                    for j,item in enumerate(mapped):
+                        if j in indices or item.get('at') is None or not first<=item['at']<=position:continue
+                        other=desc[j].get('bounds')
+                        if other and any(min(box[2],other[2])>max(box[0],other[0])+.1 and min(box[3],other[3])>max(box[1],other[1])+.1 for box in ink_boxes):
+                            raise ValueError('原文与其他绘制对象交错重叠，请分别编辑或明确调整图层，草稿已保留')
                     ctm=[1,0,0,1,0,0];stack=[]
                     for ar,op in original_stream.operations[:position+1]:
                         if op==b'q':stack.append(ctm[:])

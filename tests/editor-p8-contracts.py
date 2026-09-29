@@ -12,6 +12,13 @@ d=fitz.open();p=d.new_page(width=400,height=300);p.insert_text((30,60),'12345678
 r,ms=models(raw);m=ms[0];m['text']='92345678';m['layoutMode']='reflow';m['allowOverflow']=True
 changed=save(raw,m);assert pixels(raw,clip=fitz.Rect(56,41,114,69))==pixels(changed,clip=fitz.Rect(56,41,114,69))
 checks.append('Default text redraw retains original paint position beneath later opaque graphics')
+# A padded frame may overlap following text sharing a BT without any ink overlap.
+d=fitz.open();p=d.new_page(width=400,height=300);p.insert_text((30,60),'First paragraph',fontsize=12);p.insert_text((30,95),'Next heading',fontsize=12)
+w=PdfWriter();pg=w.add_page(PdfReader(io.BytesIO(d.tobytes())).pages[0]);st=ContentStream(pg.get('/Contents'),w)
+st.operations=[([],b'BT')]+[(a,o) for a,o in st.operations if o not in (b'BT',b'ET')]+[([],b'ET')];pg[N('/Contents')]=w._add_object(st);raw=dump(w)
+r,ms=models(raw);m=next(m for m in ms if m['text'].startswith('First'));m['text']='Revised paragraph';m.update(layoutMode='reflow',allowOverflow=True);m['frame']['height']=80;m['runs']=[{**m['runs'][0],'end':len(m['text'])}]
+changed=save(raw,m);assert pixels(raw,clip=fitz.Rect(25,82,130,100))==pixels(changed,clip=fitz.Rect(25,82,130,100))
+checks.append('Padded frame crossing next heading does not reject disjoint actual ink in a shared BT')
 # Two independently positioned spans in ONE TJ remain separate on local edits.
 d=fitz.open();p=d.new_page(width=400,height=300);p.insert_text((30,60),'C F',fontsize=12,fontname='cour');w=PdfWriter();pg=w.add_page(PdfReader(io.BytesIO(d.tobytes())).pages[0]);st=ContentStream(pg.get('/Contents'),w)
 st.operations=[([A([B(b'C'),F(-7000),B(b'F')])],b'TJ') if op in (b'Tj',b'TJ') else (args,op) for args,op in st.operations];pg[N('/Contents')]=w._add_object(st);raw=dump(w);r,ms=models(raw);m=ms[0];m['text']=m['text'].replace('C','DD');m['runs']=[{**m['runs'][0],'end':len(m['text'])}]

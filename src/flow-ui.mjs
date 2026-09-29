@@ -988,7 +988,7 @@ export function installFlowUI(ctx) {
           type: "flow",
           index: null,
           sources: target.sources,
-          model: target,
+          model: rendered ? target : { ...target, text: "", runs: [], softBreaks: [] },
           fragment: blank.fragment,
         });
         await arrangedEdits(edits);
