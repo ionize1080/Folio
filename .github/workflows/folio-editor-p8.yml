@@ -126,7 +126,7 @@ jobs:
           path: deliverables/*-SHA256.json
 
   release:
-    if: false
+    if: github.ref == 'refs/heads/codex/folio-editor-p8'
     needs: windows
     runs-on: ubuntu-latest
     permissions:

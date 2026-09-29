@@ -23,7 +23,7 @@ with zipfile.ZipFile(source) as z:
  assert z.testzip() is None
  package=json.loads(z.read('Folio-PDF-Studio-source/package.json'));assert package['version']=='1.2.0' and not package['releaseChannel']
  assert 'Folio-PDF-Studio-source/native/form_compat.py' in z.namelist()
- assert 'Folio-PDF-Studio-source/docs/1.2.0-editor-audit.md' in z.namelist()
+ assert 'Folio-PDF-Studio-source/docs/RELEASE-1.2.0.md' in z.namelist()
  assert not any('/tests/output/' in n or '/.venv/' in n for n in z.namelist())
 shutil.copyfile(portable,out/f'{prefix}-portable-win-x64.zip');shutil.copyfile(source,out/source.name)
 run=os.environ['GITHUB_RUN_ID'];sha=os.environ['GITHUB_SHA'];url=f'https://github.com/ionize1080/Folio/actions/runs/{run}'
