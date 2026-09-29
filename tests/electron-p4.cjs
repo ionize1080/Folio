@@ -6,7 +6,11 @@ const root=path.resolve(__dirname,'..'),out=path.join(root,'tests/output'),check
  assert.equal(process.platform,'win32');assert(process.env.FOLIO_EXE);
  const app=await _electron.launch({executablePath:process.env.FOLIO_EXE,args:[],timeout:60000});let page;
  try{
-  page=await app.firstWindow();page.setDefaultTimeout(30000);page.on('pageerror',e=>errors.push(e.message));
+  page=await app.firstWindow();
+  // Each EXE suite starts with clean test storage, including recovery drafts.
+  await app.evaluate(async ({ session }) => session.defaultSession.clearStorageData());
+  await page.reload();
+page.setDefaultTimeout(30000);page.on('pageerror',e=>errors.push(e.message));
   await page.waitForSelector('[data-action="open"]');
   await page.evaluate(()=>localStorage.setItem('folio-settings',JSON.stringify({saveSummary:false})));await page.reload();
   const fixture=path.join(out,'p4-narrow.pdf'),saved=path.join(out,'p4-electron-saved.pdf');fs.rmSync(saved,{force:true});

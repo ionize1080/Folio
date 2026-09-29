@@ -33,6 +33,19 @@ def parse_unicode(font, parser):
             font[NameObject('/ToUnicode')]=stream
     return parser(font)
 
+def expand_ligatures(data):
+    """Generated presentation ligatures extract as their Unicode sequences."""
+    import unicodedata
+    def destination(cp):
+        text=unicodedata.normalize('NFKC',chr(cp)) if 0xfb00<=cp<=0xfb06 else chr(cp)
+        return b'<'+text.encode('utf-16-be').hex().encode()+b'>'
+    def interval(m):
+        a,b,cp=(int(v,16) for v in m.groups())
+        if b<a or cp>0xfb06 or cp+b-a<0xfb00:return m[0]
+        return b'<'+m[1]+b'> <'+m[2]+b'> ['+b' '.join(destination(cp+i) for i in range(b-a+1))+b']'
+    data=re.sub(rb'(?m)^\s*<([0-9a-fA-F]{1,4})>\s*<([0-9a-fA-F]{1,4})>\s*<([0-9a-fA-F]{4})>\s*$',interval,data)
+    return re.sub(rb'(?m)^(\s*<[0-9a-fA-F]{1,4}>\s*)<([fF][bB]0[0-6])>\s*$',lambda m:m[1]+destination(int(m[2],16)),data)
+
 def repair(blob, generated=False):
     import fitz
     with fitz.open(stream=blob,filetype='pdf') as doc:
@@ -46,5 +59,6 @@ def repair(blob, generated=False):
                 ref=int(value.split()[0])
                 if ref in seen:continue
                 seen.add(ref);data=doc.xref_stream(ref);fixed=repair_map(data)
+                if generated:fixed=expand_ligatures(fixed)
                 if fixed!=data:doc.update_stream(ref,fixed);changed=True
         return doc.tobytes(garbage=3,deflate=True) if changed else blob

@@ -246,7 +246,7 @@ def compose(data,edits,blocks,inspect,fragment,progress=None):
         flows=sorted([e for e in es if e.get('type')=='flow' and not e.get('delete')],key=lambda e:float((e.get('model') or {}).get('layerOrder',0)))
         replace=[e for e in es if e.get('index') is not None]
         appended=[e for e in es if e.get('index') is None and not e.get('delete') and e.get('type')!='flow']
-        flow_indices=set(); flow_blobs=[]; original_patches={}; inline_flows={}
+        flow_indices=set(); flow_blobs=[]; original_patches={}; inline_flows={}; relocated_marks=set()
         if flows:
             desc=inspect(number);mapped=check_editable(page,desc)
             fonts_checked=False
@@ -289,11 +289,20 @@ def compose(data,edits,blocks,inspect,fragment,progress=None):
                 blob=mark_paragraph(blob,(flow.get('model') or {}).get('text',''))
                 structured=[scope for source in sources for scope in mapped[source['index']].get('structureScopes',[])]
                 preserve_site=bool(sources) and not (flow.get('model') or {}).get('behindPage') and (flow.get('model') or {}).get('layerOrder') is None
+                relocated_scope=None
                 if structured:
                     scopes={(s['at'],s['end'],s['count'],s['mcid']) for s in structured}
                     if len(scopes)!=1 or structured[0]['count']!=len(sources) or len(structured)!=len(sources):raise ValueError('带标签文字需在同一完整 MCID 范围内编辑，草稿已保留')
                     scope=structured[0];ends=[mapped[source['index']].get('end') for source in sources]
-                    if any(end is None or not scope['at']<end<scope['end'] for end in ends):raise ValueError('标签位于文字对象内部，暂不能安全重排')
+                    if any(end is None for end in ends):raise ValueError('标签文字范围不完整')
+                    if any(not scope['at']<end<scope['end'] for end in ends):
+                        # Entire MCID is selected, but its wrappers sit inside
+                        # BT. Move that single complete marked-content scope to
+                        # the replacement call after ET; page ownership/MCID and
+                        # ParentTree stay unchanged and no Form nests a BT.
+                        original_stream,_=map_objects(page)
+                        relocated_scope=original_stream.operations[scope['at']]
+                        relocated_marks.update((scope['at'],scope['end']))
                 if structured or preserve_site:
                     ends=[mapped[source['index']].get('end') for source in sources]
                     if any(end is None for end in ends):raise ValueError('原文绘制范围不完整，草稿已保留')
@@ -322,7 +331,9 @@ def compose(data,edits,blocks,inspect,fragment,progress=None):
                     a,b,c,d,e,f=ctm;det=a*d-b*c
                     if abs(det)<1e-12:raise ValueError('标签范围变换不可逆')
                     inv=[d/det,-b/det,-c/det,a/det,(c*f-d*e)/det,(b*e-a*f)/det]
-                    inline_flows.setdefault(position,[]).extend([([],b'q'),([FloatObject(v) for v in inv],b'cm')]+form(page,blob,True)+[([],b'Q')])
+                    calls=[([],b'q'),([FloatObject(v) for v in inv],b'cm')]+form(page,blob,True)+[([],b'Q')]
+                    if relocated_scope:calls=[relocated_scope]+calls+[([],b'EMC')]
+                    inline_flows.setdefault(position,[]).extend(calls)
                 else:flow_blobs.append((blob,True,bool((flow.get('model') or {}).get('behindPage')),False))
         from table_resize import changes,transform
         growths=changes(es)
@@ -336,7 +347,7 @@ def compose(data,edits,blocks,inspect,fragment,progress=None):
         if replace:
             desc=inspect(number);mapped=check_editable(page,desc)
             if mapped is None:raise ValueError(desc[0]['reason'] if desc else '内容流不支持安全编辑')
-            stream,_=map_objects(page);omit=set();after=dict(inline_flows);used=set()
+            stream,_=map_objects(page);omit=set(relocated_marks);after=dict(inline_flows);used=set()
             table_before,table_after=transform(stream,mapped,desc,height,growths) or ({},{})
             from text_advance import advances
             safe=advances(page,stream)

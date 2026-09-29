@@ -20,6 +20,10 @@ const checks = [],
   let page;
   try {
     page = await app.firstWindow();
+    // Each EXE suite starts with clean test storage, including recovery drafts.
+    await app.evaluate(async ({ session }) => session.defaultSession.clearStorageData());
+    await page.reload();
+
     page.setDefaultTimeout(60000);
     page.on("pageerror", (e) => errors.push(e.message));
     await page.waitForSelector('[data-action="open"]');

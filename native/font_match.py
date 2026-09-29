@@ -182,6 +182,14 @@ def inspect_fonts(data,page_number,objects,mapped,stream):
                     from font_resolver import resolve_name
                     resolved=resolve_name(name)
                     if resolved:meta.update(resolved)
+            # PDFium may infer weight from StemV even when the source descriptor
+            # explicitly says Regular (e.g. JhengHei 400 with StemV 181).
+            descendants=f.get('/DescendantFonts')
+            face=descendants[0].get_object() if descendants else f
+            descriptor=face.get('/FontDescriptor',{})
+            descriptor=descriptor.get_object() if hasattr(descriptor,'get_object') else descriptor
+            weight=descriptor.get('/FontWeight')
+            if isinstance(weight,(int,float)) and 1<=weight<=1000:meta['fontBold']=weight>=600
             available[str(resource)]=meta
     state={'font':None,'charSpacing':0,'wordSpacing':0,'horizontalScale':100};stack=[];states={}
     for i,(args,op) in enumerate(stream.operations):
@@ -198,7 +206,9 @@ def inspect_fonts(data,page_number,objects,mapped,stream):
         if o['type']!='text':continue
         st=states.get(m['at'],{});meta=available.get(st.get('font'),{})
         factor=math.hypot(o['matrix'][0],o['matrix'][1])
-        o.update(meta);o['charSpacing']=st.get('charSpacing',0)*factor;o['wordSpacing']=st.get('wordSpacing',0)*factor
+        o.update(meta)
+        if 'fontBold' in meta:o['bold']=meta['fontBold'] or o.get('renderMode')==2
+        o['charSpacing']=st.get('charSpacing',0)*factor;o['wordSpacing']=st.get('wordSpacing',0)*factor
         o['horizontalScale']=st.get('horizontalScale',100)
     return available
 

@@ -30,7 +30,7 @@ checks.append('Same TJ fixed columns: growing first span preserves untouched sec
 d=fitz.open();p=d.new_page(width=400,height=400);p.insert_text((30,60),'Original 2026',fontsize=12);raw=d.tobytes()
 for cycle in range(3):
  r,ms=models(raw);assert ms
- m=max(ms,key=lambda m:len(m['text']));m['text']=('Editable paragraph 2026 with several lines and CFF source fonts. '*3).replace('2026',str(2025-cycle));m.update(layoutMode='reflow',allowOverflow=True,softBreaks=[]);m['frame'].update(width=260,height=260);m['runs']=[{**m['runs'][0],'start':0,'end':len(m['text'])}]
+ m=max(ms,key=lambda m:len(m['text']));m['text']=('Editable paragraph 2026 with overflow, office and CFF source fonts. '*3).replace('2026',str(2025-cycle));m.update(layoutMode='reflow',allowOverflow=True,softBreaks=[]);m['frame'].update(width=260,height=260);m['runs']=[{**m['runs'][0],'start':0,'end':len(m['text'])}]
  raw=save(raw,m);shutil.rmtree(CACHE,ignore_errors=True);_load_font.cache_clear();r,ms=models(raw)
  text=[o for o in r['objects'] if o['type']=='text' and o.get('text','').strip()]
  assert len(text)>2 and all(o.get('flowEditable') and o.get('fontKey') for o in text),[(o.get('reason'),o.get('fontFallback')) for o in text]
@@ -47,6 +47,22 @@ for args,op in st.operations:
  elif op==b'Do':assert active;calls+=1
 assert calls==1 and r.trailer['/Root']['/StructTreeRoot']['/K'][0].get_object()['/K']==0
 checks.append('Tagged replacement retains page MCID/ParentTree ownership and paints replacement inside its original scope')
+# A complete MCID inside BT can be moved with its replacement without duplicating ownership.
+w=PdfWriter();w.clone_document_from_reader(PdfReader(io.BytesIO(raw)));pg=w.pages[0];st=ContentStream(pg.get('/Contents'),w)
+start=next(i for i,(a,o) in enumerate(st.operations) if o==b'BDC' and a[1].get('/MCID')==0);mark=st.operations.pop(start);end=next(i for i,(a,o) in enumerate(st.operations) if o==b'EMC');st.operations.pop(end)
+bt=next(i for i,(a,o) in enumerate(st.operations) if o==b'BT');st.operations.insert(bt+1,mark);et=next(i for i,(a,o) in enumerate(st.operations) if o==b'ET');st.operations.insert(et,([],b'EMC'));pg[N('/Contents')]=w._add_object(st);inside=dump(w)
+r,ms=models(inside);m=ms[0];m.update(text='Tagged replacement inside text',layoutMode='reflow',allowOverflow=True);m['runs']=[{**m['runs'][0],'end':len(m['text'])}];changed=save(inside,m)
+r=PdfReader(io.BytesIO(changed));ops=ContentStream(r.pages[0].get('/Contents'),r).operations;marks=[a for a,o in ops if o==b'BDC' and a[1].get('/MCID')==0];assert len(marks)==1
+in_text=False;active=False;calls=0
+for a,o in ops:
+ if o==b'BT':in_text=True
+ if o==b'ET':in_text=False
+ if o==b'BDC' and a[1].get('/MCID')==0:active=True
+ if o==b'EMC':active=False
+ if o==b'Do':assert active and not in_text;calls+=1
+assert calls==1 and r.trailer['/Root']['/StructTreeRoot']['/K'][0].get_object()['/K']==0
+assert any('Tagged replacement' in x['text'] for x in models(changed)[1])
+checks.append('Complete MCID inside BT relocates exactly once around replacement outside text object')
 # Repeated OCR replacement does not keep dead Form/font streams.
 d=fitz.open();d.new_page(width=200,height=150);raw=d.tobytes();sizes=[]
 for i in range(10):
@@ -54,6 +70,10 @@ for i in range(10):
  r=PdfReader(io.BytesIO(raw));owned=[v for v in r.pages[0]['/Resources']['/XObject'].values() if v.get_object().get('/FolioOCRVersion')==1];assert len(owned)==1
 assert max(sizes[1:])<sizes[0]*1.05+10000,sizes
 checks.append('Ten OCR replacements retain one active layer and bounded output size')
+# Explicit source weight overrides engine StemV heuristics for Regular faces.
+d=fitz.open();p=d.new_page();p.insert_text((30,60),'Regular body',fontname='helv');w=PdfWriter();pg=w.add_page(PdfReader(io.BytesIO(d.tobytes())).pages[0]);font=next(iter(pg['/Resources']['/Font'].values())).get_object();font[N('/FontDescriptor')]=D({N('/Type'):N('/FontDescriptor'),N('/FontName'):N('/Helvetica'),N('/Flags'):I(32),N('/FontWeight'):I(400),N('/StemV'):I(182),N('/ItalicAngle'):I(0),N('/Ascent'):I(800),N('/Descent'):I(-200),N('/CapHeight'):I(700),N('/FontBBox'):A([I(-100),I(-200),I(1000),I(900)])})
+raw=dump(w);r=inspect(raw);assert all(not o['bold'] and not o['fontBold'] for o in r['objects'] if o['type']=='text')
+checks.append('Explicit FontWeight 400 stays Regular even with a large StemV')
 # Metric substitute: original-resource correction is allowed; redraw needs a choice.
 d=fitz.open();p=d.new_page(width=400,height=300);p.insert_text((30,60),'2026',fontname='helv');w=PdfWriter();pg=w.add_page(PdfReader(io.BytesIO(d.tobytes())).pages[0]);font=next(iter(pg['/Resources']['/Font'].values())).get_object();font[N('/BaseFont')]=N('/Arial');font[N('/FirstChar')]=I(32);font[N('/LastChar')]=I(126);font[N('/Widths')]=A([F(fitz.Font('helv').glyph_advance(cp)*1000) for cp in range(32,127)]);raw=dump(w)
 r,ms=models(raw);m=ms[0]

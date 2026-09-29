@@ -5,7 +5,11 @@ const root=path.resolve(__dirname,'..'),out=path.join(root,'tests/output'),check
  const app=await _electron.launch({args:process.env.FOLIO_EXE?[]:[root],executablePath:process.env.FOLIO_EXE,timeout:60000});
  let page;
  try{
-  page=await app.firstWindow();const errors=[];page.on('pageerror',e=>errors.push(e.message));
+  page=await app.firstWindow();
+  // Each EXE suite starts with clean test storage, including recovery drafts.
+  await app.evaluate(async ({ session }) => session.defaultSession.clearStorageData());
+  await page.reload();
+const errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.waitForSelector('[data-action="open"]');
   await page.evaluate(()=>{localStorage.setItem('folio-settings',JSON.stringify({saveSummary:false}));});await page.reload();
   const fixture=path.join(out,'v11-fixture.pdf'),saved=path.join(out,'v12-electron-saved.pdf');
