@@ -7,8 +7,14 @@ $stage = Join-Path $parent ('.folio-update-' + [Guid]::NewGuid().ToString('N'))
 $backup = $m.target + '.backup-' + (Get-Date -Format 'yyyyMMdd-HHmmss')
 $log = Join-Path (Split-Path -Parent $Manifest) 'install.log'
 $moved = $false
+function File-SHA([string]$file) {
+  $stream = [IO.File]::OpenRead($file)
+  $algorithm = [Security.Cryptography.SHA256]::Create()
+  try { return ([BitConverter]::ToString($algorithm.ComputeHash($stream))).Replace('-','').ToLowerInvariant() }
+  finally { $stream.Dispose(); $algorithm.Dispose() }
+}
 try {
-  if ((Get-FileHash -LiteralPath $m.file -Algorithm SHA256).Hash -ne $m.hash) { throw 'Update checksum mismatch' }
+  if ((File-SHA $m.file) -ne $m.hash) { throw 'Update checksum mismatch' }
   New-Item -ItemType Directory -Path $stage | Out-Null
   $zip = [IO.Compression.ZipFile]::OpenRead($m.file)
   try {
@@ -26,7 +32,7 @@ try {
   $new = Join-Path $stage 'Folio-PDF-Studio'
   $info = Get-Content -LiteralPath (Join-Path $new 'BUILD-INFO.json') -Raw -Encoding UTF8 | ConvertFrom-Json
   foreach ($pair in @(@('Folio.exe','exe_sha256'),@('resources/app.asar','asar_sha256'))) {
-    if ((Get-FileHash -LiteralPath (Join-Path $new $pair[0]) -Algorithm SHA256).Hash -ne $info.($pair[1])) { throw 'Packaged binary checksum mismatch' }
+    if ((File-SHA (Join-Path $new $pair[0])) -ne $info.($pair[1])) { throw 'Packaged binary checksum mismatch' }
   }
   $fullVersion = $info.version + $(if ($info.releaseChannel) { '-' + $info.releaseChannel } else { '' })
   if ($fullVersion -ne $m.version.TrimStart('v')) { throw 'Packaged version mismatch' }

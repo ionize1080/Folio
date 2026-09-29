@@ -50,12 +50,18 @@ jobs:
               shutil.copyfile(source, target)
       - run: npx playwright install chromium
       - run: python scripts/restore-assets.py
+      - run: python tests/image-v13.py
+      - run: npm run build:win
+      - run: npm run test:package
+        id: package
+      - run: node tests/image-v13.cjs
+        env:
+          FOLIO_EXE: ${{ github.workspace }}\dist\Folio-PDF-Studio-win-x64\Folio.exe
       - run: python tests/public-corpus-p5.py
       - run: python tests/editor-p5.py
       - run: python tests/editor-p6.py
       - run: python tests/editor-p7.py
       - run: python tests/editor-p8.py
-      - run: python tests/image-v13.py
       - run: python tests/update-windows-v13.py
       - run: python tests/editor-yearbook.py
       - run: python tests/public-corpus-p8.py
@@ -92,12 +98,6 @@ jobs:
         with:
           path: tests/output/p6/originals
           key: p6-public-corpus-${{ hashFiles('tests/public-corpus-p6.json') }}
-      - run: npm run build:win
-      - run: npm run test:package
-        id: package
-      - run: node tests/image-v13.cjs
-        env:
-          FOLIO_EXE: ${{ github.workspace }}\dist\Folio-PDF-Studio-win-x64\Folio.exe
       - run: node tests/electron-p5.cjs
         if: ${{ !cancelled() && steps.package.outcome == 'success' }}
         env:
