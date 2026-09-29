@@ -146,6 +146,12 @@ def check_editable(page,descriptions):
                     b['editable']=False;b['flowEditable']=False;b['reason']='替代文字与可见字形不一致，保留原语义';continue
                 if actual is not None and b.get('text','').strip()==actual.strip():
                     b['text']=actual
+                    # PDFium distributes ActualText boxes but can report one
+                    # shared origin for every scalar. These are semantic boxes,
+                    # not the original glyph anchors; use normal layout instead.
+                    glyphs=b.get('glyphs',[])
+                    if len(actual)>1 and any(abs(a['originX']-c['originX'])<.001 and abs(a['baseline']-c['baseline'])<.001 and abs(a['x']-c['x'])>.01 for a,c in zip(glyphs,glyphs[1:])):
+                        b.pop('glyphs',None)
                     # Paragraph extraction omits zero-ink whitespace objects.
                     # Carry their explicit characters on the preceding painted
                     # object, even when the source space shared the next origin.
@@ -314,10 +320,15 @@ def compose(data,edits,blocks,inspect,fragment,progress=None):
                     # Use painted ink, not the padded editing frame. A frame
                     # may legitimately overlap the next heading while no glyph
                     # does (common in dense annual reports).
-                    import fitz
-                    with fitz.open(stream=blob,filetype='pdf') as fragment_doc:
-                        left=float(page.cropbox.left);top=float(page.cropbox.top)
-                        ink_boxes=[[left+x0,top-y1,left+x1,top-y0] for kind,(x0,y0,x1,y1) in fragment_doc[0].get_bboxlog() if kind.startswith(('fill-','stroke-')) and x1>x0 and y1>y0]
+                    # Compare bounds from the same engine as source objects.
+                    # MuPDF's text paint envelopes include extra padding that
+                    # falsely overlaps adjacent dotted leaders in tight tables.
+                    import pypdfium2 as pdfium
+                    with pdfium.PdfDocument(blob) as fragment_doc:
+                        fragment_page=fragment_doc[0]
+                        left=float(page.cropbox.left);bottom=float(page.cropbox.bottom)
+                        ink_boxes=[[left+x0,bottom+y0,left+x1,bottom+y1] for obj in fragment_page.get_objects(max_depth=1) for x0,y0,x1,y1 in [obj.get_bounds()] if x1>x0 and y1>y0]
+                        fragment_page.close()
                     for j,item in enumerate(mapped):
                         if j in indices or j in deleted_indices or item.get('at') is None or not first<=item['at']<=position:continue
                         other=desc[j].get('bounds')

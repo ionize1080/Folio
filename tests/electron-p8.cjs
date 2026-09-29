@@ -200,6 +200,45 @@ const root = path.resolve(__dirname, ".."),
     checks.push(
       "EXE: image selection, scan preset, contrast/blur/sharpen/curve, original comparison, apply/undo/redo, save/reopen/re-edit, light/dark screenshots",
     );
+    await open(path.join(out, "yearbook-wrapped.pdf"));
+    await page.locator('[data-action="flow-edit"]').click();
+    await page.locator(".page-edit-hit:not(.unavailable)").first().click();
+    await stable();
+    const yearbookInput = page.locator(".page-edit-input");
+    assert.equal((await yearbookInput.inputValue()).trim(), "Yearbook 2026");
+    await yearbookInput.evaluate((e) => e.setSelectionRange(12, 13));
+    await page.keyboard.insertText("5");
+    await stable();
+    assert.equal((await yearbookInput.inputValue()).trim(), "Yearbook 2025");
+    await page.screenshot({ path: path.join(out, "yearbook-text-edit.png") });
+    await page.locator("#pe-done").click();
+    await page.waitForFunction(() => !document.body.classList.contains("page-edit-mode"));
+    const yearbookSaved = await save("yearbook-exe-saved.pdf");
+    await open(yearbookSaved);
+    await page.locator('[data-action="flow-edit"]').click();
+    const yearbookHits = page.locator(".page-edit-hit:not(.unavailable)");
+    await yearbookHits.first().waitFor();
+    assert((await yearbookHits.evaluateAll((es) => es.map((e) => e.getAttribute("aria-label")))).some((s) => s.includes("Yearbook 2025")));
+    assert((await inspect(yearbookSaved, 2)).objects.some((o) => o.text === "Yearbook 2026"));
+    checks.push("EXE: nested wrapper with unowned MCID accepts text edit, saves, reopens editable and preserves shared sibling page");
+    await open(path.join(out, "yearbook-clipped-image.pdf"));
+    await page.locator(".more-tools > summary").click();
+    await page.locator('[data-action="edit-content"]').click();
+    await page.locator("#object-select").selectOption("0");
+    await page.waitForFunction(() => /预览已更新/.test(document.querySelector("[data-status]")?.textContent));
+    assert(await page.locator("[data-curve]").isVisible());
+    assert(await page.locator("#object-apply").isEnabled());
+    await page.locator('[data-adjust="contrast"]').fill("20");
+    await page.screenshot({ path: path.join(out, "yearbook-clipped-image-edit.png") });
+    await page.locator("#object-apply").click();
+    await page.waitForFunction(() => !document.querySelector("#modal").open);
+    const clippedSaved = await save("yearbook-clipped-exe-saved.pdf");
+    assert((await inspect(clippedSaved)).objects.some((o) => o.type === "image" && o.editable));
+    require("node:child_process").execFileSync(process.env.FOLIO_PYTHON || "python", [
+      "-c", "import sys,fitz; a=fitz.open(sys.argv[1]); b=fitz.open(sys.argv[2]); assert a[1].get_pixmap().samples==b[1].get_pixmap().samples; rects=[fitz.Rect(0,0,240,49),fitz.Rect(0,201,240,240),fitz.Rect(0,0,34,240),fitz.Rect(196,0,240,240)]; assert all(a[0].get_pixmap(clip=r).samples==b[0].get_pixmap(clip=r).samples for r in rects); assert a[0].get_pixmap().samples!=b[0].get_pixmap().samples",
+      path.join(out, "yearbook-clipped-image.pdf"), clippedSaved,
+    ], { stdio: "pipe" });
+    checks.push("EXE: partial rectangle photo exposes curves and adjustments; save retains crop, outside pixels, sibling and editability");
     assert.deepEqual(errors, []);
     const exe = await app.evaluate(() => process.execPath),
       hash = (p) =>

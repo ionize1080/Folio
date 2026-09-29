@@ -114,7 +114,11 @@ def render(m):
             # The frame may be the tight ink box. The original terminal glyph's
             # advance can extend past its ink; equal-width corrections still fit.
             slot=nextg['originX']-g['originX'] if nextg else max(m['frame']['x']+m['frame']['width']-g['originX'],t['referenceWidth'])
-            if t['text']!=g['text'] and t['width']>slot+.25:exact=False;break
+            # A tight slot can be smaller than the original glyph advance
+            # (negative tracking). An equal-width replacement still fits that
+            # existing geometry, including after save when per-glyph matrices
+            # encode the tracking and Tc itself has returned to zero.
+            if t['text']!=g['text'] and t['width']>max(slot,t['referenceWidth'])+.25:exact=False;break
         if exact:
             placement={i:(g['originX'],g['baseline']) for i,g in enumerate(gs)}
     if not exact:

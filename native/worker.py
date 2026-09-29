@@ -59,8 +59,8 @@ def replace(source,target):
 
 def get_color(r,obj,stroke=False):
  vals=[C.c_uint() for _ in range(4)];(r.FPDFPageObj_GetStrokeColor if stroke else r.FPDFPageObj_GetFillColor)(obj,*map(C.byref,vals));return [v.value for v in vals]
-def contains_ink_clip(r,clip,bounds):
- """Only closed, axis-aligned rectangles which contain the complete ink.
+def contains_ink_clip(r,clip,bounds=None):
+ """Only closed, axis-aligned rectangles; optionally require complete ink.
  Keep curves, holes, partial glyph clipping and unknown paths read-only.
  PDFium clip segments and object bounds are both in page coordinates.
  """
@@ -82,7 +82,7 @@ def contains_ink_clip(r,clip,bounds):
   xs=sorted(set(p[0] for p in pts));ys=sorted(set(p[1] for p in pts))
   if len(xs)!=2 or len(ys)!=2 or set(pts)!={(x,y) for x in xs for y in ys}:return False
   if any(a[0]!=b[0] and a[1]!=b[1] for a,b in zip(pts,pts[1:]+pts[:1])):return False
-  if not (xs[0]<=bounds[0]+.001 and ys[0]<=bounds[1]+.001 and xs[1]>=bounds[2]-.001 and ys[1]>=bounds[3]-.001):return False
+  if bounds is not None and not (xs[0]<=bounds[0]+.001 and ys[0]<=bounds[1]+.001 and xs[1]>=bounds[2]-.001 and ys[1]>=bounds[3]-.001):return False
  return True
 def describe(r,obj,i,tp):
  typ=r.FPDFPageObj_GetType(obj);m=r.FS_MATRIX();r.FPDFPageObj_GetMatrix(obj,C.byref(m));b=[C.c_float() for _ in range(4)];r.FPDFPageObj_GetBounds(obj,*map(C.byref,b))
@@ -99,7 +99,9 @@ def describe(r,obj,i,tp):
   for j in range(r.FPDFPath_CountSegments(obj)):
    seg=r.FPDFPath_GetPathSegment(obj,j);x,y=C.c_float(),C.c_float();r.FPDFPathSegment_GetPoint(seg,C.byref(x),C.byref(y));segs.append({'type':r.FPDFPathSegment_GetType(seg),'x':x.value,'y':y.value,'close':bool(r.FPDFPathSegment_GetClose(seg))})
   width=C.c_float();r.FPDFPageObj_GetStrokeWidth(obj,C.byref(width));fill,stroke=C.c_int(),C.c_int();r.FPDFPath_GetDrawMode(obj,C.byref(fill),C.byref(stroke));n=max(0,r.FPDFPageObj_GetDashCount(obj));dash=(C.c_float*n)();r.FPDFPageObj_GetDashArray(obj,dash,n);phase=C.c_float();r.FPDFPageObj_GetDashPhase(obj,C.byref(phase));out.update(segments=segs,width=width.value,fillMode=fill.value,stroked=bool(stroke.value),cap=r.FPDFPageObj_GetLineCap(obj),join=r.FPDFPageObj_GetLineJoin(obj),dash=list(dash),dashPhase=phase.value)
- clip=r.FPDFPageObj_GetClipPath(obj);out['editable']=typ in (1,2,3) and (typ!=1 or out['renderMode']==0) and (not clip or r.FPDFClipPath_CountPaths(clip)<=0 or (typ==3 and contains_ink_clip(r,clip,out['bounds'])))
+ # Image replacement stays at its original Do, inside the existing clip. Unlike
+ # text reflow, a rectangular partial image crop does not discard source ink.
+ clip=r.FPDFPageObj_GetClipPath(obj);out['editable']=typ in (1,2,3) and (typ!=1 or out['renderMode']==0) and (not clip or r.FPDFClipPath_CountPaths(clip)<=0 or (typ==3 and contains_ink_clip(r,clip)))
  out['simpleText']=typ==1 and out['renderMode'] in (0,2) and contains_ink_clip(r,clip,out['bounds'])
  if not out['editable']:out['reason']='复杂裁剪、嵌套或特殊绘制模式暂为只读'
  out['signature']=hashlib.sha256(json.dumps({k:out[k] for k in ['type','matrix','bounds']+(['text'] if typ==1 else [])},sort_keys=True).encode()).hexdigest()[:20];return out

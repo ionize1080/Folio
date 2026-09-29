@@ -7,7 +7,21 @@ from functools import lru_cache
 # Embedded Windows Python must resolve the shipped converter on the first CID font,
 # without relying on a previous Type1/browser-font request to alter sys.path.
 sys.path.insert(0,str(Path(__file__).parent/'vendor'))
-CACHE=Path(tempfile.gettempdir())/'folio-fonts-v14'
+CACHE=Path(tempfile.gettempdir())/'folio-fonts-v15'
+
+def populated_coverage(blob, coverage):
+    """Subset fonts can retain cmap entries for emptied, zero-advance glyphs."""
+    from fontTools.ttLib import TTFont
+    import unicodedata
+    font=TTFont(io.BytesIO(blob),lazy=True)
+    try:
+        if 'glyf' not in font or 'hmtx' not in font:return coverage
+        cmap=font.getBestCmap() or {};glyf=font['glyf'];metrics=font['hmtx'].metrics
+        return {cp for cp in coverage if cp in cmap and (
+            unicodedata.category(chr(cp))[0] in ('M','Z','C') or
+            metrics.get(cmap[cp],(0,0))[0] != 0 or
+            glyf[cmap[cp]].numberOfContours != 0)}
+    finally:font.close()
 
 def checksum(data):
     data+=b'\0'*((-len(data))%4)
@@ -139,7 +153,7 @@ def inspect_fonts(data,page_number,objects,mapped,stream):
                 # Coverage must agree with the normalized font, not merely the
                 # original PDF decoder. Never advertise a .notdef as a glyph.
                 face=fitz.Font(fontbuffer=blob)
-                coverage={cp for cp in coverage if face.has_glyph(cp)}
+                coverage=populated_coverage(blob,{cp for cp in coverage if face.has_glyph(cp)})
                 if not coverage:raise ValueError('原字体 Unicode 映射不完整')
                 key=hashlib.sha256(blob).hexdigest()[:32]
                 if not (CACHE/(key+'.ttf')).exists():

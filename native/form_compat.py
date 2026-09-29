@@ -20,7 +20,7 @@ def plain(form):
     return form.get('/Subtype') == '/Form' and not any(k in form for k in PROTECTED)
 
 
-def balanced(ops, foreign=False):
+def balanced(ops, foreign=False, orphan_mcids=False):
     depth = text = marked = 0
     for args, op in ops:
         if op == b'q': depth += 1
@@ -34,7 +34,8 @@ def balanced(ops, foreign=False):
             if not text: return False
             text = 0
         elif op in (b'BDC', b'BMC'):
-            if foreign and (not args or args[0] == '/OC' or (op == b'BDC' and (len(args) < 2 or not isinstance(args[1], dict) or any(k in args[1] for k in ('/Alt','/E','/MCID'))))): return False
+            protected = ('/Alt','/E') if orphan_mcids else ('/Alt','/E','/MCID')
+            if foreign and (not args or args[0] == '/OC' or (op == b'BDC' and (len(args) < 2 or not isinstance(args[1], dict) or any(k in args[1] for k in protected)))): return False
             marked += 1
         elif op == b'EMC':
             marked -= 1
@@ -84,7 +85,12 @@ def expand_page(page, *, foreign=True):
             if any(k in colors for k in ('/DefaultRGB', '/DefaultCMYK', '/DefaultGray')):
                 out.append((args, op)); continue
             content = ContentStream(form, page.pdf)
-            if budget + len(content.operations) + 7 > MAX_OPERATIONS or not balanced(content.operations, foreign=external):
+            # External expansion requires an untagged document/page and plain
+            # Forms at every level. MCIDs here have no structure-tree owner.
+            # Drop only these unlinked identifiers in the expanded copy; retain
+            # marked-content boundaries, language and ActualText semantics.
+            orphan_mcids = external and wrappers
+            if budget + len(content.operations) + 7 > MAX_OPERATIONS or not balanced(content.operations, foreign=external, orphan_mcids=orphan_mcids):
                 out.append((args, op)); continue
             # A retained resource-less child would inherit renamed page resources.
             # Reject this scope instead of silently resolving it against another Form.
@@ -112,6 +118,8 @@ def expand_page(page, *, foreign=True):
             rewritten = []
             for values, operator in content.operations:
                 values = list(values)
+                if orphan_mcids and operator == b'BDC' and len(values) > 1 and isinstance(values[1], dict) and '/MCID' in values[1]:
+                    values[1] = DictionaryObject({k:v for k,v in values[1].items() if k != '/MCID'})
                 if operator in RESOURCE_OPERATORS:
                     kind, index = RESOURCE_OPERATORS[operator]
                     if (len(values) > index if index >= 0 else bool(values)) and isinstance(values[index], NameObject):

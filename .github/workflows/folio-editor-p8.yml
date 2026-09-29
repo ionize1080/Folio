@@ -1,4 +1,4 @@
-name: Folio 1.2.1 stable editor regression validation
+name: Folio 1.2.2 yearbook editor regression validation
 on:
   push:
     branches: [codex/folio-editor-p8]
@@ -43,6 +43,7 @@ jobs:
       - run: python tests/editor-p6.py
       - run: python tests/editor-p7.py
       - run: python tests/editor-p8.py
+      - run: python tests/editor-yearbook.py
       - run: python tests/public-corpus-p8.py
       - uses: actions/cache/restore@v4
         id: corpus-cache
