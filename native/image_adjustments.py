@@ -56,7 +56,7 @@ def read_image(page, original, image_data=None):
             iw,ih=int(obj['/Width']),int(obj['/Height'])
             if iw>32768 or ih>32768:raise ValueError('图片边长超过处理预算')
             writer=PdfWriter();single=writer.add_blank_page(width=iw,height=ih)
-            single[N('/Resources')]=D({N('/XObject'):D({N('/Image'):obj.clone(writer)})})
+            single[N('/Resources')]=D({N('/XObject'):D({N('/Image'):writer._add_object(obj.clone(writer))})})
             content=DecodedStreamObject();content.set_data(f'{iw} 0 0 {ih} 0 0 cm /Image Do'.encode());single[N('/Contents')]=writer._add_object(content)
             buffer=io.BytesIO();writer.write(buffer)
             with fitz.open(stream=buffer.getvalue(),filetype='pdf') as doc:

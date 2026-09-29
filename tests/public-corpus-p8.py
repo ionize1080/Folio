@@ -25,6 +25,18 @@ for entry in manifest['documents']:
   images=[o for o in ins['objects'] if o['type']=='image' and o['editable']]
   if images:
    obj=images[0]
+   # Identity adjustment must preserve actual visible pixels, not merely leave
+   # a parseable file. This catches blank output from an invalid decoder PDF.
+   from PIL import Image,ImageChops,ImageStat
+   matrix=list(obj['matrix']);matrix[4]+=ins['pageOrigin'][0];matrix[5]+=ins['pageOrigin'][1]
+   identity=base64.b64decode(call(raw,'apply',edits=[{**obj,'page':page,'matrix':matrix,'adjustments':{}}])['bytes'])
+   def raster(data):
+    with fitz.open(stream=data,filetype='pdf') as d:
+     pix=d[page-1].get_pixmap(matrix=fitz.Matrix(.75,.75),alpha=False)
+     return Image.frombytes('RGB',(pix.width,pix.height),pix.samples)
+   delta=ImageStat.Stat(ImageChops.difference(raster(raw),raster(identity))).mean
+   assert max(delta)<1.0,(entry['name'],page,'identity pixels changed',delta)
+   record['identityMeanPixelDelta']=delta
    for name,adjustments,crop in [('scan-color',{'preset':'scan-color'},[0,0,0,0]),('curves',{'contrast':20,'curves':[[0,0],[64,48],[190,210],[255,255]]},[0,0,0,0]),('blur-crop',{'blur':1.2},[3,4,2,0])]:
     preview=call(raw,'image-preview',page=page,index=obj['index'],adjustments=adjustments)
     matrix=list(obj['matrix']);matrix[4]+=ins['pageOrigin'][0];matrix[5]+=ins['pageOrigin'][1]
