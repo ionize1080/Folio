@@ -75,6 +75,8 @@ for (const item of [
   "node_modules/opencc-js",
   "assets",
   "main.cjs",
+  "update-manager.cjs",
+  "portable-update.ps1",
   "file-store.cjs",
   "source-store.cjs",
   "temp-store.cjs",
@@ -189,6 +191,9 @@ await fs.writeFile(
         : "official Electron ZIP",
       exe_sha256: createHash("sha256")
         .update(await fs.readFile(path.join(out, "Folio.exe")))
+        .digest("hex"),
+      asar_sha256: createHash("sha256")
+        .update(await fs.readFile(path.join(out, "resources/app.asar")))
         .digest("hex"),
       signed: false,
     },

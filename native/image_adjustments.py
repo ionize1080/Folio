@@ -14,25 +14,7 @@ def bounded(value, low, high, name):
         raise ValueError('图像参数无效：' + name)
     return float(value)
 
-def validate(options):
-    if not isinstance(options, dict): raise ValueError('图像参数无效')
-    allowed = {'brightness','contrast','black','white','gamma','blur','sharpen','preset','curves'}
-    if set(options)-allowed: raise ValueError('未知图像参数')
-    result = {}
-    for k,lo,hi,default in [('brightness',-100,100,0),('contrast',-100,100,0),('black',0,254,0),('white',1,255,255),('gamma',.1,10,1),('blur',0,30,0),('sharpen',0,300,0)]:
-        result[k] = bounded(options.get(k,default),lo,hi,k)
-    if result['black'] >= result['white']: raise ValueError('黑场必须小于白场')
-    result['preset'] = options.get('preset','none')
-    if result['preset'] not in ('none','scan-color','scan-gray'): raise ValueError('未知增强预设')
-    curves = options.get('curves', [[0,0],[255,255]])
-    if not isinstance(curves,list) or not 2 <= len(curves) <= 16: raise ValueError('曲线需要 2–16 个控制点')
-    result['curves'] = []
-    for point in curves:
-        if not isinstance(point,list) or len(point)!=2: raise ValueError('曲线控制点无效')
-        result['curves'].append([bounded(v,0,255,'curve') for v in point])
-    if result['curves'][0][0] != 0 or result['curves'][-1][0] != 255 or any(a[0]>=b[0] for a,b in zip(result['curves'],result['curves'][1:])):
-        raise ValueError('曲线输入坐标必须从 0 到 255 严格递增')
-    return result
+from image_color import validate, tonal, colors
 
 def read_image(page, original, image_data=None):
     if image_data:
@@ -78,13 +60,12 @@ def process(image, options):
         rgb = rgb.filter(ImageFilter.UnsharpMask(radius=1.2,percent=110,threshold=3))
     if p['brightness']: rgb=ImageEnhance.Brightness(rgb).enhance(1+p['brightness']/100)
     if p['contrast']: rgb=ImageEnhance.Contrast(rgb).enhance(1+p['contrast']/100)
-    points=p['curves']; lut=[];j=0
-    for i in range(256):
-        value=255*max(0,min(1,(i-p['black'])/(p['white']-p['black'])))**(1/p['gamma'])
-        while j<len(points)-2 and value>points[j+1][0]:j+=1
-        x0,y0=points[j];x1,y1=points[j+1]
-        lut.append(round(max(0,min(255,y0+(value-x0)*(y1-y0)/(x1-x0)))))
-    rgb=rgb.point(lut*3)
+    rgb=tonal(rgb,p)
+    rgb=colors(rgb,p)
+    if p['clarity']:
+        if p['clarity']>0:rgb=rgb.filter(ImageFilter.UnsharpMask(radius=8,percent=round(p['clarity']),threshold=3))
+        else:rgb=Image.blend(rgb,rgb.filter(ImageFilter.GaussianBlur(8)),-p['clarity']/150)
+    if p['dehaze']:rgb=ImageEnhance.Contrast(rgb).enhance(1+p['dehaze']/150)
     if p['blur']:rgb=rgb.filter(ImageFilter.GaussianBlur(p['blur']))
     if p['sharpen']:rgb=rgb.filter(ImageFilter.UnsharpMask(radius=1.2,percent=round(p['sharpen']),threshold=2))
     if alpha is not None:rgb.putalpha(alpha)
@@ -120,4 +101,4 @@ def preview(args):
     image=read_image(page,original,args.get('imageData'));adjusted=process(image,args.get('adjustments',{}))
     def png(im):
         im=im.copy();im.thumbnail((1200,1200));buf=io.BytesIO();im.save(buf,format='PNG');return base64.b64encode(buf.getvalue()).decode()
-    return {'original':png(image),'preview':png(adjusted),'width':image.width,'height':image.height,'histogram':adjusted.convert('L').histogram()}
+    return {'original':png(image),'preview':png(adjusted),'width':image.width,'height':image.height,'histogram':image.convert('L').histogram(),'histograms':dict(zip(('r','g','b'),[c.histogram() for c in image.convert('RGB').split()])),'adjustedHistogram':adjusted.convert('L').histogram()}

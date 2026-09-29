@@ -39,6 +39,7 @@ export function installFlowUI(ctx) {
       ...options,
     });
   async function start() {
+    await S.imageEdit?.finish(true);
     if (session) {
       const samePage = session.page === S.page;
       await session.finish(true);
@@ -988,7 +989,9 @@ export function installFlowUI(ctx) {
           type: "flow",
           index: null,
           sources: target.sources,
-          model: rendered ? target : { ...target, text: "", runs: [], softBreaks: [] },
+          model: rendered
+            ? target
+            : { ...target, text: "", runs: [], softBreaks: [] },
           fragment: blank.fragment,
         });
         await arrangedEdits(edits);

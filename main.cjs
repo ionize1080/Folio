@@ -87,7 +87,7 @@ function ipc(name, fn) {
 }
 app.setName("Folio PDF Studio");
 app.setAppUserModelId("studio.folio.pdf");
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   protocol.handle("folio", (request) => {
     const url = new URL(request.url);
     if (url.host !== "app") return new Response("", { status: 403 });
@@ -136,6 +136,25 @@ app.whenReady().then(() => {
     allowClose = true;
     win.close();
   });
+  const { UpdateManager } = require("./update-manager.cjs");
+  const updater = new UpdateManager({
+    app,
+    session: session.fromPartition("folio-updates"),
+    dirty: () => dirty,
+    notify: (r) => {
+      if (!win.isDestroyed()) win.webContents.send("update-state", r);
+    },
+  });
+  await updater.init();
+  ipc("update-info", () => updater.info());
+  ipc("update-configure", (v) => updater.configure(v));
+  ipc("update-check", () => updater.check());
+  ipc("update-download", () => updater.download());
+  ipc("update-cancel", () => updater.cancel());
+  ipc("update-install", () => updater.install());
+  app.on("before-quit", () => updater.cancel());
+  if (updater.settings.autoCheck)
+    setTimeout(() => updater.check().catch(() => {}), 5000);
   fileStore = new FileStore(
     async (name, kind) => {
       const r = await dialog.showSaveDialog(win, {
@@ -232,9 +251,13 @@ app.whenReady().then(() => {
   ipc("native", (data) => {
     const options = { ...data };
     if (
-      ["font-catalog", "font-select", "font-data", "font-recommend", "font-fast"].includes(
-        options.command,
-      )
+      [
+        "font-catalog",
+        "font-select",
+        "font-data",
+        "font-recommend",
+        "font-fast",
+      ].includes(options.command)
     )
       return fontNative.run(options);
     delete options.ocrFile;

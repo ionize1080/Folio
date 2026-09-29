@@ -20,7 +20,9 @@ const root = path.resolve(__dirname, ".."),
   try {
     page = await app.firstWindow();
     // Each EXE suite starts with clean test storage, including recovery drafts.
-    await app.evaluate(async ({ session }) => session.defaultSession.clearStorageData());
+    await app.evaluate(async ({ session }) =>
+      session.defaultSession.clearStorageData(),
+    );
     await page.reload();
 
     page.setDefaultTimeout(60000);
@@ -121,12 +123,18 @@ const root = path.resolve(__dirname, ".."),
       () => !document.body.classList.contains("page-edit-mode"),
     );
     const moved = await save("p8-movement-saved.pdf");
-    require("node:child_process").execFileSync(process.env.FOLIO_PYTHON || "python", [
-      "-c",
-      "import sys,fitz; a=fitz.open(sys.argv[1]); b=fitz.open(sys.argv[2]); lines=lambda p:[l for block in p.get_text('dict')['blocks'] for l in block.get('lines',[])]; old=lines(a[0]); new=lines(b[0]); text=lambda l:''.join(s['text'] for s in l['spans']).strip(); assert [text(l) for l in new]==[text(l) for l in old], [text(l) for l in new]; x,y=new[0]['spans'][0]['origin']; ox,oy=old[0]['spans'][0]['origin']; assert abs(x-ox-float(sys.argv[3]))<.05 and abs(y-oy-float(sys.argv[4]))<.05, (x,y,ox,oy)",
-      path.join(out, "p7-shared.pdf"), moved,
-      String(pos.x - initial.x), String(pos.y - initial.y),
-    ], { stdio: "pipe" });
+    require("node:child_process").execFileSync(
+      process.env.FOLIO_PYTHON || "python",
+      [
+        "-c",
+        "import sys,fitz; a=fitz.open(sys.argv[1]); b=fitz.open(sys.argv[2]); lines=lambda p:[l for block in p.get_text('dict')['blocks'] for l in block.get('lines',[])]; old=lines(a[0]); new=lines(b[0]); text=lambda l:''.join(s['text'] for s in l['spans']).strip(); assert [text(l) for l in new]==[text(l) for l in old], [text(l) for l in new]; x,y=new[0]['spans'][0]['origin']; ox,oy=old[0]['spans'][0]['origin']; assert abs(x-ox-float(sys.argv[3]))<.05 and abs(y-oy-float(sys.argv[4]))<.05, (x,y,ox,oy)",
+        path.join(out, "p7-shared.pdf"),
+        moved,
+        String(pos.x - initial.x),
+        String(pos.y - initial.y),
+      ],
+      { stdio: "pipe" },
+    );
 
     const inspect = async (file, p = 1) =>
       page.evaluate(
@@ -153,6 +161,7 @@ const root = path.resolve(__dirname, ".."),
     );
     await page.locator("[data-preset]").selectOption("scan-color");
     await page.locator('[data-adjust="contrast"]').fill("22");
+    await page.locator("#adj-detail > summary").click();
     await page.locator('[data-adjust="blur"]').fill("0.5");
     await page.locator('[data-adjust="sharpen"]').fill("80");
     const curve = page.locator("[data-curve]");
@@ -212,48 +221,90 @@ const root = path.resolve(__dirname, ".."),
     assert.equal((await yearbookInput.inputValue()).trim(), "Yearbook 2025");
     await page.screenshot({ path: path.join(out, "yearbook-text-edit.png") });
     await page.locator("#pe-done").click();
-    await page.waitForFunction(() => !document.body.classList.contains("page-edit-mode"));
+    await page.waitForFunction(
+      () => !document.body.classList.contains("page-edit-mode"),
+    );
     const yearbookSaved = await save("yearbook-exe-saved.pdf");
     await open(yearbookSaved);
     await page.locator('[data-action="flow-edit"]').click();
     const yearbookHits = page.locator(".page-edit-hit:not(.unavailable)");
     await yearbookHits.first().waitFor();
-    assert((await yearbookHits.evaluateAll((es) => es.map((e) => e.getAttribute("aria-label")))).some((s) => s.includes("Yearbook 2025")));
-    assert((await inspect(yearbookSaved, 2)).objects.some((o) => o.text === "Yearbook 2026"));
-    checks.push("EXE: nested wrapper with unowned MCID accepts text edit, saves, reopens editable and preserves shared sibling page");
+    assert(
+      (
+        await yearbookHits.evaluateAll((es) =>
+          es.map((e) => e.getAttribute("aria-label")),
+        )
+      ).some((s) => s.includes("Yearbook 2025")),
+    );
+    assert(
+      (await inspect(yearbookSaved, 2)).objects.some(
+        (o) => o.text === "Yearbook 2026",
+      ),
+    );
+    checks.push(
+      "EXE: nested wrapper with unowned MCID accepts text edit, saves, reopens editable and preserves shared sibling page",
+    );
     await open(path.join(out, "yearbook-tracked-text.pdf"));
     await page.locator('[data-action="flow-edit"]').click();
     await page.locator(".page-edit-hit:not(.unavailable)").first().click();
     await stable();
-    await page.locator(".page-edit-input").evaluate((e) => e.setSelectionRange(3, 4));
+    await page
+      .locator(".page-edit-input")
+      .evaluate((e) => e.setSelectionRange(3, 4));
     await page.keyboard.insertText("3");
     await stable();
     await page.locator("#pe-done").click();
-    await page.waitForFunction(() => !document.body.classList.contains("page-edit-mode"));
+    await page.waitForFunction(
+      () => !document.body.classList.contains("page-edit-mode"),
+    );
     const trackedSaved = await save("yearbook-tracked-exe-saved.pdf");
-    require("node:child_process").execFileSync(process.env.FOLIO_PYTHON || "python", [
-      "-c", "import sys,fitz; a=fitz.open(sys.argv[1]); b=fitz.open(sys.argv[2]); assert b[0].get_text().splitlines()==['2023 report','2024 report']; lines=lambda p:[l for block in p.get_text('dict')['blocks'] for l in block.get('lines',[])]; assert all(abs(x['spans'][0]['origin'][1]-y['spans'][0]['origin'][1])<.05 for x,y in zip(lines(a[0]),lines(b[0])))",
-      path.join(out, "yearbook-tracked-text.pdf"), trackedSaved,
-    ], { stdio: "pipe" });
-    checks.push("EXE: negative tracking digit edit preserves both source lines and baselines after save");
+    require("node:child_process").execFileSync(
+      process.env.FOLIO_PYTHON || "python",
+      [
+        "-c",
+        "import sys,fitz; a=fitz.open(sys.argv[1]); b=fitz.open(sys.argv[2]); assert b[0].get_text().splitlines()==['2023 report','2024 report']; lines=lambda p:[l for block in p.get_text('dict')['blocks'] for l in block.get('lines',[])]; assert all(abs(x['spans'][0]['origin'][1]-y['spans'][0]['origin'][1])<.05 for x,y in zip(lines(a[0]),lines(b[0])))",
+        path.join(out, "yearbook-tracked-text.pdf"),
+        trackedSaved,
+      ],
+      { stdio: "pipe" },
+    );
+    checks.push(
+      "EXE: negative tracking digit edit preserves both source lines and baselines after save",
+    );
     await open(path.join(out, "yearbook-clipped-image.pdf"));
     await page.locator(".more-tools > summary").click();
     await page.locator('[data-action="edit-content"]').click();
     await page.locator("#object-select").selectOption("0");
-    await page.waitForFunction(() => /预览已更新/.test(document.querySelector("[data-status]")?.textContent));
+    await page.waitForFunction(() =>
+      /预览已更新/.test(document.querySelector("[data-status]")?.textContent),
+    );
     assert(await page.locator("[data-curve]").isVisible());
     assert(await page.locator("#object-apply").isEnabled());
     await page.locator('[data-adjust="contrast"]').fill("20");
-    await page.screenshot({ path: path.join(out, "yearbook-clipped-image-edit.png") });
+    await page.screenshot({
+      path: path.join(out, "yearbook-clipped-image-edit.png"),
+    });
     await page.locator("#object-apply").click();
     await page.waitForFunction(() => !document.querySelector("#modal").open);
     const clippedSaved = await save("yearbook-clipped-exe-saved.pdf");
-    assert((await inspect(clippedSaved)).objects.some((o) => o.type === "image" && o.editable));
-    require("node:child_process").execFileSync(process.env.FOLIO_PYTHON || "python", [
-      "-c", "import sys,fitz; a=fitz.open(sys.argv[1]); b=fitz.open(sys.argv[2]); assert a[1].get_pixmap().samples==b[1].get_pixmap().samples; rects=[fitz.Rect(0,0,240,49),fitz.Rect(0,201,240,240),fitz.Rect(0,0,34,240),fitz.Rect(196,0,240,240)]; assert all(a[0].get_pixmap(clip=r).samples==b[0].get_pixmap(clip=r).samples for r in rects); assert a[0].get_pixmap().samples!=b[0].get_pixmap().samples",
-      path.join(out, "yearbook-clipped-image.pdf"), clippedSaved,
-    ], { stdio: "pipe" });
-    checks.push("EXE: partial rectangle photo exposes curves and adjustments; save retains crop, outside pixels, sibling and editability");
+    assert(
+      (await inspect(clippedSaved)).objects.some(
+        (o) => o.type === "image" && o.editable,
+      ),
+    );
+    require("node:child_process").execFileSync(
+      process.env.FOLIO_PYTHON || "python",
+      [
+        "-c",
+        "import sys,fitz; a=fitz.open(sys.argv[1]); b=fitz.open(sys.argv[2]); assert a[1].get_pixmap().samples==b[1].get_pixmap().samples; rects=[fitz.Rect(0,0,240,49),fitz.Rect(0,201,240,240),fitz.Rect(0,0,34,240),fitz.Rect(196,0,240,240)]; assert all(a[0].get_pixmap(clip=r).samples==b[0].get_pixmap(clip=r).samples for r in rects); assert a[0].get_pixmap().samples!=b[0].get_pixmap().samples",
+        path.join(out, "yearbook-clipped-image.pdf"),
+        clippedSaved,
+      ],
+      { stdio: "pipe" },
+    );
+    checks.push(
+      "EXE: partial rectangle photo exposes curves and adjustments; save retains crop, outside pixels, sibling and editability",
+    );
     assert.deepEqual(errors, []);
     const exe = await app.evaluate(() => process.execPath),
       hash = (p) =>

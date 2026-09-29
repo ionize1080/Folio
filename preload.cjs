@@ -5,6 +5,17 @@ contextBridge.exposeInMainWorld("desktop", {
     ipcRenderer.on("native-progress", fn);
     return () => ipcRenderer.removeListener("native-progress", fn);
   },
+  updateInfo: () => ipcRenderer.invoke("update-info"),
+  updateConfigure: (v) => ipcRenderer.invoke("update-configure", v),
+  updateCheck: () => ipcRenderer.invoke("update-check"),
+  updateDownload: () => ipcRenderer.invoke("update-download"),
+  updateCancel: () => ipcRenderer.invoke("update-cancel"),
+  updateInstall: () => ipcRenderer.invoke("update-install"),
+  onUpdate: (callback) => {
+    const fn = (_e, v) => callback(v);
+    ipcRenderer.on("update-state", fn);
+    return () => ipcRenderer.removeListener("update-state", fn);
+  },
   largeRead: (data) => ipcRenderer.invoke("large-read", data),
   largePage: (data) => ipcRenderer.invoke("large-page", data),
   largeInfo: (data) => ipcRenderer.invoke("large-info", data),
