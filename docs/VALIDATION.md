@@ -1,8 +1,8 @@
-# 当前验证入口：1.2.0
+# 当前验证入口：1.2.1
 
-本版以 `.github/workflows/folio-editor-p8.yml` 的完整 Windows 运行和 [正式发布附件](https://github.com/ionize1080/Folio/releases/tag/v1.2.0)中的 `Folio-PDF-Studio-1.2.0-validation.json` 为准。附件记录 sourceCommit、windowsRun、各项报告，以及与便携 ZIP 一致的 EXE/app.asar 哈希；工作流未通过时不发布。
+本版以 `.github/workflows/folio-editor-p8.yml` 的完整 Windows 运行和 [正式发布附件](https://github.com/ionize1080/Folio/releases/tag/v1.2.1)中的 `Folio-PDF-Studio-1.2.1-validation.json` 为准。附件记录 sourceCommit、windowsRun、各项报告，以及与便携 ZIP 一致的 EXE/app.asar 哈希；工作流未通过时不发布。
 
-本地 135 项 JavaScript 单元检查、P8 图像/预览/整段删除及新增连续编辑/固定列/标签/字体/OCR资源检查已通过。公开文字探索逐个记录通过及明确拒绝，不把二者合并为通过率。完整范围和限制见 [1.2.0 说明](RELEASE-1.2.0.md)。
+本地 136 项 JavaScript 单元检查、P8 图像/预览/整段删除及新增连续编辑/固定列/标签/字体/OCR资源检查已通过。公开文字探索逐个记录通过及明确拒绝，不把二者合并为通过率。完整范围和限制见 [1.2.1 说明](RELEASE-1.2.1.md)。
 
 下文为历史记录，不是本版验证结果。
 

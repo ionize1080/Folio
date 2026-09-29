@@ -74,6 +74,28 @@ export function fastLayout(m, measure) {
     });
     return r;
   }
+  // Moving a frame translates its source anchors without changing line layout.
+  // Keep the stored original untouched so undo and later moves remain relative
+  // to the same source, just as in the native anchored layout path.
+  if (m.originalLayout?.frame) {
+    const original = m.originalLayout,
+      dx = f.x - original.frame.x,
+      dy = f.y - original.frame.y;
+    if (dx || dy) {
+      m = {
+        ...m,
+        originalBaseline: m.originalBaseline == null ? m.originalBaseline : m.originalBaseline + dy,
+        originalLayout: {
+          ...original,
+          frame: { ...original.frame, x: f.x, y: f.y },
+          glyphs: original.glyphs.map((g) => ({
+            ...g, x: g.x + dx, y: g.y + dy,
+            originX: g.originX + dx, baseline: g.baseline + dy,
+          })),
+        },
+      };
+    }
+  }
   const runs = m.runs || [],
     gs = [],
     anchors = [],

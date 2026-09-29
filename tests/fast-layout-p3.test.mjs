@@ -274,3 +274,25 @@ test("terminal equal-width digit keeps its source line when advance exceeds ink"
   m.text = "202W";
   assert.notEqual(fastLayout(m, metric).layoutMode, "原始字位");
 });
+
+
+test("moving a tight source frame translates every glyph without wrapping or changing undo anchors", () => {
+  const m = model("AB CD", {
+    frame: { x: 40, y: 50, width: 28, height: 13 }, sources: [{ index: 0 }],
+  });
+  const glyphs = [...m.text].map((text, i) => ({
+    text, originX: 40 + i * 6, baseline: 60,
+    x: 40 + i * 6, y: 51, w: 4, h: 9,
+  }));
+  sourceStyles(m, [o(0, m.text, 40, 60, 28, { fontKey: "a".repeat(32), glyphs })]);
+  const original = structuredClone(m.originalLayout);
+  const before = fastLayout(m, measure);
+  m.frame = { ...m.frame, x: 90, y: 60 };
+  const after = fastLayout(m, measure);
+  assert.equal(after.layoutMode, "原始字位");
+  assert.deepEqual(after.glyphs.map(g => [g.originX, g.baseline, g.line]),
+    before.glyphs.map(g => [g.originX + 50, g.baseline + 10, g.line]));
+  assert.deepEqual(m.originalLayout, original);
+  m.frame = { ...m.frame, x: 40, y: 50 };
+  assert.deepEqual(fastLayout(m, measure).glyphs, before.glyphs);
+});

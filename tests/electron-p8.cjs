@@ -121,6 +121,13 @@ const root = path.resolve(__dirname, ".."),
       () => !document.body.classList.contains("page-edit-mode"),
     );
     const moved = await save("p8-movement-saved.pdf");
+    require("node:child_process").execFileSync(process.env.FOLIO_PYTHON || "python", [
+      "-c",
+      "import sys,fitz; a=fitz.open(sys.argv[1]); b=fitz.open(sys.argv[2]); lines=lambda p:[l for block in p.get_text('dict')['blocks'] for l in block.get('lines',[])]; old=lines(a[0]); new=lines(b[0]); text=lambda l:''.join(s['text'] for s in l['spans']).strip(); assert [text(l) for l in new]==[text(l) for l in old], [text(l) for l in new]; x,y=new[0]['spans'][0]['origin']; ox,oy=old[0]['spans'][0]['origin']; assert abs(x-ox-float(sys.argv[3]))<.05 and abs(y-oy-float(sys.argv[4]))<.05, (x,y,ox,oy)",
+      path.join(out, "p7-shared.pdf"), moved,
+      String(pos.x - initial.x), String(pos.y - initial.y),
+    ], { stdio: "pipe" });
+
     const inspect = async (file, p = 1) =>
       page.evaluate(
         async ({ data, p }) =>
@@ -135,7 +142,7 @@ const root = path.resolve(__dirname, ".."),
       (await inspect(moved, 2)).objects.some((o) => o.text === "Shared 2026"),
     );
     checks.push(
-      "EXE: 1pt nudge, Shift 10pt, axis-constrained drag, typing arrows do not move frame, saved sibling intact",
+      "EXE: 1pt nudge, Shift 10pt, axis-constrained drag, typing arrows do not move frame, saved line layout and translated origins preserved, sibling intact",
     );
     await open(path.join(out, "p8-scan.pdf"));
     await page.locator(".more-tools > summary").click();

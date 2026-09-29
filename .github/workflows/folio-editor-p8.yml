@@ -1,4 +1,4 @@
-name: Folio 1.2 stable editor regression validation
+name: Folio 1.2.1 stable editor regression validation
 on:
   push:
     branches: [codex/folio-editor-p8]
