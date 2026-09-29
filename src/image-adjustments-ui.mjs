@@ -149,25 +149,25 @@ export function installImageAdjustments({
       ratio = devicePixelRatio || 1;
     canvas.width = Math.ceil(width * ratio);
     canvas.height = canvas.width;
-    g.setTransform(canvas.width / 256, 0, 0, canvas.height / 180, 0, 0);
+    g.setTransform(canvas.width / 256, 0, 0, canvas.height / 256, 0, 0);
     const histogram =
       channel === "rgb" ? histograms.rgb || [] : histograms[channel] || [];
-    g.clearRect(0, 0, 256, 180);
+    g.clearRect(0, 0, 256, 256);
     g.fillStyle = getComputedStyle(root).getPropertyValue("--panel") || "#fff";
-    g.fillRect(0, 0, 256, 180);
+    g.fillRect(0, 0, 256, 256);
     const max = Math.max(1, ...histogram);
     g.fillStyle = "#7d8fa366";
     histogram.forEach((n, i) =>
-      g.fillRect(i, 180 - (n / max) * 170, 1, (n / max) * 170),
+      g.fillRect(i, 256 - (n / max) * 246, 1, (n / max) * 246),
     );
     g.strokeStyle = "#8694a3";
     g.lineWidth = 0.5;
     for (let i = 0; i <= 4; i++) {
       g.beginPath();
       g.moveTo(i * 64, 0);
-      g.lineTo(i * 64, 180);
-      g.moveTo(0, i * 45);
-      g.lineTo(256, i * 45);
+      g.lineTo(i * 64, 256);
+      g.moveTo(0, i * 64);
+      g.lineTo(256, i * 64);
       g.stroke();
     }
     g.strokeStyle =
@@ -177,12 +177,12 @@ export function installImageAdjustments({
     g.lineWidth = 2;
     g.beginPath();
     curveLUT(points(), state.interpolation === "smooth").forEach((y, x) =>
-      g[x ? "lineTo" : "moveTo"](x, 180 - (y / 255) * 180),
+      g[x ? "lineTo" : "moveTo"](x, 256 - (y / 255) * 256),
     );
     g.stroke();
     points().forEach(([x, y], i) => {
       g.beginPath();
-      g.arc(x, 180 - (y / 255) * 180, i === selected ? 5 : 3, 0, Math.PI * 2);
+      g.arc(x, 256 - (y / 255) * 256, i === selected ? 5 : 3, 0, Math.PI * 2);
       g.fillStyle = i === selected ? "#da8620" : g.strokeStyle;
       g.fill();
     });

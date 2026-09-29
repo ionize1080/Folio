@@ -4,7 +4,7 @@ Add-Type -AssemblyName System.IO.Compression.FileSystem
 $m = Get-Content -LiteralPath $Manifest -Raw -Encoding UTF8 | ConvertFrom-Json
 $parent = Split-Path -Parent $m.target
 $stage = Join-Path $parent ('.folio-update-' + [Guid]::NewGuid().ToString('N'))
-$backup = $m.target + '.backup-' + (Get-Date -Format 'yyyyMMdd-HHmmss')
+$backup = $m.target + '.backup-' + (Get-Date -Format 'yyyyMMdd-HHmmss-fff') + '-' + [Guid]::NewGuid().ToString('N').Substring(0,6)
 $log = Join-Path (Split-Path -Parent $Manifest) 'install.log'
 $moved = $false
 function File-SHA([string]$file) {

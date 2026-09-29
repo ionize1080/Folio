@@ -149,6 +149,7 @@ class UpdateManager {
   }
   async check() {
     return this.task(async () => {
+      this.ready = null;
       this.status("checking", { error: null });
       const all = [];
       for (let p = 1; p <= 5; p++) {
@@ -231,6 +232,7 @@ class UpdateManager {
         handle = await fs.open(part, "w"),
         digest = crypto.createHash("sha256");
       let count = 0,
+        complete = false,
         last = 0;
       try {
         for await (const chunk of r.body) {
@@ -244,8 +246,10 @@ class UpdateManager {
           }
         }
         await handle.sync();
+        complete = true;
       } finally {
         await handle.close();
+        if (!complete) await fs.rm(part, { force: true });
       }
       if (
         count !== a.size ||

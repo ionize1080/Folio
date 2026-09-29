@@ -2,6 +2,7 @@
 from pathlib import Path
 import os,sys,tempfile,subprocess,json,zipfile,hashlib,shutil,time
 assert sys.platform=='win32'
+sys.stdout.reconfigure(encoding='utf-8')
 root=Path(__file__).resolve().parents[1];checks=[]
 def digest(p):return hashlib.sha256(p.read_bytes()).hexdigest()
 with tempfile.TemporaryDirectory(prefix="Folio 更新 ' test ",ignore_cleanup_errors=True) as td:

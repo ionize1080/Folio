@@ -15,7 +15,7 @@ let app, browser, page, bridge, background, store;
     if (exe) {
       app = await _electron.launch({
         executablePath: exe,
-        args: [],
+        args: ["--force-device-scale-factor=1.5"],
         timeout: 60000,
       });
       page = await app.firstWindow();
@@ -180,6 +180,20 @@ let app, browser, page, bridge, background, store;
     await page.locator('[data-adjust="black"]').fill("12");
     await page.locator('[data-adjust="outputWhite"]').fill("240");
     await ready();
+    await page.locator('[data-pick="gray"]').click();
+    const hit = await page.locator(".image-page-hit").first().boundingBox();
+    await page.mouse.click(hit.x + hit.width * 0.2, hit.y + hit.height * 0.2);
+    await ready();
+    await page.locator('[data-adjust="black"]').fill("254");
+    await page.locator('[data-adjust="white"]').fill("200");
+    await page.waitForFunction(() =>
+      document.querySelector("[data-status]")?.textContent.includes("黑场"),
+    );
+    assert(await page.locator("#image-apply").isDisabled());
+    await page.locator('[data-adjust="black"]').fill("12");
+    await page.locator('[data-adjust="white"]').fill("255");
+    await ready();
+
     for (const [id, key, value] of [
       ["exposure", "exposure", ".3"],
       ["color", "vibrance", "15"],
