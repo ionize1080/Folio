@@ -4489,3 +4489,10 @@ body.image-edit-mode[data-left="hidden"] main {
 body.image-edit-mode .inspector {
   display: none;
 }
+
+.image-page-panel {
+  scroll-padding-top: 64px;
+}
+.image-page-panel .adjust-group {
+  scroll-margin-top: 64px;
+}

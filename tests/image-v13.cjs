@@ -168,11 +168,14 @@ let app, browser, page, bridge, background, store;
       .evaluate((c) => c.width / c.getBoundingClientRect().width);
     assert(ratio >= (await page.evaluate(() => devicePixelRatio)) - 0.02);
     await page.locator("[data-channel]").selectOption("r");
+    await page.locator("[data-curve]").scrollIntoViewIfNeeded();
     const curve = await page.locator("[data-curve]").boundingBox();
     await page.mouse.click(
       curve.x + curve.width * 0.5,
       curve.y + curve.height * 0.3,
     );
+    assert((await page.locator("[data-curve-x]").inputValue()) > 0);
+    assert((await page.locator("[data-curve-x]").inputValue()) < 255);
     await page.locator("[data-curve-y]").fill("190");
     await page.locator("[data-curve-y]").press("Tab");
     await ready();
