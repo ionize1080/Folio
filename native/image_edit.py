@@ -18,7 +18,7 @@ def operations(writer,page,original,matrix,ctm,crop,image_data=None,fit='contain
   adjusted=process(read_image(page,original,image_data),adjustments)
   if image_data:
    buf=io.BytesIO();adjusted.save(buf,format='PNG');image_data=base64.b64encode(buf.getvalue()).decode()
-  else:draw=add_image(writer,page,adjusted)
+  else:draw=add_image(writer,page,adjusted,original)
  if image_data:
   data=base64.b64decode(image_data,validate=True)
   if len(data)>32*1024*1024:raise ValueError('替换图片限 32 MB')

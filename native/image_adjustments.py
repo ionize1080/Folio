@@ -90,9 +90,12 @@ def process(image, options):
     if alpha is not None:rgb.putalpha(alpha)
     return rgb
 
-def add_image(writer, page, image):
+def add_image(writer, page, image, original=None):
     rgb=image.convert('RGB');obj=DecodedStreamObject();obj.set_data(rgb.tobytes())
     obj.update({N('/Type'):N('/XObject'),N('/Subtype'):N('/Image'),N('/Width'):I(rgb.width),N('/Height'):I(rgb.height),N('/BitsPerComponent'):I(8),N('/ColorSpace'):N('/DeviceRGB')})
+    if original is not None:
+        source=page['/Resources']['/XObject'][original[0][0]].get_object()
+        if '/Interpolate' in source:obj[N('/Interpolate')]=source['/Interpolate']
     if 'A' in image.getbands():
         mask=DecodedStreamObject();mask.set_data(image.getchannel('A').tobytes());mask.update({N('/Type'):N('/XObject'),N('/Subtype'):N('/Image'),N('/Width'):I(rgb.width),N('/Height'):I(rgb.height),N('/BitsPerComponent'):I(8),N('/ColorSpace'):N('/DeviceGray')})
         obj[N('/SMask')]=writer._add_object(mask.flate_encode())
