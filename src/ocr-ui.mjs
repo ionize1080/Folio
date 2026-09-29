@@ -184,10 +184,8 @@ export async function ocrDialogV4(ctx) {
       try {
         if (job && donePages().includes(p))
           await api({ action: "correct", id: job, page: p, blocks });
-        else {
-          await writeReview(reviewKey, p, blocks);
-          localCorrections.set(p, blocks);
-        }
+        await writeReview(reviewKey, p, blocks);
+        localCorrections.set(p, blocks);
       } catch (e) {
         if (p === reviewPage) dirtyPage = true;
         throw e;
@@ -619,9 +617,18 @@ export async function ocrDialogV4(ctx) {
       $("#ocr-start").disabled = true;
       $("#ocr-apply").disabled = true;
       try {
+        let reviewBase = structuredClone(S.ocr || []);
+        for (const [p, bs] of localCorrections)
+          reviewBase = reviewBase.filter((b) => b.page !== p).concat(bs);
+        const inputBytes = await S.pdf.getData();
+        const inputHash = Array.from(
+          new Uint8Array(await crypto.subtle.digest("SHA-256", inputBytes)),
+          (b) => b.toString(16).padStart(2, "0"),
+        ).join("");
         const started = await api({
           action: "start",
-          bytes: await S.pdf.getData(),
+          bytes: inputBytes,
+          reviewBase,
           pages,
           profile: $("#ocr-profile").value,
           dpi: +$("#ocr-dpi").value,
@@ -641,11 +648,7 @@ export async function ocrDialogV4(ctx) {
         });
         job = started.id;
         mergeInfo(started);
-        S.ocrTask = { id: job, bytes: S.bytes };
-        for (const p of pages) {
-          localCorrections.delete(p);
-          await writeReview(reviewKey, p, null);
-        }
+        S.ocrTask = { id: job, bytes: S.bytes, inputHash };
         $("#modal .ocr-settings").open = false;
         await loadPage(pages[0]);
         await poll();
@@ -698,7 +701,19 @@ export async function ocrDialogV4(ctx) {
     if (running && !keepRunning) api({ action: "stop" }).catch(() => {});
     $("#modal").classList.remove("native-dialog", "ocr-dialog");
   });
-  if (S.ocrTask?.bytes === S.bytes) {
+  const currentInputHash = S.ocrTask?.inputHash
+    ? Array.from(
+        new Uint8Array(
+          await crypto.subtle.digest("SHA-256", await S.pdf.getData()),
+        ),
+        (b) => b.toString(16).padStart(2, "0"),
+      ).join("")
+    : null;
+  if (
+    S.ocrTask?.bytes === S.bytes &&
+    currentInputHash &&
+    S.ocrTask.inputHash === currentInputHash
+  ) {
     const existing = await api({ action: "status" });
     if (existing?.id === S.ocrTask.id) {
       job = existing.id;

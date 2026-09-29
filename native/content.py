@@ -33,9 +33,11 @@ def map_objects(page):
             if isinstance(value,ByteStringObject):
                 try:value=bytes(value).decode('utf-16')
                 except UnicodeError:value=None
-            marks.append({'text':value,'objects':[],'at':i})
+            marks.append({'text':value,'mcid':properties.get('/MCID') if isinstance(properties,dict) else None,'objects':[],'at':i})
         elif op==b'EMC' and marks:
             mark=marks.pop()
+            if mark['mcid'] is not None:
+                for obj in mark['objects']:obj.setdefault('structureScopes',[]).append({'at':mark['at'],'end':i,'count':len(mark['objects']),'mcid':int(mark['mcid'])})
             if isinstance(mark['text'],str):
                 for obj in mark['objects']:obj.setdefault('semanticScopes',[]).append({'at':mark['at'],'end':i,'count':len(mark['objects']),'text':mark['text']})
                 if len(mark['objects'])==1:mark['objects'][0]['actualText']=mark['text']
@@ -240,7 +242,7 @@ def compose(data,edits,blocks,inspect,fragment,progress=None):
         flows=sorted([e for e in es if e.get('type')=='flow' and not e.get('delete')],key=lambda e:float((e.get('model') or {}).get('layerOrder',0)))
         replace=[e for e in es if e.get('index') is not None]
         appended=[e for e in es if e.get('index') is None and not e.get('delete') and e.get('type')!='flow']
-        flow_indices=set(); flow_blobs=[]; original_patches={}
+        flow_indices=set(); flow_blobs=[]; original_patches={}; inline_flows={}
         if flows:
             desc=inspect(number);mapped=check_editable(page,desc)
             for flow in flows:
@@ -263,13 +265,31 @@ def compose(data,edits,blocks,inspect,fragment,progress=None):
                     continue
                 for source in sources:replace.append({**source,'delete':True,'_flowDelete':True})
                 flow_indices.update(indices)
+                if (flow.get('model') or {}).get('text') == '':continue
                 blob=base64.b64decode(flow.get('fragment',''),validate=True)
                 if len(blob)>32*1024*1024:raise ValueError('排版片段过大')
                 layout=PdfReader(io.BytesIO(blob))
                 if len(layout.pages)!=1:raise ValueError('排版片段须为单页')
                 lp=layout.pages[0]
                 if abs(float(lp.mediabox.width)-float(page.cropbox.width))>2.5 or abs(float(lp.mediabox.height)-float(page.cropbox.height))>2.5:raise ValueError('排版页面尺寸与原件不一致')
-                flow_blobs.append((blob,True,bool((flow.get('model') or {}).get('behindPage')),False))
+                structured=[scope for source in sources for scope in mapped[source['index']].get('structureScopes',[])]
+                if structured:
+                    scopes={(s['at'],s['end'],s['count'],s['mcid']) for s in structured}
+                    if len(scopes)!=1 or structured[0]['count']!=len(sources) or len(structured)!=len(sources):raise ValueError('带标签文字需在同一完整 MCID 范围内编辑，草稿已保留')
+                    scope=structured[0];ends=[mapped[source['index']].get('end') for source in sources]
+                    if any(end is None or not scope['at']<end<scope['end'] for end in ends):raise ValueError('标签位于文字对象内部，暂不能安全重排')
+                    position=max(ends);original_stream,_=map_objects(page)
+                    ctm=[1,0,0,1,0,0];stack=[]
+                    for ar,op in original_stream.operations[:position+1]:
+                        if op==b'q':stack.append(ctm[:])
+                        elif op==b'Q':ctm=stack.pop() if stack else [1,0,0,1,0,0]
+                        elif op==b'cm':
+                            a,b,c,d,e,f=map(float,ar);A,B,C,D,E,F=ctm;ctm=[A*a+C*b,B*a+D*b,A*c+C*d,B*c+D*d,A*e+C*f+E,B*e+D*f+F]
+                    a,b,c,d,e,f=ctm;det=a*d-b*c
+                    if abs(det)<1e-12:raise ValueError('标签范围变换不可逆')
+                    inv=[d/det,-b/det,-c/det,a/det,(c*f-d*e)/det,(b*e-a*f)/det]
+                    inline_flows.setdefault(position,[]).extend([([],b'q'),([FloatObject(v) for v in inv],b'cm')]+form(page,blob,True)+[([],b'Q')])
+                else:flow_blobs.append((blob,True,bool((flow.get('model') or {}).get('behindPage')),False))
         from table_resize import changes,transform
         growths=changes(es)
         if growths and not replace:
@@ -282,7 +302,7 @@ def compose(data,edits,blocks,inspect,fragment,progress=None):
         if replace:
             desc=inspect(number);mapped=check_editable(page,desc)
             if mapped is None:raise ValueError(desc[0]['reason'] if desc else '内容流不支持安全编辑')
-            stream,_=map_objects(page);omit=set();after={};used=set()
+            stream,_=map_objects(page);omit=set();after=dict(inline_flows);used=set()
             table_before,table_after=transform(stream,mapped,desc,height,growths) or ({},{})
             from text_advance import advances
             safe=advances(page,stream)
@@ -305,7 +325,7 @@ def compose(data,edits,blocks,inspect,fragment,progress=None):
                             a,b,c,d0,e0,f=map(float,ar);A,B,C,D,E,F=ctm
                             ctm=[A*a+C*b,B*a+D*b,A*c+C*d0,B*c+D*d0,A*e0+C*f+E,B*e0+D*f+F]
                     from image_edit import operations as image_operations
-                    after[m['at']]=image_operations(writer,page,stream.operations[m['at']],e.get('matrix',d['matrix']),ctm,e.get('crop'),e.get('imageData'),e.get('imageFit','contain'))
+                    after[m['at']]=image_operations(writer,page,stream.operations[m['at']],e.get('matrix',d['matrix']),ctm,e.get('crop'),e.get('imageData'),e.get('imageFit','contain'),e.get('adjustments'))
                     omit.add(m['at']);continue
                 if m['type']=='text':
                     clear_actual_text(page,stream,m)
@@ -351,6 +371,7 @@ def compose(data,edits,blocks,inspect,fragment,progress=None):
                 stream=ContentStream(page.get('/Contents'),writer)
                 stream.operations=[(a,o) for a,o in stream.operations if not(o==b'Do' and a and a[0] in owned)]
                 page[NameObject('/Contents')]=writer._add_object(stream)
+                resources=DictionaryObject(dict(resources));xs=DictionaryObject(dict(xs));resources[NameObject('/XObject')]=xs;page[NameObject('/Resources')]=resources
                 for name in owned:del xs[name]
         if appended or bs or flow_blobs:
             blobs=([(fragment(width,height,appended,[]),False,False,False)] if appended else [])+([(fragment(width,height,[],bs),False,False,True)] if bs else [])+flow_blobs
@@ -375,4 +396,6 @@ def compose(data,edits,blocks,inspect,fragment,progress=None):
     for number in sorted(list(bypage)):process(number,[])
     from pdf_features import ensure_version
     ensure_version(writer)
+    from pdf_writer import remove_orphans
+    remove_orphans(writer)
     output=io.BytesIO();writer.write(output);return output.getvalue()

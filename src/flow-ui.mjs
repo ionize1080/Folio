@@ -1,3 +1,4 @@
+import { constrainedDelta, nudgeDelta } from "./object-movement.mjs";
 import { editWarnings } from "./edit-warnings.mjs";
 import { FastFonts, fastLayout, canFast } from "./fast-layout.mjs";
 import { nativeRequest, releaseSource } from "./native-source.mjs";
@@ -244,7 +245,8 @@ export function installFlowUI(ctx) {
     frame.append(resize);
     const move = document.createElement("button");
     move.className = "page-edit-move";
-    move.title = "拖动移动文本框";
+    move.title =
+      "拖动移动文本框 · Shift 水平/垂直约束 · 方向键 1 pt / Shift 10 pt";
     move.setAttribute("aria-label", "移动文本框");
     move.innerHTML = '<i data-icon="cursor"></i>';
     icons(move);
@@ -2111,6 +2113,7 @@ export function installFlowUI(ctx) {
       e.preventDefault();
       e.stopPropagation();
       remember();
+      move.focus({ preventScroll: true });
       move.setPointerCapture(e.pointerId);
       const startPoint = point(e),
         x = startPoint.x,
@@ -2119,8 +2122,9 @@ export function installFlowUI(ctx) {
         z = scale();
       move.onpointermove = (q) => {
         const p = point(q);
-        model.frame.x = Math.max(-14400, Math.min(14400, f.x + p.x - x));
-        model.frame.y = Math.max(-14400, Math.min(14400, f.y + p.y - y));
+        const delta = constrainedDelta(p.x - x, p.y - y, q.shiftKey);
+        model.frame.x = Math.max(-14400, Math.min(14400, f.x + delta.x));
+        model.frame.y = Math.max(-14400, Math.min(14400, f.y + delta.y));
         model.growth = "fixed";
         positionFrame();
         queue();
@@ -2128,8 +2132,37 @@ export function installFlowUI(ctx) {
       move.onpointerup = move.onpointercancel = () => {
         move.onpointermove = null;
         showFields();
-        input.focus({ preventScroll: true });
+        move.focus({ preventScroll: true });
       };
+    });
+    listen(move, "keydown", (e) => {
+      if (
+        !model ||
+        model.cell ||
+        busy ||
+        e.ctrlKey ||
+        e.metaKey ||
+        e.altKey ||
+        e.isComposing
+      )
+        return;
+      const delta = nudgeDelta(e.key, e.shiftKey, surface.rotation(page));
+      if (!delta) return;
+      e.preventDefault();
+      e.stopPropagation();
+      if (!e.repeat) remember();
+      model.frame.x = Math.max(
+        -14400,
+        Math.min(14400, model.frame.x + delta.x),
+      );
+      model.frame.y = Math.max(
+        -14400,
+        Math.min(14400, model.frame.y + delta.y),
+      );
+      model.growth = "fixed";
+      positionFrame();
+      showFields();
+      queue();
     });
     function setCellHeight(height) {
       const table = (result.tables || []).find(

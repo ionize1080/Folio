@@ -4193,3 +4193,23 @@ body:not(.has-document) .viewer-toolbar {
 
 body.page-edit-mode :is(.pdf-page,#page-shell):has(.page-edit-layer){overflow:visible;z-index:16}
 .page-edit-overflow-hit{position:absolute;pointer-events:auto;cursor:text}
+
+/* P8: readable tool chrome and image adjustment workspace. PDF pixels stay unchanged. */
+:root { --muted:#5c6b82; --danger:#b33232; --warning-fg:#88510d; --success-fg:#246c4d; --panel-soft:var(--panel2); --border:var(--line); font-family:"Segoe UI Variable","Segoe UI","Microsoft YaHei UI","Folio UI",sans-serif; }
+body.dark { --muted:#aab8cc; --danger:#ff9d9d; --warning-fg:#ffd18a; --success-fg:#8fdfb9; }
+#busy { right:16px; }
+.welcome-eyebrow, .inspector-footer, .version { color:var(--muted); font-size:11px; }
+.large-workspace, .large-workspace header, .large-workspace aside, .large-workspace footer { background:var(--panel);color:var(--text);border-color:var(--line); }
+.large-workspace input, .large-workspace select { background:var(--panel2);color:var(--text);border-color:var(--line); }
+body.dark .page-tile { background:var(--panel2);border-color:var(--line); }
+body.dark .page-tile.selected { background:var(--accent-soft); }
+.file-drop-veil { background:color-mix(in srgb,var(--panel) 94%,transparent);color:var(--accent);border-color:var(--accent); }
+.logo, #drag-label { background:var(--accent); }
+.image-adjustments { display:grid;gap:8px;border-bottom:1px solid var(--line);padding-bottom:12px;margin-bottom:12px; }
+.image-adjustments h3 { margin:0;font-size:15px; }
+.image-preview-wrap { background:var(--panel2);border:1px solid var(--line);min-height:100px;max-height:340px;overflow:auto;text-align:center; }
+.image-adjusted-preview { max-width:100%;height:auto;vertical-align:middle; }
+.image-adjustments canvas { width:100%;max-width:320px;height:180px;touch-action:none;border:1px solid var(--line);border-radius:6px; }
+.image-adjustments input[type=number] { min-width:0;width:100%; }
+.page-edit-move:focus-visible { outline:2px solid var(--accent);outline-offset:3px; }
+@media (prefers-reduced-motion:reduce) { #toast,.file-drop-veil,.tree-row { transition:none;animation:none; } }

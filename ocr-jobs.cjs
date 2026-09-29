@@ -1,3 +1,4 @@
+const { mergeReview } = require("./ocr-review-merge.cjs");
 const fs = require("node:fs/promises"),
   path = require("node:path"),
   os = require("node:os"),
@@ -116,6 +117,7 @@ class OCRJobs {
     threads = 2,
     batch = 6,
     resume = true,
+    reviewBase = [],
     languages = ["zh-Hans", "en"],
     allowOther = true,
     outputScript = "preserve",
@@ -142,6 +144,25 @@ class OCRJobs {
         region[1] + region[3] > 1)
     )
       throw Error("OCR 区域无效");
+    if (
+      !Array.isArray(reviewBase) ||
+      reviewBase.length > 100000 ||
+      reviewBase.some(
+        (b) =>
+          !Number.isInteger(b.page) ||
+          typeof b.text !== "string" ||
+          b.text.length > 20000 ||
+          !Array.isArray(b.quad) ||
+          b.quad.length !== 4 ||
+          b.quad.some(
+            (p) =>
+              !Array.isArray(p) ||
+              p.length !== 2 ||
+              p.some((x) => !Number.isFinite(x)),
+          ),
+      )
+    )
+      throw Error("既有 OCR 校对数据无效");
     const data = Buffer.from(bytes),
       options = {
         profile,
@@ -190,6 +211,14 @@ class OCRJobs {
           !Array.isArray(r.blocks)
         )
           throw Error();
+        if (!r.skipped) {
+          r.blocks = mergeReview(
+            r.blocks,
+            reviewBase.filter((b) => b.page === page),
+            { regionQuad: r.regionQuad },
+          );
+          await fs.writeFile(path.join(dir, `${page}.json`), JSON.stringify(r));
+        }
         done.push(page);
         states.set(page, this.pageSummary(page, r));
       } catch {
@@ -205,6 +234,7 @@ class OCRJobs {
       dir,
       input,
       options,
+      reviewBase,
       prefs: { languages, allowOther, outputScript },
       pages: unique,
       done,
@@ -251,7 +281,11 @@ class OCRJobs {
       state: r.skipped ? "skipped" : "done",
       count: r.blocks.length,
       low: r.blocks.filter(
-        (b) => !b.excluded && (b.confidence < 0.85 || b.needsReview) && !b.corrected && !b.reviewAccepted,
+        (b) =>
+          !b.excluded &&
+          (b.confidence < 0.85 || b.needsReview) &&
+          !b.corrected &&
+          !b.reviewAccepted,
       ).length,
       corrected: r.blocks.filter((b) => b.corrected).length,
       reason: r.skipped ? "检测到已有文字，可选此页强制重识别" : undefined,
@@ -340,6 +374,13 @@ class OCRJobs {
               id: `${page}:${i}`,
               rawText: b.text,
             }));
+            if (!r.skipped)
+              r.blocks = mergeReview(
+                r.blocks,
+                j.reviewBase.filter((b) => b.page === page),
+                { regionQuad: r.regionQuad },
+              );
+            r.blocks = r.blocks.map((b, i) => ({ ...b, id: `${page}:${i}` }));
             await this.writePage(j, page, r);
             j.done.push(page);
             this.event(j, this.pageSummary(page, r));
@@ -507,8 +548,13 @@ class OCRJobs {
       .map((b) => ({ ...b }))
       .concat(collected)
       .sort((a, b) => a.page - b.page);
-    const pending = blocks.filter(b => !b.excluded && b.needsReview && !b.corrected && !b.reviewAccepted);
-    if (pending.length) throw Error(`${pending.length} 条 OCR 疑点尚未确认，请在校对中确认或排除后应用`);
+    const pending = blocks.filter(
+      (b) => !b.excluded && b.needsReview && !b.corrected && !b.reviewAccepted,
+    );
+    if (pending.length)
+      throw Error(
+        `${pending.length} 条 OCR 疑点尚未确认，请在校对中确认或排除后应用`,
+      );
     const allowed = new Set([
       ...JSON.parse(
         await fs.readFile(

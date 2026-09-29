@@ -34,7 +34,7 @@ def balanced(ops, foreign=False):
             if not text: return False
             text = 0
         elif op in (b'BDC', b'BMC'):
-            if foreign and (not args or args[0] == '/OC' or (op == b'BDC' and (len(args) < 2 or not isinstance(args[1], dict) or any(k in args[1] for k in ('/Alt','/E'))))): return False
+            if foreign and (not args or args[0] == '/OC' or (op == b'BDC' and (len(args) < 2 or not isinstance(args[1], dict) or any(k in args[1] for k in ('/Alt','/E','/MCID'))))): return False
             marked += 1
         elif op == b'EMC':
             marked -= 1

@@ -1,0 +1,71 @@
+{
+  "seed": 20260929,
+  "sourceCommit": "1a1cfb595b9a504a4689b23193a76bae7c3a156d",
+  "pool": [
+    "ccitt.pdf",
+    "cmyk.pdf",
+    "epson.pdf",
+    "francais.pdf",
+    "graph.pdf",
+    "lichtenstein.pdf",
+    "linn.pdf",
+    "masks.pdf",
+    "multipage.pdf",
+    "palette.pdf",
+    "rotated_skew.pdf",
+    "skew.pdf",
+    "tagged.pdf",
+    "toc.pdf",
+    "vector.pdf"
+  ],
+  "documents": [
+    {
+      "name": "linn.pdf",
+      "url": "https://raw.githubusercontent.com/ocrmypdf/OCRmyPDF/1a1cfb595b9a504a4689b23193a76bae7c3a156d/tests/resources/linn.pdf",
+      "sha256": "e923f6e8e036185f8f2aae5f7fdeefd8ac658d627cebd4ebf630de4cbf0a2d64",
+      "license": "CC-BY-SA-4.0; OCRmyPDF test resources"
+    },
+    {
+      "name": "multipage.pdf",
+      "url": "https://raw.githubusercontent.com/ocrmypdf/OCRmyPDF/1a1cfb595b9a504a4689b23193a76bae7c3a156d/tests/resources/multipage.pdf",
+      "sha256": "07987c44650938fa8dcf08c0937691712fdd800669b4607c2c7e3fee21cb1f80",
+      "license": "CC-BY-SA-4.0; OCRmyPDF test resources"
+    },
+    {
+      "name": "skew.pdf",
+      "url": "https://raw.githubusercontent.com/ocrmypdf/OCRmyPDF/1a1cfb595b9a504a4689b23193a76bae7c3a156d/tests/resources/skew.pdf",
+      "sha256": "6be6b54d49df71351974774404e299b756d8d3cbeb2c4a31f15fae8dd983d72f",
+      "license": "CC-BY-SA-4.0; OCRmyPDF test resources"
+    },
+    {
+      "name": "graph.pdf",
+      "url": "https://raw.githubusercontent.com/ocrmypdf/OCRmyPDF/1a1cfb595b9a504a4689b23193a76bae7c3a156d/tests/resources/graph.pdf",
+      "sha256": "11fa2cef6845341795dc4103e68b31df5ff4fc72a7b7fa42904eb22b9bd70613",
+      "license": "CC-BY-SA-4.0; OCRmyPDF test resources"
+    },
+    {
+      "name": "rotated_skew.pdf",
+      "url": "https://raw.githubusercontent.com/ocrmypdf/OCRmyPDF/1a1cfb595b9a504a4689b23193a76bae7c3a156d/tests/resources/rotated_skew.pdf",
+      "sha256": "5122c07d05a61219eb9f8305776ef16def6b34c29358e05c5ae2e884a351438f",
+      "license": "CC-BY-SA-4.0; OCRmyPDF test resources"
+    },
+    {
+      "name": "masks.pdf",
+      "url": "https://raw.githubusercontent.com/ocrmypdf/OCRmyPDF/1a1cfb595b9a504a4689b23193a76bae7c3a156d/tests/resources/masks.pdf",
+      "sha256": "ae8197d8a10b6db0f9a05681600e373b63489134b37529a40d484d380117d909",
+      "license": "CC-BY-SA-4.0; OCRmyPDF test resources"
+    },
+    {
+      "name": "epson.pdf",
+      "url": "https://raw.githubusercontent.com/ocrmypdf/OCRmyPDF/1a1cfb595b9a504a4689b23193a76bae7c3a156d/tests/resources/epson.pdf",
+      "sha256": "3fce2d6e5baffec839ffc86b7c91903b139399392ea76a09bdfcca40cb8b5a4d",
+      "license": "CC-BY-SA-4.0; OCRmyPDF test resources"
+    },
+    {
+      "name": "vector.pdf",
+      "url": "https://raw.githubusercontent.com/ocrmypdf/OCRmyPDF/1a1cfb595b9a504a4689b23193a76bae7c3a156d/tests/resources/vector.pdf",
+      "sha256": "f530547f86ca3884ef8e2e3cde686ca04c3a587b09d529a9d74817e77192cbb7",
+      "license": "CC-BY-SA-4.0; OCRmyPDF test resources"
+    }
+  ]
+}

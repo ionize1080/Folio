@@ -99,7 +99,7 @@ def describe(r,obj,i,tp):
   for j in range(r.FPDFPath_CountSegments(obj)):
    seg=r.FPDFPath_GetPathSegment(obj,j);x,y=C.c_float(),C.c_float();r.FPDFPathSegment_GetPoint(seg,C.byref(x),C.byref(y));segs.append({'type':r.FPDFPathSegment_GetType(seg),'x':x.value,'y':y.value,'close':bool(r.FPDFPathSegment_GetClose(seg))})
   width=C.c_float();r.FPDFPageObj_GetStrokeWidth(obj,C.byref(width));fill,stroke=C.c_int(),C.c_int();r.FPDFPath_GetDrawMode(obj,C.byref(fill),C.byref(stroke));n=max(0,r.FPDFPageObj_GetDashCount(obj));dash=(C.c_float*n)();r.FPDFPageObj_GetDashArray(obj,dash,n);phase=C.c_float();r.FPDFPageObj_GetDashPhase(obj,C.byref(phase));out.update(segments=segs,width=width.value,fillMode=fill.value,stroked=bool(stroke.value),cap=r.FPDFPageObj_GetLineCap(obj),join=r.FPDFPageObj_GetLineJoin(obj),dash=list(dash),dashPhase=phase.value)
- clip=r.FPDFPageObj_GetClipPath(obj);out['editable']=typ in (1,2,3) and (typ!=1 or out['renderMode']==0) and (not clip or r.FPDFClipPath_CountPaths(clip)<=0)
+ clip=r.FPDFPageObj_GetClipPath(obj);out['editable']=typ in (1,2,3) and (typ!=1 or out['renderMode']==0) and (not clip or r.FPDFClipPath_CountPaths(clip)<=0 or (typ==3 and contains_ink_clip(r,clip,out['bounds'])))
  out['simpleText']=typ==1 and out['renderMode'] in (0,2) and contains_ink_clip(r,clip,out['bounds'])
  if not out['editable']:out['reason']='复杂裁剪、嵌套或特殊绘制模式暂为只读'
  out['signature']=hashlib.sha256(json.dumps({k:out[k] for k in ['type','matrix','bounds']+(['text'] if typ==1 else [])},sort_keys=True).encode()).hexdigest()[:20];return out
@@ -290,8 +290,9 @@ def recognize(pdf,r,args):
   k=''.join(b['text'].split());seen=buckets.setdefault(k,[])
   if any(max(abs(b['quad'][j][v]-x['quad'][j][v]) for j in range(4) for v in (0,1))<2 for x in seen):continue
   seen.append(b);unique.append(b)
+ region_quad=[native(pt) for pt in [[0,0],[img.width,0],[img.width,img.height],[0,img.height]]] if region else None
  img.close();bmp.close();page.close()
- return {'rss':sample_memory(),'blocks':unique,'skipped':False,'seconds':recognized-rendered,'diagnostics':diagnostics,'profile':profile,'timing':{'load':loaded-started,'render':rendered-loaded,'recognize':recognized-rendered,'total':time.perf_counter()-started},'engine':'RapidOCR / ONNX Runtime CPU','threads':threads,'batch':batch}
+ return {'regionQuad':region_quad,'rss':sample_memory(),'blocks':unique,'skipped':False,'seconds':recognized-rendered,'diagnostics':diagnostics,'profile':profile,'timing':{'load':loaded-started,'render':rendered-loaded,'recognize':recognized-rendered,'total':time.perf_counter()-started},'engine':'RapidOCR / ONNX Runtime CPU','threads':threads,'batch':batch}
 
 def run(args):
  global CACHED_PDF,CACHED_PATH
@@ -338,6 +339,9 @@ def run(args):
  if args.get('command')=='layout':
   from story import analyze
   return analyze(Path(args['input']).read_bytes(),args.get('page',1))
+ if args.get('command')=='image-preview':
+  from image_adjustments import preview
+  return preview(args)
  if args.get('command')=='flow-background':
   # Compose just the active page, not all pages of a yearbook on each activation.
   from pypdf import PdfReader,PdfWriter
@@ -346,12 +350,14 @@ def run(args):
   # pypdf add_page can follow deep article/destination chains into other pages.
   import pikepdf
   number=args.get('page',1);buf=io.BytesIO()
+  from form_compat import reopen
+  raw=reopen(raw,[number])
   with pikepdf.open(io.BytesIO(raw)) as original:
    if not isinstance(number,int) or not 1<=number<=len(original.pages):raise ValueError('页码无效')
    selected=pikepdf.Pdf.new();selected.add_pages_from(original,[number-1]);selected.save(buf)
   edits=[{**e,'page':1} for e in args.get('edits',[]) if e['page']==number]
   blocks=[{**b,'page':1} for b in read_blocks(args) if b['page']==number]
-  data=run({'command':'apply','page':1,'bytes':base64.b64encode(buf.getvalue()).decode(),'edits':edits,'blocks':blocks,'ocr':blocks})['bytes']
+  data=run({'command':'apply','page':1,'bytes':base64.b64encode(buf.getvalue()).decode(),'edits':edits,'blocks':blocks,'ocr':blocks,'resolvedForms':True})['bytes']
   return {'pdf':data}
  import pypdfium2 as p
  if args.get('command')=='ocr' and 'input' in args:
@@ -362,7 +368,7 @@ def run(args):
   if not isinstance(page,int) or not 1<=page<=len(CACHED_PDF):raise ValueError('页码无效')
   return recognize(CACHED_PDF,p.raw,args)
  data=Path(args['input']).read_bytes() if 'input' in args else base64.b64decode(args['bytes'])
- if args.get('command') in ('inspect','apply'):
+ if args.get('command') in ('inspect','apply') and not args.get('resolvedForms'):
   from form_compat import reopen
   numbers=([args.get('page',1)] if args.get('command')=='inspect' else [e.get('page',1) for e in args.get('edits',[])])
   data=reopen(data,numbers)
@@ -415,16 +421,29 @@ def run(args):
      for font in getattr(d,"_folio_fonts",{}).values():p.raw.FPDFFont_Close(font)
      d.close()
    def progress(number):
-    if args.get('progress'):print(json.dumps({'progress':{'page':number,'stage':'write'}}),file=sys.__stdout__,flush=True)
+    if args.get('progress'):emit({'progress':{'page':number,'stage':'write'}})
    data=compose(data,args.get('edits',[]),read_blocks(args),inspect,fragment,progress)
    if 'output' in args:Path(args['output']).write_bytes(data);return {'bytes':len(data)}
    return {'bytes':base64.b64encode(data).decode()}
   if cmd=='ocr':return recognize(pdf,p.raw,args)
   raise ValueError('未知命令')
+PROTOCOL_OUT = None
+PROTOCOL_CONTEXT = {}
+def emit(message):
+ print(json.dumps({**PROTOCOL_CONTEXT,**message},ensure_ascii=True),file=PROTOCOL_OUT or sys.__stdout__,flush=True)
+
 if __name__=='__main__':
- from contextlib import redirect_stdout
+ # Retain a dedicated protocol descriptor before redirecting fd1. Native library
+ # printf/logging now goes to stderr, including calls outside redirect_stdout.
+ PROTOCOL_OUT=os.fdopen(os.dup(sys.stdout.fileno()),'w',encoding='utf-8',buffering=1)
+ os.dup2(sys.stderr.fileno(),sys.stdout.fileno())
+ sys.stdout=sys.stderr
  for line in sys.stdin:
+  PROTOCOL_CONTEXT={}
   try:
-   with redirect_stdout(sys.stderr):result=run(json.loads(line))
-   print(json.dumps({'result':result},ensure_ascii=True),flush=True)
-  except Exception as e:traceback.print_exc(file=sys.stderr);print(json.dumps({'error':str(e)},ensure_ascii=True),flush=True)
+   args=json.loads(line)
+   PROTOCOL_CONTEXT={k:args[k] for k in ('requestId','epoch') if k in args}
+   result=run(args)
+   emit({'result':result})
+  except Exception as e:
+   traceback.print_exc(file=sys.stderr);emit({'error':str(e)})

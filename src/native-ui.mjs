@@ -1,3 +1,4 @@
+import { installImageAdjustments } from "./image-adjustments-ui.mjs";
 import { nativeRequest, releaseSource } from "./native-source.mjs";
 import { bindUnit } from "./units.mjs";
 import { installFlowUI } from "./flow-ui.mjs";
@@ -210,12 +211,19 @@ export function installNativeUI(ctx) {
     toast("正在读取当前页内容对象…");
     const p = S.page,
       result = await native("inspect", { page: p }),
-      objects = result.objects;
+      objects = result.objects.map((o) => ({
+        ...o,
+        bounds: o.bounds.map((v, i) => v + (result.pageOrigin?.[i % 2] || 0)),
+        matrix: o.matrix.map(
+          (v, i) => v + (i >= 4 ? result.pageOrigin?.[i - 4] || 0 : 0),
+        ),
+      }));
     let chosen = null,
       task,
       viewport,
       closed = false,
-      applying = false;
+      applying = false,
+      imageEditor = null;
     modal(
       "编辑页面内容对象",
       `<p class="callout">直接修改文字、图片和矢量路径。修改文字时使用 Noto Sans SC 衍生字体；复杂裁剪、嵌套与特殊绘制模式只读。坐标为 PDF 原生单位。</p><div class="native-workspace"><div class="native-preview"><canvas id="object-canvas"></canvas><div id="object-boxes"></div></div><div class="native-properties"><label>内容对象<select id="object-select" disabled><option value="">请选择或点击左侧对象</option>${objects.map((o) => `<option value="${o.index}">#${o.index} ${o.type} ${esc((o.text || "").slice(0, 35))}${o.editable ? "" : " · 只读"}</option>`).join("")}</select></label><div class="menu-grid"><button id="object-new-text">新增文字</button><button id="object-new-path">新增矩形路径</button></div><div id="object-fields">选择对象后编辑属性。</div></div></div>`,
@@ -241,7 +249,7 @@ export function installNativeUI(ctx) {
               closeModal();
               toast("已修改实际 PDF 内容，可撤销");
             } finally {
-              applying = false;
+              ((applying = false), (imageEditor = null));
             }
           },
         },
@@ -250,6 +258,7 @@ export function installNativeUI(ctx) {
     $("#modal").classList.add("native-dialog");
     setCleanup(() => {
       closed = true;
+      imageEditor?.dispose();
       task?.cancel();
       $("#modal").classList.remove("native-dialog");
     });
@@ -273,6 +282,8 @@ export function installNativeUI(ctx) {
     await task.promise;
     if (closed) return;
     function fields(o) {
+      imageEditor?.dispose();
+      imageEditor = null;
       const prior = (S.nativeEdits || []).find(
         (e) => o.index !== null && e.page === p && e.index === o.index,
       );
@@ -295,6 +306,14 @@ export function installNativeUI(ctx) {
           `<label>替换图片<input id="obj-image-file" type="file" accept="image/png,image/jpeg,image/webp"></label><label>适配<select id="obj-image-fit"><option value="contain">完整显示 · 留边</option><option value="cover">铺满 · 裁边</option><option value="stretch">拉伸</option></select></label><details open><summary>可恢复裁切（百分比）</summary><div class="form-grid">${["左", "上", "右", "下"].map((name, i) => `<label>${name}<input data-image-crop="${i}" type="number" min="0" max="98" value="${o.crop?.[i] || 0}"></label>`).join("")}</div><button id="obj-reset-crop">恢复完整图片</button><p class="hint">仅裁切选中实例的显示区域，工程保留原图。替换默认沿用位置尺寸。</p></details>`,
         );
         $("#obj-image-fit").value = o.imageFit || "contain";
+        if (o.editable)
+          imageEditor = installImageAdjustments({
+            host: fieldset,
+            chosen,
+            request: native,
+            page: p,
+            alive: () => !closed,
+          });
         $("#obj-image-file").onchange = () =>
           guarded(async () => {
             const f = $("#obj-image-file").files[0];
@@ -305,6 +324,7 @@ export function installNativeUI(ctx) {
             for (let i = 0; i < bytes.length; i += 32768)
               raw += String.fromCharCode(...bytes.subarray(i, i + 32768));
             chosen.imageData = btoa(raw);
+            imageEditor?.refresh();
           });
         $("#obj-reset-crop").onclick = () =>
           document
@@ -354,6 +374,7 @@ export function installNativeUI(ctx) {
       if (e.type === "image")
         Object.assign(e, {
           imageData: chosen.imageData || null,
+          adjustments: chosen.adjustments || null,
           imageFit: $("#obj-image-fit").value,
           crop: [...document.querySelectorAll("[data-image-crop]")].map(
             (el) => +el.value,

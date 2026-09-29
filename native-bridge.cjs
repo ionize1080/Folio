@@ -4,10 +4,12 @@ const fs = require("node:fs/promises"),
   os = require("node:os"),
   crypto = require("node:crypto"),
   { spawn } = require("node:child_process"),
-  readline = require("node:readline");
+  { StringDecoder } = require("node:string_decoder");
 class NativeBridge {
-  constructor(root, python, sources = null) {
+  constructor(root, python, sources = null, deadlines = {}) {
     this.sources = sources;
+    this.deadlines = deadlines;
+    this.sequence = 0;
     this.epoch = 0;
     this.backgroundCache = new Map();
     this.root = root;
@@ -36,28 +38,49 @@ class NativeBridge {
     this.process = child;
     let details = "";
     child.stderr.on("data", (b) => (details = (details + b).slice(-16000)));
-    readline.createInterface({ input: child.stdout }).on("line", (line) => {
-      if (this.process !== child || !this.pending) return;
-      const p = this.pending;
-      try {
-        const m = JSON.parse(line);
-        if (m.progress) {
-          p.onProgress?.(m.progress);
-          return;
-        }
-        this.pending = null;
-        m.error ? p.reject(Error(m.error)) : p.resolve(m.result);
-      } catch {
-        this.pending = null;
-        p.reject(Error("本地引擎返回无效结果"));
-      }
-    });
     const fail = (e) => {
       if (this.process !== child) return;
       this.process = null;
-      this.pending?.reject(e);
+      this.epoch++;
+      const pending = this.pending;
       this.pending = null;
+      pending?.reject(e);
+      child.kill();
     };
+    const decoder = new StringDecoder("utf8");
+    let buffer = "";
+    child.stdout.on("data", (chunk) => {
+      if (this.process !== child) return;
+      buffer += decoder.write(chunk);
+      if (buffer.length > 128 * 1024 ** 2)
+        return fail(Error("本地引擎响应超过预算"));
+      let at;
+      while ((at = buffer.indexOf("\n")) >= 0) {
+        const line = buffer.slice(0, at);
+        buffer = buffer.slice(at + 1);
+        const p = this.pending;
+        try {
+          const m = JSON.parse(line);
+          if (!p || m.requestId !== p.requestId || m.epoch !== p.epoch)
+            throw Error("请求标识不匹配");
+          const kind = ["progress", "result", "error"].filter((k) =>
+            Object.hasOwn(m, k),
+          );
+          if (kind.length !== 1) throw Error("响应类型无效");
+          if (kind[0] === "progress") {
+            p.onProgress?.(m.progress);
+            continue;
+          }
+          this.pending = null;
+          kind[0] === "error"
+            ? p.reject(Error(String(m.error)))
+            : p.resolve(m.result);
+        } catch (e) {
+          fail(Error("本地引擎协议失效，已重启隔离：" + e.message));
+          return;
+        }
+      }
+    });
     child.on("error", () => fail(Error("无法启动本地引擎，请完整解压运行包")));
     child.on("exit", (code) =>
       fail(
@@ -76,20 +99,50 @@ class NativeBridge {
         if (epoch !== this.epoch) return reject(Error("任务已取消"));
         this.start();
         const context = `${args.command}${args.page ? " · 第 " + args.page + " 页" : ""}`;
+        const requestId = ++this.sequence;
+        const limit =
+          this.deadlines[args.command] ??
+          ({
+            apply: 900000,
+            ocr: 900000,
+            layout: 600000,
+            "flow-background": 900000,
+            "image-preview": 300000,
+          }[args.command] ||
+            300000);
+        let timer;
+        const finish = (fn, value) => {
+          clearTimeout(timer);
+          fn(value);
+        };
         const pending = (this.pending = {
-          resolve,
+          requestId,
+          epoch,
+          resolve: (value) => finish(resolve, value),
           reject: (e) =>
-            reject(
+            finish(
+              reject,
               Object.assign(Error(context + "：" + e.message), { cause: e }),
             ),
           onProgress,
         });
-        this.process.stdin.write(JSON.stringify(args) + "\n", (e) => {
-          if (e && this.pending === pending) {
-            this.pending = null;
-            pending.reject(e);
-          }
-        });
+        timer = setTimeout(() => {
+          if (this.pending !== pending) return;
+          this.pending = null;
+          pending.reject(
+            Error("本地任务超时，已停止工作进程；可重试，草稿仍保留"),
+          );
+          this.cancel();
+        }, limit);
+        this.process.stdin.write(
+          JSON.stringify({ ...args, requestId, epoch }) + "\n",
+          (e) => {
+            if (e && this.pending === pending) {
+              this.pending = null;
+              pending.reject(e);
+            }
+          },
+        );
       });
     const p = this.queue.then(job, job);
     this.queue = p.catch(() => {});
@@ -103,9 +156,13 @@ class NativeBridge {
         format: options.format,
       });
     if (
-      ["font-catalog", "font-select", "font-data", "font-recommend", "font-fast"].includes(
-        command,
-      )
+      [
+        "font-catalog",
+        "font-select",
+        "font-data",
+        "font-recommend",
+        "font-fast",
+      ].includes(command)
     ) {
       // These requests do not depend on the document. Avoid writing a full PDF
       // to a temporary directory for every font name in the chooser.
@@ -121,6 +178,7 @@ class NativeBridge {
     if (
       ![
         "inspect",
+        "image-preview",
         "apply",
         "ocr",
         "layout",
@@ -165,6 +223,8 @@ class NativeBridge {
           output = path.join(dir, "output.pdf");
         if (!source) await fs.writeFile(input, Buffer.from(bytes));
         const args = { ...options, command, input };
+        for (const key of ["resolvedForms", "requestId", "epoch", "bytes"])
+          delete args[key];
         delete args.source;
         delete args.target;
         if (["apply", "qpdf-decrypt"].includes(command)) args.output = output;
