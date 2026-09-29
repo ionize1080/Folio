@@ -221,6 +221,21 @@ const root = path.resolve(__dirname, ".."),
     assert((await yearbookHits.evaluateAll((es) => es.map((e) => e.getAttribute("aria-label")))).some((s) => s.includes("Yearbook 2025")));
     assert((await inspect(yearbookSaved, 2)).objects.some((o) => o.text === "Yearbook 2026"));
     checks.push("EXE: nested wrapper with unowned MCID accepts text edit, saves, reopens editable and preserves shared sibling page");
+    await open(path.join(out, "yearbook-tracked-text.pdf"));
+    await page.locator('[data-action="flow-edit"]').click();
+    await page.locator(".page-edit-hit:not(.unavailable)").first().click();
+    await stable();
+    await page.locator(".page-edit-input").evaluate((e) => e.setSelectionRange(3, 4));
+    await page.keyboard.insertText("3");
+    await stable();
+    await page.locator("#pe-done").click();
+    await page.waitForFunction(() => !document.body.classList.contains("page-edit-mode"));
+    const trackedSaved = await save("yearbook-tracked-exe-saved.pdf");
+    require("node:child_process").execFileSync(process.env.FOLIO_PYTHON || "python", [
+      "-c", "import sys,fitz; a=fitz.open(sys.argv[1]); b=fitz.open(sys.argv[2]); assert b[0].get_text().splitlines()==['2023 report','2024 report']; lines=lambda p:[l for block in p.get_text('dict')['blocks'] for l in block.get('lines',[])]; assert all(abs(x['spans'][0]['origin'][1]-y['spans'][0]['origin'][1])<.05 for x,y in zip(lines(a[0]),lines(b[0])))",
+      path.join(out, "yearbook-tracked-text.pdf"), trackedSaved,
+    ], { stdio: "pipe" });
+    checks.push("EXE: negative tracking digit edit preserves both source lines and baselines after save");
     await open(path.join(out, "yearbook-clipped-image.pdf"));
     await page.locator(".more-tools > summary").click();
     await page.locator('[data-action="edit-content"]').click();

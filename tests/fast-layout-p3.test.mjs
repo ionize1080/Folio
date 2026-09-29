@@ -296,3 +296,23 @@ test("moving a tight source frame translates every glyph without wrapping or cha
   m.frame = { ...m.frame, x: 40, y: 50 };
   assert.deepEqual(fastLayout(m, measure).glyphs, before.glyphs);
 });
+
+test("equal-width numeric edits retain tightly tracked anchors before and after save", () => {
+  for (const charSpacing of [-0.4, 0]) {
+    const m = model("2424", {
+      frame: { x: 40, y: 50, width: 23, height: 20 }, sources: [{ index: 0 }],
+    });
+    const glyphs = [...m.text].map((text, i) => ({
+      text, originX: 40 + i * 5.6, baseline: 62,
+      x: 40 + i * 5.6, y: 53, w: 5, h: 9,
+    }));
+    sourceStyles(m, [o(0, m.text, 40, 62, 23, { fontKey: "a".repeat(32), charSpacing, glyphs })]);
+    m.text = "2323";
+    const metric = (ch) => ({ width: ch === "W" ? 12 : 6, inkWidth: 5, ascent: 9, inkHeight: 9, fontKey: "a".repeat(32) });
+    const r = fastLayout(m, metric);
+    assert.equal(r.layoutMode, "原始字位");
+    assert.deepEqual(r.glyphs.map(g => [g.originX, g.baseline]), glyphs.map(g => [g.originX, g.baseline]));
+    m.text = "2W24";
+    assert.notEqual(fastLayout(m, metric).layoutMode, "原始字位");
+  }
+});

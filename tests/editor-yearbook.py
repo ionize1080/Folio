@@ -65,7 +65,7 @@ checks.append('Subset font empty cmap slots excluded; successive new and repeate
 d=fitz.open();p=d.new_page(width=240,height=160);p.insert_font(fontname='F',fontfile=str(ROOT/'native/fonts/DejaVuSans.ttf'))
 p.insert_text((20,50),'2024 report\n2024 report',fontname='F',fontsize=14)
 for xref in p.get_contents():d.update_stream(xref,d.xref_stream(xref).replace(b'BT',b'BT -.5 Tc'))
-current=d.tobytes();_,ms=models(current);m=next(m for m in ms if '\n' in m['text']);m['text']=m['text'].replace('2024','2023')
+current=d.tobytes();(OUT/'yearbook-tracked-text.pdf').write_bytes(current);_,ms=models(current);m=next(m for m in ms if '\n' in m['text']);m['text']=m['text'].replace('2024','2023')
 from story import layout
 result=layout(m);assert result['layoutMode']=='原始字位',result['layoutMode'];edited=save(current,m,result=result)
 with fitz.open(stream=edited,filetype='pdf') as doc:assert doc[0].get_text().splitlines()==['2023 report','2023 report']

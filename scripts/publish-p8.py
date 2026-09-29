@@ -9,7 +9,7 @@ packaged=['p8Editor','p7Editor','p6Editor','p5Editor','narrowTable','existingFea
 for key in packaged:assert reports[key]['platform']=='win32'
 assert len(reports['p7Native']['checks'])>=11
 assert len(reports['yearbookNative']['checks'])>=7
-assert len(reports['p8Editor']['checks'])>=4
+assert len(reports['p8Editor']['checks'])>=5
 assert len(reports['p8Native']['checks'])>=5 and len(reports['p8Contracts']['checks'])>=7
 assert len(reports['p8Corpus']['documents'])==8
 assert len(reports['p8Text']['documents'])==3
