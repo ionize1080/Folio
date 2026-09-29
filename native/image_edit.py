@@ -13,12 +13,15 @@ def operations(writer,page,original,matrix,ctm,crop,image_data=None,fit='contain
  crop=numbers(crop or [0,0,0,0],4);left,top,right,bottom=[x/100 for x in crop]
  if min(crop)<0 or left+right>=.99 or top+bottom>=.99:raise ValueError('裁切后必须保留可见图片')
  draw=original
- if adjustments is not None:
+ from image_color import neutral
+ if adjustments is not None and not neutral(adjustments):
   from image_adjustments import read_image, process, add_image
   adjusted=process(read_image(page,original,image_data),adjustments)
   if image_data:
    buf=io.BytesIO();adjusted.save(buf,format='PNG');image_data=base64.b64encode(buf.getvalue()).decode()
   else:draw=add_image(writer,page,adjusted,original)
+ if not image_data and not any(crop) and all(math.isclose(x,y,rel_tol=1e-6,abs_tol=1e-5) for x,y in zip(matrix,ctm)):
+  return [draw]
  if image_data:
   data=base64.b64decode(image_data,validate=True)
   if len(data)>32*1024*1024:raise ValueError('替换图片限 32 MB')

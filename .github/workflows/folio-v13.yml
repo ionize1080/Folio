@@ -57,6 +57,11 @@ jobs:
       - run: node tests/image-v13.cjs
         env:
           FOLIO_EXE: ${{ github.workspace }}\dist\Folio-PDF-Studio-win-x64\Folio.exe
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: folio-v13-image-preview
+          path: tests/output/v13-*.png
       - run: python tests/public-corpus-p5.py
       - run: python tests/editor-p5.py
       - run: python tests/editor-p6.py

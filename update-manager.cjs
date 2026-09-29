@@ -268,38 +268,44 @@ class UpdateManager {
       throw Error("自动替换仅用于 Windows 便携发行包");
     if (this.busy || !this.ready) throw Error("请先下载并校验更新");
     if (this.dirty()) throw Error("请先保存或关闭当前文档，再安装更新");
-    const target = path.dirname(this.app.getPath("exe"));
-    const manifest = path.join(
-      this.home,
-      "install-" + crypto.randomUUID() + ".json",
-    );
-    await fs.writeFile(
-      manifest,
-      JSON.stringify({ ...this.ready, target, pid: process.pid }),
-    );
-    const script = path.join(this.home, "portable-update.ps1");
-    await fs.copyFile(path.join(__dirname, "portable-update.ps1"), script);
-    const child = spawn(
-      "powershell.exe",
-      [
-        "-NoProfile",
-        "-NonInteractive",
-        "-ExecutionPolicy",
-        "Bypass",
-        "-File",
-        script,
-        "-Manifest",
+    return this.task(async () => {
+      this.status("installing");
+      const target = path.dirname(this.app.getPath("exe"));
+      const manifest = path.join(
+        this.home,
+        "install-" + crypto.randomUUID() + ".json",
+      );
+      await fs.writeFile(
         manifest,
-      ],
-      { detached: true, stdio: "ignore", cwd: this.home, windowsHide: true },
-    );
-    await new Promise((resolve, reject) => {
-      child.once("spawn", resolve);
-      child.once("error", reject);
+        JSON.stringify({ ...this.ready, target, pid: process.pid }),
+      );
+      const script = path.join(this.home, "portable-update.ps1");
+      await fs.writeFile(
+        script,
+        await fs.readFile(path.join(__dirname, "portable-update.ps1")),
+      );
+      const child = spawn(
+        "powershell.exe",
+        [
+          "-NoProfile",
+          "-NonInteractive",
+          "-ExecutionPolicy",
+          "Bypass",
+          "-File",
+          script,
+          "-Manifest",
+          manifest,
+        ],
+        { detached: true, stdio: "ignore", cwd: this.home, windowsHide: true },
+      );
+      await new Promise((resolve, reject) => {
+        child.once("spawn", resolve);
+        child.once("error", reject);
+      });
+      child.unref();
+      this.app.quit();
+      return true;
     });
-    child.unref();
-    this.app.quit();
-    return true;
   }
 }
 module.exports = {

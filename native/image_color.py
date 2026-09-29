@@ -164,3 +164,18 @@ def dehaze(rgb, amount):
         else:a=a*(1+amount/150)+air*(-amount/150)
         result.paste(Image.fromarray(np.uint8(np.clip(np.rint(a*255),0,255))),box)
     return result
+
+
+def neutral(options):
+    p=validate(options);d=validate({})
+    p['interpolation']=d['interpolation']
+    p['channelCurves']={k:v for k,v in p['channelCurves'].items() if v!=[[0,0],[255,255]]}
+    p['levels']={k:v for k,v in p['levels'].items() if v!=[0,1,255,0,255]}
+    p['balance']={k:v for k,v in p['balance'].items() if any(v)}
+    p['selective']={k:v for k,v in p['selective'].items() if any(v)}
+    if not p['blackWhite']:p['bwMix']=d['bwMix']
+    if not p['photoDensity']:p['photoColor']=d['photoColor'];p['photoLuminosity']=d['photoLuminosity']
+    if p['lookup']=='none':p['cube']=None;p['lutAmount']=d['lutAmount']
+    if not p['thresholdEnabled']:p['threshold']=d['threshold']
+    if not p['gradientEnabled']:p['gradient']=d['gradient']
+    return p==d

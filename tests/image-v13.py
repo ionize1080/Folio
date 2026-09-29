@@ -37,4 +37,20 @@ for p in options:
   assert 'Foreground text' in doc[0].get_text();pix=doc[0].get_pixmap();assert pix.pixel(120,110)==(0,0,255)
  r=call(raw,'image-preview',page=1,index=obj['index'],adjustments=p);assert sum(r['histogram'])==im.width*im.height
 checks.append('Every adjustment saves/reopens a real PDF; shared sibling, foreground vector and text preserved')
+
+# PDF color semantics and masks are decoded by MuPDF, not bare JPEG/JPX pixels.
+from pypdf import PdfReader,PdfWriter
+from pypdf.generic import NameObject as N,NumberObject as I,DecodedStreamObject,DictionaryObject as D
+from form_compat import reopen
+from content import map_objects
+from image_adjustments import read_image
+w=PdfWriter(clone_from=PdfReader(io.BytesIO(raw)));pg=w.pages[0];image=next(v.get_object() for v in pg['/Resources']['/XObject'].values() if v.get_object().get('/Subtype')=='/Image')
+mask=DecodedStreamObject();mask.set_data(bytes([80,180,240,160])* (60*45//4)+bytes([120])*(60*45%4));mask.update({N('/Type'):N('/XObject'),N('/Subtype'):N('/Image'),N('/Width'):I(60),N('/Height'):I(45),N('/BitsPerComponent'):I(8),N('/ColorSpace'):N('/DeviceGray')});image[N('/SMask')]=w._add_object(mask);buffer=io.BytesIO();w.write(buffer);masked=buffer.getvalue()
+info=call(masked,'inspect',page=1);obj=next(o for o in info['objects'] if o['type']=='image');assert bitmap(apply(masked,{**obj,'page':1,'adjustments':{}}))==bitmap(masked)
+reader=PdfReader(io.BytesIO(reopen(masked,[1])));stream,mapped=map_objects(reader.pages[0]);decoded=read_image(reader.pages[0],stream.operations[mapped[obj['index']]['at']]);assert decoded.mode=='RGBA' and decoded.getchannel('A').getextrema()[0]<200
+buf=io.BytesIO();im.convert('RGB').convert('CMYK').save(buf,format='JPEG');doc=fitz.open();page=doc.new_page(width=300,height=260);page.insert_image(fitz.Rect(10,20,290,240),stream=buf.getvalue());page.set_cropbox(fitz.Rect(10,20,290,240));page.set_rotation(90);cmyk=doc.tobytes();doc.close();(out/'v13-cmyk-crop.pdf').write_bytes(cmyk)
+info=call(cmyk,'inspect',page=1);obj=next(o for o in info['objects'] if o['type']=='image');obj={**obj,'matrix':[v+(info['pageOrigin'][i-4] if i>=4 else 0) for i,v in enumerate(obj['matrix'])]}
+assert bitmap(apply(cmyk,{**obj,'page':1,'adjustments':{}}))==bitmap(cmyk)
+result=call(cmyk,'image-preview',page=1,index=obj['index'],adjustments={'contrast':10});assert result['width']==240 and result['height']==180
+checks.append('Nonzero CropBox, 90-degree CMYK image and differently sized soft mask: neutral PDF pixels exact; source alpha decoded')
 (out/'v13-native-report.json').write_text(json.dumps({'checks':checks,'errors':[]},indent=2));print(json.dumps({'checks':checks,'errors':[]}))
