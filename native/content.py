@@ -245,6 +245,7 @@ def compose(data,edits,blocks,inspect,fragment,progress=None):
         width,height=float(page.mediabox.width),float(page.mediabox.height)
         flows=sorted([e for e in es if e.get('type')=='flow' and not e.get('delete')],key=lambda e:float((e.get('model') or {}).get('layerOrder',0)))
         replace=[e for e in es if e.get('index') is not None]
+        deleted_indices={e['index'] for e in replace if e.get('delete')}
         appended=[e for e in es if e.get('index') is None and not e.get('delete') and e.get('type')!='flow']
         flow_indices=set(); flow_blobs=[]; original_patches={}; inline_flows={}; relocated_marks=set()
         if flows:
@@ -318,7 +319,7 @@ def compose(data,edits,blocks,inspect,fragment,progress=None):
                         left=float(page.cropbox.left);top=float(page.cropbox.top)
                         ink_boxes=[[left+x0,top-y1,left+x1,top-y0] for kind,(x0,y0,x1,y1) in fragment_doc[0].get_bboxlog() if kind.startswith(('fill-','stroke-')) and x1>x0 and y1>y0]
                     for j,item in enumerate(mapped):
-                        if j in indices or item.get('at') is None or not first<=item['at']<=position:continue
+                        if j in indices or j in deleted_indices or item.get('at') is None or not first<=item['at']<=position:continue
                         other=desc[j].get('bounds')
                         if other and any(min(box[2],other[2])>max(box[0],other[0])+.1 and min(box[3],other[3])>max(box[1],other[1])+.1 for box in ink_boxes):
                             raise ValueError('原文与其他绘制对象交错重叠，请分别编辑或明确调整图层，草稿已保留')
