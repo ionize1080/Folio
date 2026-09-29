@@ -12,6 +12,7 @@ export function installImageAdjustments({
   page,
   alive,
   onPreview,
+  onPick,
   onChange = () => {},
   onCompare = () => {},
 }) {
@@ -508,6 +509,55 @@ export function installImageAdjustments({
     return [lo, hi];
   }
   function installExtra() {
+    if (onPick) {
+      const tools = document.createElement("div");
+      tools.className = "adjust-tools";
+      for (const [mode, label] of [
+        ["black", "黑场取样"],
+        ["gray", "灰场取样"],
+        ["white", "白场取样"],
+      ]) {
+        const button = document.createElement("button");
+        button.textContent = label;
+        button.dataset.pick = mode;
+        button.onclick = () => {
+          status.textContent = "请在页面图片上点击取样";
+          onPick(mode, (rgb) => {
+            for (let i = 0; i < 3; i++) {
+              const k = ["r", "g", "b"][i],
+                v = (state.levels[k] ||= [0, 1, 255, 0, 255]),
+                n = rgb[i];
+              if (mode === "black") {
+                v[0] = Math.min(254, n);
+                v[2] = Math.max(v[2], v[0] + 1);
+              }
+              if (mode === "white") {
+                v[2] = Math.max(1, n);
+                v[0] = Math.min(v[0], v[2] - 1);
+              }
+              if (mode === "gray")
+                v[1] = Math.max(
+                  0.1,
+                  Math.min(
+                    10,
+                    Math.log(
+                      Math.max(
+                        0.001,
+                        Math.min(0.999, (n - v[0]) / (v[2] - v[0])),
+                      ),
+                    ) / Math.log(0.5),
+                  ),
+                );
+            }
+            levelFields();
+            changed();
+          });
+        };
+        tools.append(button);
+      }
+      $("#adj-levels").append(tools);
+    }
+
     $("#adj-photo").insertAdjacentHTML(
       "beforeend",
       '<label>滤镜颜色<input data-photo-color type="color" value="#ffa046"></label><label class="check"><input data-flag="photoLuminosity" type="checkbox" checked>保留明度</label>',

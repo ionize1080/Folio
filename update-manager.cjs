@@ -80,8 +80,16 @@ function assetURL(s) {
   return u.href;
 }
 class UpdateManager {
-  constructor({ app, session, notify = () => {}, dirty = () => false }) {
+  constructor({
+    app,
+    session,
+    notify = () => {},
+    dirty = () => false,
+    releaseChannel = "",
+  }) {
     Object.assign(this, { app, session, notify, dirty });
+    this.current =
+      app.getVersion() + (releaseChannel ? "-" + releaseChannel : "");
     this.settings = config();
     this.state = { phase: "idle" };
     this.home = path.join(app.getPath("userData"), "updates");
@@ -106,7 +114,7 @@ class UpdateManager {
     return {
       ...this.state,
       settings: this.settings,
-      current: this.app.getVersion(),
+      current: this.current,
       supported: process.platform === "win32" && this.app.isPackaged,
     };
   }
@@ -152,11 +160,7 @@ class UpdateManager {
         all.push(...rows);
         if (rows.length < 100) break;
       }
-      this.release = selectRelease(
-        all,
-        this.app.getVersion(),
-        this.settings.channel,
-      );
+      this.release = selectRelease(all, this.current, this.settings.channel);
       return this.status(this.release ? "available" : "current", {
         release: this.release
           ? {

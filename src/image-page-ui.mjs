@@ -46,11 +46,13 @@ export function installPageImages(ctx) {
       editor = null,
       closed = false,
       changed = false,
-      applying = false,
+      applying = null,
       serial = 0,
       renderTask = null,
       previewDoc = null,
-      showOriginal = false;
+      showOriginal = false,
+      picker = null,
+      sample = null;
     const bar = document.createElement("aside");
     bar.className = "image-page-panel";
     bar.innerHTML =
@@ -105,6 +107,13 @@ export function installPageImages(ctx) {
       const doc = await pdfjs.getDocument({
         data: Uint8Array.from(atob(r.pdf), (c) => c.charCodeAt(0)),
         isEvalSupported: false,
+        cMapUrl: new URL("./vendor/cmaps/", import.meta.url).href,
+        cMapPacked: true,
+        standardFontDataUrl: new URL(
+          "./vendor/standard_fonts/",
+          import.meta.url,
+        ).href,
+        wasmUrl: new URL("./vendor/wasm/", import.meta.url).href,
       }).promise;
       try {
         const p = await doc.getPage(1),
@@ -142,6 +151,9 @@ export function installPageImages(ctx) {
       editor?.dispose();
       serial++;
       preview.hidden = true;
+      picker = null;
+      sample = null;
+      showOriginal = false;
       chosen = {
         ...clone(o),
         ...clone(
@@ -184,11 +196,23 @@ export function installPageImages(ctx) {
         page,
         alive: check,
         onChange: mark,
+        onPick: (mode, callback) => {
+          picker = callback;
+          layer.classList.add("picking");
+          toast("点击当前图片取样：" + mode);
+        },
         onCompare: (value) => {
           showOriginal = value;
           preview.hidden = value;
         },
-        onPreview: async () => {
+        onPreview: async (r) => {
+          const image = new Image();
+          image.src = "data:image/png;base64," + r.original;
+          await image.decode();
+          sample = document.createElement("canvas");
+          sample.width = image.width;
+          sample.height = image.height;
+          sample.getContext("2d").drawImage(image, 0, 0);
           await composite();
           if (check()) q("#image-apply").disabled = !changed;
         },
@@ -251,27 +275,79 @@ export function installPageImages(ctx) {
         button.title = `图片 #${o.index}${o.editable ? "" : " · " + o.reason}`;
         button.setAttribute("aria-label", button.title);
         button.style.cssText = `left:${Math.min(rect[0], rect[2])}px;top:${Math.min(rect[1], rect[3])}px;width:${Math.abs(rect[2] - rect[0])}px;height:${Math.abs(rect[3] - rect[1])}px`;
-        button.onclick = () => guarded(() => select(o));
+        button.onclick = (event) =>
+          guarded(async () => {
+            if (picker && sample && chosen?.index === o.index) {
+              const rect = entry.shell.getBoundingClientRect(),
+                [px, py] = entry.viewport.convertToPdfPoint(
+                  event.clientX - rect.left,
+                  event.clientY - rect.top,
+                );
+              const [a, b, c, d, e, f] = chosen.matrix,
+                det = a * d - b * c;
+              if (Math.abs(det) < 1e-12) throw Error("图片变换不可逆");
+              let u = (d * (px - e) - c * (py - f)) / det,
+                v = 1 - (-b * (px - e) + a * (py - f)) / det;
+              if (chosen.imageData && chosen.imageFit !== "stretch") {
+                const w = Math.hypot(a, b),
+                  h = Math.hypot(c, d),
+                  scale = (chosen.imageFit === "cover" ? Math.max : Math.min)(
+                    w / sample.width,
+                    h / sample.height,
+                  ),
+                  sx = (sample.width * scale) / w,
+                  sy = (sample.height * scale) / h;
+                u = (u - (1 - sx) / 2) / sx;
+                v = (v - (1 - sy) / 2) / sy;
+              }
+              if (u < 0 || u > 1 || v < 0 || v > 1)
+                throw Error("请点击图片有效像素区域");
+              const rgb = sample
+                .getContext("2d")
+                .getImageData(
+                  Math.min(sample.width - 1, Math.floor(u * sample.width)),
+                  Math.min(sample.height - 1, Math.floor(v * sample.height)),
+                  1,
+                  1,
+                ).data;
+              if (rgb[3] < 128) throw Error("请在不透明区域取样");
+              const callback = picker;
+              picker = null;
+              layer.classList.remove("picking");
+              callback(Array.from(rgb).slice(0, 3));
+            } else await select(o);
+          });
         hits.append(button);
       }
     }
     async function apply() {
-      if (!changed || !chosen || applying) return;
-      applying = true;
+      if (applying) return applying;
+      if (!changed || !chosen) return;
       q("#image-apply").disabled = true;
-      try {
-        await editor.flush();
-        const values = edits();
-        await refreshNative(values, S.ocr || []);
-        commit(clone(S.nodes), { nativeEdits: values });
-        changed = false;
-        dirty();
-        preview.hidden = true;
-        toast("图片调整已应用，可撤销");
-      } finally {
-        applying = false;
-        q("#image-apply").disabled = !changed;
-      }
+      q("#image-done").disabled = true;
+      q("#image-cancel").disabled = true;
+      q("#image-properties").inert = true;
+      applying = (async () => {
+        try {
+          await editor.flush();
+          const values = edits();
+          await refreshNative(values, S.ocr || []);
+          commit(clone(S.nodes), { nativeEdits: values });
+          changed = false;
+          dirty();
+          preview.hidden = true;
+          toast("图片调整已应用，可撤销");
+        } finally {
+          applying = null;
+          if (!closed) {
+            q("#image-apply").disabled = !changed;
+            q("#image-done").disabled = false;
+            q("#image-cancel").disabled = false;
+            q("#image-properties").inert = false;
+          }
+        }
+      })();
+      return applying;
     }
     function destroy() {
       if (closed) return;

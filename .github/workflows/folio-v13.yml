@@ -10,7 +10,19 @@ permissions:
   contents: read
   actions: read
 jobs:
+  updater:
+    runs-on: windows-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - run: python tests/update-windows-v13.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: folio-v13-updater-smoke
+          path: tests/output/v13-updater*
   windows:
+    needs: updater
     runs-on: windows-latest
     timeout-minutes: 75
     steps:

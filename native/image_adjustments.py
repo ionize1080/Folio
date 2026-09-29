@@ -14,7 +14,7 @@ def bounded(value, low, high, name):
         raise ValueError('图像参数无效：' + name)
     return float(value)
 
-from image_color import validate, tonal, colors
+from image_color import validate, tonal, colors, dehaze
 
 def read_image(page, original, image_data=None):
     if image_data:
@@ -65,7 +65,7 @@ def process(image, options):
     if p['clarity']:
         if p['clarity']>0:rgb=rgb.filter(ImageFilter.UnsharpMask(radius=8,percent=round(p['clarity']),threshold=3))
         else:rgb=Image.blend(rgb,rgb.filter(ImageFilter.GaussianBlur(8)),-p['clarity']/150)
-    if p['dehaze']:rgb=ImageEnhance.Contrast(rgb).enhance(1+p['dehaze']/150)
+    if p['dehaze']:rgb=dehaze(rgb,p['dehaze'])
     if p['blur']:rgb=rgb.filter(ImageFilter.GaussianBlur(p['blur']))
     if p['sharpen']:rgb=rgb.filter(ImageFilter.UnsharpMask(radius=1.2,percent=round(p['sharpen']),threshold=2))
     if alpha is not None:rgb.putalpha(alpha)

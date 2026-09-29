@@ -1,10 +1,10 @@
 """Exercise the actual PowerShell swap helper with real PE fixtures in isolated folders."""
 from pathlib import Path
-import os,sys,tempfile,subprocess,json,zipfile,hashlib,shutil
+import os,sys,tempfile,subprocess,json,zipfile,hashlib,shutil,time
 assert sys.platform=='win32'
 root=Path(__file__).resolve().parents[1];checks=[]
 def digest(p):return hashlib.sha256(p.read_bytes()).hexdigest()
-with tempfile.TemporaryDirectory(prefix="Folio 更新 ' test ") as td:
+with tempfile.TemporaryDirectory(prefix="Folio 更新 ' test ",ignore_cleanup_errors=True) as td:
  base=Path(td);target=base/'Folio fixed directory';target.mkdir();shutil.copyfile(Path(os.environ['SystemRoot'])/'System32/whoami.exe',target/'Folio.exe');(target/'user-notes.txt').write_text('old local file');
  stage=base/'payload/Folio-PDF-Studio';(stage/'resources').mkdir(parents=True);shutil.copyfile(target/'Folio.exe',stage/'Folio.exe');(stage/'resources/app.asar').write_bytes(b'new tested app');(stage/'BUILD-INFO.json').write_text(json.dumps({'version':'1.3.0','exe_sha256':digest(stage/'Folio.exe'),'asar_sha256':digest(stage/'resources/app.asar')}))
  archive=base/'new.zip'
@@ -12,7 +12,7 @@ with tempfile.TemporaryDirectory(prefix="Folio 更新 ' test ") as td:
   for f in stage.rglob('*'):
    if f.is_file():z.write(f,f.relative_to(stage.parent))
  def run(file,hash):
-  manifest=base/'install.json';manifest.write_text(json.dumps({'file':str(file),'hash':hash,'version':'v1.3.0','target':str(target),'pid':2147483646}),encoding='utf-8');subprocess.run(['powershell.exe','-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File',str(root/'portable-update.ps1'),'-Manifest',str(manifest)],check=True,timeout=45)
+  manifest=base/'install.json';manifest.write_text(json.dumps({'file':str(file),'hash':hash,'version':'v1.3.0','target':str(target),'pid':2147483646}),encoding='utf-8');subprocess.run(['powershell.exe','-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File',str(root/'portable-update.ps1'),'-Manifest',str(manifest)],check=True,timeout=45);time.sleep(1);log=(base/"install.log").read_text(encoding="utf-8-sig",errors="replace");print(log,flush=True);Path("tests/output").mkdir(exist_ok=True);Path("tests/output/v13-updater-last.log").write_text(log,encoding="utf-8")
  run(archive,digest(archive));assert (target/'resources/app.asar').read_bytes()==b'new tested app';backups=list(base.glob('Folio fixed directory.backup-*'));assert len(backups)==1 and (backups[0]/'user-notes.txt').read_text()=='old local file';checks.append('Actual Windows same-directory replacement with Unicode/spaces/apostrophe paths; old folder/user files retained in backup')
  run(archive,'0'*64);assert (target/'resources/app.asar').read_bytes()==b'new tested app';assert 'checksum mismatch' in (base/'install.log').read_text();checks.append('Tampered download rejected before changing installation')
  bad=base/'traversal.zip'

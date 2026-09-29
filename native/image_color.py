@@ -1,7 +1,7 @@
 """Deterministic RGB adjustments, bounded floating-point tiles; not Adobe math."""
 import math
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageFilter
 
 def number(v,lo,hi,name):
     if isinstance(v,bool) or not isinstance(v,(int,float)) or not math.isfinite(v) or not lo<=v<=hi:raise ValueError('图像参数无效：'+name)
@@ -85,7 +85,11 @@ def color_tile(a,p,y_start):
         linear=np.where(a<=.04045,a/12.92,((a+.055)/1.055)**2.4);linear=np.clip(linear*2**p['exposure']+p['offset'],0,1)**(1/p['exposureGamma']);a=np.where(linear<=.0031308,linear*12.92,1.055*linear**(1/2.4)-.055)
     a=np.clip(a+np.array([p['temperature']*.001,-p['tint']*.001,-p['temperature']*.001]),0,1)
     if p['hue']:
-        theta=math.radians(p['hue']);c=math.cos(theta);s=math.sin(theta)/math.sqrt(3);v=(1-c)/3;a=np.clip(a@np.array([[c+v,v+s,v-s],[v-s,c+v,v+s],[v+s,v-s,c+v]]),0,1)
+        mx=a.max(2);mn=a.min(2);d=mx-mn;safe=np.maximum(d,1e-7);r,g,b=np.moveaxis(a,-1,0)
+        h=np.where(mx==r,((g-b)/safe)%6,np.where(mx==g,(b-r)/safe+2,(r-g)/safe+4));h=(h+p['hue']/60)%6
+        xx=d*(1-np.abs(h%2-1));zero=np.zeros_like(d);sector=np.floor(h).astype(int)
+        triples=[(d,xx,zero),(xx,d,zero),(zero,d,xx),(zero,xx,d),(xx,zero,d),(d,zero,xx)]
+        a=np.stack([np.choose(sector,[t[c] for t in triples])+mn for c in range(3)],2)
     if p['saturation'] or p['vibrance']:
         l=lum(a)[...,None];sat=a.max(2)-a.min(2);factor=1+p['saturation']/100+p['vibrance']/100*(1-sat);a=np.clip(l+(a-l)*factor[...,None],0,1)
     if p['lightness']:
@@ -141,4 +145,22 @@ def colors(rgb,p):
     result=Image.new('RGB',rgb.size);rows=max(1,min(256,262144//rgb.width))
     for y in range(0,rgb.height,rows):
         box=(0,y,rgb.width,min(y+rows,rgb.height));a=np.asarray(rgb.crop(box),dtype=np.float32)/255;result.paste(Image.fromarray(color_tile(a,p,y)),box)
+    return result
+
+
+def dehaze(rgb, amount):
+    """Dark-channel atmospheric veil estimate; negative values add haze."""
+    sample=rgb.copy();sample.thumbnail((512,512));arr=np.asarray(sample,dtype=np.float32)/255
+    dark=np.min(arr,axis=2);count=max(1,dark.size//1000);indices=np.argpartition(dark.ravel(),-count)[-count:]
+    candidates=arr.reshape(-1,3)[indices];air=candidates[np.argmax(candidates.mean(1))];air=np.maximum(air,.1)
+    if amount>0:
+        minimum=Image.fromarray(np.uint8(np.clip(np.min(arr/air,axis=2),0,1)*255)).filter(ImageFilter.MinFilter(7))
+        transmission=Image.fromarray(np.uint8(np.clip(1-(amount/100)*.9*np.asarray(minimum)/255,.15,1)*255)).resize(rgb.size,Image.Resampling.BILINEAR)
+    result=Image.new('RGB',rgb.size);rows=max(1,min(256,262144//rgb.width))
+    for y in range(0,rgb.height,rows):
+        box=(0,y,rgb.width,min(y+rows,rgb.height));a=np.asarray(rgb.crop(box),dtype=np.float32)/255
+        if amount>0:
+            t=np.asarray(transmission.crop(box),dtype=np.float32)[...,None]/255;a=(a-air)/np.maximum(t,.15)+air
+        else:a=a*(1+amount/150)+air*(-amount/150)
+        result.paste(Image.fromarray(np.uint8(np.clip(np.rint(a*255),0,255))),box)
     return result

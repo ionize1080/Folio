@@ -1,7 +1,7 @@
 param([Parameter(Mandatory=$true)][string]$Manifest)
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.IO.Compression.FileSystem
-$m = Get-Content -LiteralPath $Manifest -Raw | ConvertFrom-Json
+$m = Get-Content -LiteralPath $Manifest -Raw -Encoding UTF8 | ConvertFrom-Json
 $parent = Split-Path -Parent $m.target
 $stage = Join-Path $parent ('.folio-update-' + [Guid]::NewGuid().ToString('N'))
 $backup = $m.target + '.backup-' + (Get-Date -Format 'yyyyMMdd-HHmmss')
@@ -24,7 +24,7 @@ try {
   } finally { $zip.Dispose() }
   [IO.Compression.ZipFile]::ExtractToDirectory($m.file,$stage)
   $new = Join-Path $stage 'Folio-PDF-Studio'
-  $info = Get-Content -LiteralPath (Join-Path $new 'BUILD-INFO.json') -Raw | ConvertFrom-Json
+  $info = Get-Content -LiteralPath (Join-Path $new 'BUILD-INFO.json') -Raw -Encoding UTF8 | ConvertFrom-Json
   foreach ($pair in @(@('Folio.exe','exe_sha256'),@('resources/app.asar','asar_sha256'))) {
     if ((Get-FileHash -LiteralPath (Join-Path $new $pair[0]) -Algorithm SHA256).Hash -ne $info.($pair[1])) { throw 'Packaged binary checksum mismatch' }
   }
@@ -36,13 +36,13 @@ try {
   $moved = $true
   Move-Item -LiteralPath $new -Destination $m.target
   Start-Process -FilePath (Join-Path $m.target 'Folio.exe') -WorkingDirectory $m.target
-  "Updated; rollback copy: $backup" | Set-Content -LiteralPath $log
+  "Updated; rollback copy: $backup" | Set-Content -LiteralPath $log -Encoding UTF8
 } catch {
   if ($moved) {
     if (Test-Path -LiteralPath $m.target) { Move-Item -LiteralPath $m.target -Destination ($stage + '-failed') }
     Move-Item -LiteralPath $backup -Destination $m.target
   }
-  "Update failed; original retained: $_" | Set-Content -LiteralPath $log
+  "Update failed; original retained: $_" | Set-Content -LiteralPath $log -Encoding UTF8
   if (Test-Path -LiteralPath (Join-Path $m.target 'Folio.exe')) { Start-Process -FilePath (Join-Path $m.target 'Folio.exe') -WorkingDirectory $m.target }
 } finally {
   if (Test-Path -LiteralPath $stage) { Remove-Item -LiteralPath $stage -Recurse -Force }

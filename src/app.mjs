@@ -265,6 +265,7 @@ async function restore(v) {
 }
 async function restoreHistory(direction) {
   if (S.busy) return;
+  await S.imageEdit?.finish(true);
   const past = [...S.history.past],
     future = [...S.history.future],
     assets = new Map(S.history.assets.values);

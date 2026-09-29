@@ -138,6 +138,7 @@ app.whenReady().then(async () => {
   });
   const { UpdateManager } = require("./update-manager.cjs");
   const updater = new UpdateManager({
+    releaseChannel: require("./package.json").releaseChannel || "",
     app,
     session: session.fromPartition("folio-updates"),
     dirty: () => dirty,

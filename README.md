@@ -1,11 +1,17 @@
 # Folio PDF Studio
 
-> **1.2.2 正式通道**：文本框约束移动、方向键微调、图片调整与扫描增强，以及连续编辑/OCR/原生任务可靠性修复。
-> [下载 1.2.2](https://github.com/ionize1080/Folio/releases/tag/v1.2.2) · [发布说明与限制](docs/RELEASE-1.2.2.md) · [验收入口](docs/VALIDATION.md)。发布附件由完整 Windows 回归门控。
+> **1.3.0 正式通道**：页面内图像工作区、完整颜色调整与色阶/分通道平滑曲线，以及带代理复用和校验的便携自动更新。
+> [下载 1.3.0](https://github.com/ionize1080/Folio/releases/tag/v1.3.0) · [发布说明与限制](docs/RELEASE-1.3.0.md) · [验收入口](docs/VALIDATION.md)。发布附件由完整 Windows 回归门控。
 
 面向 Windows x64 的离线 PDF 工作台，重点解决长文档的**书签生成与整理、页面内文字编辑、OCR 识别与校对**。阅读、版面分析、字体匹配和 OCR 在本地运行；完整便携包无需另装 Python、Node.js 或模型。
 
 [已实现功能](#已实现功能) · [项目架构](#项目架构) · [已知问题](#已知问题与适用边界) · [下一步计划](#下一步功能计划) · [开发与测试](#开发构建与测试)
+
+## 新增使用入口
+
+- **编辑图像**：主工具栏点击后，在 PDF 页面选中图片。侧栏内调参数，原位预览，应用或完成后保存 PDF；取消放弃尚未应用的调整。
+- **检查更新**：关于/使用说明 → 检查更新。支持正式版/包含预发布，首选项 HTTP 代理共用，下载校验后安装并重启。程序目录保持不变，旧版保留同级备份。1.2.2 首次升级仍需手动下载，1.3 起支持软件内更新。
+- 本版覆盖截图中的 18 类调整项目，算法采用 Folio 的独立 RGB 实现；精确范围与 Photoshop 差异见发布说明。
 
 ## 下载与使用
 
@@ -13,10 +19,10 @@
 
 | 文件 | 用途 |
 | --- | --- |
-| `Folio-PDF-Studio-1.2.2-portable-win-x64.zip` | 完整便携包，解压后运行 `Folio.exe` |
-| `Folio-PDF-Studio-1.2.2-source.zip` | 完整离线源码与随包运行资源 |
-| `Folio-PDF-Studio-1.2.2-validation.json` | 同提交 Windows 回归及公开样本结果 |
-| `Folio-PDF-Studio-1.2.2-SHA256.txt` | 附件校验值 |
+| `Folio-PDF-Studio-1.3.0-portable-win-x64.zip` | 完整便携包，解压后运行 `Folio.exe` |
+| `Folio-PDF-Studio-1.3.0-source.zip` | 完整离线源码与随包运行资源 |
+| `Folio-PDF-Studio-1.3.0-validation.json` | 同提交 Windows 回归及公开样本结果 |
+| `Folio-PDF-Studio-1.3.0-SHA256.txt` | 附件校验值 |
 
 请保留解压后的完整目录，包括 `resources`、`locales` 和 DLL。GitHub 自动生成的 **Source code (zip/tar.gz)** 是仓库快照，与上述完整离线 `source.zip` 的资产范围不同。
 
@@ -41,7 +47,7 @@
 
 ## 已实现功能
 
-以下基础功能沿用 P6/P7；本版新增及修复见 [1.2.2 发布说明](docs/RELEASE-1.2.2.md)。功能存在并不表示任意 PDF 都能无损处理；复杂结构和已知缺陷单独列在后文。
+以下基础功能沿用 P6/P7；本版新增及修复见 [1.3.0 发布说明](docs/RELEASE-1.3.0.md)。功能存在并不表示任意 PDF 都能无损处理；复杂结构和已知缺陷单独列在后文。
 
 ### 1. 阅读、定位与日常文档操作
 
