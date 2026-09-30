@@ -92,7 +92,7 @@ export function installShortcuts({
         guarded(actions.fullscreen);
       }
       surface.space = false;
-      surface.host.classList.remove("hand-mode");
+      surface.host.classList.toggle("hand-mode", !!surface.hand);
       actions["stop-draw"]?.();
       return;
     }
@@ -173,13 +173,13 @@ export function installShortcuts({
     if (e.code === "Space") {
       surface.space = false;
       surface.drag = null;
-      surface.host.classList.remove("hand-mode");
+      surface.host.classList.toggle("hand-mode", !!surface.hand);
     }
   });
   window.addEventListener("blur", () => {
     surface.space = false;
     surface.drag = null;
-    surface.host.classList.remove("hand-mode");
+    surface.host.classList.toggle("hand-mode", !!surface.hand);
   });
 }
 export function shortcutDialog({

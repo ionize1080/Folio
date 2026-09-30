@@ -165,6 +165,7 @@ def check_editable(page,descriptions):
                 b['textGroup']=a.get('begin')
                 b['independentFlow']=bool(a.get('single') or safe.get(a['at']) is not None)
                 b['flowEditable']=b['flowEditable'] and b['independentFlow']
+            b['styleEditable']=bool(a['type']=='text' and b['editable'] and a.get('at') is not None)
             if a['type']=='text' and not (a.get('single') and a.get('end') is not None):
                 b['editable']=False;b['reason']='此文字与其他片段共用文字组，暂不能安全单独替换；可新增文本框'
         return mapped
@@ -363,6 +364,7 @@ def compose(data,edits,blocks,inspect,fragment,progress=None):
             table_before,table_after=transform(stream,mapped,desc,height,growths) or ({},{})
             from text_advance import advances
             safe=advances(page,stream)
+            style_before={};style_after={}
             replacements=dict(original_patches)
             omit.update(original_patches)
             for e in replace:
@@ -370,7 +372,7 @@ def compose(data,edits,blocks,inspect,fragment,progress=None):
                 if idx in used or not isinstance(idx,int) or not 0<=idx<len(desc):raise ValueError('对象编号无效或重复')
                 used.add(idx);d=desc[idx];m=mapped[idx]
                 if d['signature']!=e.get('signature'):raise ValueError('对象已变化，请重新选择')
-                if not d['editable'] and not (e.get('_flowDelete') and idx in flow_indices and d.get('flowEditable')):raise ValueError(d.get('reason','此对象不能安全修改'))
+                if not d['editable'] and not ('objectStyle' in e and d.get('styleEditable')) and not (e.get('_flowDelete') and idx in flow_indices and d.get('flowEditable')):raise ValueError(d.get('reason','此对象不能安全修改'))
                 if m['type']=='image':
                     if stream.operations[m['at']][1]!=b'Do':raise ValueError('内联图片暂不支持替换')
                     if e.get('delete'):omit.add(m['at']);continue
@@ -384,6 +386,10 @@ def compose(data,edits,blocks,inspect,fragment,progress=None):
                     from image_edit import operations as image_operations
                     after[m['at']]=image_operations(writer,page,stream.operations[m['at']],e.get('matrix',d['matrix']),ctm,e.get('crop'),e.get('imageData'),e.get('imageFit','contain'),e.get('adjustments'))
                     omit.add(m['at']);continue
+                if m['type']=='text' and 'objectStyle' in e and not e.get('delete'):
+                    from object_style import wrappers
+                    style_before[m['at']],style_after[m['at']]=wrappers(stream,m['at'],d,e)
+                    continue
                 if m['type']=='text':
                     clear_actual_text(page,stream,m)
                     omit.add(m['at']);position=m['end']
@@ -410,8 +416,10 @@ def compose(data,edits,blocks,inspect,fragment,progress=None):
             operations=[]
             for i,(args,op) in enumerate(stream.operations):
                 operations.extend(table_before.get(i,[]))
+                operations.extend(style_before.get(i,[]))
                 if i not in omit:operations.append(([raw_strings(v) for v in args] if op in TEXT else args,op))
                 operations.extend(replacements.get(i,[]))
+                operations.extend(style_after.get(i,[]))
                 operations.extend(after.get(i,[]))
                 operations.extend(table_after.get(i,[]))
             stream.operations=operations;page[NameObject('/Contents')]=writer._add_object(stream)

@@ -7,7 +7,11 @@ export function installPageImages(ctx) {
     opening = false;
   const call = (command, options) =>
     nativeRequest({ command, bytes: S.bytes, ...options });
-  async function start() {
+  async function start(options = {}) {
+    S.objectSelection?.destroy();
+    document
+      .querySelectorAll(".more-tools[open]")
+      .forEach((e) => (e.open = false));
     if (active) {
       await active.finish(true);
       return;
@@ -16,7 +20,7 @@ export function installPageImages(ctx) {
     await S.flowEdit?.finish(true);
     opening = true;
     const source = S.bytes,
-      page = S.page;
+      page = options.page || S.page;
     try {
       toast("正在读取当前页图片…");
       const result = await call("inspect", { page });
@@ -34,14 +38,16 @@ export function installPageImages(ctx) {
         toast("当前页未发现可选择的图片对象");
         return;
       }
-      active = create(page, objects, source);
+      active = create(page, objects, source, options.indices || []);
       S.imageEdit = active;
       active.overlay();
+      await active.selectInitial();
     } finally {
       opening = false;
     }
   }
-  function create(page, objects, source) {
+  function create(page, objects, source, indices) {
+    let batch = objects.filter((o) => indices.includes(o.index) && o.editable);
     let chosen = null,
       editor = null,
       closed = false,
@@ -56,7 +62,7 @@ export function installPageImages(ctx) {
     const bar = document.createElement("aside");
     bar.className = "image-page-panel";
     bar.innerHTML =
-      '<header><strong>编辑图像</strong><button id="image-done">完成</button></header><p class="hint">点击页面中的图片，调整结果直接显示在原位置。</p><div class="adjust-tools"><button id="image-apply" disabled>应用调整</button><button id="image-cancel">取消本次调整</button></div><p id="image-selection"></p><div id="image-properties"></div>';
+      '<header><strong>编辑图像</strong><button id="image-done">完成</button></header><div class="image-panel-scroll"><p class="hint">点击页面中的图片，调整结果直接显示在原位置。</p><div class="adjust-tools"><button id="image-apply" disabled>应用调整</button><button id="image-cancel">取消本次调整</button></div><p id="image-selection"></p><div id="image-properties"></div></div><footer class="task-status" role="status"><progress hidden></progress><span id="image-progress">请选择页面中的图片</span></footer>';
     document.body.append(bar);
     document.body.classList.add("image-edit-mode");
     const layer = document.createElement("div");
@@ -87,11 +93,30 @@ export function installPageImages(ctx) {
       };
     }
     function edits() {
+      const group = batch.length ? batch : [chosen];
+      const values = group.map((o) => {
+        if (o.index === chosen.index) return edit();
+        const prior = clone(
+          (S.nativeEdits || []).find(
+            (e) => e.page === page && e.index === o.index,
+          ) || {},
+        );
+        return {
+          page,
+          id: prior.id || crypto.randomUUID(),
+          index: o.index,
+          signature: o.signature,
+          type: "image",
+          matrix: o.matrix,
+          ...prior,
+          adjustments: clone(chosen.adjustments || null),
+        };
+      });
       return [
         ...clone(S.nativeEdits || []).filter(
-          (e) => e.page !== page || e.index !== chosen.index,
+          (e) => e.page !== page || !group.some((o) => o.index === e.index),
         ),
-        edit(),
+        ...values,
       ];
     }
     async function composite() {
@@ -144,10 +169,11 @@ export function installPageImages(ctx) {
         await doc.destroy();
       }
     }
-    async function select(o) {
+    async function select(o, keepBatch = false) {
       if (applying || !check()) return;
       if (chosen?.index === o.index) return;
       if (changed) await apply();
+      if (!keepBatch) batch = [];
       editor?.dispose();
       serial++;
       preview.hidden = true;
@@ -163,7 +189,7 @@ export function installPageImages(ctx) {
         ),
       };
       q("#image-selection").textContent =
-        `第 ${page} 页 · 图片 #${o.index}${o.editable ? "" : " · " + o.reason}`;
+        `第 ${page} 页 · ${batch.length > 1 ? "批量调整 " + batch.length + " 张图片 · 参考" : ""}图片 #${o.index}${o.editable ? "" : " · " + o.reason}`;
       const host = q("#image-properties");
       host.replaceChildren();
       q("#image-apply").disabled = true;
@@ -183,6 +209,7 @@ export function installPageImages(ctx) {
           .join("") +
         '<button data-crop-reset>恢复裁剪</button><label>替换图片<input data-replace type="file" accept="image/png,image/jpeg,image/webp"></label><label>适配<select data-fit><option value="contain">完整显示</option><option value="cover">铺满裁边</option><option value="stretch">拉伸</option></select></label>';
       host.append(crops);
+      crops.hidden = batch.length > 1;
       function mark() {
         serial++;
         changed = true;
@@ -196,6 +223,11 @@ export function installPageImages(ctx) {
         page,
         alive: check,
         onChange: mark,
+        onStatus: (message, busy) => {
+          if (applying) return;
+          q("#image-progress").textContent = message;
+          q("footer progress").hidden = !busy;
+        },
         onPick: (mode, callback) => {
           picker = callback;
           layer.classList.add("picking");
@@ -270,7 +302,10 @@ export function installPageImages(ctx) {
         const rect = entry.viewport.convertToViewportRectangle(o.bounds),
           button = document.createElement("button");
         button.className =
-          "image-page-hit" + (chosen?.index === o.index ? " selected" : "");
+          "image-page-hit" +
+          (chosen?.index === o.index || batch.some((x) => x.index === o.index)
+            ? " selected"
+            : "");
         button.dataset.index = o.index;
         button.title = `图片 #${o.index}${o.editable ? "" : " · " + o.reason}`;
         button.setAttribute("aria-label", button.title);
@@ -327,6 +362,9 @@ export function installPageImages(ctx) {
       q("#image-done").disabled = true;
       q("#image-cancel").disabled = true;
       q("#image-properties").inert = true;
+      q("#image-progress").textContent =
+        `正在应用 ${batch.length || 1} 张图片的调整…`;
+      q("footer progress").hidden = false;
       applying = (async () => {
         try {
           await editor.flush();
@@ -336,9 +374,15 @@ export function installPageImages(ctx) {
           changed = false;
           dirty();
           preview.hidden = true;
+          q("#image-progress").textContent =
+            `已完成 ${batch.length || 1} 张图片 · 可整批撤销`;
           toast("图片调整已应用，可撤销");
+        } catch (e) {
+          q("#image-progress").textContent = "应用失败：" + e.message;
+          throw e;
         } finally {
           applying = null;
+          q("footer progress").hidden = true;
           if (!closed) {
             q("#image-apply").disabled = !changed;
             q("#image-done").disabled = false;
@@ -373,6 +417,8 @@ export function installPageImages(ctx) {
     q("#image-cancel").onclick = () => guarded(() => finish(false));
     return {
       overlay,
+      selectInitial: () =>
+        batch.length ? select(batch[0], true) : Promise.resolve(),
       finish,
       flush: apply,
       destroy,

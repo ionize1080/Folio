@@ -1,3 +1,4 @@
+import { installVisualSliders } from "./adjustment-sliders.mjs";
 import {
   IDENTITY,
   curveLUT,
@@ -14,6 +15,7 @@ export function installImageAdjustments({
   onPreview,
   onPick,
   onChange = () => {},
+  onStatus = () => {},
   onCompare = () => {},
 }) {
   const defaults = {
@@ -123,7 +125,16 @@ export function installImageAdjustments({
     g = canvas.getContext("2d"),
     status = $("[data-status]"),
     img = $("img");
-  let latest = "";
+  let latest = "",
+    visualSliders;
+  const statusObserver = new MutationObserver(() =>
+    onStatus(status.textContent, /正在|等待/.test(status.textContent)),
+  );
+  statusObserver.observe(status, {
+    childList: true,
+    characterData: true,
+    subtree: true,
+  });
   function renderImage() {
     img.src =
       "data:image/png;base64," +
@@ -202,6 +213,7 @@ export function installImageAdjustments({
     $("[data-preset]").value = state.preset;
     extraFields();
     draw();
+    visualSliders?.sync();
   }
   async function preview() {
     if (disposed || !alive()) return;
@@ -770,6 +782,7 @@ export function installImageAdjustments({
   }
 
   installExtra();
+  visualSliders = installVisualSliders(root);
   const observer = new ResizeObserver(() => {
     draw();
     drawHistogram();
@@ -781,6 +794,7 @@ export function installImageAdjustments({
     dispose() {
       disposed = true;
       observer.disconnect();
+      statusObserver.disconnect();
       root.remove();
       revision++;
       clearTimeout(timer);

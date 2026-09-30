@@ -39,6 +39,9 @@ let app, browser, page, bridge, background, store;
       );
       browser = await chromium.launch({
         headless: true,
+        ...(process.env.FOLIO_CHROMIUM
+          ? { executablePath: process.env.FOLIO_CHROMIUM }
+          : {}),
         args: ["--no-sandbox"],
       });
       page = await browser.newPage({

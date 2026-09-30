@@ -1,3 +1,7 @@
+# 1.4.0 选择与图像工作区
+
+新增 `tests/selection-v14.py`、`tests/selection-v14.test.mjs`、`tests/selection-v14.cjs`；Windows 发布工作流 `folio-v14.yml` 沿用全部 1.3 回归门控，并验证同一打包 EXE 的框选、多选、批量修改、撤销重做、保存、菜单层叠和手型拖动。
+
 # 当前验证入口：1.2.2
 
 本版以 `.github/workflows/folio-editor-p8.yml` 的完整 Windows 运行和 [正式发布附件](https://github.com/ionize1080/Folio/releases/tag/v1.2.2)中的 `Folio-PDF-Studio-1.2.2-validation.json` 为准。附件记录 sourceCommit、windowsRun、各项报告，以及与便携 ZIP 一致的 EXE/app.asar 哈希；工作流未通过时不发布。

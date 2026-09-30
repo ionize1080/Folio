@@ -29,7 +29,7 @@ export class PageSurface {
     this.lastWheel = 0;
     this.boundary = 0;
     host.addEventListener("pointerdown", (e) => {
-      if (!this.space || e.button !== 0) return;
+      if (!(this.space || this.hand) || e.button !== 0) return;
       e.preventDefault();
       this.drag = [e.clientX, e.clientY, host.scrollLeft, host.scrollTop];
       host.setPointerCapture(e.pointerId);
@@ -40,6 +40,7 @@ export class PageSurface {
       host.scrollTop = this.drag[3] + this.drag[1] - e.clientY;
     });
     host.addEventListener("pointerup", () => (this.drag = null));
+    host.addEventListener("pointercancel", () => (this.drag = null));
   }
   reset() {
     this.cancel();

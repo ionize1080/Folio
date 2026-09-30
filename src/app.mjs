@@ -1,3 +1,4 @@
+import { installObjectSelection } from "./object-selection-ui.mjs";
 import { installPageImages } from "./image-page-ui.mjs";
 import { updateDialog } from "./update-ui.mjs";
 import { pagePreview, disposePreview } from "./page-preview.mjs";
@@ -584,6 +585,7 @@ async function loadPDF(
     S.sessionId = documentSession.id;
     S.flowEdit?.destroy();
     S.imageEdit?.destroy();
+    S.objectSelection?.destroy();
     findToken++;
     renderToken++;
     renderTask?.cancel();
@@ -2411,6 +2413,7 @@ const surface = new PageSurface(
     showTargetMarker();
     nativeUI?.overlay();
     S.imageEdit?.overlay();
+    S.objectSelection?.overlay();
     clearTimeout(viewTimer);
     viewTimer = setTimeout(saveView, 350);
   },
@@ -3917,6 +3920,16 @@ const pageImages = installPageImages({
   refreshNative,
   clone,
 });
+const objectSelection = installObjectSelection({
+  S,
+  surface,
+  guarded,
+  toast,
+  commit,
+  refreshNative,
+  clone,
+  editImages: (options) => pageImages.start(options),
+});
 const nativeUI = installNativeUI({
   openPageDiff,
   S,
@@ -3963,15 +3976,24 @@ Object.assign(actions, {
     S.rangeEnd = S.page;
     toast(`范围终点：第 ${S.page} 页`);
   },
-  "edit-content": nativeUI.objectDialog,
-  "edit-image": () => pageImages.start(),
+  "edit-content": () => {
+    objectSelection.stop();
+    return nativeUI.objectDialog();
+  },
+  "edit-image": () => {
+    objectSelection.stop();
+    return pageImages.start();
+  },
   updates: () =>
     updateDialog({
       modal,
       closeModal,
       setCleanup: (fn) => (modalCleanup = fn),
     }),
-  "flow-edit": nativeUI.flowDialog,
+  "flow-edit": () => {
+    objectSelection.stop();
+    return nativeUI.flowDialog();
+  },
   "copy-page": () => copyPageText(surface.selection()?.text || ""),
   ocr: nativeUI.ocrDialog,
   "ocr-preview": nativeUI.toggleOCR,

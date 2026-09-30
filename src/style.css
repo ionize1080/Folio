@@ -4496,3 +4496,226 @@ body.image-edit-mode .inspector {
 .image-page-panel .adjust-group {
   scroll-margin-top: 64px;
 }
+/* Selection tools stay with the document canvas; inspector bodies scroll independently. */
+.selection-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  flex-wrap: wrap;
+  padding: 5px 10px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+}
+.selection-toolbar button {
+  font-size: 12px;
+  padding: 5px 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.selection-toolbar button[aria-pressed="true"] {
+  background: var(--accent-soft);
+  color: var(--accent);
+  box-shadow: inset 0 -2px var(--accent);
+}
+.object-selection-panel {
+  position: fixed;
+  top: 92px;
+  right: 0;
+  bottom: 30px;
+  width: 340px;
+  background: var(--panel);
+  border-left: 1px solid var(--line);
+  z-index: 45;
+  display: flex;
+  flex-direction: column;
+  color: var(--text);
+  padding: 0 12px;
+}
+.object-selection-panel header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0;
+  flex-shrink: 0;
+}
+.selection-scroll {
+  overflow: auto;
+  flex: 1;
+  min-height: 0;
+  padding-bottom: 12px;
+}
+.object-selection-panel label {
+  display: block;
+  margin: 8px 0;
+}
+.object-selection-panel .check {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.object-selection-panel input[type="number"],
+.object-selection-panel select {
+  width: 100%;
+  min-width: 0;
+}
+.object-selection-panel fieldset {
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+.object-selection-panel fieldset button {
+  margin: 6px 0;
+}
+body.object-select-mode main {
+  margin-right: 350px;
+  grid-template-columns: var(--sidebar, 300px) minmax(300px, 1fr) 0 !important;
+}
+body.object-select-mode[data-left="narrow"] main {
+  grid-template-columns: 48px minmax(300px, 1fr) 0 !important;
+}
+body.object-select-mode[data-left="hidden"] main {
+  grid-template-columns: 0 minmax(300px, 1fr) 0 !important;
+}
+body.object-select-mode .inspector {
+  display: none;
+}
+.object-selection-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 15;
+  cursor: crosshair;
+  touch-action: none;
+  user-select: none;
+  outline: none;
+}
+.selection-object {
+  position: absolute;
+  border: 1px dashed #7598d2;
+  pointer-events: none;
+}
+.selection-object.selected {
+  border: 2px solid #387cf5;
+  background: #468aff1a;
+  box-shadow: 0 0 0 1px #fff9;
+}
+.selection-object.readonly {
+  border-color: #b99462;
+}
+.selection-marquee {
+  position: absolute;
+  border: 1px solid #4488f6;
+  background: #4488f624;
+  pointer-events: none;
+  z-index: 2;
+}
+.hand-mode,
+.hand-mode .textLayer {
+  cursor: grab !important;
+  user-select: none !important;
+}
+.hand-mode:active {
+  cursor: grabbing !important;
+}
+.image-page-panel {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0 12px;
+}
+.image-page-panel header {
+  position: static;
+  flex-shrink: 0;
+  padding: 12px 0;
+}
+.image-panel-scroll {
+  overflow: auto;
+  min-height: 0;
+  flex: 1;
+  scroll-padding-top: 8px;
+  padding-bottom: 12px;
+}
+.image-page-panel .adjust-group {
+  scroll-margin-top: 8px;
+}
+.task-status {
+  flex-shrink: 0;
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+  background: var(--panel);
+  font-size: 12px;
+  line-height: 1.5;
+  min-height: 48px;
+  overflow-wrap: anywhere;
+}
+.task-status progress {
+  display: block;
+  width: 100%;
+  height: 5px;
+  margin: 0 0 7px;
+  accent-color: var(--accent);
+}
+/* Tool menus must float above all docked inspectors. */
+.appbar {
+  z-index: 70;
+}
+.more-tools-menu {
+  z-index: 75;
+  max-height: calc(100vh - 90px);
+  overflow: auto;
+}
+.image-adjustments input[type="range"] {
+  appearance: none;
+  -webkit-appearance: none;
+  height: 22px;
+  background: transparent;
+  padding: 0;
+  border: 0;
+  cursor: ew-resize;
+  touch-action: pan-y;
+}
+.image-adjustments input[type="range"]::-webkit-slider-runnable-track {
+  height: 9px;
+  border-radius: 3px;
+  border: 1px solid #80808060;
+  background: var(--track, linear-gradient(90deg, #141414, #fff));
+}
+.image-adjustments input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  width: 12px;
+  height: 17px;
+  margin-top: -5px;
+  border: 2px solid #fff;
+  border-radius: 3px;
+  background: #3c4657;
+  box-shadow:
+    0 0 0 1px #354056,
+    0 1px 3px #0006;
+}
+.image-adjustments input[type="range"]:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+.image-adjustments .adjust-row {
+  grid-template-columns: minmax(0, 1fr) 68px;
+  gap: 2px 9px;
+  margin: 10px 0;
+}
+.image-adjustments .adjust-row input[type="number"] {
+  width: 68px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.gradient-ramp {
+  height: 24px;
+  margin: 10px 0;
+  border: 1px solid #777;
+  border-radius: 3px;
+}
+.image-panel-scroll .image-adjustments [data-status] {
+  display: none;
+}
+.image-adjustments h3 {
+  font-size: 13px;
+  margin: 12px 0;
+}
