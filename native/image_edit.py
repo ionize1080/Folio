@@ -3,7 +3,7 @@ import base64,io,math
 from pypdf import PdfReader
 from pypdf.generic import NameObject,DictionaryObject,FloatObject
 
-def operations(writer,page,original,matrix,ctm,crop,image_data=None,fit='contain',adjustments=None):
+def operations(writer,page,original,matrix,ctm,crop,image_data=None,fit='contain',adjustments=None,preview_image=None,preview_limit=None,perspective=None):
  def numbers(v,n):
   if not isinstance(v,list) or len(v)!=n or any(not isinstance(x,(int,float)) or not math.isfinite(x) for x in v):raise ValueError('图片参数无效')
   return list(map(float,v))
@@ -14,9 +14,19 @@ def operations(writer,page,original,matrix,ctm,crop,image_data=None,fit='contain
  if min(crop)<0 or left+right>=.99 or top+bottom>=.99:raise ValueError('裁切后必须保留可见图片')
  draw=original
  from image_color import neutral
- if adjustments is not None and not neutral(adjustments):
+ if perspective or preview_image or (adjustments is not None and not neutral(adjustments)):
   from image_adjustments import read_image, process, add_image
-  adjusted=process(read_image(page,original,image_data),adjustments)
+  if preview_image:
+   adjusted=read_image(page,original,preview_image)
+   if max(adjusted.size)>1200:raise ValueError('预览图片超过预算')
+  else:
+   source=read_image(page,original,image_data);scale=1
+   if preview_limit:
+    original_width=source.width;source.thumbnail((1200,1200));scale=source.width/original_width
+   adjusted=process(source,adjustments or {},scale)
+  if perspective:
+   from image_geometry import rectify
+   adjusted=rectify(adjusted,perspective)
   if image_data:
    buf=io.BytesIO();adjusted.save(buf,format='PNG');image_data=base64.b64encode(buf.getvalue()).decode()
   else:draw=add_image(writer,page,adjusted,original)

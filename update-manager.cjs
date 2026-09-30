@@ -275,9 +275,17 @@ class UpdateManager {
         this.home,
         "install-" + crypto.randomUUID() + ".json",
       );
+      const statusFile = manifest + ".status.json";
+      const healthFile = manifest + ".health.json";
       await fs.writeFile(
         manifest,
-        JSON.stringify({ ...this.ready, target, pid: process.pid }),
+        JSON.stringify({
+          ...this.ready,
+          target,
+          pid: process.pid,
+          statusFile,
+          healthFile,
+        }),
       );
       const script = path.join(this.home, "portable-update.ps1");
       await fs.writeFile(
@@ -288,6 +296,7 @@ class UpdateManager {
         "powershell.exe",
         [
           "-NoProfile",
+          "-STA",
           "-NonInteractive",
           "-ExecutionPolicy",
           "Bypass",
@@ -303,6 +312,35 @@ class UpdateManager {
         child.once("error", reject);
       });
       child.unref();
+      // Close the application only after successful extraction and checks.
+      const deadline = Date.now() + 180000;
+      let prepared = false;
+      while (Date.now() < deadline) {
+        let state;
+        try {
+          state = JSON.parse(
+            (await fs.readFile(statusFile, "utf8")).replace(/^\uFEFF/, ""),
+          );
+        } catch {}
+        if (state?.phase === "failed") throw Error(state.message);
+        if (state?.phase === "ready") {
+          prepared = true;
+          break;
+        }
+        if (child.exitCode !== null)
+          throw Error("更新程序提前退出，请查看 updates/install.log");
+        await new Promise((resolve) => setTimeout(resolve, 250));
+      }
+      if (!prepared) {
+        child.kill();
+        throw Error(
+          "更新准备超时，当前版本保持打开。请查看 updates/install.log",
+        );
+      }
+      if (this.dirty()) {
+        child.kill();
+        throw Error("文档有未保存更改，已停止安装，请保存后重试");
+      }
       this.app.quit();
       return true;
     });

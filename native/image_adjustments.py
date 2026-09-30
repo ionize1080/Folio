@@ -1,9 +1,10 @@
 """Deterministic image adjustments shared by preview and full-resolution export.
 
-Operations are applied to an isolated image instance. Alpha is preserved. Preview
-is resized AFTER processing, so blur, sharpening and histogram use source pixels.
+Operations are applied to an isolated image instance. Alpha is preserved. Drag
+previews use a cached bounded proxy; export always processes source pixels.
 """
-import base64, io, math
+import base64, io, math, hashlib, time
+from collections import OrderedDict
 from PIL import Image, ImageEnhance, ImageFilter, ImageOps
 from pypdf.generic import NameObject as N, NumberObject as I, DecodedStreamObject
 
@@ -52,7 +53,7 @@ def read_image(page, original, image_data=None):
     if 'A' in image.getbands() and image.getchannel('A').getextrema()==(255,255):image=image.convert('RGB')
     return image.convert('RGBA') if 'A' in image.getbands() else image.convert('RGB')
 
-def process(image, options):
+def process(image, options, spatial_scale=1):
     p = validate(options)
     alpha = image.getchannel('A') if 'A' in image.getbands() else None
     rgb = image.convert('RGB')
@@ -60,17 +61,17 @@ def process(image, options):
         # Low clipping budget; do not threshold or remove fine punctuation/table rules.
         rgb = ImageOps.autocontrast(rgb,cutoff=.15,preserve_tone=True)
         if p['preset']=='scan-gray': rgb = ImageOps.grayscale(rgb).convert('RGB')
-        rgb = rgb.filter(ImageFilter.UnsharpMask(radius=1.2,percent=110,threshold=3))
+        rgb = rgb.filter(ImageFilter.UnsharpMask(radius=1.2*spatial_scale,percent=110,threshold=3))
     if p['brightness']: rgb=ImageEnhance.Brightness(rgb).enhance(1+p['brightness']/100)
     if p['contrast']: rgb=ImageEnhance.Contrast(rgb).enhance(1+p['contrast']/100)
     rgb=tonal(rgb,p)
     rgb=colors(rgb,p)
     if p['clarity']:
-        if p['clarity']>0:rgb=rgb.filter(ImageFilter.UnsharpMask(radius=8,percent=round(p['clarity']),threshold=3))
-        else:rgb=Image.blend(rgb,rgb.filter(ImageFilter.GaussianBlur(8)),-p['clarity']/150)
+        if p['clarity']>0:rgb=rgb.filter(ImageFilter.UnsharpMask(radius=8*spatial_scale,percent=round(p['clarity']),threshold=3))
+        else:rgb=Image.blend(rgb,rgb.filter(ImageFilter.GaussianBlur(8*spatial_scale)),-p['clarity']/150)
     if p['dehaze']:rgb=dehaze(rgb,p['dehaze'])
-    if p['blur']:rgb=rgb.filter(ImageFilter.GaussianBlur(p['blur']))
-    if p['sharpen']:rgb=rgb.filter(ImageFilter.UnsharpMask(radius=1.2,percent=round(p['sharpen']),threshold=2))
+    if p['blur']:rgb=rgb.filter(ImageFilter.GaussianBlur(p['blur']*spatial_scale))
+    if p['sharpen']:rgb=rgb.filter(ImageFilter.UnsharpMask(radius=1.2*spatial_scale,percent=round(p['sharpen']),threshold=2))
     if alpha is not None:rgb.putalpha(alpha)
     return rgb
 
@@ -89,19 +90,35 @@ def add_image(writer, page, image, original=None):
     name=N('/FolioAdjusted'+str(i));xs[name]=writer._add_object(obj.flate_encode());resources[N('/XObject')]=xs;page[N('/Resources')]=resources
     return ([name],b'Do')
 
+_proxies = OrderedDict()
+
 def preview(args):
     from pathlib import Path
     from pypdf import PdfReader
     from content import map_objects
     from form_compat import reopen
-    raw=Path(args['input']).read_bytes() if 'input' in args else base64.b64decode(args['bytes'])
-    number=args.get('page',1);data=reopen(raw,[number]);reader=PdfReader(io.BytesIO(data))
-    if not isinstance(number,int) or not 1<=number<=len(reader.pages):raise ValueError('页码无效')
-    page=reader.pages[number-1];stream,mapped=map_objects(page);index=args.get('index')
-    if not isinstance(index,int) or not 0<=index<len(mapped) or mapped[index]['type']!='image':raise ValueError('图片对象编号无效')
-    original=stream.operations[mapped[index]['at']]
-    if original[1]!=b'Do':raise ValueError('内联图片暂不支持调整')
-    image=read_image(page,original,args.get('imageData'));adjusted=process(image,args.get('adjustments',{}))
+    start=time.perf_counter()
+    if 'input' in args:
+        path=Path(args['input']);stat=path.stat();source=(str(path),stat.st_size,stat.st_mtime_ns)
+    else:source=hashlib.sha256(args['bytes'].encode()).hexdigest()
+    key=(source,args.get('page',1),args.get('index'),hashlib.sha256((args.get('imageData') or '').encode()).hexdigest())
+    entry=_proxies.pop(key,None)
+    hit=entry is not None
+    if entry is None:
+        raw=path.read_bytes() if 'input' in args else base64.b64decode(args['bytes'])
+        number=args.get('page',1);data=reopen(raw,[number]);reader=PdfReader(io.BytesIO(data))
+        if not isinstance(number,int) or not 1<=number<=len(reader.pages):raise ValueError('页码无效')
+        page=reader.pages[number-1];stream,mapped=map_objects(page);index=args.get('index')
+        if not isinstance(index,int) or not 0<=index<len(mapped) or mapped[index]['type']!='image':raise ValueError('图片对象编号无效')
+        original=stream.operations[mapped[index]['at']]
+        if original[1]!=b'Do':raise ValueError('内联图片暂不支持调整')
+        image=read_image(page,original,args.get('imageData'));size=image.size
+        image.thumbnail((1200,1200),Image.Resampling.LANCZOS)
+        entry={'image':image,'size':size,'histogram':image.convert('L').histogram(),'histograms':dict(zip(('r','g','b'),[c.histogram() for c in image.convert('RGB').split()]))}
+    _proxies[key]=entry
+    while len(_proxies)>3:_proxies.popitem(last=False)
+    image=entry['image'];width,height=entry['size'];adjusted=process(image,args.get('adjustments',{}),image.width/width)
     def png(im):
-        im=im.copy();im.thumbnail((1200,1200));buf=io.BytesIO();im.save(buf,format='PNG');return base64.b64encode(buf.getvalue()).decode()
-    return {'original':png(image),'preview':png(adjusted),'width':image.width,'height':image.height,'histogram':image.convert('L').histogram(),'histograms':dict(zip(('r','g','b'),[c.histogram() for c in image.convert('RGB').split()])),'adjustedHistogram':adjusted.convert('L').histogram()}
+        buf=io.BytesIO();im.save(buf,format='PNG',compress_level=1);return base64.b64encode(buf.getvalue()).decode()
+    if 'original' not in entry:entry['original']=png(image)
+    return {'original':entry['original'],'preview':png(adjusted),'width':width,'height':height,'histogram':entry['histogram'],'histograms':entry['histograms'],'adjustedHistogram':adjusted.convert('L').histogram(),'proxy':image.size!=entry['size'],'cacheHit':hit,'milliseconds':round((time.perf_counter()-start)*1000,1)}

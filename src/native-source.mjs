@@ -4,9 +4,14 @@ export async function nativeRequest(data) {
   if (
     !data.bytes ||
     !window.desktop.registerSource ||
-    !["inspect", "layout", "apply", "flow-background", "table-render"].includes(
-      data.command,
-    )
+    ![
+      "inspect",
+      "layout",
+      "apply",
+      "flow-background",
+      "table-render",
+      "image-preview",
+    ].includes(data.command)
   )
     return window.desktop.native(data);
   const bytes = data.bytes;

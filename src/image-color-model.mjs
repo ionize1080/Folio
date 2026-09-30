@@ -18,6 +18,8 @@ export function curveLUT(points, smooth = true) {
     }
   let j = 0;
   return Array.from({ length: 256 }, (_, v) => {
+    if (v <= x[0]) return y[0];
+    if (v >= x[x.length - 1]) return y[y.length - 1];
     while (j < x.length - 2 && v > x[j + 1]) j++;
     const t = (v - x[j]) / h[j];
     return Math.max(

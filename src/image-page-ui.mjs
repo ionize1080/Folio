@@ -1,6 +1,7 @@
 import { transformedBounds } from "./object-selection-model.mjs";
 import * as pdfjs from "./vendor/pdf.mjs";
 import { installImageAdjustments } from "./image-adjustments-ui.mjs";
+import { installCropTools } from "./image-crop-ui.mjs";
 import { nativeRequest } from "./native-source.mjs";
 export function installPageImages(ctx) {
   const { S, surface, guarded, toast, commit, refreshNative, clone } = ctx;
@@ -51,6 +52,7 @@ export function installPageImages(ctx) {
     let batch = objects.filter((o) => indices.includes(o.index) && o.editable);
     let chosen = null,
       editor = null,
+      cropEditor = null,
       closed = false,
       changed = false,
       applying = null,
@@ -59,7 +61,9 @@ export function installPageImages(ctx) {
       previewDoc = null,
       showOriginal = false,
       picker = null,
-      sample = null;
+      sample = null,
+      sampleSource = null,
+      adjustedPreview = null;
     const bar = document.createElement("aside");
     bar.className = "image-page-panel";
     bar.innerHTML =
@@ -69,6 +73,9 @@ export function installPageImages(ctx) {
     const layer = document.createElement("div");
     layer.className = "image-page-layer";
     const preview = document.createElement("canvas");
+    // Owned by the editing session, never by a virtualized PDF page shell.
+    const lastFrame = document.createElement("canvas");
+    lastFrame.width = lastFrame.height = 0;
     preview.className = "image-page-composite";
     preview.hidden = true;
     const hits = document.createElement("div");
@@ -90,6 +97,7 @@ export function installPageImages(ctx) {
         imageData: chosen.imageData || null,
         imageFit: chosen.imageFit || "contain",
         crop: chosen.crop || [0, 0, 0, 0],
+        perspective: chosen.perspective || null,
         adjustments: chosen.adjustments || null,
       };
     }
@@ -128,6 +136,9 @@ export function installPageImages(ctx) {
         edits: edits(),
         ocr: S.ocr || [],
         ocrReference: S.ocrReference,
+        imagePreviews: adjustedPreview
+          ? { [chosen.index]: adjustedPreview }
+          : {},
       });
       if (!check() || rev !== serial) return;
       const doc = await pdfjs.getDocument({
@@ -149,7 +160,11 @@ export function installPageImages(ctx) {
             scale: entry.viewport.scale,
             rotation: surface.rotation(page),
           }),
-          ratio = Math.min(devicePixelRatio || 1, 2),
+          ratio = Math.min(
+            devicePixelRatio || 1,
+            2,
+            3000 / Math.max(v.width, v.height),
+          ),
           canvas = document.createElement("canvas");
         canvas.width = Math.ceil(v.width * ratio);
         canvas.height = Math.ceil(v.height * ratio);
@@ -163,6 +178,9 @@ export function installPageImages(ctx) {
         preview.width = canvas.width;
         preview.height = canvas.height;
         preview.getContext("2d").drawImage(canvas, 0, 0);
+        lastFrame.width = canvas.width;
+        lastFrame.height = canvas.height;
+        lastFrame.getContext("2d").drawImage(canvas, 0, 0);
         preview.hidden = showOriginal;
         await previewDoc?.destroy();
         previewDoc = null;
@@ -176,10 +194,14 @@ export function installPageImages(ctx) {
       if (changed) await apply();
       if (!keepBatch) batch = [];
       editor?.dispose();
+      cropEditor?.dispose();
       serial++;
       preview.hidden = true;
       picker = null;
       sample = null;
+      sampleSource = null;
+      adjustedPreview = null;
+      lastFrame.width = lastFrame.height = 0;
       showOriginal = false;
       chosen = {
         ...clone(o),
@@ -230,7 +252,7 @@ export function installPageImages(ctx) {
           q("footer progress").hidden = !busy;
         },
         onPick: (mode, callback) => {
-          picker = callback;
+          picker = { mode, callback };
           layer.classList.add("picking");
           toast("点击当前图片取样：" + mode);
         },
@@ -239,17 +261,31 @@ export function installPageImages(ctx) {
           preview.hidden = value;
         },
         onPreview: async (r) => {
-          const image = new Image();
-          image.src = "data:image/png;base64," + r.original;
-          await image.decode();
-          sample = document.createElement("canvas");
-          sample.width = image.width;
-          sample.height = image.height;
-          sample.getContext("2d").drawImage(image, 0, 0);
+          if (sampleSource !== r.original) {
+            const image = new Image();
+            image.src = "data:image/png;base64," + r.original;
+            await image.decode();
+            sample = document.createElement("canvas");
+            sample.width = image.width;
+            sample.height = image.height;
+            sample.getContext("2d").drawImage(image, 0, 0);
+            sampleSource = r.original;
+          }
+          adjustedPreview = r.preview;
           await composite();
           if (check()) q("#image-apply").disabled = !changed;
         },
       });
+      if (batch.length <= 1)
+        cropEditor = installCropTools({
+          host: crops,
+          layer,
+          chosen,
+          viewport: () => surface.entries.get(page)?.viewport,
+          changed: mark,
+          refresh: () => editor.refresh(),
+          toast,
+        });
       crops.querySelectorAll("[data-image-crop]").forEach(
         (e) =>
           (e.oninput = () => {
@@ -265,6 +301,8 @@ export function installPageImages(ctx) {
           .querySelectorAll("[data-image-crop]")
           .forEach((e) => (e.value = 0));
         chosen.crop = [0, 0, 0, 0];
+        chosen.perspective = null;
+        cropEditor?.draw();
         mark();
         editor.refresh();
       };
@@ -289,11 +327,55 @@ export function installPageImages(ctx) {
         });
       overlay();
     }
+    function sampleAt(event, entry) {
+      const rect = entry.shell.getBoundingClientRect(),
+        [px, py] = entry.viewport.convertToPdfPoint(
+          event.clientX - rect.left,
+          event.clientY - rect.top,
+        );
+      const [a, b, c, d, e, f] = chosen.matrix,
+        det = a * d - b * c;
+      if (Math.abs(det) < 1e-12) throw Error("图片变换不可逆");
+      let u = (d * (px - e) - c * (py - f)) / det,
+        v = 1 - (-b * (px - e) + a * (py - f)) / det;
+      if (chosen.imageData && chosen.imageFit !== "stretch") {
+        const w = Math.hypot(a, b),
+          h = Math.hypot(c, d),
+          scale = (chosen.imageFit === "cover" ? Math.max : Math.min)(
+            w / sample.width,
+            h / sample.height,
+          ),
+          sx = (sample.width * scale) / w,
+          sy = (sample.height * scale) / h;
+        u = (u - (1 - sx) / 2) / sx;
+        v = (v - (1 - sy) / 2) / sy;
+      }
+      if (u < 0 || u > 1 || v < 0 || v > 1)
+        throw Error("请点击图片有效像素区域");
+      const rgb = sample
+        .getContext("2d")
+        .getImageData(
+          Math.min(sample.width - 1, Math.floor(u * sample.width)),
+          Math.min(sample.height - 1, Math.floor(v * sample.height)),
+          1,
+          1,
+        ).data;
+      if (rgb[3] < 128) throw Error("请在不透明区域取样");
+      return Array.from(rgb).slice(0, 3);
+    }
     function overlay() {
       if (!check()) return;
       const entry = surface.entries.get(page);
       if (!entry?.viewport) return;
-      if (layer.parentElement !== entry.shell) entry.shell.append(layer);
+      if (layer.parentElement !== entry.shell) {
+        entry.shell.append(layer);
+        if (lastFrame.width && chosen) {
+          preview.width = lastFrame.width;
+          preview.height = lastFrame.height;
+          preview.getContext("2d").drawImage(lastFrame, 0, 0);
+          preview.hidden = showOriginal;
+        }
+      }
       hits.replaceChildren();
       for (const o of objects) {
         const prior = (S.nativeEdits || []).find(
@@ -313,53 +395,56 @@ export function installPageImages(ctx) {
         button.title = `图片 #${o.index}${o.editable ? "" : " · " + o.reason}`;
         button.setAttribute("aria-label", button.title);
         button.style.cssText = `left:${Math.min(rect[0], rect[2])}px;top:${Math.min(rect[1], rect[3])}px;width:${Math.abs(rect[2] - rect[0])}px;height:${Math.abs(rect[3] - rect[1])}px`;
+        let targetDrag = null,
+          targetClick = false;
+        button.onpointerdown = (event) => {
+          if (picker?.mode !== "curve" || !sample || chosen?.index !== o.index)
+            return;
+          guarded(async () => {
+            const rgb = sampleAt(event, entry);
+            targetDrag = { rgb, callback: picker.callback, y: event.clientY };
+            targetClick = true;
+            targetDrag.callback(rgb, 0);
+            button.setPointerCapture(event.pointerId);
+          });
+        };
+        button.onpointermove = (event) => {
+          if (!targetDrag) return;
+          const delta = Math.round(targetDrag.y - event.clientY);
+          if (delta) {
+            targetDrag.callback(targetDrag.rgb, delta);
+            targetDrag.y = event.clientY;
+          }
+        };
+        button.onpointerup = button.onpointercancel = (event) => {
+          if (!targetDrag) return;
+          targetDrag = null;
+          picker = null;
+          layer.classList.remove("picking");
+          if (button.hasPointerCapture(event.pointerId))
+            button.releasePointerCapture(event.pointerId);
+        };
         button.onclick = (event) =>
           guarded(async () => {
+            if (targetClick) {
+              targetClick = false;
+              return;
+            }
             if (picker && sample && chosen?.index === o.index) {
-              const rect = entry.shell.getBoundingClientRect(),
-                [px, py] = entry.viewport.convertToPdfPoint(
-                  event.clientX - rect.left,
-                  event.clientY - rect.top,
-                );
-              const [a, b, c, d, e, f] = chosen.matrix,
-                det = a * d - b * c;
-              if (Math.abs(det) < 1e-12) throw Error("图片变换不可逆");
-              let u = (d * (px - e) - c * (py - f)) / det,
-                v = 1 - (-b * (px - e) + a * (py - f)) / det;
-              if (chosen.imageData && chosen.imageFit !== "stretch") {
-                const w = Math.hypot(a, b),
-                  h = Math.hypot(c, d),
-                  scale = (chosen.imageFit === "cover" ? Math.max : Math.min)(
-                    w / sample.width,
-                    h / sample.height,
-                  ),
-                  sx = (sample.width * scale) / w,
-                  sy = (sample.height * scale) / h;
-                u = (u - (1 - sx) / 2) / sx;
-                v = (v - (1 - sy) / 2) / sy;
-              }
-              if (u < 0 || u > 1 || v < 0 || v > 1)
-                throw Error("请点击图片有效像素区域");
-              const rgb = sample
-                .getContext("2d")
-                .getImageData(
-                  Math.min(sample.width - 1, Math.floor(u * sample.width)),
-                  Math.min(sample.height - 1, Math.floor(v * sample.height)),
-                  1,
-                  1,
-                ).data;
-              if (rgb[3] < 128) throw Error("请在不透明区域取样");
-              const callback = picker;
+              const rgb = sampleAt(event, entry);
+              const callback = picker.callback;
               picker = null;
               layer.classList.remove("picking");
-              callback(Array.from(rgb).slice(0, 3));
+              callback(rgb);
             } else await select(o);
           });
         hits.append(button);
       }
+      cropEditor?.draw();
     }
     async function apply() {
       if (applying) return applying;
+      if (cropEditor?.active) cropEditor.confirm();
       if (!changed || !chosen) return;
       q("#image-apply").disabled = true;
       q("#image-done").disabled = true;
@@ -377,6 +462,7 @@ export function installPageImages(ctx) {
           changed = false;
           dirty();
           preview.hidden = true;
+          lastFrame.width = lastFrame.height = 0;
           q("#image-progress").textContent =
             `已完成 ${batch.length || 1} 张图片 · 可整批撤销`;
           toast("图片调整已应用，可撤销");
@@ -401,6 +487,7 @@ export function installPageImages(ctx) {
       closed = true;
       serial++;
       editor?.dispose();
+      cropEditor?.dispose();
       renderTask?.cancel();
       previewDoc?.destroy();
       bar.remove();

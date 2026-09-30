@@ -384,7 +384,7 @@ def compose(data,edits,blocks,inspect,fragment,progress=None):
                             a,b,c,d0,e0,f=map(float,ar);A,B,C,D,E,F=ctm
                             ctm=[A*a+C*b,B*a+D*b,A*c+C*d0,B*c+D*d0,A*e0+C*f+E,B*e0+D*f+F]
                     from image_edit import operations as image_operations
-                    after[m['at']]=image_operations(writer,page,stream.operations[m['at']],e.get('matrix',d['matrix']),ctm,e.get('crop'),e.get('imageData'),e.get('imageFit','contain'),e.get('adjustments'))
+                    after[m['at']]=image_operations(writer,page,stream.operations[m['at']],e.get('matrix',d['matrix']),ctm,e.get('crop'),e.get('imageData'),e.get('imageFit','contain'),e.get('adjustments'),e.get('_previewImage'),e.get('_previewLimit'),e.get('perspective'))
                     omit.add(m['at']);continue
                 if m['type']=='text' and 'objectStyle' in e and not e.get('delete'):
                     from object_style import wrappers

@@ -25,7 +25,7 @@ levels=process(Image.fromarray(np.tile(np.arange(256,dtype='uint8'),(3,1))).conv
 lut=curve_lut([[0,0],[40,10],[120,160],[200,200],[255,255]],True);assert np.all(np.diff(lut)>=0) and lut[40]==10 and lut[120]==160
 cube={'size':2,'data':[c for b in (0,1) for g in (0,1) for r in (0,1) for c in (r,g,b)]};np.testing.assert_array_equal(np.array(process(im,{'lookup':'cube','cube':cube})),a)
 checks.append('Exact inversion, binary threshold, input/output endpoints, monotone cubic knots and trilinear identity LUT')
-for p in [{'outputBlack':250,'outputWhite':10},{'levels':{'r':[50,1,40,0,255]}},{'mixer':[[0]*4]*2},{'cube':{'size':2,'data':[]}},{'exposure':float('nan')},{'gradient':[[20,0,0,0],[255,0,0,0]]},{'lookup':'cube'},{'invert':1}]:
+for p in [{'levels':{'r':[50,1,40,0,255]}},{'mixer':[[0]*4]*2},{'cube':{'size':2,'data':[]}},{'exposure':float('nan')},{'gradient':[[20,0,0,0],[255,0,0,0]]},{'lookup':'cube'},{'invert':1}]:
  try:validate(p);raise AssertionError(p)
  except ValueError:pass
 checks.append('Malformed nested controls, LUT and nonfinite values rejected')

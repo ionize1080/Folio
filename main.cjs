@@ -48,6 +48,9 @@ const native = new NativeBridge(
   sourceStore,
 );
 const qpdfNative = new NativeBridge(native.root, native.python);
+// app.quit() (including installation) does not emit window-all-closed.
+// Stop the primary worker as well, so its DLLs cannot lock the portable folder.
+app.on("before-quit", () => native.cancel());
 app.on("before-quit", () => qpdfNative.cancel());
 const fontNative = new NativeBridge(native.root, native.python);
 app.on("before-quit", () => fontNative.cancel());
@@ -153,6 +156,23 @@ app.whenReady().then(async () => {
   ipc("update-download", () => updater.download());
   ipc("update-cancel", () => updater.cancel());
   ipc("update-install", () => updater.install());
+  ipc("update-started", async () => {
+    const arg = process.argv.find((x) =>
+      x.startsWith("--folio-update-health="),
+    );
+    if (!arg) return;
+    const file = path.resolve(arg.slice("--folio-update-health=".length));
+    if (
+      path.dirname(file) !== updater.home ||
+      !/^install-[\da-f-]+\.json\.health\.json$/.test(path.basename(file))
+    )
+      return;
+    if (!win.isDestroyed() && win.isVisible())
+      await fs.writeFile(
+        file,
+        JSON.stringify({ version: updater.current, pid: process.pid }),
+      );
+  });
   app.on("before-quit", () => updater.cancel());
   if (updater.settings.autoCheck)
     setTimeout(() => updater.check().catch(() => {}), 5000);

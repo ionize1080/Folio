@@ -1,3 +1,4 @@
+import { installLevelsHandles } from "./levels-handles.mjs";
 import { installVisualSliders } from "./adjustment-sliders.mjs";
 import {
   IDENTITY,
@@ -29,6 +30,7 @@ export function installImageAdjustments({
     preset: "none",
     interpolation: "smooth",
     channelCurves: {},
+    curveTables: {},
     levels: {},
     curves: [
       [0, 0],
@@ -41,6 +43,7 @@ export function installImageAdjustments({
     },
     timer,
     revision = 0,
+    renderedRevision = -1,
     disposed = false,
     running = false,
     pending = false,
@@ -48,7 +51,10 @@ export function installImageAdjustments({
     histogram = [],
     original = "",
     histograms = {},
-    channel = "rgb";
+    channel = "rgb",
+    curveMode = "point",
+    pencilLast = null,
+    gridDivisions = 4;
   const root = document.createElement("section");
   root.className = "image-adjustments";
   const numeric = ([key, label, min, max, step, value]) =>
@@ -60,7 +66,7 @@ export function installImageAdjustments({
   root.innerHTML += group(
     "curves",
     "曲线",
-    `<div class="adjust-tools"><select data-channel aria-label="曲线通道">${channels}</select><select data-interpolation aria-label="曲线插值"><option value="smooth">平滑曲线</option><option value="linear">线性</option></select><button data-auto>自动</button></div><canvas data-curve width="512" height="512" tabindex="0" aria-label="RGB 曲线，点击添加或拖动控制点"></canvas><div class="form-grid"><label>输入<input data-curve-x type="number" min="0" max="255" step="1"></label><label>输出<input data-curve-y type="number" min="0" max="255" step="1"></label></div><div class="adjust-tools"><button data-remove-point>删除控制点</button><button data-curve-reset>重置此通道</button></div>`,
+    `<div class="adjust-tools"><select data-channel aria-label="曲线通道">${channels}</select><select data-interpolation aria-label="曲线插值"><option value="smooth">平滑曲线</option><option value="linear">线性</option></select><button data-auto>自动</button></div><div class="adjust-tools"><select data-curve-mode aria-label="曲线模式"><option value="point">点曲线</option><option value="pencil">铅笔绘制</option></select><button data-curve-smooth>平滑</button><button data-curve-grid>细网格</button><button data-curve-target>图上调整</button></div><canvas data-curve width="512" height="512" tabindex="0" aria-label="RGB 曲线，点击添加或拖动控制点"></canvas><div class="form-grid"><label>输入<input data-curve-x type="number" min="0" max="255" step="1"></label><label>输出<input data-curve-y type="number" min="0" max="255" step="1"></label></div><div class="adjust-tools"><button data-remove-point>删除控制点</button><button data-curve-reset>重置此通道</button></div>`,
     true,
   );
   root.innerHTML += group(
@@ -126,7 +132,8 @@ export function installImageAdjustments({
     status = $("[data-status]"),
     img = $("img");
   let latest = "",
-    visualSliders;
+    visualSliders,
+    levelHandles;
   const statusObserver = new MutationObserver(() =>
     onStatus(status.textContent, /正在|等待/.test(status.textContent)),
   );
@@ -173,35 +180,54 @@ export function installImageAdjustments({
     );
     g.strokeStyle = "#8694a3";
     g.lineWidth = 0.5;
-    for (let i = 0; i <= 4; i++) {
+    for (let i = 0; i <= gridDivisions; i++) {
       g.beginPath();
-      g.moveTo(i * 64, 0);
-      g.lineTo(i * 64, 256);
-      g.moveTo(0, i * 64);
-      g.lineTo(256, i * 64);
+      g.moveTo((i * 256) / gridDivisions, 0);
+      g.lineTo((i * 256) / gridDivisions, 256);
+      g.moveTo(0, (i * 256) / gridDivisions);
+      g.lineTo(256, (i * 256) / gridDivisions);
       g.stroke();
     }
+    g.strokeStyle = "#8995a6";
+    g.setLineDash([3, 3]);
+    g.beginPath();
+    g.moveTo(0, 256);
+    g.lineTo(256, 0);
+    g.stroke();
+    g.setLineDash([]);
     g.strokeStyle =
       { r: "#e86065", g: "#5bb87a", b: "#699bed" }[channel] ||
       getComputedStyle(root).getPropertyValue("--accent") ||
       "#5267db";
     g.lineWidth = 2;
     g.beginPath();
-    curveLUT(points(), state.interpolation === "smooth").forEach((y, x) =>
-      g[x ? "lineTo" : "moveTo"](x, 256 - (y / 255) * 256),
-    );
+    (
+      state.curveTables[channel] ||
+      curveLUT(points(), state.interpolation === "smooth")
+    ).forEach((y, x) => g[x ? "lineTo" : "moveTo"](x, 256 - (y / 255) * 256));
     g.stroke();
-    points().forEach(([x, y], i) => {
-      g.beginPath();
-      g.arc(x, 256 - (y / 255) * 256, i === selected ? 5 : 3, 0, Math.PI * 2);
-      g.fillStyle = i === selected ? "#da8620" : g.strokeStyle;
-      g.fill();
-    });
+    if (!state.curveTables[channel])
+      points().forEach(([x, y], i) => {
+        g.beginPath();
+        g.arc(x, 256 - (y / 255) * 256, i === selected ? 5 : 3, 0, Math.PI * 2);
+        g.fillStyle = i === selected ? "#da8620" : g.strokeStyle;
+        g.fill();
+      });
     $("[data-curve-x]").value = points()[selected][0];
     $("[data-curve-y]").value = points()[selected][1];
-    $("[data-curve-x]").disabled =
-      selected === 0 || selected === points().length - 1;
-    $("[data-remove-point]").disabled = $("[data-curve-x]").disabled;
+    $("[data-curve-x]").disabled = $("[data-curve-y]").disabled =
+      !!state.curveTables[channel];
+    $("[data-remove-point]").disabled =
+      !!state.curveTables[channel] ||
+      selected === 0 ||
+      selected === points().length - 1;
+    $("[data-curve-mode]").value = curveMode;
+    root.querySelectorAll("[data-curve-endpoint]").forEach((b) => {
+      const value =
+        points()[+b.dataset.curveEndpoint ? points().length - 1 : 0][0];
+      b.style.left = (value / 255) * 100 + "%";
+      b.title = "输入：" + value;
+    });
   }
   function fields() {
     root.querySelectorAll("[data-adjust]").forEach((e) => {
@@ -242,7 +268,8 @@ export function installImageAdjustments({
       renderImage();
       draw();
       drawHistogram();
-      status.textContent = `${r.width} × ${r.height} 像素 · 预览已更新`;
+      renderedRevision = rev;
+      status.textContent = `${r.width} × ${r.height} 像素 · 预览已更新${r.proxy ? "（快速预览，应用保留原分辨率）" : ""}`;
     } catch (e) {
       if (!disposed && alive() && rev === revision)
         status.textContent = e.message;
@@ -273,6 +300,7 @@ export function installImageAdjustments({
         } else state[key] = Number(e.value);
         const slider = root.querySelector(`[data-slider="${key}"]`);
         if (slider) slider.value = e.value;
+        if (levelKeys.includes(key)) levelHandles?.sync();
         changed();
       }),
   );
@@ -307,14 +335,13 @@ export function installImageAdjustments({
   function updatePoint(x, y) {
     const end = points().length - 1;
     points()[selected] = [
-      selected === 0
-        ? 0
-        : selected === end
-          ? 255
-          : Math.max(
-              points()[selected - 1][0] + 1,
-              Math.min(points()[selected + 1][0] - 1, Math.round(x)),
-            ),
+      Math.max(
+        selected ? points()[selected - 1][0] + 1 : 0,
+        Math.min(
+          selected < end ? points()[selected + 1][0] - 1 : 255,
+          Math.round(x),
+        ),
+      ),
       Math.max(0, Math.min(255, Math.round(y))),
     ];
     draw();
@@ -331,9 +358,41 @@ export function installImageAdjustments({
       Math.max(0, Math.min(255, 255 - ((e.clientY - r.top) / r.height) * 255)),
     ];
   }
+  function pencil(x, y) {
+    const table = (state.curveTables[channel] ||= curveLUT(
+      points(),
+      state.interpolation === "smooth",
+    ).map(Math.round));
+    x = Math.round(x);
+    y = Math.round(y);
+    const [lx, ly] = pencilLast || [x, y];
+    for (let i = Math.min(lx, x); i <= Math.max(lx, x); i++)
+      table[i] = Math.round(
+        lx === x ? y : ly + ((y - ly) * (i - lx)) / (x - lx),
+      );
+    pencilLast = [x, y];
+    draw();
+    changed();
+  }
   canvas.onpointerdown = (e) => {
+    e.preventDefault();
     const [x, y] = point(e);
+    if (curveMode === "pencil") {
+      pencilLast = null;
+      pencil(x, y);
+      canvas.setPointerCapture(e.pointerId);
+      canvas.focus();
+      return;
+    }
     selected = points().findIndex((p) => Math.hypot(p[0] - x, p[1] - y) < 16);
+    if (
+      selected > 0 &&
+      selected < points().length - 1 &&
+      (e.ctrlKey || e.metaKey)
+    ) {
+      $("[data-remove-point]").click();
+      return;
+    }
     if (selected < 0) {
       if (points().length >= 16) return;
       const xx = Math.max(1, Math.min(254, Math.round(x)));
@@ -348,13 +407,30 @@ export function installImageAdjustments({
     draw();
   };
   canvas.onpointermove = (e) => {
-    if (canvas.hasPointerCapture(e.pointerId)) updatePoint(...point(e));
+    if (canvas.hasPointerCapture(e.pointerId)) {
+      if (curveMode === "pencil") pencil(...point(e));
+      else updatePoint(...point(e));
+    }
   };
   canvas.onpointerup = canvas.onpointercancel = (e) => {
     if (canvas.hasPointerCapture(e.pointerId))
       canvas.releasePointerCapture(e.pointerId);
   };
   canvas.onkeydown = (e) => {
+    if (e.key === "Delete" || e.key === "Backspace") {
+      e.preventDefault();
+      $("[data-remove-point]").click();
+      return;
+    }
+    if (["+", "=", "-"].includes(e.key)) {
+      e.preventDefault();
+      selected =
+        (selected + (e.key === "-" ? points().length - 1 : 1)) %
+        points().length;
+      draw();
+      return;
+    }
+    if (curveMode === "pencil") return;
     const n = e.shiftKey ? 10 : 1;
     const d = {
       ArrowLeft: [-n, 0],
@@ -399,6 +475,7 @@ export function installImageAdjustments({
       $(`[data-slider="${k}"]`).value = values[i];
     });
     drawHistogram();
+    levelHandles?.sync();
   }
   function extraFields() {
     $("[data-interpolation]").value = state.interpolation;
@@ -601,6 +678,7 @@ export function installImageAdjustments({
     );
     $("[data-channel]").onchange = (e) => {
       channel = e.target.value;
+      curveMode = state.curveTables[channel] ? "pencil" : "point";
       selected = 0;
       draw();
     };
@@ -609,7 +687,74 @@ export function installImageAdjustments({
       draw();
       changed();
     };
+    $("[data-curve-mode]").onchange = (e) => {
+      curveMode = e.target.value;
+      if (curveMode === "pencil")
+        state.curveTables[channel] ||= curveLUT(
+          points(),
+          state.interpolation === "smooth",
+        ).map(Math.round);
+      else if (state.curveTables[channel]) {
+        const table = state.curveTables[channel];
+        const p = Array.from({ length: 16 }, (_, i) => [i * 17, table[i * 17]]);
+        if (channel === "rgb") state.curves = p;
+        else state.channelCurves[channel] = p;
+        delete state.curveTables[channel];
+        selected = 0;
+      }
+      draw();
+      changed();
+    };
+    $("[data-curve-smooth]").onclick = () => {
+      const table = state.curveTables[channel];
+      if (table)
+        state.curveTables[channel] = table.map((_, i) =>
+          Math.round(
+            (table[Math.max(0, i - 2)] +
+              2 * table[Math.max(0, i - 1)] +
+              3 * table[i] +
+              2 * table[Math.min(255, i + 1)] +
+              table[Math.min(255, i + 2)]) /
+              9,
+          ),
+        );
+      else state.interpolation = "smooth";
+      $("[data-interpolation]").value = state.interpolation;
+      draw();
+      changed();
+    };
+    $("[data-curve-grid]").onclick = (e) => {
+      gridDivisions = gridDivisions === 4 ? 10 : 4;
+      e.target.textContent = gridDivisions === 4 ? "细网格" : "粗网格";
+      draw();
+    };
+    $("[data-curve-target]").disabled = !onPick;
+    $("[data-curve-target]").onclick = () => {
+      status.textContent = "在页面图片上点击取样，然后上下拖动调整明暗";
+      onPick("curve", (rgb, delta = 0) => {
+        const x = Math.round(
+          channel === "rgb"
+            ? rgb[0] * 0.2126 + rgb[1] * 0.7152 + rgb[2] * 0.0722
+            : rgb[{ r: 0, g: 1, b: 2 }[channel]],
+        );
+        delete state.curveTables[channel];
+        curveMode = "point";
+        selected = points().findIndex((p) => Math.abs(p[0] - x) < 2);
+        if (selected < 0 && points().length < 16) {
+          const y = Math.round(
+            curveLUT(points(), state.interpolation === "smooth")[x],
+          );
+          points().push([x, y]);
+          points().sort((a, b) => a[0] - b[0]);
+          selected = points().findIndex((p) => p[0] === x);
+        }
+        if (selected >= 0)
+          updatePoint(points()[selected][0], points()[selected][1] + delta);
+      });
+    };
     $("[data-curve-reset]").onclick = () => {
+      delete state.curveTables[channel];
+      curveMode = "point";
       if (channel === "rgb") state.curves = structuredClone(IDENTITY);
       else state.channelCurves[channel] = structuredClone(IDENTITY);
       selected = 0;
@@ -617,6 +762,8 @@ export function installImageAdjustments({
       changed();
     };
     $("[data-auto]").onclick = () => {
+      delete state.curveTables[channel];
+      curveMode = "point";
       const [lo, hi] = autoRange(channel);
       const p = [
         [0, 0],
@@ -781,7 +928,67 @@ export function installImageAdjustments({
     };
   }
 
+  function installCurveEndpoints() {
+    const track = document.createElement("div");
+    track.className = "levels-track levels-output curve-endpoints";
+    canvas.after(track);
+    for (const end of [0, 1]) {
+      const button = document.createElement("button");
+      button.className = "levels-handle " + (end ? "white" : "black");
+      button.dataset.curveEndpoint = end;
+      button.setAttribute("aria-label", end ? "曲线输入白场" : "曲线输入黑场");
+      track.append(button);
+      const set = (x) => {
+        delete state.curveTables[channel];
+        curveMode = "point";
+        selected = end ? points().length - 1 : 0;
+        updatePoint(x, points()[selected][1]);
+      };
+      const move = (e) => {
+        const r = track.getBoundingClientRect();
+        set(((e.clientX - r.left) / r.width) * 255);
+      };
+      button.onpointerdown = (e) => {
+        e.preventDefault();
+        button.setPointerCapture(e.pointerId);
+        move(e);
+      };
+      button.onpointermove = (e) => {
+        if (button.hasPointerCapture(e.pointerId)) move(e);
+      };
+      button.onpointerup = (e) => {
+        if (button.hasPointerCapture(e.pointerId))
+          button.releasePointerCapture(e.pointerId);
+      };
+      button.onkeydown = (e) => {
+        if (["ArrowLeft", "ArrowRight"].includes(e.key)) {
+          e.preventDefault();
+          set(
+            points()[end ? points().length - 1 : 0][0] +
+              (e.key === "ArrowLeft" ? -1 : 1) * (e.shiftKey ? 10 : 1),
+          );
+        }
+      };
+    }
+  }
+  installCurveEndpoints();
   installExtra();
+  levelHandles = installLevelsHandles(
+    root,
+    () => {
+      const ch = $("[data-level-channel]").value;
+      return ch === "rgb"
+        ? levelKeys.map((k, i) => state[k] ?? [0, 1, 255, 0, 255][i])
+        : [...(state.levels[ch] || [0, 1, 255, 0, 255])];
+    },
+    (values) => {
+      const ch = $("[data-level-channel]").value;
+      if (ch === "rgb") levelKeys.forEach((k, i) => (state[k] = values[i]));
+      else state.levels[ch] = values;
+      levelFields();
+      changed();
+    },
+  );
   visualSliders = installVisualSliders(root);
   const observer = new ResizeObserver(() => {
     draw();
@@ -804,9 +1011,8 @@ export function installImageAdjustments({
     async flush() {
       clearTimeout(timer);
       while (running) await new Promise((r) => setTimeout(r, 30));
-      await preview();
-      if (!status.textContent.includes("预览已更新"))
-        throw Error(status.textContent);
+      if (renderedRevision !== revision) await preview();
+      if (renderedRevision !== revision) throw Error(status.textContent);
     },
   };
 }

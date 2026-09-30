@@ -11,6 +11,7 @@ contextBridge.exposeInMainWorld("desktop", {
   updateDownload: () => ipcRenderer.invoke("update-download"),
   updateCancel: () => ipcRenderer.invoke("update-cancel"),
   updateInstall: () => ipcRenderer.invoke("update-install"),
+  updateStarted: () => ipcRenderer.invoke("update-started"),
   onUpdate: (callback) => {
     const fn = (_e, v) => callback(v);
     ipcRenderer.on("update-state", fn);

@@ -19,7 +19,7 @@ export async function updateDialog({ modal, closeModal, setCleanup }) {
     current: "当前通道没有更新版本",
     downloading: "正在下载并校验…",
     ready: "更新包已通过 SHA-256 校验，可安装",
-    installing: "正在退出并安装更新…",
+    installing: "正在准备安装；校验成功后将自动关闭并重启…",
     error: "更新失败",
   };
   function render(r) {
@@ -33,10 +33,14 @@ export async function updateDialog({ modal, closeModal, setCleanup }) {
     $("#update-check").disabled = busy;
     $("#update-download").disabled = r.phase !== "available";
     $("#update-install").disabled = r.phase !== "ready" || !r.supported;
-    $("#update-cancel").disabled = !busy;
-    $("#update-progress").hidden = r.phase !== "downloading";
+    $("#update-cancel").disabled = r.phase !== "downloading";
+    $("#update-progress").hidden = !["downloading", "installing"].includes(
+      r.phase,
+    );
     $("#update-progress").max = r.total || 1;
     $("#update-progress").value = r.received || 0;
+    if (r.phase === "installing")
+      $("#update-progress").removeAttribute("value");
   }
   const run = (fn) => async () => {
     try {

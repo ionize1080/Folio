@@ -346,21 +346,17 @@ def run(args):
   from image_adjustments import preview
   return preview(args)
  if args.get('command')=='flow-background':
-  # Compose just the active page, not all pages of a yearbook on each activation.
-  from pypdf import PdfReader,PdfWriter
-  raw=Path(args['input']).read_bytes() if 'input' in args else base64.b64decode(args['bytes'])
-  # QPDF copies a bounded page graph and preserves widget appearances/forms;
-  # pypdf add_page can follow deep article/destination chains into other pages.
-  import pikepdf
-  number=args.get('page',1);buf=io.BytesIO()
-  from form_compat import reopen
-  raw=reopen(raw,[number])
-  with pikepdf.open(io.BytesIO(raw)) as original:
-   if not isinstance(number,int) or not 1<=number<=len(original.pages):raise ValueError('页码无效')
-   selected=pikepdf.Pdf.new();selected.add_pages_from(original,[number-1]);selected.save(buf)
+  from preview_page import selected_page, compact_preview
+  number=args.get('page',1);page_data=selected_page(args)
   edits=[{**e,'page':1} for e in args.get('edits',[]) if e['page']==number]
+  if args.get('imagePreviews') is not None:
+   for edit in edits:
+    if edit.get('type')=='image':
+     edit['_previewLimit']=1200
+     edit['_previewImage']=args['imagePreviews'].get(str(edit.get('index')))
   blocks=[{**b,'page':1} for b in read_blocks(args) if b['page']==number]
-  data=run({'command':'apply','page':1,'bytes':base64.b64encode(buf.getvalue()).decode(),'edits':edits,'blocks':blocks,'ocr':blocks,'resolvedForms':True})['bytes']
+  data=run({'command':'apply','page':1,'bytes':base64.b64encode(page_data).decode(),'edits':edits,'blocks':blocks,'ocr':blocks,'resolvedForms':True})['bytes']
+  if args.get('imagePreviews') is not None:data=compact_preview(data)
   return {'pdf':data}
  import pypdfium2 as p
  if args.get('command')=='ocr' and 'input' in args:

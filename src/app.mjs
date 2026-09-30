@@ -4357,3 +4357,5 @@ installDropOpen({
   toast,
   isBusy: () => S.busy || !!document.querySelector("dialog[open]"),
 });
+// Acknowledgement follows complete renderer initialization, not process spawn.
+requestAnimationFrame(() => window.desktop?.updateStarted?.().catch(() => {}));

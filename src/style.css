@@ -4731,3 +4731,122 @@ body.dark .selection-toolbar button[aria-pressed="true"] {
   color: #d9e3ff;
   box-shadow: inset 0 -2px #9bb7ff;
 }
+
+/* Image tonal controls: the marker positions are the numeric model. */
+.levels-track {
+  position: relative;
+  height: 22px;
+  margin: 0 9px 10px;
+  touch-action: none;
+}
+.levels-output {
+  background: linear-gradient(to right, #000, #fff);
+  height: 12px;
+  margin-top: 18px;
+  margin-bottom: 25px;
+  border: 1px solid var(--line);
+}
+.levels-handle {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  padding: 0;
+  width: 18px;
+  height: 21px;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  cursor: ew-resize;
+  touch-action: none;
+  overflow: visible;
+}
+.levels-handle::after {
+  content: "";
+  display: block;
+  width: 13px;
+  height: 15px;
+  margin: auto;
+  clip-path: polygon(50% 0, 100% 65%, 100% 100%, 0 100%, 0 65%);
+  background: var(--marker);
+  filter: drop-shadow(0 0 1px #000);
+}
+.levels-handle.black {
+  --marker: #15181e;
+}
+.levels-handle.gray {
+  --marker: #838b98;
+}
+.levels-handle.white {
+  --marker: #f4f5f8;
+}
+.levels-output .levels-handle {
+  top: 8px;
+}
+.levels-handle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+#adj-levels .adjust-row {
+  grid-template-columns: 1fr 74px;
+}
+#adj-levels .adjust-row span {
+  grid-column: auto;
+}
+#adj-levels [data-slider] {
+  display: none;
+}
+#adj-levels [data-histogram] {
+  padding-inline: 9px;
+  box-sizing: border-box;
+}
+.image-crop-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  overflow: visible;
+  pointer-events: none;
+  touch-action: none;
+}
+.image-crop-overlay[hidden] {
+  display: none;
+}
+.cropping .image-page-hits {
+  visibility: hidden;
+}
+.crop-frame {
+  fill: transparent;
+  stroke: white;
+  stroke-width: 1.5;
+  filter: drop-shadow(0 0 1px #000);
+  pointer-events: all;
+  cursor: move;
+}
+.crop-guide {
+  stroke: #fffc;
+  stroke-width: 1;
+  pointer-events: none;
+}
+.crop-handle {
+  fill: #fff;
+  stroke: #1d3b68;
+  stroke-width: 1.5;
+  pointer-events: all;
+  cursor: crosshair;
+}
+.crop-rotate {
+  fill: #507ce8;
+  stroke: #fff;
+  stroke-width: 2;
+  pointer-events: all;
+  cursor: grab;
+}
+.crop-straight {
+  stroke: #f5c748;
+  stroke-width: 2;
+  pointer-events: none;
+}
+.crop-tools {
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 8px;
+  margin-bottom: 12px;
+}

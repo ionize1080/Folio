@@ -1,27 +1,51 @@
 param([Parameter(Mandatory=$true)][string]$Manifest)
 $ErrorActionPreference = 'Stop'
-Add-Type -AssemblyName System.IO.Compression.FileSystem
-$m = Get-Content -LiteralPath $Manifest -Raw -Encoding UTF8 | ConvertFrom-Json
-$parent = Split-Path -Parent $m.target
-$stage = Join-Path $parent ('.folio-update-' + [Guid]::NewGuid().ToString('N'))
-$backup = $m.target + '.backup-' + (Get-Date -Format 'yyyyMMdd-HHmmss-fff') + '-' + [Guid]::NewGuid().ToString('N').Substring(0,6)
+$m = $null; $stage = $null; $moved = $false; $newProcess = $null; $form = $null
 $log = Join-Path (Split-Path -Parent $Manifest) 'install.log'
-$moved = $false
+function Report([string]$phase, [string]$message) {
+  ('{0:o} [{1}] {2}' -f (Get-Date),$phase,$message) | Add-Content -LiteralPath $log -Encoding UTF8
+  if ($m.statusFile) {
+    $temporary = $m.statusFile + '.tmp'
+    @{phase=$phase;message=$message;version=$m.version;target=$m.target} | ConvertTo-Json | Set-Content -LiteralPath $temporary -Encoding UTF8
+    Move-Item -LiteralPath $temporary -Destination $m.statusFile -Force
+  }
+  if ($form) { $label.Text = $message; [Windows.Forms.Application]::DoEvents() }
+}
 function File-SHA([string]$file) {
-  $stream = [IO.File]::OpenRead($file)
-  $algorithm = [Security.Cryptography.SHA256]::Create()
+  $stream = [IO.File]::OpenRead($file); $algorithm = [Security.Cryptography.SHA256]::Create()
   try { return ([BitConverter]::ToString($algorithm.ComputeHash($stream))).Replace('-','').ToLowerInvariant() }
   finally { $stream.Dispose(); $algorithm.Dispose() }
 }
+function Move-WithRetry([string]$source, [string]$destination) {
+  $until = (Get-Date).AddSeconds(20)
+  while ($true) {
+    try { Move-Item -LiteralPath $source -Destination $destination; return }
+    catch { if ((Get-Date) -gt $until) { throw }; Start-Sleep -Milliseconds 300; if ($form) { [Windows.Forms.Application]::DoEvents() } }
+  }
+}
 try {
+  $m = Get-Content -LiteralPath $Manifest -Raw -Encoding UTF8 | ConvertFrom-Json
+  Add-Type -AssemblyName System.IO.Compression.FileSystem
+  if ($m.statusFile -and !$m.headless) {
+    Add-Type -AssemblyName System.Windows.Forms
+    $form = New-Object Windows.Forms.Form
+    $form.Text = 'Folio PDF Studio - Update'; $form.Width=480; $form.Height=150
+    $form.StartPosition='CenterScreen'; $form.ControlBox=$false
+    $label=New-Object Windows.Forms.Label; $label.SetBounds(20,15,425,48); $form.Controls.Add($label)
+    $progress=New-Object Windows.Forms.ProgressBar; $progress.SetBounds(20,70,425,20); $progress.Style='Marquee'; $form.Controls.Add($progress)
+    $form.Show()
+  }
+  $parent = Split-Path -Parent $m.target
+  $stage = Join-Path $parent ('.folio-update-' + [Guid]::NewGuid().ToString('N'))
+  $backup = $m.target + '.backup-' + (Get-Date -Format 'yyyyMMdd-HHmmss-fff') + '-' + [Guid]::NewGuid().ToString('N').Substring(0,6)
+  Report 'preparing' 'Verifying and unpacking the update. Keep Folio open.'
   if ((File-SHA $m.file) -ne $m.hash) { throw 'Update checksum mismatch' }
   New-Item -ItemType Directory -Path $stage | Out-Null
   $zip = [IO.Compression.ZipFile]::OpenRead($m.file)
   try {
-    [long]$size = 0
-    $names = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+    [long]$size=0; $names=[Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
     foreach ($entry in $zip.Entries) {
-      $name = $entry.FullName.Replace('\','/')
+      $name=$entry.FullName.Replace('\','/')
       if (!$name.StartsWith('Folio-PDF-Studio/') -or $name -match '(^|/)\.\.?(/|$)|:|\x00' -or !$names.Add($name)) { throw 'Unsafe archive path' }
       if (($entry.ExternalAttributes -shr 16 -band 0xF000) -eq 0xA000) { throw 'Archive symlink rejected' }
       $size += $entry.Length
@@ -29,27 +53,54 @@ try {
     }
   } finally { $zip.Dispose() }
   [IO.Compression.ZipFile]::ExtractToDirectory($m.file,$stage)
-  $new = Join-Path $stage 'Folio-PDF-Studio'
-  $info = Get-Content -LiteralPath (Join-Path $new 'BUILD-INFO.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+  $new=Join-Path $stage 'Folio-PDF-Studio'
+  $info=Get-Content -LiteralPath (Join-Path $new 'BUILD-INFO.json') -Raw -Encoding UTF8 | ConvertFrom-Json
   foreach ($pair in @(@('Folio.exe','exe_sha256'),@('resources/app.asar','asar_sha256'))) {
     if ((File-SHA (Join-Path $new $pair[0])) -ne $info.($pair[1])) { throw 'Packaged binary checksum mismatch' }
   }
-  $fullVersion = $info.version + $(if ($info.releaseChannel) { '-' + $info.releaseChannel } else { '' })
+  $fullVersion=$info.version + $(if ($info.releaseChannel) { '-'+$info.releaseChannel } else { '' })
   if ($fullVersion -ne $m.version.TrimStart('v')) { throw 'Packaged version mismatch' }
-  Wait-Process -Id $m.pid -ErrorAction SilentlyContinue
-  # A second running instance or a locked directory fails before touching the old copy.
-  Move-Item -LiteralPath $m.target -Destination $backup
-  $moved = $true
-  Move-Item -LiteralPath $new -Destination $m.target
-  Start-Process -FilePath (Join-Path $m.target 'Folio.exe') -WorkingDirectory $m.target
-  "Updated; rollback copy: $backup" | Set-Content -LiteralPath $log -Encoding UTF8
-} catch {
-  if ($moved) {
-    if (Test-Path -LiteralPath $m.target) { Move-Item -LiteralPath $m.target -Destination ($stage + '-failed') }
-    Move-Item -LiteralPath $backup -Destination $m.target
+  Report 'ready' 'Update verified. Waiting for Folio to close...'
+  $until=(Get-Date).AddSeconds(120)
+  while (Get-Process -Id $m.pid -ErrorAction SilentlyContinue) {
+    if ((Get-Date) -gt $until) { throw 'Folio did not close; installation cancelled safely' }
+    Start-Sleep -Milliseconds 250; if ($form) { [Windows.Forms.Application]::DoEvents() }
   }
-  "Update failed; original retained: $_" | Set-Content -LiteralPath $log -Encoding UTF8
-  if (Test-Path -LiteralPath (Join-Path $m.target 'Folio.exe')) { Start-Process -FilePath (Join-Path $m.target 'Folio.exe') -WorkingDirectory $m.target }
+  Report 'replacing' 'Installing in the same folder. Desktop shortcuts keep working.'
+  Move-WithRetry $m.target $backup; $moved=$true
+  Move-WithRetry $new $m.target
+  if ($m.healthFile) {
+    Remove-Item -LiteralPath $m.healthFile -Force -ErrorAction SilentlyContinue
+    $argument='"--folio-update-health='+$m.healthFile+'"'
+    $newProcess=Start-Process -FilePath (Join-Path $m.target 'Folio.exe') -ArgumentList $argument -WorkingDirectory $m.target -PassThru
+    Report 'starting' 'Starting the new version and checking its window...'
+    $until=(Get-Date).AddSeconds(45)
+    while (!(Test-Path -LiteralPath $m.healthFile)) {
+      if ((Get-Date) -gt $until -or $newProcess.HasExited) { throw 'The new Folio window did not become ready' }
+      Start-Sleep -Milliseconds 250; if ($form) { [Windows.Forms.Application]::DoEvents() }
+    }
+    $health=Get-Content -LiteralPath $m.healthFile -Raw | ConvertFrom-Json
+    if ($health.version -ne $fullVersion) { throw 'Restarted version does not match the download' }
+  } else { Start-Process -FilePath (Join-Path $m.target 'Folio.exe') -WorkingDirectory $m.target }
+  Report 'complete' "Updated; rollback copy: $backup"
+} catch {
+  $failure=$_.Exception.Message
+  try {
+    if ($newProcess -and !$newProcess.HasExited) {
+      # Only the process tree started by this updater, never an unrelated Folio.
+      & taskkill.exe /PID $newProcess.Id /T /F 2>&1 | Out-Null
+    }
+    if ($moved) {
+      if (Test-Path -LiteralPath $m.target) { Move-WithRetry $m.target ($stage+'-failed') }
+      Move-WithRetry $backup $m.target
+    }
+    Report 'failed' "Update failed; original retained: $failure"
+    if ($moved -and (Test-Path -LiteralPath (Join-Path $m.target 'Folio.exe'))) {
+      Start-Process -FilePath (Join-Path $m.target 'Folio.exe') -WorkingDirectory $m.target
+    }
+  } catch { Report 'failed' "Update failed: $failure. Recovery needs attention: $_. Backup: $backup" }
+  if ($form) { [Windows.Forms.MessageBox]::Show("Update failed. Your previous version is retained.`n$failure`nLog: $log",'Folio update') | Out-Null }
 } finally {
-  if (Test-Path -LiteralPath $stage) { Remove-Item -LiteralPath $stage -Recurse -Force }
+  if ($stage -and (Test-Path -LiteralPath $stage)) { Remove-Item -LiteralPath $stage -Recurse -Force -ErrorAction SilentlyContinue }
+  if ($form) { $form.Close(); $form.Dispose() }
 }

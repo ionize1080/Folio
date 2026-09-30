@@ -12,15 +12,15 @@ def vec(v,n,lo,hi,name):
 def curve(v):
     if not isinstance(v,list) or not 2<=len(v)<=16:raise ValueError('曲线需要 2–16 个控制点')
     v=[vec(x,2,0,255,'curve') for x in v]
-    if v[0][0]!=0 or v[-1][0]!=255 or any(a[0]>=b[0] for a,b in zip(v,v[1:])):raise ValueError('曲线输入必须从 0 到 255 严格递增')
+    if any(a[0]>=b[0] for a,b in zip(v,v[1:])):raise ValueError('曲线输入必须严格递增')
     return v
 def validate(o):
     if not isinstance(o,dict):raise ValueError('图像参数无效')
     ranges={'brightness':(-100,100,0),'contrast':(-100,100,0),'black':(0,254,0),'white':(1,255,255),'gamma':(.1,10,1),'outputBlack':(0,255,0),'outputWhite':(0,255,255),'blur':(0,30,0),'sharpen':(0,300,0),'exposure':(-10,10,0),'offset':(-.5,.5,0),'exposureGamma':(.1,10,1),'hue':(-180,180,0),'saturation':(-100,100,0),'lightness':(-100,100,0),'vibrance':(-100,100,0),'temperature':(-100,100,0),'tint':(-100,100,0),'clarity':(-100,100,0),'dehaze':(-100,100,0),'grain':(0,100,0),'photoDensity':(0,100,0),'threshold':(0,255,128),'posterize':(2,256,256),'lutAmount':(0,100,100)}
-    extra={'preset','curves','channelCurves','interpolation','levels','balance','blackWhite','bwMix','photoColor','photoLuminosity','mixer','monochrome','lookup','cube','selective','selectiveAbsolute','invert','thresholdEnabled','gradient','gradientEnabled'}
+    extra={'preset','curves','channelCurves','curveTables','interpolation','levels','balance','blackWhite','bwMix','photoColor','photoLuminosity','mixer','monochrome','lookup','cube','selective','selectiveAbsolute','invert','thresholdEnabled','gradient','gradientEnabled'}
     if set(o)-set(ranges)-extra:raise ValueError('未知图像参数')
     p={k:number(o.get(k,d),lo,hi,k) for k,(lo,hi,d) in ranges.items()}
-    if p['black']>=p['white'] or p['outputBlack']>p['outputWhite']:raise ValueError('色阶黑场必须小于白场')
+    if p['black']>=p['white']:raise ValueError('输入色阶黑场必须小于白场')
     p['preset']=o.get('preset','none')
     if p['preset'] not in ('none','scan-color','scan-gray'):raise ValueError('未知增强预设')
     p['curves']=curve(o.get('curves',[[0,0],[255,255]]));p['interpolation']=o.get('interpolation','linear')
@@ -30,10 +30,13 @@ def validate(o):
     cc=o.get('channelCurves',{})
     if set(cc)-{'r','g','b'}:raise ValueError('曲线通道无效')
     p['channelCurves']={k:curve(v) for k,v in cc.items()};p['levels']={}
+    tables=o.get('curveTables',{})
+    if not isinstance(tables,dict) or set(tables)-{'rgb','r','g','b'}:raise ValueError('铅笔曲线通道无效')
+    p['curveTables']={k:vec(v,256,0,255,'curveTables') for k,v in tables.items()}
     for k,v in o.get('levels',{}).items():
         if k not in ('r','g','b') or not isinstance(v,list) or len(v)!=5:raise ValueError('色阶通道无效')
         v=[number(v[0],0,254,k),number(v[1],.1,10,k),number(v[2],1,255,k),number(v[3],0,255,k),number(v[4],0,255,k)]
-        if v[0]>=v[2] or v[3]>v[4]:raise ValueError('通道色阶范围无效')
+        if v[0]>=v[2]:raise ValueError('通道输入色阶范围无效')
         p['levels'][k]=v
     p['balance']={}
     for k,v in o.get('balance',{}).items():
@@ -72,7 +75,7 @@ def curve_lut(points,smooth=False):
     for i in range(1,len(x)-1):
         if d[i-1]*d[i]>0:
             w1=2*h[i]+h[i-1];w2=h[i]+2*h[i-1];m[i]=(w1+w2)/(w1/d[i-1]+w2/d[i])
-    j=np.clip(np.searchsorted(x,xx,side='right')-1,0,len(x)-2);t=(xx-x[j])/h[j]
+    j=np.clip(np.searchsorted(x,xx,side='right')-1,0,len(x)-2);t=np.clip((xx-x[j])/h[j],0,1)
     return np.clip((2*t**3-3*t*t+1)*y[j]+(t**3-2*t*t+t)*h[j]*m[j]+(-2*t**3+3*t*t)*y[j+1]+(t**3-t*t)*h[j]*m[j+1],0,255)
 def lum(a):return a@np.array([.2126,.7152,.0722],np.float32)
 def hue_weights(a):
@@ -131,12 +134,13 @@ def color_tile(a,p,y_start):
         yy,xx=np.indices(a.shape[:2],dtype=np.uint32);seed=xx*374761393+(yy+y_start)*668265263;seed=(seed^(seed>>13))*1274126177;noise=((seed^(seed>>16))%65536)/65535-.5;a=np.clip(a+noise[...,None]*p['grain']/255,0,1)
     return np.uint8(np.clip(np.rint(a*255),0,255))
 def tonal(rgb,p):
-    tables=[];master=curve_lut(p['curves'],p['interpolation']=='smooth')
+    tables=[];master=p['curveTables'].get('rgb',curve_lut(p['curves'],p['interpolation']=='smooth'))
     for k in ('r','g','b'):
         v=np.arange(256,dtype=float);v=np.clip((v-p['black'])/(p['white']-p['black']),0,1)**(1/p['gamma']);v=p['outputBlack']+v*(p['outputWhite']-p['outputBlack']);v=np.interp(v,np.arange(256),master)
         if k in p['levels']:
             black,gamma,white,low,high=p['levels'][k];v=low+np.clip((v-black)/(white-black),0,1)**(1/gamma)*(high-low)
-        if k in p['channelCurves']:v=np.interp(v,np.arange(256),curve_lut(p['channelCurves'][k],p['interpolation']=='smooth'))
+        if k in p['curveTables']:v=np.interp(v,np.arange(256),p['curveTables'][k])
+        elif k in p['channelCurves']:v=np.interp(v,np.arange(256),curve_lut(p['channelCurves'][k],p['interpolation']=='smooth'))
         tables.extend(np.clip(np.rint(v),0,255).astype(int).tolist())
     return rgb.point(tables)
 def colors(rgb,p):
