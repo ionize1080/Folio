@@ -4719,3 +4719,15 @@ body.object-select-mode .inspector {
   font-size: 13px;
   margin: 12px 0;
 }
+/* Keep focus rings inside the scrolling inspector and selected tools legible in dark mode. */
+.image-panel-scroll {
+  padding-right: 8px;
+}
+.image-page-hit {
+  border-radius: 0;
+}
+body.dark .selection-toolbar button[aria-pressed="true"] {
+  background: #303d62;
+  color: #d9e3ff;
+  box-shadow: inset 0 -2px #9bb7ff;
+}
