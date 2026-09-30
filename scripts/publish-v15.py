@@ -37,7 +37,7 @@ with zipfile.ZipFile(source) as z:
  assert 'Folio-PDF-Studio-source/docs/RELEASE-1.5.0.md' in z.namelist()
  assert not any('/tests/output/' in n or '/.venv/' in n for n in z.namelist())
 shutil.copyfile(portable,out/f'{prefix}-portable-win-x64.zip');shutil.copyfile(source,out/source.name)
-run=os.environ['GITHUB_RUN_ID'];sha=os.environ['GITHUB_SHA'];url=f'https://github.com/ionize1080/Folio/actions/runs/{run}'
+run=os.environ.get('FOLIO_RUN_ID',os.environ['GITHUB_RUN_ID']);sha=os.environ.get('FOLIO_SOURCE_COMMIT',os.environ['GITHUB_SHA']);url=f'https://github.com/ionize1080/Folio/actions/runs/{run}'
 (out/f'{prefix}-validation.json').write_text(json.dumps({'sourceCommit':sha,'windowsRun':url,**reports},ensure_ascii=False,indent=2),encoding='utf-8')
 lines=[]
 for file in sorted(out.iterdir()):

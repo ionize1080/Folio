@@ -1,4 +1,4 @@
-param([Parameter(Mandatory=$true)][string]$Manifest)
+﻿param([Parameter(Mandatory=$true)][string]$Manifest)
 $ErrorActionPreference = 'Stop'
 $m = $null; $stage = $null; $moved = $false; $newProcess = $null; $form = $null
 $log = Join-Path (Split-Path -Parent $Manifest) 'install.log'
@@ -29,7 +29,7 @@ try {
   if ($m.statusFile -and !$m.headless) {
     Add-Type -AssemblyName System.Windows.Forms
     $form = New-Object Windows.Forms.Form
-    $form.Text = 'Folio PDF Studio - Update'; $form.Width=480; $form.Height=150
+    $form.Text = 'Folio PDF Studio 更新'; $form.Width=480; $form.Height=150
     $form.StartPosition='CenterScreen'; $form.ControlBox=$false
     $label=New-Object Windows.Forms.Label; $label.SetBounds(20,15,425,48); $form.Controls.Add($label)
     $progress=New-Object Windows.Forms.ProgressBar; $progress.SetBounds(20,70,425,20); $progress.Style='Marquee'; $form.Controls.Add($progress)
@@ -38,7 +38,7 @@ try {
   $parent = Split-Path -Parent $m.target
   $stage = Join-Path $parent ('.folio-update-' + [Guid]::NewGuid().ToString('N'))
   $backup = $m.target + '.backup-' + (Get-Date -Format 'yyyyMMdd-HHmmss-fff') + '-' + [Guid]::NewGuid().ToString('N').Substring(0,6)
-  Report 'preparing' 'Verifying and unpacking the update. Keep Folio open.'
+  Report 'preparing' '正在校验并解压更新，请保持 Folio 打开。'
   if ((File-SHA $m.file) -ne $m.hash) { throw 'Update checksum mismatch' }
   New-Item -ItemType Directory -Path $stage | Out-Null
   $zip = [IO.Compression.ZipFile]::OpenRead($m.file)
@@ -60,20 +60,20 @@ try {
   }
   $fullVersion=$info.version + $(if ($info.releaseChannel) { '-'+$info.releaseChannel } else { '' })
   if ($fullVersion -ne $m.version.TrimStart('v')) { throw 'Packaged version mismatch' }
-  Report 'ready' 'Update verified. Waiting for Folio to close...'
+  Report 'ready' '校验完成，正在等待 Folio 关闭…'
   $until=(Get-Date).AddSeconds(120)
   while (Get-Process -Id $m.pid -ErrorAction SilentlyContinue) {
     if ((Get-Date) -gt $until) { throw 'Folio did not close; installation cancelled safely' }
     Start-Sleep -Milliseconds 250; if ($form) { [Windows.Forms.Application]::DoEvents() }
   }
-  Report 'replacing' 'Installing in the same folder. Desktop shortcuts keep working.'
+  Report 'replacing' '正在原目录安装，桌面快捷方式保持有效。'
   Move-WithRetry $m.target $backup; $moved=$true
   Move-WithRetry $new $m.target
   if ($m.healthFile) {
     Remove-Item -LiteralPath $m.healthFile -Force -ErrorAction SilentlyContinue
     $argument='"--folio-update-health='+$m.healthFile+'"'
     $newProcess=Start-Process -FilePath (Join-Path $m.target 'Folio.exe') -ArgumentList $argument -WorkingDirectory $m.target -PassThru
-    Report 'starting' 'Starting the new version and checking its window...'
+    Report 'starting' '正在启动新版并检查窗口…'
     $until=(Get-Date).AddSeconds(45)
     while (!(Test-Path -LiteralPath $m.healthFile)) {
       if ((Get-Date) -gt $until -or $newProcess.HasExited) { throw 'The new Folio window did not become ready' }
@@ -99,7 +99,7 @@ try {
       Start-Process -FilePath (Join-Path $m.target 'Folio.exe') -WorkingDirectory $m.target
     }
   } catch { Report 'failed' "Update failed: $failure. Recovery needs attention: $_. Backup: $backup" }
-  if ($form) { [Windows.Forms.MessageBox]::Show("Update failed. Your previous version is retained.`n$failure`nLog: $log",'Folio update') | Out-Null }
+  if ($form) { [Windows.Forms.MessageBox]::Show("更新失败，已保留或恢复原版本。`n$failure`nLog: $log",'Folio update') | Out-Null }
 } finally {
   if ($stage -and (Test-Path -LiteralPath $stage)) { Remove-Item -LiteralPath $stage -Recurse -Force -ErrorAction SilentlyContinue }
   if ($form) { $form.Close(); $form.Dispose() }

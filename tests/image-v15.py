@@ -33,6 +33,8 @@ with fitz.open(saved) as doc:
  with fitz.open(file) as original:
   assert doc[1].get_pixmap().samples==original[1].get_pixmap().samples
 checks.append('Applied image retains 4000 × 3000 source resolution; untouched shared sibling renders identically')
+clipped=preview({**p,'adjustments':{'black':100},'clipMode':'black'});clip_image=Image.open(io.BytesIO(base64.b64decode(clipped['clippingPreview'])));assert set(clip_image.convert('RGB').tobytes())<={0,255}
+checks.append('Alt clipping preview is a temporary diagnostic mask, separate from exported adjustment pixels')
 ramp=Image.fromarray(np.tile(np.arange(256,dtype=np.uint8),(10,1))).convert('RGB')
 negative=process(ramp,{'outputBlack':255,'outputWhite':0});assert negative.getpixel((0,0))==(255,255,255) and negative.getpixel((255,0))==(0,0,0)
 curve=curve_lut([[30,10],[220,240]],True);assert curve[0]==10 and curve[255]==240

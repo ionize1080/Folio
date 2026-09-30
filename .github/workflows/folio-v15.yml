@@ -73,7 +73,28 @@ jobs:
         if: always()
         with:
           name: folio-v15-image-preview
-          path: tests/output/v14-*.png
+          path: |
+            tests/output/v13-*.png
+            tests/output/v14-*.png
+            tests/output/v15-*.png
+            tests/output/v15-ui-report.json
+            tests/output/v15-native-report.json
+      - name: Archive tested build
+        run: python scripts/archive-release.py deliverables
+      - name: Download original 1.3 portable release for migration test
+        run: gh release download v1.3.0 --pattern '*portable-win-x64.zip' --dir "$env:RUNNER_TEMP/folio-legacy"
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Real old and new updater restart and shortcut validation
+        run: node tests/update-v15.cjs
+        timeout-minutes: 15
+        env:
+          FOLIO_LEGACY_DIR: ${{ runner.temp }}\folio-legacy
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: folio-v15-updater-real
+          path: tests/output/v15-updater-report.json
       - run: python tests/public-corpus-p5.py
       - run: python tests/editor-p5.py
       - run: python tests/editor-p6.py
@@ -151,22 +172,6 @@ jobs:
         with:
           name: folio-v15-screenshots
           path: tests/output/*-*.png
-      - name: Archive tested build
-        run: python scripts/archive-release.py deliverables
-      - name: Download original 1.3 portable release for migration test
-        run: gh release download v1.3.0 --pattern '*portable-win-x64.zip' --dir "$env:RUNNER_TEMP/folio-legacy"
-        env:
-          GH_TOKEN: ${{ github.token }}
-      - name: Real old and new updater restart and shortcut validation
-        run: node tests/update-v15.cjs
-        timeout-minutes: 15
-        env:
-          FOLIO_LEGACY_DIR: ${{ runner.temp }}\folio-legacy
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: folio-v15-updater-real
-          path: tests/output/v15-updater-report.json
       - uses: actions/upload-artifact@v4
         with:
           name: folio-v15-portable

@@ -216,6 +216,22 @@ let app, browser, page, bridge, background, store;
     await black.press("ArrowRight");
     await ready();
     assert.equal(await page.locator('[data-adjust="black"]').inputValue(), "1");
+    const blackBox = await black.boundingBox();
+    await page.keyboard.down("Alt");
+    await page.mouse.move(
+      blackBox.x + blackBox.width / 2,
+      blackBox.y + blackBox.height / 2,
+    );
+    await page.mouse.down();
+    await page.mouse.move(blackBox.x + 35, blackBox.y + blackBox.height / 2, {
+      steps: 6,
+    });
+    await ready();
+    await page.keyboard.press("Escape");
+    await page.mouse.up();
+    await page.keyboard.up("Alt");
+    await ready();
+    assert.equal(await page.locator('[data-adjust="black"]').inputValue(), "1");
     const gray = page.locator('[data-level-handle="1"]'),
       gb = await gray.boundingBox();
     await page.mouse.move(gb.x + gb.width / 2, gb.y + gb.height / 2);
@@ -244,6 +260,7 @@ let app, browser, page, bridge, background, store;
     await page.locator("[data-jump]").selectOption("adj-curves");
     await page.locator("[data-curve-mode]").selectOption("pencil");
     await ready();
+    await page.locator("[data-curve]").scrollIntoViewIfNeeded();
     const cb = await page.locator("[data-curve]").boundingBox();
     await page.mouse.move(cb.x + cb.width * 0.2, cb.y + cb.height * 0.7);
     await page.mouse.down();

@@ -148,7 +148,8 @@ function extract(file, folder) {
       await app.evaluate(({ app }) => {
         setTimeout(() => app.quit(), 50);
       });
-      await app.close().catch(() => {});
+      const oldProcess = app.process();
+      await until(() => oldProcess.exitCode !== null, 60000);
       app = null;
       await until(() =>
         ps(

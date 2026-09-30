@@ -1,5 +1,5 @@
 // Histogram input endpoints / gamma and output endpoints share the numeric model.
-export function installLevelsHandles(root, read, write) {
+export function installLevelsHandles(root, read, write, clipping = () => {}) {
   const input = document.createElement("div"),
     output = document.createElement("div");
   input.className = "levels-track levels-input";
@@ -22,6 +22,8 @@ export function installLevelsHandles(root, read, write) {
     b.setAttribute("role", "slider");
     b.setAttribute("aria-label", name);
     (i < 3 ? input : output).append(b);
+    let original = null,
+      pointer = null;
     function set(value) {
       const v = read();
       v[i] =
@@ -37,6 +39,9 @@ export function installLevelsHandles(root, read, write) {
       sync();
     }
     function move(e) {
+      clipping(
+        e.altKey && [0, 2].includes(i) ? (i === 0 ? "black" : "white") : null,
+      );
       const box = b.parentElement.getBoundingClientRect(),
         v = read();
       const x = Math.max(
@@ -53,6 +58,8 @@ export function installLevelsHandles(root, read, write) {
     }
     b.onpointerdown = (e) => {
       e.preventDefault();
+      original = [...read()];
+      pointer = e.pointerId;
       b.focus();
       b.setPointerCapture(e.pointerId);
       move(e);
@@ -61,10 +68,25 @@ export function installLevelsHandles(root, read, write) {
       if (b.hasPointerCapture(e.pointerId)) move(e);
     };
     b.onpointerup = b.onpointercancel = (e) => {
+      original = null;
+      pointer = null;
+      clipping(null);
       if (b.hasPointerCapture(e.pointerId))
         b.releasePointerCapture(e.pointerId);
     };
     b.onkeydown = (e) => {
+      if (e.key === "Escape" && original) {
+        e.preventDefault();
+        e.stopPropagation();
+        write(original);
+        original = null;
+        if (pointer !== null && b.hasPointerCapture(pointer))
+          b.releasePointerCapture(pointer);
+        pointer = null;
+        clipping(null);
+        sync();
+        return;
+      }
       const direction = ["ArrowLeft", "ArrowDown"].includes(e.key)
         ? -1
         : ["ArrowRight", "ArrowUp"].includes(e.key)

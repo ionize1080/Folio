@@ -52,7 +52,8 @@ export function installImageAdjustments({
     original = "",
     histograms = {},
     channel = "rgb",
-    curveMode = "point",
+    curveMode = state.curveTables.rgb ? "pencil" : "point",
+    clipMode = null,
     pencilLast = null,
     gridDivisions = 4;
   const root = document.createElement("section");
@@ -257,6 +258,7 @@ export function installImageAdjustments({
         index: chosen.index,
         imageData: chosen.imageData || null,
         adjustments: structuredClone(state),
+        clipMode,
       });
       if (disposed || !alive() || rev !== revision) return;
       original = r.original;
@@ -314,6 +316,7 @@ export function installImageAdjustments({
   };
   $("[data-reset]").onclick = () => {
     state = structuredClone(defaults);
+    curveMode = "point";
     selected = 0;
     channel = "rgb";
     $("[data-channel]").value = "rgb";
@@ -1005,6 +1008,16 @@ export function installImageAdjustments({
       levelFields();
       changed();
     },
+    (mode) => {
+      if (clipMode !== mode) {
+        clipMode = mode;
+        changed();
+      }
+    },
+  );
+  $("#adj-levels").insertAdjacentHTML(
+    "beforeend",
+    '<p class="hint">Alt 拖动黑场／白场查看剪切；Esc 撤回本次拖动。</p>',
   );
   visualSliders = installVisualSliders(root);
   const observer = new ResizeObserver(() => {
@@ -1024,6 +1037,12 @@ export function installImageAdjustments({
       clearTimeout(timer);
     },
     refresh: changed,
+    rerender() {
+      revision++;
+      clearTimeout(timer);
+      status.textContent = "等待更新预览…";
+      timer = setTimeout(preview, 0);
+    },
     getState: () => structuredClone(state),
     async flush() {
       clearTimeout(timer);

@@ -121,4 +121,9 @@ def preview(args):
     def png(im):
         buf=io.BytesIO();im.save(buf,format='PNG',compress_level=1);return base64.b64encode(buf.getvalue()).decode()
     if 'original' not in entry:entry['original']=png(image)
-    return {'original':entry['original'],'preview':png(adjusted),'width':width,'height':height,'histogram':entry['histogram'],'histograms':entry['histograms'],'adjustedHistogram':adjusted.convert('L').histogram(),'proxy':image.size!=entry['size'],'cacheHit':hit,'milliseconds':round((time.perf_counter()-start)*1000,1)}
+    clipping=None
+    if args.get('clipMode') in ('black','white'):
+        clipped=adjusted.convert('RGB').point(([0]+[255]*255 if args['clipMode']=='black' else [0]*255+[255])*3)
+        if 'A' in adjusted.getbands():clipped.putalpha(adjusted.getchannel('A'))
+        clipping=png(clipped)
+    return {'original':entry['original'],'preview':png(adjusted),'clippingPreview':clipping,'width':width,'height':height,'histogram':entry['histogram'],'histograms':entry['histograms'],'adjustedHistogram':adjusted.convert('L').histogram(),'proxy':image.size!=entry['size'],'cacheHit':hit,'milliseconds':round((time.perf_counter()-start)*1000,1)}

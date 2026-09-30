@@ -272,7 +272,7 @@ export function installPageImages(ctx) {
             sample.getContext("2d").drawImage(image, 0, 0);
             sampleSource = r.original;
           }
-          adjustedPreview = r.preview;
+          adjustedPreview = r.clippingPreview || r.preview;
           await composite();
           if (check()) q("#image-apply").disabled = !changed;
         },
@@ -285,7 +285,11 @@ export function installPageImages(ctx) {
           viewport: () => surface.entries.get(page)?.viewport,
           changed: mark,
           onActiveChange: dirty,
-          refresh: () => editor.refresh(),
+          refresh: (save = true) => {
+            overlay();
+            if (save) editor.refresh();
+            else editor.rerender();
+          },
           toast,
         });
       crops.querySelectorAll("[data-image-crop]").forEach(
@@ -385,7 +389,7 @@ export function installPageImages(ctx) {
         );
         if (prior?.delete) continue;
         const rect = entry.viewport.convertToViewportRectangle(
-            transformedBounds(o, prior),
+            transformedBounds(o, chosen?.index === o.index ? chosen : prior),
           ),
           button = document.createElement("button");
         button.className =
@@ -447,6 +451,8 @@ export function installPageImages(ctx) {
     async function apply() {
       if (applying) return applying;
       if (cropEditor?.active) cropEditor.confirm();
+      if (cropEditor?.active)
+        throw Error("请先确认有效裁剪区域，或按 Esc 取消裁剪");
       if (!changed || !chosen) return;
       q("#image-apply").disabled = true;
       q("#image-done").disabled = true;

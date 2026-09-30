@@ -17,6 +17,7 @@ export function installCropTools({
   const svg = document.createElementNS(NS, "svg");
   svg.classList.add("image-crop-overlay");
   svg.setAttribute("aria-label", "页面图像裁剪框");
+  svg.setAttribute("tabindex", "0");
   layer.append(svg);
   const $ = (s) => controls.querySelector(s);
   let mode = null,
@@ -79,7 +80,7 @@ export function installCropTools({
   }
   function draw() {
     svg.replaceChildren();
-    svg.hidden = !mode;
+    svg.toggleAttribute("hidden", !mode);
     const vp = viewport();
     if (!mode || !vp) return;
     svg.setAttribute("viewBox", `0 0 ${vp.width} ${vp.height}`);
@@ -237,8 +238,8 @@ export function installCropTools({
     onActiveChange();
     if (save) {
       changed();
-      refresh();
     }
+    refresh(save);
     draw();
   }
   function rotate(matrix, angle) {
@@ -259,6 +260,7 @@ export function installCropTools({
     if (!id && mode !== "straighten") return;
     e.preventDefault();
     e.stopPropagation();
+    svg.focus({ preventScroll: true });
     svg.setPointerCapture(e.pointerId);
     const box = svg.getBoundingClientRect(),
       screen = [e.clientX - box.left, e.clientY - box.top];
