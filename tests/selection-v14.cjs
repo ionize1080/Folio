@@ -242,12 +242,55 @@ let app, browser, page, bridge, background, store;
     await page.waitForFunction(() => document.querySelector("#busy").hidden);
     await page.locator('[data-action="redo"]').click();
     await page.waitForFunction(() => document.querySelector("#busy").hidden);
-    checks.push("Rectangle containment selects intended text; batch undo/redo");
+    const dragStart = await selectedBox();
+    await page.mouse.move(
+      dragStart.x + dragStart.width / 2,
+      dragStart.y + dragStart.height / 2,
+    );
+    await page.keyboard.down("Shift");
+    await page.mouse.down();
+    await page.mouse.move(
+      dragStart.x + dragStart.width / 2 + 28,
+      dragStart.y + dragStart.height / 2 + 12,
+      { steps: 8 },
+    );
+    await page.mouse.up();
+    await page.keyboard.up("Shift");
+    await done();
+    const dragEnd = await selectedBox();
+    assert(dragEnd.x > dragStart.x + 15);
+    assert(Math.abs(dragEnd.y - dragStart.y) < 2);
+    checks.push(
+      "Rectangle containment, batch undo/redo and Shift-constrained multi-object drag",
+    );
     await page.locator('[data-select-mode="image"]').click();
     await page.waitForSelector('.selection-object[data-type="image"]');
     assert.equal(
       await page.locator('.selection-object[data-type="text"]').count(),
       0,
+    );
+    await page.locator("[data-match]").selectOption("intersect");
+    const imageBox = await page
+      .locator('.selection-object[data-type="image"]')
+      .first()
+      .boundingBox();
+    await page.mouse.move(imageBox.x + 10, imageBox.y + 10);
+    await page.mouse.down();
+    await page.mouse.move(imageBox.x + 35, imageBox.y + 35, { steps: 5 });
+    await page.mouse.up();
+    assert.equal(await page.locator(".selection-object.selected").count(), 1);
+    await page.locator("[data-delete]").click();
+    await done();
+    await page.waitForFunction(
+      () =>
+        document.querySelectorAll('.selection-object[data-type="image"]')
+          .length === 1,
+    );
+    await page.locator('[data-action="undo"]').click();
+    await page.waitForFunction(
+      () =>
+        document.querySelectorAll('.selection-object[data-type="image"]')
+          .length === 2 && document.querySelector("#busy").hidden,
     );
     await page.locator("[data-all]").click();
     assert.equal(await page.locator(".selection-object.selected").count(), 2);

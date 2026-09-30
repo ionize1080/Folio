@@ -10,8 +10,8 @@ import worker
 out=Path('tests/output');out.mkdir(exist_ok=True);checks=[]
 def call(raw,command,**kw):return worker.run({'command':command,'bytes':base64.b64encode(raw).decode(),**kw})
 def apply(raw,edits):return base64.b64decode(call(raw,'apply',edits=edits)['bytes'])
-def pixels(raw):
- with fitz.open(stream=raw,filetype='pdf') as d:return d[0].get_pixmap().samples
+def pixels(raw,page=0):
+ with fitz.open(stream=raw,filetype='pdf') as d:return d[page].get_pixmap().samples
 # Consecutive Tj operators exercise shared text-position state and original subset font.
 doc=fitz.open();p=doc.new_page(width=620,height=820);p.insert_text((60,80),'Alpha   Beta   Gamma',fontname='tiro',fontsize=16)
 p.insert_text((60,130),'Second text',fontname='hebo',fontsize=18);p.insert_text((350,130),'Untouched sibling',fontsize=12)
@@ -37,7 +37,7 @@ with fitz.open(stream=raw,filetype='pdf') as a,fitz.open(stream=result,filetype=
 (out/'v14-selection-edited.pdf').write_bytes(result)
 checks.append('Mixed image batch plus text size/color/move preserves text/font, sibling positions and other page')
 info=call(raw,'inspect',page=2);o=info['objects'][0];origin=info['pageOrigin'];o['matrix']=[v+(origin[i-4] if i>=4 else 0) for i,v in enumerate(o['matrix'])]
-assert pixels(apply(raw,[{**o,'page':2,'objectStyle':{}}]))==pixels(raw)
+assert pixels(apply(raw,[{**o,'page':2,'objectStyle':{}}]),1)==pixels(raw,1)
 r=apply(raw,[{**o,'page':2,'matrix':[*o['matrix'][:4],o['matrix'][4]+7,o['matrix'][5]-9],'objectStyle':{'fill':[10,100,200]}}])
 with fitz.open(stream=r,filetype='pdf') as d:assert d[1].rotation==90 and 'Neighbor' in d[1].get_text()
 checks.append('Rotated nonzero CropBox text remains editable with native page coordinates')
