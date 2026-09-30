@@ -83,7 +83,8 @@ export function installPageImages(ctx) {
     layer.append(preview, hits);
     const q = (s) => bar.querySelector(s);
     const check = () => !closed && S.bytes === source;
-    const dirty = () => window.desktop?.setDirty?.(S.dirty || changed);
+    const dirty = () =>
+      window.desktop?.setDirty?.(S.dirty || changed || !!cropEditor?.active);
     function edit() {
       return {
         page,
@@ -283,6 +284,7 @@ export function installPageImages(ctx) {
           chosen,
           viewport: () => surface.entries.get(page)?.viewport,
           changed: mark,
+          onActiveChange: dirty,
           refresh: () => editor.refresh(),
           toast,
         });
@@ -513,7 +515,7 @@ export function installPageImages(ctx) {
       flush: apply,
       destroy,
       get editing() {
-        return changed;
+        return changed || !!cropEditor?.active;
       },
     };
   }

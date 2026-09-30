@@ -167,11 +167,13 @@ app.whenReady().then(async () => {
       !/^install-[\da-f-]+\.json\.health\.json$/.test(path.basename(file))
     )
       return;
-    if (!win.isDestroyed() && win.isVisible())
+    if (!win.isDestroyed() && win.isVisible()) {
       await fs.writeFile(
-        file,
+        file + ".tmp",
         JSON.stringify({ version: updater.current, pid: process.pid }),
       );
+      await fs.rename(file + ".tmp", file);
+    }
   });
   app.on("before-quit", () => updater.cancel());
   if (updater.settings.autoCheck)

@@ -394,7 +394,18 @@ export function installImageAdjustments({
       return;
     }
     if (selected < 0) {
-      if (points().length >= 16) return;
+      if (points().length >= 16) {
+        selected = points().reduce(
+          (best, p, i) =>
+            Math.hypot(p[0] - x, p[1] - y) <
+            Math.hypot(points()[best][0] - x, points()[best][1] - y)
+              ? i
+              : best,
+          0,
+        );
+        draw();
+        return;
+      }
       const xx = Math.max(1, Math.min(254, Math.round(x)));
       if (points().some((p) => p[0] === xx)) return;
       points().push([xx, Math.round(y)]);
@@ -748,6 +759,12 @@ export function installImageAdjustments({
           points().sort((a, b) => a[0] - b[0]);
           selected = points().findIndex((p) => p[0] === x);
         }
+        if (selected < 0)
+          selected = points().reduce(
+            (best, p, i) =>
+              Math.abs(p[0] - x) < Math.abs(points()[best][0] - x) ? i : best,
+            0,
+          );
         if (selected >= 0)
           updatePoint(points()[selected][0], points()[selected][1] + delta);
       });

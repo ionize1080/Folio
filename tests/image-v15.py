@@ -1,6 +1,6 @@
 """Large-source preview latency, source-resolution export and geometry contracts."""
 from pathlib import Path
-import sys,io,json,time,base64,statistics
+import sys,io,json,time,base64,statistics,math
 root=Path(__file__).resolve().parents[1];sys.path.insert(0,str(root/'native'))
 import fitz,numpy as np
 from PIL import Image
@@ -18,7 +18,7 @@ file=out/'v15-images.pdf';pdf.save(file);pdf.close()
 args={'input':str(file),'page':1};obj=next(o for o in run({'command':'inspect',**args})['objects'] if o['type']=='image')
 p={'index':obj['index'],**args};cold=preview({**p,'adjustments':{'gamma':1.2}})
 timings=[]
-for value in [1.05,1.1,1.15,1.2,1.25,1.3]:
+for value in [1+i/100 for i in range(1,51)]:
  start=time.perf_counter();r=preview({**p,'adjustments':{'gamma':value,'saturation':10}});timings.append(round((time.perf_counter()-start)*1000,1));assert r['cacheHit'] and r['proxy'];assert (r['width'],r['height'])==(w,h)
 assert statistics.median(timings)<1500,(timings,'proxy preview exceeded budget')
 assert max(Image.open(io.BytesIO(base64.b64decode(r['preview']))).size)<=1200
@@ -43,5 +43,5 @@ try:rectify(rgba,[[0,0],[1,1],[1,0],[0,1]]);raise AssertionError('crossed quadri
 except ValueError:pass
 geometry={**edit,'crop':[10,10,15,15],'perspective':perspective}
 result=run({'command':'apply',**args,'edits':[geometry]});geo=fitz.open(stream=base64.b64decode(result['bytes']),filetype='pdf');assert 'Foreground' in geo[0].get_text();geo.close();checks.append('Perspective crop preserves alpha and PDF foreground; crossed corners rejected before export')
-report={'platform':sys.platform,'checks':checks,'errors':[],'performance':{'sourcePixels':w*h,'proxyLimit':1200,'coldPreviewMs':cold['milliseconds'],'warmPreviewMs':timings,'warmMedianMs':statistics.median(timings),'composeMs':composite_ms,'fullResolutionApplyMs':full_ms}}
+report={'platform':sys.platform,'checks':checks,'errors':[],'performance':{'sourcePixels':w*h,'proxyLimit':1200,'coldPreviewMs':cold['milliseconds'],'warmPreviewMs':timings,'warmMedianMs':statistics.median(timings),'warmP95Ms':sorted(timings)[math.ceil(len(timings)*.95)-1],'warmMaxMs':max(timings),'composeMs':composite_ms,'fullResolutionApplyMs':full_ms}}
 (out/'v15-native-report.json').write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8');print(json.dumps(report,ensure_ascii=False))

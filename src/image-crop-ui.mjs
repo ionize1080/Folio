@@ -5,6 +5,7 @@ export function installCropTools({
   chosen,
   viewport,
   changed,
+  onActiveChange = () => {},
   refresh,
   toast,
 }) {
@@ -199,7 +200,7 @@ export function installCropTools({
       [1, 1],
       [0, 1],
     ];
-    changed();
+    onActiveChange();
     $("[data-crop-actions]").hidden = false;
     layer.classList.add("cropping");
     draw();
@@ -233,6 +234,7 @@ export function installCropTools({
     svg.hidden = true;
     layer.classList.remove("cropping");
     $("[data-crop-actions]").hidden = true;
+    onActiveChange();
     if (save) {
       changed();
       refresh();
