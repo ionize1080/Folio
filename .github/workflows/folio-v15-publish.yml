@@ -1,0 +1,40 @@
+name: Publish validated Folio 1.5.0
+on:
+  push:
+    branches: [codex/folio-v15-publish]
+permissions:
+  contents: write
+  actions: read
+concurrency:
+  group: folio-v15-release
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ionize1080/Folio
+      FOLIO_RUN_ID: "36675501496"
+      FOLIO_SOURCE_COMMIT: "3472df5b053e159df5c290e418613fcc7813fdc4"
+    steps:
+      - name: Require the exact successful Windows validation
+        shell: python
+        run: |
+          import json, os, subprocess
+          data = json.loads(subprocess.check_output(['gh', 'api', f'repos/{os.environ["GH_REPO"]}/actions/runs/{os.environ["FOLIO_RUN_ID"]}']))
+          assert data['status'] == 'completed' and data['conclusion'] == 'success'
+          assert data['head_sha'] == os.environ['FOLIO_SOURCE_COMMIT']
+          assert data['path'] == '.github/workflows/folio-v15.yml'
+          assert data['repository']['full_name'] == os.environ['GH_REPO']
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.FOLIO_SOURCE_COMMIT }}
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: folio-v15-*
+          run-id: ${{ env.FOLIO_RUN_ID }}
+          github-token: ${{ github.token }}
+          path: downloaded
+      - name: Verify all reports and the tested binary hashes, then publish
+        run: python scripts/publish-v15.py
