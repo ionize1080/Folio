@@ -1,7 +1,7 @@
 import { transformedBounds } from "./object-selection-model.mjs";
 import * as pdfjs from "./vendor/pdf.mjs";
 import { installImageAdjustments } from "./image-adjustments-ui.mjs";
-import { installCropTools } from "./image-crop-ui.mjs";
+import { installCropTools, perspectiveSourcePoint } from "./image-crop-ui.mjs";
 import { nativeRequest } from "./native-source.mjs";
 export function installPageImages(ctx) {
   const { S, surface, guarded, toast, commit, refreshNative, clone } = ctx;
@@ -255,7 +255,15 @@ export function installPageImages(ctx) {
         onPick: (mode, callback) => {
           picker = { mode, callback };
           layer.classList.add("picking");
-          toast("点击当前图片取样：" + mode);
+          toast(
+            "点击当前图片取样：" +
+              ({
+                black: "黑场",
+                gray: "灰场",
+                white: "白场",
+                curve: "曲线，按住并上下拖动",
+              }[mode] || ""),
+          );
         },
         onCompare: (value) => {
           showOriginal = value;
@@ -358,6 +366,8 @@ export function installPageImages(ctx) {
       }
       if (u < 0 || u > 1 || v < 0 || v > 1)
         throw Error("请点击图片有效像素区域");
+      if (chosen.perspective)
+        [u, v] = perspectiveSourcePoint(chosen.perspective, u, v);
       const rgb = sample
         .getContext("2d")
         .getImageData(

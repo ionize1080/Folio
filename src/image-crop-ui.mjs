@@ -418,3 +418,24 @@ export function installCropTools({
     },
   };
 }
+
+// Map a point in the rectified unit square back into its source quadrilateral.
+export function perspectiveSourcePoint(p, u, v) {
+  const dx1 = p[1][0] - p[2][0],
+    dx2 = p[3][0] - p[2][0],
+    dx3 = p[0][0] - p[1][0] + p[2][0] - p[3][0];
+  const dy1 = p[1][1] - p[2][1],
+    dy2 = p[3][1] - p[2][1],
+    dy3 = p[0][1] - p[1][1] + p[2][1] - p[3][1];
+  const det = dx1 * dy2 - dx2 * dy1;
+  if (Math.abs(det) < 1e-10) throw Error("透视裁剪不可逆");
+  const g = (dx3 * dy2 - dx2 * dy3) / det,
+    h = (dx1 * dy3 - dx3 * dy1) / det;
+  return [0, 1].map(
+    (i) =>
+      ((p[1][i] - p[0][i] + g * p[1][i]) * u +
+        (p[3][i] - p[0][i] + h * p[3][i]) * v +
+        p[0][i]) /
+      (g * u + h * v + 1),
+  );
+}

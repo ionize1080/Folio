@@ -4850,3 +4850,19 @@ body.dark .selection-toolbar button[aria-pressed="true"] {
   padding-bottom: 8px;
   margin-bottom: 12px;
 }
+.levels-handle::before {
+  content: "";
+  position: absolute;
+  left: 1.5px;
+  top: -1px;
+  width: 15px;
+  height: 17px;
+  clip-path: polygon(50% 0, 100% 65%, 100% 100%, 0 100%, 0 65%);
+  background: #8995a8;
+}
+.levels-handle::after {
+  position: relative;
+}
+.image-crop-overlay:focus {
+  outline: none;
+}
