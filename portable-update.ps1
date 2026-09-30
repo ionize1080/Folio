@@ -95,8 +95,9 @@ try {
       Move-WithRetry $backup $m.target
     }
     Report 'failed' "Update failed; original retained: $failure"
-    if ($moved -and (Test-Path -LiteralPath (Join-Path $m.target 'Folio.exe'))) {
+    if ($m -and !(Get-Process -Id $m.pid -ErrorAction SilentlyContinue) -and (Test-Path -LiteralPath (Join-Path $m.target 'Folio.exe'))) {
       Start-Process -FilePath (Join-Path $m.target 'Folio.exe') -WorkingDirectory $m.target
+      'Restarted previous installation after failure' | Add-Content -LiteralPath $log -Encoding UTF8
     }
   } catch { Report 'failed' "Update failed: $failure. Recovery needs attention: $_. Backup: $backup" }
   if ($form) { [Windows.Forms.MessageBox]::Show("更新失败，已保留或恢复原版本。`n$failure`nLog: $log",'Folio update') | Out-Null }

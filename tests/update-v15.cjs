@@ -15,8 +15,9 @@ const hash = (f) =>
 const checks = [],
   errors = [];
 let app, helper;
+const diagnostics = [];
 const base = fs.mkdtempSync(
-  path.join(fs.existsSync("D:/") ? "D:/" : os.tmpdir(), "Folio 升级 ' "),
+  path.join(fs.existsSync("D:/") ? "D:/" : os.tmpdir(), "Folio upgrade test "),
 );
 function ps(code, env = {}) {
   const p = spawnSync(
@@ -65,6 +66,13 @@ function extract(file, folder) {
       extract(mode === "legacy13" ? legacy : archive, folder);
       const target = path.join(folder, "Folio-PDF-Studio"),
         exe = path.join(target, "Folio.exe");
+      diagnostics.push({
+        mode,
+        target,
+        executableExists: fs.existsSync(exe),
+        rootEntries: fs.readdirSync(folder),
+      });
+      assert(fs.existsSync(exe), JSON.stringify(diagnostics));
       const oldAsar = hash(path.join(target, "resources/app.asar"));
       const shortcut = path.join(folder, "Folio.lnk");
       ps(
@@ -219,7 +227,7 @@ function extract(file, folder) {
       maxRetries: 8,
       retryDelay: 500,
     });
-    const report = { platform: process.platform, checks, errors };
+    const report = { platform: process.platform, checks, errors, diagnostics };
     fs.writeFileSync(
       path.join(out, "v15-updater-report.json"),
       JSON.stringify(report, null, 2),

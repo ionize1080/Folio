@@ -20,4 +20,11 @@ with tempfile.TemporaryDirectory(prefix="Folio 更新 ' test ",ignore_cleanup_er
  with zipfile.ZipFile(bad,'w') as z:z.writestr('Folio-PDF-Studio/../../escaped.txt','BAD')
  run(bad,digest(bad));assert not (base/'escaped.txt').exists();assert (target/'resources/app.asar').read_bytes()==b'new tested app';checks.append('Archive traversal rejected before extraction; current program preserved')
  run(archive,digest(archive),healthFile=str(base/'never-ready.json'),headless=True);assert (target/'resources/app.asar').read_bytes()==b'new tested app';assert 'new Folio window did not become ready' in (base/'install.log').read_text(encoding='utf-8-sig');checks.append('New executable exits without a healthy renderer: actual directory rollback restores previous installation')
+ (base/'install.log').write_text('',encoding='utf-8')
+ with (target/'Folio.exe').open('rb') as locked:
+  run(archive,digest(archive),headless=True)
+ assert (target/'resources/app.asar').read_bytes()==b'new tested app'
+ failure_log=(base/'install.log').read_text(encoding='utf-8-sig')
+ assert '[failed]' in failure_log and 'Restarted previous installation after failure' in failure_log
+ checks.append('Locked installation directory fails safely and reopens the original even before the swap starts')
 Path('tests/output/v13-updater-report.json').write_text(json.dumps({'platform':sys.platform,'checks':checks,'errors':[]},indent=2));print(json.dumps(checks))
