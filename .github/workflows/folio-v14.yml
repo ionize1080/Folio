@@ -60,6 +60,7 @@ jobs:
         env:
           FOLIO_EXE: ${{ github.workspace }}\dist\Folio-PDF-Studio-win-x64\Folio.exe
       - run: node tests/selection-v14.cjs
+        timeout-minutes: 8
         env:
           FOLIO_EXE: ${{ github.workspace }}\dist\Folio-PDF-Studio-win-x64\Folio.exe
       - uses: actions/upload-artifact@v4

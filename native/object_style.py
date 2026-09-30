@@ -27,4 +27,10 @@ def wrappers(stream,position,description,edit):
         if len(rgb)!=3 or any(not isinstance(v,int) or not 0<=v<=255 for v in rgb):raise ValueError('文字颜色无效')
         before.append(([FloatObject(v/255) for v in rgb],b'rg'))
         before.append(([FloatObject(v/255) for v in rgb],b'RG'))
-    return before,[([],b'Q')]
+    after=[([],b'Q')]
+    # The double-quote operator changes persistent word/character spacing.
+    # q/Q isolates our color/CTM, but those original side effects must survive.
+    args,op=stream.operations[position]
+    if op==b'"':
+        after.extend([([args[0]],b'Tw'),([args[1]],b'Tc')])
+    return before,after

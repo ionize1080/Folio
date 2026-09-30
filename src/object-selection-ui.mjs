@@ -43,7 +43,7 @@ export function installObjectSelection({
       gesture = null;
     const panel = document.createElement("aside");
     panel.className = "object-selection-panel";
-    panel.innerHTML = `<header><strong>选择与批量编辑</strong><button data-done>完成</button></header><div class="selection-scroll"><p class="hint">拖动框选；Ctrl 点击切换；Shift 添加；Alt 拖动强制框选。拖动已选对象移动，Shift 锁定轴向。</p><label>框选规则<select data-match><option value="contain">完全包含</option><option value="intersect">相交即选</option></select></label><div class="adjust-tools"><button data-all>全选当前页</button><button data-clear>取消选择</button></div><p data-count role="status"></p><fieldset data-batch disabled><h3>位置</h3><div class="form-grid"><label>水平位移（pt）<input data-dx type="number" value="0" step="1"></label><label>垂直位移（pt，向下为正）<input data-dy type="number" value="0" step="1"></label></div><button data-move>移动所选对象</button><div data-text-fields><h3>文字属性</h3><p class="hint">仅修改勾选的属性；保留原有字体和字符间距比例。</p><label class="check"><input data-size-enable type="checkbox">字号（pt）</label><input data-size type="number" min="1" max="1000" value="12"><label class="check"><input data-color-enable type="checkbox">文字颜色</label><input data-color type="color" value="#000000"><button data-text>应用文字属性</button></div><button data-images>调整所选图片…</button><button data-delete>删除所选对象</button></fieldset><p data-reasons class="hint"></p></div><footer class="task-status" role="status"><progress hidden></progress><span data-progress>请框选当前页的文字或图片</span></footer>`;
+    panel.innerHTML = `<header><strong>选择与批量编辑</strong><button data-done>完成</button></header><div class="selection-scroll"><p class="hint">拖动框选；Ctrl 点击切换；Shift 添加；Alt 拖动强制框选。拖动已选对象移动，Shift 锁定轴向。</p><label>框选规则<select data-match><option value="contain">完全包含</option><option value="intersect">相交即选</option></select></label><div class="adjust-tools"><button data-all>全选当前页</button><button data-clear>取消选择</button></div><p data-count role="status"></p><fieldset data-batch disabled><h3>位置</h3><div class="form-grid"><label>水平位移（pt）<input data-dx type="number" value="0" step="1"></label><label>垂直位移（pt，向下为正）<input data-dy type="number" value="0" step="1"></label></div><button data-move>移动所选对象</button><div data-text-fields><h3>文字属性</h3><p class="hint">仅修改勾选的属性；保留原有字体和字符间距比例。</p><label class="check"><input data-size-enable type="checkbox">字号（pt）</label><input data-size type="number" required min="1" max="1000" value="12"><label class="check"><input data-color-enable type="checkbox">文字颜色</label><input data-color type="color" value="#000000"><button data-text>应用文字属性</button></div><button data-images>调整所选图片…</button><button data-delete>删除所选对象</button></fieldset><p data-reasons class="hint"></p></div><footer class="task-status" role="status"><progress hidden></progress><span data-progress>请框选当前页的文字或图片</span></footer>`;
     document.body.append(panel);
     document.body.classList.add("object-select-mode");
     const layer = document.createElement("div");
@@ -118,11 +118,15 @@ export function installObjectSelection({
           ),
         }));
         progress("可框选、Ctrl 多选；方向键 1 pt，Shift + 方向键 10 pt");
+      } catch (e) {
+        progress("读取失败：" + e.message);
+        throw e;
       } finally {
         loading = false;
         if (!closed) {
           draw();
           refreshPanel();
+          if (number !== page) guarded(load);
         }
       }
     }
@@ -290,6 +294,9 @@ export function installObjectSelection({
       if (targets.some((o) => !editable(o)))
         throw Error("所选内容包含只读对象，请先取消选择该对象");
       applying = true;
+      panel
+        .querySelectorAll("button,select")
+        .forEach((e) => (e.disabled = true));
       refreshPanel();
       progress(`正在应用 ${targets.length} 个对象的修改…`, true);
       try {
@@ -308,12 +315,15 @@ export function installObjectSelection({
         throw e;
       } finally {
         applying = false;
+        panel
+          .querySelectorAll("button,select")
+          .forEach((e) => (e.disabled = false));
         draw();
         refreshPanel();
       }
     }
     function destroy() {
-      if (closed) return;
+      if (closed || applying) return;
       closed = true;
       layer.remove();
       panel.remove();

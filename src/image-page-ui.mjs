@@ -1,3 +1,4 @@
+import { transformedBounds } from "./object-selection-model.mjs";
 import * as pdfjs from "./vendor/pdf.mjs";
 import { installImageAdjustments } from "./image-adjustments-ui.mjs";
 import { nativeRequest } from "./native-source.mjs";
@@ -299,7 +300,9 @@ export function installPageImages(ctx) {
           (e) => e.page === page && e.index === o.index,
         );
         if (prior?.delete) continue;
-        const rect = entry.viewport.convertToViewportRectangle(o.bounds),
+        const rect = entry.viewport.convertToViewportRectangle(
+            transformedBounds(o, prior),
+          ),
           button = document.createElement("button");
         button.className =
           "image-page-hit" +

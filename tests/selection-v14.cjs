@@ -375,7 +375,8 @@ let app, browser, page, bridge, background, store;
       JSON.stringify(report, null, 2),
     );
     console.log(JSON.stringify(report));
-    await app?.close();
+    if (app) await app.evaluate(({ app }) => app.exit(0)).catch(() => {});
+    await app?.close().catch(() => {});
     await browser?.close();
     bridge?.cancel();
     background?.cancel();

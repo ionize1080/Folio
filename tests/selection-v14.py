@@ -22,6 +22,9 @@ raw=doc.tobytes();doc.close();(out/'v14-selection.pdf').write_bytes(raw)
 objects=call(raw,'inspect',page=1)['objects'];texts=[o for o in objects if o['type']=='text'];images=[o for o in objects if o['type']=='image'];assert len(texts)==3 and len(images)==2
 edits=[{**o,'page':1,'objectStyle':{}} for o in texts]
 neutral=apply(raw,edits);assert pixels(neutral)==pixels(raw)
+import pypdfium2 as pdfium
+with pdfium.PdfDocument(raw) as a,pdfium.PdfDocument(neutral) as b:
+ assert a[0].render().to_pil().tobytes()==b[0].render().to_pil().tobytes()
 checks.append('Neutral batch text operation is pixel-identical with original fonts')
 e={**texts[0],'page':1,'matrix':[*texts[0]['matrix'][:4],texts[0]['matrix'][4]+24,texts[0]['matrix'][5]-18],'objectStyle':{'fill':[210,20,40],'scale':1.25}}
 result=apply(raw,[e,{**images[0],'page':1,'adjustments':{'contrast':30}},{**images[1],'page':1,'adjustments':{'contrast':30}}])
@@ -43,7 +46,16 @@ w=PdfWriter(clone_from=PdfReader(io.BytesIO(raw)));stream=DecodedStreamObject();
 r=apply(shared,[{**objs[0],'page':1,'matrix':[*objs[0]['matrix'][:4],100,650],'objectStyle':{'scale':1.5,'fill':[0,0,255]}}])
 with fitz.open(stream=shared,filetype='pdf') as a,fitz.open(stream=r,filetype='pdf') as b:
  wa={v[4]:v[:4] for v in a[0].get_text('words')};wb={v[4]:v[:4] for v in b[0].get_text('words')};assert wa['SECOND']==wb['SECOND'];assert wa['FIRST']!=wb['FIRST']
+with pdfium.PdfDocument(r) as b:
+ assert 'FIRST' in b[0].get_textpage().get_text_range() and 'SECOND' in b[0].get_textpage().get_text_range()
 checks.append('Consecutive Tj paints retain unselected text advance and position')
+# Double-quote spacing must persist for the following unselected show operator.
+w=PdfWriter(clone_from=PdfReader(io.BytesIO(raw)));stream=DecodedStreamObject();stream.set_data(b'BT /helv 12 Tf 14 TL 1 0 0 1 60 700 Tm 4 2 (A B) " (C D) Tj ET');w.pages[0][NameObject('/Contents')]=w._add_object(stream);buf=io.BytesIO();w.write(buf);quoted=buf.getvalue();objs=call(quoted,'inspect',page=1)['objects']
+r=apply(quoted,[{**objs[0],'page':1,'objectStyle':{'fill':[100,20,80]}}])
+with fitz.open(stream=quoted,filetype='pdf') as a,fitz.open(stream=r,filetype='pdf') as b:
+ aa=a[0].get_text('rawdict')['blocks'][0]['lines'][0]['spans'];bb=b[0].get_text('rawdict')['blocks'][0]['lines'][0]['spans']
+ ac=[(c['c'],c['origin']) for span in aa for c in span['chars']];bc=[(c['c'],c['origin']) for span in bb for c in span['chars']];assert ac==bc
+checks.append('Double-quote operator retains word/character spacing for following text')
 for style in [{'scale':float('nan')},{'scale':0},{'fill':[300,0,0]}]:
  try:apply(raw,[{**texts[0],'page':1,'objectStyle':style}]);raise AssertionError('accepted invalid style')
  except ValueError:pass
