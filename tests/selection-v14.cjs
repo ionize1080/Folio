@@ -200,16 +200,21 @@ let app, browser, page, bridge, background, store;
     await page.locator("[data-text]").click();
     await done();
     await page.locator(".object-selection-layer").focus();
-    const before = await page
-      .locator(".selection-object.selected")
-      .first()
-      .boundingBox();
+    const selectedBox = async () => {
+      const value = await page.waitForFunction(() => {
+        const r = document
+          .querySelector(".selection-object.selected")
+          ?.getBoundingClientRect();
+        return r?.width > 0
+          ? { x: r.x, y: r.y, width: r.width, height: r.height }
+          : false;
+      });
+      return value.jsonValue();
+    };
+    const before = await selectedBox();
     await page.keyboard.press("Shift+ArrowRight");
     await done();
-    const after = await page
-      .locator(".selection-object.selected")
-      .first()
-      .boundingBox();
+    const after = await selectedBox();
     assert(after.x > before.x + 3);
     checks.push(
       "Ctrl toggle, Shift additive selection, batch text color/size and keyboard nudge",

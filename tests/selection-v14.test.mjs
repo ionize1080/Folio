@@ -59,3 +59,17 @@ test("mixed object updates preserve previous image adjustments, crop and source 
   assert.deepEqual(e.crop, [2, 3, 4, 5]);
   assert.deepEqual(transformedBounds(o, e), [13, 34, 113, 114]);
 });
+
+test("absolute font size accounts for previously saved object matrix scale", () => {
+  const o = {
+    type: "text",
+    index: 1,
+    signature: "s",
+    size: 16,
+    matrix: [1.25, 0, 0, 1.25, 60, 700],
+    bounds: [60, 690, 200, 718],
+  };
+  const e = makeObjectEdit(o, null, 1, { size: 20 });
+  assert.equal(e.objectStyle.scale, 1);
+  assert.deepEqual(transformedBounds(o, e), o.bounds);
+});

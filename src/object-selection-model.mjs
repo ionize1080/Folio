@@ -58,7 +58,9 @@ export function makeObjectEdit(o, prior, page, change) {
   if (o.type === "text" && (!prior || prior.objectStyle)) {
     edit.objectStyle = { ...edit.objectStyle };
     if (change.size !== undefined)
-      edit.objectStyle.scale = change.size / o.size;
+      edit.objectStyle.scale =
+        change.size /
+        (o.size * Math.max(1e-9, Math.hypot(o.matrix[2], o.matrix[3])));
     if (change.fill) edit.objectStyle.fill = change.fill;
   } else if (o.type === "text") {
     if (change.size !== undefined) edit.size = change.size;
