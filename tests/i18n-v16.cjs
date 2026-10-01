@@ -73,13 +73,43 @@ let app,page;
    await page.screenshot({path:path.join(out,`v16-${action}.png`)});
    await page.locator('#modal-close').click();
   }
+  await page.locator('[data-action="flow-edit"]').click();
+  await page.locator('.page-edit-hit:not(.unavailable)').first().click();
+  await page.waitForSelector('.page-edit-input');
+  await page.locator('.page-edit-input').fill('Pending draft text');
+  const editorValue=await page.locator('.page-edit-input').inputValue();
+  for(const locale of ['zh-Hant','zh-Hans','en']){
+   await page.locator('#language-select').selectOption(locale);
+   assert.equal(await page.locator('.page-edit-input').inputValue(),editorValue);
+  }
+  await page.locator('#pe-more').click();await audit('text-edit');
+  await page.screenshot({path:path.join(out,'v16-text-edit.png')});
+  await page.locator('#pe-cancel').click();
+  await page.locator('#pe-done').click();
+  const imageFile=path.join(out,'v16-image.pdf');
+  await app.evaluate(({dialog},file)=>{dialog.showOpenDialog=async()=>({canceled:false,filePaths:[file]});},imageFile);
+  await page.locator('[data-action="open"]').first().click();
+  await page.waitForSelector('#modal[open]');await audit('unsaved-confirmation');
+  await page.locator('#modal-footer button').nth(1).click();
+  await page.waitForFunction(()=>document.querySelector('#doc-name')?.textContent==='v16-image.pdf' && document.querySelector('#busy').hidden);
+  await page.locator('[data-action="edit-image"]').click();
+  await page.locator('.image-page-hit').first().click();
+  await page.waitForFunction(()=>document.querySelector('[data-status]')?.textContent.includes('Preview updated'));
+  await page.locator('[data-adjust="brightness"]').fill('12');
+  await page.locator('[data-adjust="brightness"]').dispatchEvent('input');
+  for(const locale of ['zh-Hant','zh-Hans','en']){
+   await page.locator('#language-select').selectOption(locale);
+   assert.equal(await page.locator('[data-adjust="brightness"]').inputValue(),'12');
+  }
+  await audit('image-edit');await page.screenshot({path:path.join(out,'v16-image-edit.png')});
+  checks.push('Uncommitted text and image parameters survive live switching in active editors');
   for(const size of [[1080,800],[1280,900],[1920,1080]]){
    await app.evaluate(({BrowserWindow},size)=>BrowserWindow.getAllWindows()[0].setContentSize(...size),size);
    for(const locale of ['en','zh-Hans','zh-Hant']){
     await page.locator('#language-select').selectOption(locale);
     const geometry=await page.locator('#language-select').evaluate(el=>{const r=el.getBoundingClientRect();return {left:r.left,right:r.right,top:r.top,bottom:r.bottom,w:innerWidth,h:innerHeight,overflow:document.body.scrollWidth-innerWidth}});
     assert(geometry.left>=0 && geometry.right<=geometry.w && geometry.bottom<=geometry.h,JSON.stringify(geometry));
-    assert(geometry.overflow<=1,JSON.stringify(geometry));
+    assert(geometry.overflow<=1,JSON.stringify({geometry,overflowing:await page.evaluate(()=>[...document.querySelectorAll('body *')].filter(el=>el.getBoundingClientRect().right>innerWidth+1 && getComputedStyle(el).visibility==='visible').slice(0,20).map(el=>({tag:el.tagName,id:el.id,class:el.className,right:el.getBoundingClientRect().right})))}));
     await page.screenshot({path:path.join(out,`v16-layout-${size[0]}-${locale}.png`)});
    }
   }

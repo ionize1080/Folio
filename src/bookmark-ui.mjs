@@ -263,7 +263,7 @@ export function installBookmarkUI({
                         )}</option>`,
                     )
                     .join("")}</select>`
-                : `<p translate="no">${esc(r.reason)}</p>`
+                : `<p>${esc(r.reason)}</p>`
             }</div>`,
         )
         .join("");

@@ -61,6 +61,7 @@ export function installDropOpen({ open, toast, isBusy }) {
           dlg.append(heading);
           for (const f of files) {
             const b = document.createElement("button");
+            b.setAttribute("translate", "no");
             b.textContent = f.name;
             b.onclick = async () => {
               dlg.close();

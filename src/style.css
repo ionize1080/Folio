@@ -4901,3 +4901,11 @@ html[lang="en"] .adjust-tools, html[lang="en"] .pe-object-tools, html[lang="en"]
 .appbar .more-tools { margin-left:auto; flex:none; }
 .language-picker { border-color:var(--line); }
 html[lang="zh-Hant"] { font-family:Inter,"Segoe UI Variable","Segoe UI","Microsoft JhengHei UI","Microsoft JhengHei","Folio UI",sans-serif; }
+
+html[lang="en"] .preview-origin::before { content:"Original: "; }
+html[lang="zh-Hant"] .preview-origin::before { content:"原文："; }
+
+/* Collapsed panes must not contribute invisible child widths to the viewport. */
+body[data-left="narrow"] .outline-panel,
+body[data-right="narrow"] .inspector { overflow:clip; }
+.viewer-toolbar { flex-wrap:wrap; height:auto; min-height:38px; }

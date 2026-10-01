@@ -192,7 +192,7 @@ export function splitDialog({
         .slice(previewPage * 20, previewPage * 20 + 20)
         .map((c) => {
           if (!c.made)
-            return `<section class="change-card"><strong translate="no">${esc(c.title)}</strong><p translate="no">${esc(c.reason)}</p></section>`;
+            return `<section class="change-card"><strong translate="no">${esc(c.title)}</strong><p>${esc(c.reason)}</p></section>`;
           const depths = new Map();
           return `<section class="change-card"><div class="split-original"><small>原书签 → ${c.retained ? "保留并新增" : "替换为"} ${c.made.length} 条</small><strong translate="no">${esc(c.title)}</strong></div>${c.made
             .slice(0, 100)

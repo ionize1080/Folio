@@ -87,7 +87,7 @@ try {
     $health=Get-Content -LiteralPath $m.healthFile -Raw | ConvertFrom-Json
     if ($health.version -ne $fullVersion) { throw 'Restarted version does not match the download' }
   } else { Start-Process -FilePath (Join-Path $m.target 'Folio.exe') -WorkingDirectory $m.target }
-  Report 'complete' "Updated; rollback copy: $backup"
+  Report 'complete' ((Localized 'Updated. Rollback copy: ' '更新完成。回滚副本：' '更新完成。回復副本：') + $backup)
 } catch {
   $failure=$_.Exception.Message
   try {
@@ -99,13 +99,13 @@ try {
       if (Test-Path -LiteralPath $m.target) { Move-WithRetry $m.target ($stage+'-failed') }
       Move-WithRetry $backup $m.target
     }
-    Report 'failed' "Update failed; original retained: $failure"
+    Report 'failed' ((Localized 'Update failed; original retained: ' '更新失败，已保留原版本：' '更新失敗，已保留原版本：') + $failure)
     if ($m -and !(Get-Process -Id $m.pid -ErrorAction SilentlyContinue) -and (Test-Path -LiteralPath (Join-Path $m.target 'Folio.exe'))) {
       Start-Process -FilePath (Join-Path $m.target 'Folio.exe') -WorkingDirectory $m.target
       'Restarted previous installation after failure' | Add-Content -LiteralPath $log -Encoding UTF8
     }
-  } catch { Report 'failed' "Update failed: $failure. Recovery needs attention: $_. Backup: $backup" }
-  if ($form) { [Windows.Forms.MessageBox]::Show("更新失败，已保留或恢复原版本。`n$failure`nLog: $log",'Folio update') | Out-Null }
+  } catch { Report 'failed' ((Localized 'Update and recovery failed. Check the log and backup: ' '更新与恢复失败，请检查日志和备份：' '更新與復原失敗，請檢查記錄與備份：') + "$failure. $_. $backup") }
+  if ($form) { [Windows.Forms.MessageBox]::Show(((Localized 'Update failed. Check the log for recovery details.' '更新失败，请查看日志了解恢复情况。' '更新失敗，請查看記錄了解復原情況。') + "`n$failure`nLog: $log"),'Folio update') | Out-Null }
 } finally {
   if ($stage -and (Test-Path -LiteralPath $stage)) { Remove-Item -LiteralPath $stage -Recurse -Force -ErrorAction SilentlyContinue }
   if ($form) { $form.Close(); $form.Dispose() }

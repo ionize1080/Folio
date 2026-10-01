@@ -34,3 +34,13 @@ test('Locale changes do not mutate source catalogs',()=>{
  for(const locale of ['zh-Hans','zh-Hant','en']){setLanguage(locale);assert.equal(getLanguage(),locale);}
  assert.equal(t('保存'),'Save');assert.equal(t('保存',{},'zh-Hant'),'儲存');
 });
+
+test('Release notes choose the selected locale with English and historical fallbacks',async()=>{
+ const {localizedReleaseNotes}=await import('../src/release-notes.mjs');
+ const body='<!-- folio-locale:en -->English<!-- /folio-locale --><details><!-- folio-locale:zh-Hans -->简体说明<!-- /folio-locale --></details>';
+ assert.equal(localizedReleaseNotes(body,'zh-CN'),'简体说明');
+ assert.equal(localizedReleaseNotes(body,'zh-Hant'),'English');
+ assert.equal(localizedReleaseNotes('Historical notes','zh-Hant'),'Historical notes');
+ assert.equal(t('__proto__'),'__proto__');
+ assert.equal(translate('字体缺少字符：保存'),'Font is missing characters:保存');
+});

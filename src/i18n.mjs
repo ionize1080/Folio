@@ -49,7 +49,7 @@ export function identify(text) {
 }
 export function t(source, args = {}, locale = language) {
   const dictionary = locale === 'zh-Hant' ? zhHant : locale === 'zh-Hans' ? null : en;
-  return (dictionary?.[source] ?? source).replace(/\{(\d+)\}/g,(m,id)=>Object.hasOwn(args,id)?String(args[id]):m);
+  return (dictionary && Object.hasOwn(dictionary,source) ? dictionary[source] : source).replace(/\{(\d+)\}/g,(m,id)=>Object.hasOwn(args,id)?String(args[id]):m);
 }
 export function translate(text, locale = language) {
   const message = identify(text);
@@ -67,8 +67,8 @@ const contentSelector = [
  '.textLayer','.page-edit-input','.page-edit-composition','.annotation-mark',
  '#tree-rows .title','#tree-rows [role="treeitem"]','#doc-name[data-file]',
  '#ocr-results','#ocr-boxes','#ocr-candidates','#ocr-evidence',
- '#pe-font-list','#pe-font','#pe-overlap-select','#pe-fallback-panel',
- '#table-grid','[data-list]','[data-name]','[data-preview]',
+ '#pe-font-list button','#pe-overlap-select','#pe-fallback-panel',
+ '#table-grid','[data-list]','[data-name]','.large-workspace [data-preview]',
  '#open-password-file','#decrypt-file','#rule-nav button','#gen-toc','#raw-current','#raw-original','#update-notes',
  '#rule-list input','#rule-list textarea',
 ].join(',');

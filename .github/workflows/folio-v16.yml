@@ -37,6 +37,7 @@ jobs:
       - run: python scripts/restore-assets.py
       - run: python tests/fixture-v9.py
       - run: python tests/fixture-v10.py
+      - run: python tests/fixture-v16.py
       - run: npm run build:win
       - run: npm run test:package
       - run: node tests/i18n-v16.cjs
@@ -53,6 +54,7 @@ jobs:
       - run: python tests/image-v13.py
       - run: python tests/image-v15.py
       - run: python tests/selection-v14.py
+      - run: python tests/ocr-diagnostics-p2.py
       - run: python tests/editor-p7.py
       - run: python tests/editor-p8.py
       - run: python tests/editor-yearbook.py

@@ -362,7 +362,7 @@ async function confirmDialog(title, text, yes = "继续") {
       closeModal();
       resolve(value);
     };
-    modal(title, `<p translate="no">${esc(text)}</p>`, [
+    modal(title, `<p>${esc(text)}</p>`, [
       { text: "取消", run: () => finish(false) },
       { text: yes, primary: true, run: () => finish(true) },
     ]);
@@ -2921,14 +2921,14 @@ function multiGenerateDialog() {
       b.className = "rule-nav-item";
       b.dataset.ruleIndex = i;
       b.setAttribute("aria-current", String(i === activeRule));
-      b.textContent = `${i + 1}  ${r.name || "未命名规则"}${r.enabled ? "" : " · 已停用"}`;
+      b.innerHTML = `<span translate="no">${i + 1}  ${esc(r.name || t("未命名规则"))}</span><span>${r.enabled ? "" : " · 已停用"}</span>`;
       const count = generated?.filter((n) => n.origin?.rule === r.name).length;
       if (count != null) {
         const small = document.createElement("small");
         small.textContent = `第 ${r.level} 层 · ${count} 项`;
         b.append(small);
       }
-      b.title = b.textContent;
+
       nav.append(b);
     });
     $("#rule-list")
