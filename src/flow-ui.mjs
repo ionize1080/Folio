@@ -355,6 +355,7 @@ export function installFlowUI(ctx) {
       dlg.append(title);
       parts.forEach((p, i) => {
         const text = document.createElement("p");
+        text.setAttribute("translate", "no");
         text.textContent = `${i + 1}. ${p.text}`;
         dlg.append(text);
       });

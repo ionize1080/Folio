@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
@@ -7,7 +7,7 @@
       http-equiv="Content-Security-Policy"
       content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' blob: data:; connect-src 'self' blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'none'"
     />
-    <title>Folio PDF Studio 1.5.0</title>
+    <title>Folio PDF Studio 1.6.0</title>
     <link rel="stylesheet" href="style.css" />
     <link rel="stylesheet" href="vendor/pdf_viewer.css" />
   </head>
@@ -16,7 +16,7 @@
       <div class="brand">
         <span class="logo">f</span>
         <div>Folio <b>PDF Studio</b></div>
-        <span class="version">1.5.0</span>
+        <span class="version">1.6.0</span>
       </div>
       <div class="doc-tab">
         <i data-icon="file"></i><span id="doc-name">未打开文档</span
@@ -121,6 +121,7 @@
         </details>
       </nav>
       <div class="app-actions">
+        <div id="language-slot"></div>
         <button data-action="find" data-doc>
           <i data-icon="search"></i><span>搜索正文</span><kbd>Ctrl F</kbd>
         </button>
@@ -451,7 +452,7 @@
     <dialog id="modal">
       <div class="modal-header">
         <div>
-          <span class="eyebrow" id="modal-kicker">FOLIO 1.5.0</span>
+          <span class="eyebrow" id="modal-kicker">FOLIO 1.6.0</span>
           <h2 id="modal-title"></h2>
         </div>
         <button id="modal-close" aria-label="关闭">×</button>
@@ -466,5 +467,6 @@
     </div>
     <input type="file" id="file-input" accept=".pdf,.folio" hidden />
     <script type="module" src="app.mjs"></script>
+  <div id="language-announcement" class="sr-only" role="status" aria-live="polite" translate="no"></div>
   </body>
 </html>

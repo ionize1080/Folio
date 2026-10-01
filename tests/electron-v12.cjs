@@ -8,7 +8,8 @@ const root=path.resolve(__dirname,'..'),out=path.join(root,'tests/output'),check
   page=await app.firstWindow();
   // Each EXE suite starts with clean test storage, including recovery drafts.
   await app.evaluate(async ({ session }) => session.defaultSession.clearStorageData());
-  await page.reload();
+  await page.evaluate(() => localStorage.setItem("folio-language", "zh-Hans"));
+    await page.reload();
 const errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.waitForSelector('[data-action="open"]');
   await page.evaluate(()=>{localStorage.setItem('folio-settings',JSON.stringify({saveSummary:false}));});await page.reload();

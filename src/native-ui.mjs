@@ -37,7 +37,7 @@ export function installNativeUI(ctx) {
     changes
       .map(
         (c) =>
-          `<details class="change-card" open><summary>${esc(c.title)} <small>${c.fields.length} 个字段变化</small></summary><table class="diff-table"><thead><tr><th>字段</th><th>原值</th><th>操作 / 换算</th><th>结果</th></tr></thead><tbody>${c.fields.map((f) => `<tr><td>${esc(f.name)}</td><td>${esc(JSON.stringify(f.before))}</td><td>${esc(f.operation)}</td><td>${esc(JSON.stringify(f.after))}</td></tr>`).join("")}</tbody></table><details><summary>完整跳转目标</summary><pre>${esc(JSON.stringify({ before: c.before, after: c.after }, null, 2))}</pre></details></details>`,
+          `<details class="change-card" open><summary>${esc(c.title)} <small>${c.fields.length} 个字段变化</small></summary><table class="diff-table"><thead><tr><th>字段</th><th>原值</th><th>操作 / 换算</th><th>结果</th></tr></thead><tbody>${c.fields.map((f) => `<tr><td translate="no">${esc(f.name)}</td><td translate="no">${esc(JSON.stringify(f.before))}</td><td translate="no">${esc(f.operation)}</td><td translate="no">${esc(JSON.stringify(f.after))}</td></tr>`).join("")}</tbody></table><details><summary>完整跳转目标</summary><pre translate="no">${esc(JSON.stringify({ before: c.before, after: c.after }, null, 2))}</pre></details></details>`,
       )
       .join("");
   function whitespaceDialog() {
@@ -106,10 +106,10 @@ export function installNativeUI(ctx) {
           `范围 ${ids.size} 项 · 修改 ${changes.length} 项 · 跳过 ${preview.skipped.length} 项 · 显示前 100 项`;
         $("#space-diffs").innerHTML = diffTable(changes.slice(0, 100));
         $("#space-item").innerHTML = changes
-          .map((c) => `<option value="${esc(c.id)}">${esc(c.title)}</option>`)
+          .map((c) => `<option translate="no" value="${esc(c.id)}">${esc(c.title)}</option>`)
           .join("");
         $("#space-skipped").innerHTML = preview.skipped
-          .map((n) => `<p>${esc(n.title)}：${esc(n.reason)}</p>`)
+          .map((n) => `<p translate="no">${esc(n.title)}：${esc(n.reason)}</p>`)
           .join("");
         $("#space-apply").disabled = !changes.length;
       } catch (e) {
@@ -297,7 +297,7 @@ export function installNativeUI(ctx) {
           .map((x) => x.toString(16).padStart(2, "0"))
           .join("");
       $("#object-fields").innerHTML =
-        `${o.editable ? "" : `<p class="callout">${esc(o.reason)}</p>`}<fieldset ${o.editable ? "" : "disabled"}>${o.type === "text" ? `<label>文字<textarea id="obj-text" rows="3">${esc(o.text)}</textarea></label><label>字号（pt）<input id="obj-size" type="number" min="1" max="1000" value="${o.size}"></label><small>使用内置字体，保留未修改内容。复杂文字组保持只读。</small><details><summary>文本框自动换行</summary><label>宽度（pt，0 表示不自动换行）<input id="obj-box-width" type="number" min="0" value="${o.boxWidth || 0}"></label><label>最大高度（pt）<input id="obj-box-height" type="number" min="1" value="${o.boxHeight || 300}"></label><label>行高倍数<input id="obj-line-height" type="number" min="1" max="3" step="0.1" value="${o.lineHeight || 1.4}"></label></details>` : ""}<label>变换矩阵 [a,b,c,d,e,f]<input id="obj-matrix" value="${esc(JSON.stringify(o.matrix))}"></label><div class="form-grid"><label>填充<input id="obj-fill" type="color" value="${hex(o.fill)}"></label><label>描边<input id="obj-stroke" type="color" value="${hex(o.stroke)}"></label></div>${o.type === "path" ? `<label>线宽<input id="obj-width" type="number" min="0" step="0.1" value="${o.width}"></label><label>填充规则<select id="obj-fill-mode"><option value="0">不填充</option><option value="1">奇偶规则</option><option value="2">非零规则</option></select></label><label class="check"><input id="obj-stroked" type="checkbox" ${o.stroked ? "checked" : ""}>绘制描边</label><details><summary>路径节点 JSON（0=直线，1=贝塞尔，2=移动）</summary><textarea id="obj-segments" rows="10">${esc(JSON.stringify(o.segments, null, 2))}</textarea></details>` : ""}<label class="check"><input id="obj-delete" type="checkbox">删除此对象</label></fieldset>`;
+        `${o.editable ? "" : `<p translate="no" class="callout">${esc(o.reason)}</p>`}<fieldset ${o.editable ? "" : "disabled"}>${o.type === "text" ? `<label>文字<textarea id="obj-text" rows="3">${esc(o.text)}</textarea></label><label>字号（pt）<input id="obj-size" type="number" min="1" max="1000" value="${o.size}"></label><small>使用内置字体，保留未修改内容。复杂文字组保持只读。</small><details><summary>文本框自动换行</summary><label>宽度（pt，0 表示不自动换行）<input id="obj-box-width" type="number" min="0" value="${o.boxWidth || 0}"></label><label>最大高度（pt）<input id="obj-box-height" type="number" min="1" value="${o.boxHeight || 300}"></label><label>行高倍数<input id="obj-line-height" type="number" min="1" max="3" step="0.1" value="${o.lineHeight || 1.4}"></label></details>` : ""}<label>变换矩阵 [a,b,c,d,e,f]<input id="obj-matrix" value="${esc(JSON.stringify(o.matrix))}"></label><div class="form-grid"><label>填充<input id="obj-fill" type="color" value="${hex(o.fill)}"></label><label>描边<input id="obj-stroke" type="color" value="${hex(o.stroke)}"></label></div>${o.type === "path" ? `<label>线宽<input id="obj-width" type="number" min="0" step="0.1" value="${o.width}"></label><label>填充规则<select id="obj-fill-mode"><option value="0">不填充</option><option value="1">奇偶规则</option><option value="2">非零规则</option></select></label><label class="check"><input id="obj-stroked" type="checkbox" ${o.stroked ? "checked" : ""}>绘制描边</label><details><summary>路径节点 JSON（0=直线，1=贝塞尔，2=移动）</summary><textarea id="obj-segments" rows="10">${esc(JSON.stringify(o.segments, null, 2))}</textarea></details>` : ""}<label class="check"><input id="obj-delete" type="checkbox">删除此对象</label></fieldset>`;
       if (o.type === "image") {
         $("#obj-fill").closest(".form-grid").hidden = true;
         const fieldset = $("#object-fields fieldset");

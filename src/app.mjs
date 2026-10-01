@@ -1,3 +1,4 @@
+import { installLocalization, languagePicker } from "./i18n.mjs";
 import { installObjectSelection } from "./object-selection-ui.mjs";
 import { installPageImages } from "./image-page-ui.mjs";
 import { updateDialog } from "./update-ui.mjs";
@@ -93,6 +94,7 @@ const settings = readSettings(
   },
   localStorage.getItem("folio-settings"),
 );
+installLocalization();
 const documentSession = new DocumentSession();
 const S = {
   sessionId: documentSession.id,
@@ -360,7 +362,7 @@ async function confirmDialog(title, text, yes = "继续") {
       closeModal();
       resolve(value);
     };
-    modal(title, `<p>${esc(text)}</p>`, [
+    modal(title, `<p translate="no">${esc(text)}</p>`, [
       { text: "取消", run: () => finish(false) },
       { text: yes, primary: true, run: () => finish(true) },
     ]);
@@ -638,6 +640,7 @@ async function loadPDF(
     clipboardCut = null;
     $("#filter").value = "";
     $("#zoom").value = "width";
+    $("#doc-name").dataset.file = "true";
     $("#doc-name").textContent = name;
     $("#doc-name").title = name;
     $("#page-total").textContent = "/ " + info.pageCount;
@@ -1373,7 +1376,7 @@ function batchDialog() {
       memory.data.history
         .map(
           (h, i) =>
-            `<option value="${i}">${esc(h.name || h.values["b-find"] || h.operation)}</option>`,
+            `<option translate="no" value="${i}">${esc(h.name || h.values["b-find"] || h.operation)}</option>`,
         )
         .join("");
   };
@@ -1478,7 +1481,7 @@ function batchDialog() {
         `范围 ${ids.size} 项 · 将修改 ${changed.length} 项 · 预览前 80 项`;
       $("#batch-summary").classList.remove("error");
       $("#batch-preview").innerHTML =
-        `<details><summary>完整规则参数</summary><pre>${esc(JSON.stringify(rule, null, 2))}</pre></details>` +
+        `<details><summary>完整规则参数</summary><pre translate="no">${esc(JSON.stringify(rule, null, 2))}</pre></details>` +
         nativeUI.diffTable(report.changes.slice(0, 80));
     } catch (e) {
       if (rev === revision && $("#batch-summary")) {
@@ -1681,7 +1684,7 @@ function generateDialog() {
               .slice(0, 150)
               .map(
                 (n) =>
-                  `<div class="preview-item" style="padding-left:${12 + (d.get(n.id) || 0) * 18}px"><span>${esc(n.title)}</span><small>第 ${n.target.page} 页</small></div>`,
+                  `<div class="preview-item" style="padding-left:${12 + (d.get(n.id) || 0) * 18}px"><span translate="no">${esc(n.title)}</span><small>第 ${n.target.page} 页</small></div>`,
               )
               .join("");
             $("#gen-apply").disabled = !nodes.length;
@@ -2247,7 +2250,7 @@ async function cacheDialog() {
   const bytes = tasks.reduce((n, t) => n + (t.bytes || 0), 0);
   modal(
     "OCR 任务记录与缓存",
-    `<p class="callout">任务缓存合计 ${(bytes / 1048576).toFixed(1)} MB。当前任务受到保护；已应用结果和工作工程不依赖这里的任务缓存。</p><div class="preview-list">${tasks.map((t) => `<div class="preview-item"><span>${esc(t.name || t.id.slice(0, 12))} · ${t.completed} 页 · ${((t.bytes || 0) / 1048576).toFixed(1)} MB · ${new Date(t.created).toLocaleDateString()}</span><button data-cache-remove="${t.id}" ${t.active ? "disabled" : ""}>${t.active ? "当前任务" : "清理"}</button></div>`).join("") || "暂无任务缓存"}</div>`,
+    `<p class="callout">任务缓存合计 ${(bytes / 1048576).toFixed(1)} MB。当前任务受到保护；已应用结果和工作工程不依赖这里的任务缓存。</p><div class="preview-list">${tasks.map((t) => `<div class="preview-item"><span translate="no">${esc(t.name || t.id.slice(0, 12))} · ${t.completed} 页 · ${((t.bytes || 0) / 1048576).toFixed(1)} MB · ${new Date(t.created).toLocaleDateString()}</span><button data-cache-remove="${t.id}" ${t.active ? "disabled" : ""}>${t.active ? "当前任务" : "清理"}</button></div>`).join("") || "暂无任务缓存"}</div>`,
     [{ text: "关闭", run: closeModal }],
   );
   $("#modal-body").onclick = (e) => {
@@ -2276,7 +2279,7 @@ async function settingsDialog() {
   const network = (await window.desktop?.updateInfo?.())?.settings;
   modal(
     "偏好设置",
-    `<div class="form-grid"><label>默认留白单位<select id="set-whitespace-unit"><option value="mm">毫米 mm</option><option value="pt">点 pt</option></select></label><label>主题<select id="set-theme"><option value="light">浅色</option><option value="dark">深色</option></select></label><label>书签侧栏宽度（px）<input id="set-sidebar" type="number" min="240" max="480" value="${settings.sidebar}"></label><label>书签行高<select id="set-row"><option value="28">紧凑 · 28 px</option><option value="34">标准 · 34 px</option><option value="40">宽松 · 40 px</option></select></label><label>渲染像素倍率上限<select id="set-quality"><option value="1">1× · 节省内存</option><option value="2">2× · 推荐</option><option value="3">3× · 高清</option></select></label><label>撤销步数上限<input id="set-undo" type="number" min="5" max="100" value="${settings.undo}"></label></div><label class="check"><input id="set-outline" type="checkbox" ${settings.showBookmarks ? "checked" : ""}>保存后建议阅读器显示书签面板</label><label class="check"><input id="set-protect" type="checkbox" ${settings.protect ? "checked" : ""}>原文件保护：首次保存为副本，之后更新副本</label><label class="check"><input id="set-restore" type="checkbox" ${settings.restoreView ? "checked" : ""}>记住每本文档的阅读位置、缩放和布局（关闭后尊重文档初始视图）</label><label class="check"><input id="set-ignore-zoom" type="checkbox" ${settings.ignoreZoom ? "checked" : ""}>忽略书签的缩放要求（不修改 PDF 目标）</label><label class="check"><input id="set-wrap" type="checkbox" ${settings.wrap ? "checked" : ""}>长书签标题显示两行</label><label class="check"><input id="set-summary" type="checkbox" ${settings.saveSummary ? "checked" : ""}>保存前显示修改摘要</label><label class="check"><input id="set-gpu" type="checkbox" ${software ? "checked" : ""} ${window.desktop?.graphics ? "" : "disabled"}>显卡兼容：关闭硬件加速（重新启动后生效）</label><label>HTTP 代理（更新共用）<input id="set-http-proxy" placeholder="留空使用系统代理"></label><button data-action="shortcuts">自定义快捷键…</button><button id="ocr-cache-open">OCR 任务记录与缓存…</button><p class="hint">撤销快照受 32 MB 预算限制；画布按可见范围加载，高清画布与分块按约 128 MB 预算回收，当前可见区域优先，缩放期间保留已完成画面。恢复快照在编辑停止 0.7 秒后保存在本机。</p>`,
+    `<div class="preferences-language"><span>界面语言</span>${languagePicker("settings-language")}<small>立即生效，并记住选择。不会改变文档文字或 OCR 语言。</small></div><div class="form-grid"><label>默认留白单位<select id="set-whitespace-unit"><option value="mm">毫米 mm</option><option value="pt">点 pt</option></select></label><label>主题<select id="set-theme"><option value="light">浅色</option><option value="dark">深色</option></select></label><label>书签侧栏宽度（px）<input id="set-sidebar" type="number" min="240" max="480" value="${settings.sidebar}"></label><label>书签行高<select id="set-row"><option value="28">紧凑 · 28 px</option><option value="34">标准 · 34 px</option><option value="40">宽松 · 40 px</option></select></label><label>渲染像素倍率上限<select id="set-quality"><option value="1">1× · 节省内存</option><option value="2">2× · 推荐</option><option value="3">3× · 高清</option></select></label><label>撤销步数上限<input id="set-undo" type="number" min="5" max="100" value="${settings.undo}"></label></div><label class="check"><input id="set-outline" type="checkbox" ${settings.showBookmarks ? "checked" : ""}>保存后建议阅读器显示书签面板</label><label class="check"><input id="set-protect" type="checkbox" ${settings.protect ? "checked" : ""}>原文件保护：首次保存为副本，之后更新副本</label><label class="check"><input id="set-restore" type="checkbox" ${settings.restoreView ? "checked" : ""}>记住每本文档的阅读位置、缩放和布局（关闭后尊重文档初始视图）</label><label class="check"><input id="set-ignore-zoom" type="checkbox" ${settings.ignoreZoom ? "checked" : ""}>忽略书签的缩放要求（不修改 PDF 目标）</label><label class="check"><input id="set-wrap" type="checkbox" ${settings.wrap ? "checked" : ""}>长书签标题显示两行</label><label class="check"><input id="set-summary" type="checkbox" ${settings.saveSummary ? "checked" : ""}>保存前显示修改摘要</label><label class="check"><input id="set-gpu" type="checkbox" ${software ? "checked" : ""} ${window.desktop?.graphics ? "" : "disabled"}>显卡兼容：关闭硬件加速（重新启动后生效）</label><label>HTTP 代理（更新共用）<input id="set-http-proxy" placeholder="留空使用系统代理"></label><button data-action="shortcuts">自定义快捷键…</button><button id="ocr-cache-open">OCR 任务记录与缓存…</button><p class="hint">撤销快照受 32 MB 预算限制；画布按可见范围加载，高清画布与分块按约 128 MB 预算回收，当前可见区域优先，缩放期间保留已完成画面。恢复快照在编辑停止 0.7 秒后保存在本机。</p>`,
     [
       { text: "取消", run: closeModal },
       {
@@ -2784,7 +2787,7 @@ function multiGenerateDialog() {
     `<div class="form-grid three"><label>扫描物理页范围<input id="multi-range" value="${S.page}"></label><label>子集<select id="multi-parity"><option value="all">全部</option><option value="odd">奇数页</option><option value="even">偶数页</option></select></label><label>标题顶部留白单位<select id="multi-unit"><option value="pt">pt</option><option value="mm">mm</option></select></label></div><div class="form-grid three"><label>排除页眉高度（pt）<input id="multi-header" type="number" min="0" value="0"></label><label>排除页脚高度（pt）<input id="multi-footer" type="number" min="0" value="0"></label><label>文字区域右边界（pt，可留空）<input id="multi-right" type="number" placeholder="全宽"></label></div><p class="hint">规则按层级生成，父项取前面最近的有效上一级；停用的层级不参与生成，其余启用层级连续编号。多规则命中按列表优先级处理，可切换为跳过。缺少父项可跳过或提升层级。跨页范围从子级开始时，请把前面的父级页纳入扫描。</p><div class="rule-toolbar"><button id="rule-add">＋ 规则</button><button id="rule-default">通用层级示例</button><button id="rule-save">保存预设</button><select id="rule-presets"><option value="">加载预设…</option>${Object.keys(
       presetList(),
     )
-      .map((n) => `<option>${esc(n)}</option>`)
+      .map((n) => `<option translate="no">${esc(n)}</option>`)
       .join(
         "",
       )}</select><button id="rule-import">导入</button><button id="rule-export">导出</button><button id="gen-other">字号 / 目录 / 页间隔…</button></div><div class="form-grid"><label>多规则冲突<select id="multi-conflict"><option value="first">优先使用第一条命中规则</option><option value="skip">跳过并诊断</option></select></label><label>缺少父级<select id="multi-orphan"><option value="skip">跳过并诊断</option><option value="promote">提升至最近有效层级</option></select></label><label>文字来源<select id="multi-source"><option value="auto">自动（已校对 OCR 优先）</option><option value="pdf">PDF 文字层</option><option value="ocr">已应用的 OCR 结果</option></select></label><label class="check"><input id="multi-join" type="checkbox">合并相邻跨行标题（最多 3 行，需核对预览）</label></div><div id="rule-list"></div><div class="form-grid"><label>插入方式<select id="multi-merge"><option value="append">根层末尾追加</option><option value="replace">替换所有书签</option><option value="before">所选书签之前</option><option value="after">所选书签之后</option><option value="child">所选书签的首个子项</option></select></label><label class="check"><input id="multi-dedupe" type="checkbox" checked>跳过同父项、同标题、同页的重复匹配（含现有书签）</label></div><div id="multi-summary" class="callout">先测试当前页或扫描范围，再应用。预览中的书签可点击检查页面位置。</div><canvas id="multi-target-preview" hidden></canvas><div id="multi-preview" class="preview-list"></div><details><summary>命中与忽略诊断（最多 3,000 行）</summary><div id="multi-diagnostics" class="preview-list"></div></details>`,
@@ -3283,7 +3286,7 @@ function multiGenerateDialog() {
           .slice(previewPage * 100, (previewPage + 1) * 100)
           .map(
             ({ n, i }) =>
-              `<button title="${esc(n.origin?.text || n.title)}" class="preview-item" data-preview="${i}" style="padding-left:${12 + d.get(n.id) * 16}px"><span class="preview-origin">${esc(n.origin?.text || n.title)}</span><strong>${esc(n.title)}</strong><small>第 ${d.get(n.id) + 1} 层 · 第 ${n.target.page} 页</small></button>`,
+              `<button title="${esc(n.origin?.text || n.title)}" class="preview-item" data-preview="${i}" style="padding-left:${12 + d.get(n.id) * 16}px"><span translate="no" class="preview-origin">${esc(n.origin?.text || n.title)}</span><strong translate="no">${esc(n.title)}</strong><small>第 ${d.get(n.id) + 1} 层 · 第 ${n.target.page} 页</small></button>`,
           )
           .join("");
       };
@@ -3337,7 +3340,7 @@ function multiGenerateDialog() {
             $("#multi-origin-detail")?.remove();
             canvas.insertAdjacentHTML(
               "afterend",
-              `<div id="multi-origin-detail" class="callout"><strong>${esc(n.title)}</strong><p>输入：${esc(n.origin?.text || "")}</p><small>捕获组：${esc(JSON.stringify(n.origin?.groups || []))}</small></div>`,
+              `<div id="multi-origin-detail" class="callout"><strong translate="no">${esc(n.title)}</strong><p>输入：${esc(n.origin?.text || "")}</p><small>捕获组：${esc(JSON.stringify(n.origin?.groups || []))}</small></div>`,
             );
             ctx.strokeStyle = "#db8c36";
             ctx.beginPath();
@@ -3499,7 +3502,7 @@ const actions = {
     if (n)
       modal(
         "底层 PDF 字典",
-        `<p>原始字典只读，属于打开时的文档快照；保存会重建对象编号。当前编辑内容与源快照分别显示。</p><h3>当前编辑内容（解码文本）</h3><pre>${esc(JSON.stringify({ title: n.title, bold: n.bold, italic: n.italic, color: n.color, target: n.target }, null, 2))}</pre><h3>打开时的源对象 ${esc(n.sourceRef || "新建")}（字节串以十六进制显示）</h3><pre>${esc(n.raw || "此书签为新建，无原始对象。")}</pre>`,
+        `<p>原始字典只读，属于打开时的文档快照；保存会重建对象编号。当前编辑内容与源快照分别显示。</p><h3>当前编辑内容（解码文本）</h3><pre translate="no">${esc(JSON.stringify({ title: n.title, bold: n.bold, italic: n.italic, color: n.color, target: n.target }, null, 2))}</pre><h3>打开时的源对象 ${esc(n.sourceRef || "新建")}（字节串以十六进制显示）</h3><pre translate="no">${esc(n.raw || "此书签为新建，无原始对象。")}</pre>`,
         [{ text: "关闭", run: closeModal }],
       );
   },
@@ -4204,7 +4207,7 @@ async function recoveryDialog() {
   }
   modal(
     "恢复未保存的编辑",
-    `<label>选择草稿<select id="recovery-session">${records.map((r) => `<option value="${esc(r.sessionId)}">${esc(r.name || "未命名")} · ${esc(new Date(r.savedAt).toLocaleString())}</option>`).join("")}</select></label><p>恢复前会校验原文和编辑资源；首次保存需选择输出位置。</p>`,
+    `<label>选择草稿<select id="recovery-session">${records.map((r) => `<option translate="no" value="${esc(r.sessionId)}">${esc(r.name || "未命名")} · ${esc(new Date(r.savedAt).toLocaleString())}</option>`).join("")}</select></label><p>恢复前会校验原文和编辑资源；首次保存需选择输出位置。</p>`,
     [
       { text: "稍后", run: closeModal },
       {

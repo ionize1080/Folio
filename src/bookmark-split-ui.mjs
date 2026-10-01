@@ -192,9 +192,9 @@ export function splitDialog({
         .slice(previewPage * 20, previewPage * 20 + 20)
         .map((c) => {
           if (!c.made)
-            return `<section class="change-card"><strong>${esc(c.title)}</strong><p>${esc(c.reason)}</p></section>`;
+            return `<section class="change-card"><strong translate="no">${esc(c.title)}</strong><p translate="no">${esc(c.reason)}</p></section>`;
           const depths = new Map();
-          return `<section class="change-card"><div class="split-original"><small>原书签 → ${c.retained ? "保留并新增" : "替换为"} ${c.made.length} 条</small><strong>${esc(c.title)}</strong></div>${c.made
+          return `<section class="change-card"><div class="split-original"><small>原书签 → ${c.retained ? "保留并新增" : "替换为"} ${c.made.length} 条</small><strong translate="no">${esc(c.title)}</strong></div>${c.made
             .slice(0, 100)
             .map((n) => {
               const depth = depths.has(n.parent) ? depths.get(n.parent) + 1 : 0;
@@ -204,7 +204,7 @@ export function splitDialog({
                 n.target?.kind === "dest"
                   ? `第 ${n.target.page} 页 · 继承原目标`
                   : "继承原始跳转动作";
-              return `<div class="split-output-node" style="margin-left:${Math.min(depth, 12) * 14}px"><small>${config().mode === "hierarchy" ? `第 ${depth + 1} 级` : "同级"}${e ? ` · 规则 ${e.rule}` : ""}</small><strong>${esc(n.title)}</strong><small>${esc(target)}</small>${e ? `<details><summary>查看匹配与捕获组</summary><p>匹配：${esc(e.match)}</p>${e.captures.map((v, i) => `<p>$${i + 1} = ${esc(v ?? "（未匹配）")}</p>`).join("")}</details>` : ""}</div>`;
+              return `<div class="split-output-node" style="margin-left:${Math.min(depth, 12) * 14}px"><small>${config().mode === "hierarchy" ? `第 ${depth + 1} 级` : "同级"}${e ? ` · 规则 ${e.rule}` : ""}</small><strong translate="no">${esc(n.title)}</strong><small>${esc(target)}</small>${e ? `<details><summary>查看匹配与捕获组</summary><p>匹配：${esc(e.match)}</p>${e.captures.map((v, i) => `<p>$${i + 1} = ${esc(v ?? "（未匹配）")}</p>`).join("")}</details>` : ""}</div>`;
             })
             .join(
               "",

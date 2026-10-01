@@ -22,6 +22,7 @@ const checks = [],
     page = await app.firstWindow();
     // Each EXE suite starts with clean test storage, including recovery drafts.
     await app.evaluate(async ({ session }) => session.defaultSession.clearStorageData());
+    await page.evaluate(() => localStorage.setItem("folio-language", "zh-Hans"));
     await page.reload();
 
     page.setDefaultTimeout(60000);

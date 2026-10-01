@@ -1,3 +1,4 @@
+import { sourceText } from "./i18n.mjs";
 import { installLevelsHandles } from "./levels-handles.mjs";
 import { installVisualSliders } from "./adjustment-sliders.mjs";
 import {
@@ -136,7 +137,7 @@ export function installImageAdjustments({
     visualSliders,
     levelHandles;
   const statusObserver = new MutationObserver(() =>
-    onStatus(status.textContent, /正在|等待/.test(status.textContent)),
+    onStatus(sourceText(status), /正在|等待/.test(sourceText(status))),
   );
   statusObserver.observe(status, {
     childList: true,
@@ -672,7 +673,7 @@ export function installImageAdjustments({
     root.querySelectorAll(".adjust-group").forEach((e) => {
       const option = document.createElement("option");
       option.value = e.id;
-      option.textContent = e.querySelector("summary").textContent;
+      option.textContent = sourceText(e.querySelector("summary"));
       $("[data-jump]").append(option);
     });
     $("[data-jump]").onchange = (e) => {

@@ -62,7 +62,7 @@ export function installBookmarkUI({
           .slice(0, 500)
           .map(
             (g, i) =>
-              `<div class="change-card"><strong>${esc(g.members[0].title)}</strong><label>保留<select data-group="${i}">${g.members.map((m) => `<option value="${esc(m.id)}" ${m.id === g.keep ? "selected" : ""}>PDF 第 ${m.page || "?"} 页 · ${esc(JSON.stringify(m.args))} · ${esc(m.id.slice(0, 8))}</option>`).join("")}</select></label><small>${g.members.length} 项；其余项目的子项将合并</small></div>`,
+              `<div class="change-card"><strong translate="no">${esc(g.members[0].title)}</strong><label>保留<select data-group="${i}">${g.members.map((m) => `<option value="${esc(m.id)}" ${m.id === g.keep ? "selected" : ""}>PDF 第 ${m.page || "?"} 页 · ${esc(JSON.stringify(m.args))} · ${esc(m.id.slice(0, 8))}</option>`).join("")}</select></label><small>${g.members.length} 项；其余项目的子项将合并</small></div>`,
           )
           .join("");
         $("#du-apply").disabled = !preview.removed.length;
@@ -250,7 +250,7 @@ export function installBookmarkUI({
         .slice(0, 500)
         .map(
           (r) =>
-            `<div class="change-card" data-cal="${esc(r.id)}"><strong>${esc(r.title)}</strong><p>原目标：p.${r.before?.page || "?"} ${esc(JSON.stringify(r.before?.args))}</p>${
+            `<div class="change-card" data-cal="${esc(r.id)}"><strong translate="no">${esc(r.title)}</strong><p>原目标：p.${r.before?.page || "?"} ${esc(JSON.stringify(r.before?.args))}</p>${
               r.candidates.length
                 ? `<select aria-label="匹配位置" data-choice="${esc(r.id)}"><option value="-1">保留原目标 / 暂不校准</option>${r.candidates
                     .map(
@@ -263,7 +263,7 @@ export function installBookmarkUI({
                         )}</option>`,
                     )
                     .join("")}</select>`
-                : `<p>${esc(r.reason)}</p>`
+                : `<p translate="no">${esc(r.reason)}</p>`
             }</div>`,
         )
         .join("");

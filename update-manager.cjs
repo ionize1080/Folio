@@ -281,6 +281,7 @@ class UpdateManager {
         manifest,
         JSON.stringify({
           ...this.ready,
+          language: this.language || "en",
           target,
           pid: process.pid,
           statusFile,

@@ -22,7 +22,8 @@ let app, browser, page, bridge, background, store;
       await app.evaluate(async ({ session }) =>
         session.defaultSession.clearStorageData(),
       );
-      await page.reload();
+      await page.evaluate(() => localStorage.setItem("folio-language", "zh-Hans"));
+    await page.reload();
     } else {
       const { NativeBridge } = require("../native-bridge.cjs"),
         { SourceStore } = require("../source-store.cjs");

@@ -32,6 +32,7 @@ protocol.registerSchemesAsPrivileged([
     },
   },
 ]);
+let uiLanguage = "en";
 let win,
   dirty = false,
   allowClose = false;
@@ -131,6 +132,11 @@ app.whenReady().then(async () => {
       e.preventDefault();
       win.webContents.send("request-close");
     }
+  });
+  ipc("ui-language", (value) => {
+    uiLanguage = ["en", "zh-Hans", "zh-Hant"].includes(value) ? value : "en";
+    updater.language = uiLanguage;
+    return uiLanguage;
   });
   ipc("dirty", (value) => {
     dirty = !!value;

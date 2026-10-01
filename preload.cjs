@@ -5,6 +5,7 @@ contextBridge.exposeInMainWorld("desktop", {
     ipcRenderer.on("native-progress", fn);
     return () => ipcRenderer.removeListener("native-progress", fn);
   },
+  setLanguage: (value) => ipcRenderer.invoke("ui-language", value),
   updateInfo: () => ipcRenderer.invoke("update-info"),
   updateConfigure: (v) => ipcRenderer.invoke("update-configure", v),
   updateCheck: () => ipcRenderer.invoke("update-check"),

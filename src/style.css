@@ -4866,3 +4866,22 @@ body.dark .selection-toolbar button[aria-pressed="true"] {
 .image-crop-overlay:focus {
   outline: none;
 }
+
+/* Language controls stay discoverable without flags or abbreviations. */
+.sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+.language-picker { display:inline-flex; flex-direction:row; align-items:center; gap:7px; margin:0; padding:0 9px; min-height:34px; border:1px solid var(--border, #cbd2de); border-radius:9px; background:var(--panel, #fff); color:var(--text, #202735); }
+.language-picker svg { width:17px; height:17px; fill:none; stroke:currentColor; stroke-width:1.4; flex:none; }
+.language-picker select { min-width:100px; width:auto; max-width:140px; border:0; box-shadow:none; background:transparent; padding:6px 18px 6px 0; margin:0; color:inherit; font:inherit; cursor:pointer; }
+.language-picker:focus-within { outline:2px solid var(--accent, #476bd2); outline-offset:2px; }
+.preferences-language { display:flex; flex-wrap:wrap; align-items:center; gap:12px; padding:14px; margin-bottom:18px; border:1px solid var(--border, #cbd2de); border-radius:12px; }
+.preferences-language>span { font-weight:650; }
+.preferences-language small { flex-basis:100%; color:var(--muted, #657087); }
+html[lang="en"] .appbar { flex-wrap:wrap; height:auto; min-height:60px; }
+html[lang="en"] .appbar .toolbar { flex-wrap:wrap; }
+html[lang="en"] .app-actions { margin-left:auto; flex-shrink:0; }
+html[lang="en"] .selection-toolbar { flex-wrap:wrap; height:auto; }
+html[lang="en"] .toolgroup button, html[lang="en"] .more-tools summary { white-space:nowrap; }
+html[lang="en"] .panel-heading h2 { white-space:nowrap; }
+html[lang="en"] .menu-grid button { min-height:36px; height:auto; white-space:normal; }
+html[lang="en"] .adjust-tools, html[lang="en"] .pe-object-tools, html[lang="en"] .pe-primary, html[lang="en"] .table-tools { flex-wrap:wrap; }
+@media(max-width:1250px) { .appbar { flex-wrap:wrap; height:auto; } .appbar .toolbar { order:3; width:100%; justify-content:flex-start; } .app-actions { margin-left:auto; } }

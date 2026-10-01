@@ -1,0 +1,5699 @@
+{
+  "滑块": [
+    "src/adjustment-sliders.mjs"
+  ],
+  "渐变映射颜色预览": [
+    "src/adjustment-sliders.mjs"
+  ],
+  "文档已切换": [
+    "src/app.mjs"
+  ],
+  "PDF 引擎异常": [
+    "src/app.mjs"
+  ],
+  "查看编辑提示": [
+    "src/app.mjs"
+  ],
+  "第 {0} 页：{1}": [
+    "src/app.mjs",
+    "src/ocr-ui.mjs"
+  ],
+  "{0} 项编辑提示": [
+    "src/app.mjs"
+  ],
+  "处理中…": [
+    "src/app.mjs",
+    "src/index.html"
+  ],
+  "正在处理文档，请稍候": [
+    "src/app.mjs"
+  ],
+  "操作未完成": [
+    "src/app.mjs"
+  ],
+  "继续": [
+    "src/app.mjs"
+  ],
+  "取消": [
+    "src/app.mjs",
+    "src/bookmark-split-ui.mjs",
+    "src/decrypt-ui.mjs",
+    "src/drop-open.mjs",
+    "src/encrypted-open.mjs",
+    "src/flow-ui.mjs",
+    "src/table-ui.mjs"
+  ],
+  "当前文档有未保存更改": [
+    "src/app.mjs"
+  ],
+  "是否保存当前文档后继续？": [
+    "src/app.mjs"
+  ],
+  "放弃并继续": [
+    "src/app.mjs"
+  ],
+  "保存并继续": [
+    "src/app.mjs"
+  ],
+  "正在校验工作工程…": [
+    "src/app.mjs"
+  ],
+  "此工程含内容编辑，需要完整桌面运行包": [
+    "src/app.mjs"
+  ],
+  "工程已恢复；保存 PDF 时请选择输出位置": [
+    "src/app.mjs"
+  ],
+  "正在解析 PDF 与书签…": [
+    "src/app.mjs"
+  ],
+  "当前版本单文件上限为 768 MB": [
+    "src/app.mjs",
+    "main.cjs"
+  ],
+  "正在加载页面与书签…": [
+    "src/app.mjs"
+  ],
+  "{0} 页 · {1} 个书签": [
+    "src/app.mjs"
+  ],
+  "已解密打开，首次保存将另存为无密码副本": [
+    "src/app.mjs"
+  ],
+  "；重写后的文档需重新签署": [
+    "src/app.mjs"
+  ],
+  "文档已保存，没有新的修改": [
+    "src/app.mjs"
+  ],
+  "保存修改摘要": [
+    "src/app.mjs"
+  ],
+  "书签新增 {0} 项、修改 {1} 项、删除 {2} 项；当前含 {3} 个新增批注、{4} 页旋转设置、{5} 个内容编辑、{6} 条 OCR 文字。": [
+    "src/app.mjs"
+  ],
+  "保存": [
+    "src/app.mjs",
+    "src/shortcuts.mjs",
+    "file-store.cjs",
+    "src/index.html"
+  ],
+  "选择保存位置…": [
+    "src/app.mjs"
+  ],
+  "整理书签与文档属性": [
+    "src/app.mjs"
+  ],
+  "复用已应用内容，整理书签与文档属性": [
+    "src/app.mjs"
+  ],
+  "{0} · {1} 秒": [
+    "src/app.mjs"
+  ],
+  "正在完成写入": [
+    "src/app.mjs"
+  ],
+  "已保存：": [
+    "src/app.mjs"
+  ],
+  "已保存 ·": [
+    "src/app.mjs"
+  ],
+  "文件已保存；草稿清理失败：": [
+    "src/app.mjs"
+  ],
+  "{0} 项匹配 · 祖先仅作路径显示": [
+    "src/app.mjs"
+  ],
+  "筛选超过 2 秒，请简化正则表达式": [
+    "src/app.mjs"
+  ],
+  "正在筛选…": [
+    "src/app.mjs"
+  ],
+  "已选 {0} 项": [
+    "src/app.mjs"
+  ],
+  "未选择书签": [
+    "src/app.mjs",
+    "src/index.html"
+  ],
+  "混合颜色；选择颜色统一设置": [
+    "src/app.mjs"
+  ],
+  "已选 {0} 项 · {1} · 仅应用改动的样式": [
+    "src/app.mjs"
+  ],
+  "粗体": [
+    "src/app.mjs",
+    "src/changes.mjs",
+    "src/flow-ui.mjs",
+    "src/font-label.mjs",
+    "src/index.html"
+  ],
+  "斜体": [
+    "src/app.mjs",
+    "src/changes.mjs",
+    "src/flow-ui.mjs",
+    "src/font-label.mjs",
+    "src/index.html"
+  ],
+  "颜色": [
+    "src/app.mjs",
+    "src/changes.mjs"
+  ],
+  "混合": [
+    "src/app.mjs"
+  ],
+  "原始对象": [
+    "src/app.mjs"
+  ],
+  "自定义目标": [
+    "src/app.mjs"
+  ],
+  "统一修改所选书签的样式；标题和目标请使用批量规则。": [
+    "src/app.mjs"
+  ],
+  "修改目标后会替换原目标及动作链。": [
+    "src/app.mjs"
+  ],
+  "已更新 {0} 项样式，可整批撤销": [
+    "src/app.mjs"
+  ],
+  "书签属性已更新": [
+    "src/app.mjs"
+  ],
+  "新书签": [
+    "src/app.mjs"
+  ],
+  "删除书签": [
+    "src/app.mjs"
+  ],
+  "将删除 {0} 个书签（含子项），可通过撤销恢复。": [
+    "src/app.mjs"
+  ],
+  "删除": [
+    "src/app.mjs",
+    "src/image-adjustments-ui.mjs",
+    "src/large-workspace.mjs"
+  ],
+  "已复制 {0} 个书签到根层级末尾": [
+    "src/app.mjs"
+  ],
+  "此书签包含外部或特殊动作，本软件仅保留、不执行该动作": [
+    "src/app.mjs"
+  ],
+  "已填入当前视图，点击「应用更改」保存到书签": [
+    "src/app.mjs"
+  ],
+  "规则处理超过 3 秒，已取消；请缩小范围或简化正则": [
+    "src/app.mjs"
+  ],
+  "批量规则": [
+    "src/app.mjs",
+    "src/index.html"
+  ],
+  "先查看差异，再一次应用。越界页码会阻止整个操作，所有更改支持撤销。": [
+    "src/app.mjs"
+  ],
+  "处理范围": [
+    "src/app.mjs",
+    "src/bookmark-split-ui.mjs"
+  ],
+  "所选书签": [
+    "src/app.mjs",
+    "src/bookmark-ui.mjs",
+    "src/native-ui.mjs"
+  ],
+  "所选书签及子项": [
+    "src/app.mjs"
+  ],
+  "全部书签": [
+    "src/app.mjs",
+    "src/bookmark-ui.mjs",
+    "src/native-ui.mjs"
+  ],
+  "当前筛选匹配项": [
+    "src/app.mjs"
+  ],
+  "操作": [
+    "src/app.mjs"
+  ],
+  "正则查找替换": [
+    "src/app.mjs"
+  ],
+  "添加前缀 / 后缀": [
+    "src/app.mjs"
+  ],
+  "模板编号": [
+    "src/app.mjs"
+  ],
+  "清理空格": [
+    "src/app.mjs"
+  ],
+  "统一页码偏移": [
+    "src/app.mjs"
+  ],
+  "统一跳转模式 / 坐标": [
+    "src/app.mjs"
+  ],
+  "逐参数：保持 / 绝对 / 相对 / null": [
+    "src/app.mjs"
+  ],
+  "统一颜色和字形": [
+    "src/app.mjs"
+  ],
+  "默认展开 / 折叠": [
+    "src/app.mjs"
+  ],
+  "收藏当前规则": [
+    "src/app.mjs"
+  ],
+  "清空历史": [
+    "src/app.mjs"
+  ],
+  "修改参数后自动刷新预览": [
+    "src/app.mjs"
+  ],
+  "最近规则与收藏": [
+    "src/app.mjs"
+  ],
+  "收藏名称（可选）": [
+    "src/app.mjs"
+  ],
+  "导出完整修改报告": [
+    "src/app.mjs"
+  ],
+  "请先生成有效预览": [
+    "src/app.mjs"
+  ],
+  "应用更改": [
+    "src/app.mjs",
+    "src/index.html"
+  ],
+  "文档或处理范围已变化，请重新预览": [
+    "src/app.mjs"
+  ],
+  "批量规则已应用，可撤销": [
+    "src/app.mjs"
+  ],
+  "最近规则与收藏…": [
+    "src/app.mjs"
+  ],
+  "正则表达式": [
+    "src/app.mjs",
+    "src/index.html"
+  ],
+  "替换为": [
+    "src/app.mjs",
+    "src/bookmark-split-ui.mjs"
+  ],
+  "区分大小写": [
+    "src/app.mjs",
+    "src/index.html"
+  ],
+  "例如：^第(\\d+)章": [
+    "src/app.mjs"
+  ],
+  "$1 表示捕获组": [
+    "src/app.mjs"
+  ],
+  "前缀": [
+    "src/app.mjs"
+  ],
+  "后缀": [
+    "src/app.mjs"
+  ],
+  "编号模板": [
+    "src/app.mjs"
+  ],
+  "起始编号": [
+    "src/app.mjs"
+  ],
+  "可用变量：{n}、{title}、{page}、{level}": [
+    "src/app.mjs"
+  ],
+  "移除首尾空白，将连续空白压缩成一个空格。": [
+    "src/app.mjs"
+  ],
+  "偏移量（可为负数）": [
+    "src/app.mjs"
+  ],
+  "仅修改已转换为自定义目标的书签。原始动作不会被隐式替换。": [
+    "src/app.mjs"
+  ],
+  "模式": [
+    "src/app.mjs"
+  ],
+  "参数（JSON 数组）": [
+    "src/app.mjs"
+  ],
+  "只作用于自定义目标；XYZ 顺序为 [x, y, zoom]，FitR 为 [left, bottom, right, top]。": [
+    "src/app.mjs"
+  ],
+  "页码与参数按各书签原模式分别处理。参数编号从 1 开始；XYZ = X、Y、缩放；FitH = Y；FitR = 左、底、右、顶。相对修改 null 会阻止应用。": [
+    "src/app.mjs"
+  ],
+  "允许将原始本地动作 / 命名目标转换为直接目标": [
+    "src/app.mjs"
+  ],
+  "保持不变": [
+    "src/app.mjs"
+  ],
+  "绝对值": [
+    "src/app.mjs"
+  ],
+  "相对偏移": [
+    "src/app.mjs"
+  ],
+  "物理页码": [
+    "src/app.mjs",
+    "src/changes.mjs",
+    "src/index.html"
+  ],
+  "参数": [
+    "src/app.mjs",
+    "src/changes.mjs"
+  ],
+  "设为 null": [
+    "src/app.mjs",
+    "src/changes.mjs"
+  ],
+  "在 PDF 阅读器中展开": [
+    "src/app.mjs"
+  ],
+  "文档已变化，请关闭后重新打开规则": [
+    "src/app.mjs"
+  ],
+  "请先完成有效筛选": [
+    "src/app.mjs"
+  ],
+  "范围 {0} 项 · 将修改 {1} 项 · 预览前 80 项": [
+    "src/app.mjs"
+  ],
+  "完整规则参数": [
+    "src/app.mjs"
+  ],
+  "已取消生成": [
+    "src/app.mjs"
+  ],
+  "文本行过多，请缩小扫描范围": [
+    "src/app.mjs"
+  ],
+  "自动生成书签": [
+    "src/app.mjs"
+  ],
+  "从正文标题、目录文本或固定页间隔建立目录。扫描件可先使用工具栏 OCR，再生成书签。": [
+    "src/app.mjs"
+  ],
+  "生成方式": [
+    "src/app.mjs"
+  ],
+  "按标题字号识别": [
+    "src/app.mjs"
+  ],
+  "按正文正则匹配": [
+    "src/app.mjs"
+  ],
+  "粘贴目录文本": [
+    "src/app.mjs"
+  ],
+  "每隔 N 页生成": [
+    "src/app.mjs"
+  ],
+  "处理页面": [
+    "src/app.mjs",
+    "src/ocr-ui.mjs"
+  ],
+  "起始页": [
+    "src/app.mjs"
+  ],
+  "结束页": [
+    "src/app.mjs",
+    "src/large-workspace.mjs"
+  ],
+  "最大层级": [
+    "src/app.mjs"
+  ],
+  "合并方式": [
+    "src/app.mjs"
+  ],
+  "追加到现有书签末尾": [
+    "src/app.mjs"
+  ],
+  "替换全部现有书签（可撤销）": [
+    "src/app.mjs"
+  ],
+  "设置参数后点击「生成预览」。默认扫描前 50 页，可修改范围。": [
+    "src/app.mjs"
+  ],
+  "生成预览": [
+    "src/app.mjs"
+  ],
+  "扫描页码范围无效": [
+    "src/app.mjs"
+  ],
+  "最大层级应为 1–8": [
+    "src/app.mjs"
+  ],
+  "页间隔必须为正整数": [
+    "src/app.mjs"
+  ],
+  "正在扫描第 {0} / {1} 页…": [
+    "src/app.mjs"
+  ],
+  "匹配超时，请简化正则或减少扫描页数": [
+    "src/app.mjs"
+  ],
+  "生成 {0} 项{1} · 显示前 150 项": [
+    "src/app.mjs"
+  ],
+  "· {0} 行不符合目录格式，已跳过": [
+    "src/app.mjs"
+  ],
+  "第 {2} 页": [
+    "src/app.mjs"
+  ],
+  "应用书签": [
+    "src/app.mjs"
+  ],
+  "自动生成的书签已应用": [
+    "src/app.mjs"
+  ],
+  "最小标题字号（pt）": [
+    "src/app.mjs"
+  ],
+  "字号从大到小对应由浅到深的层级。建议先扫描少量页面调整阈值。": [
+    "src/app.mjs"
+  ],
+  "标题正则表达式": [
+    "src/app.mjs"
+  ],
+  "数字标题 1、1.1、1.1.1 会对应不同层级。": [
+    "src/app.mjs"
+  ],
+  "目录文本": [
+    "src/app.mjs"
+  ],
+  "页码偏移（印刷页码 + 偏移 = 物理页码）": [
+    "src/app.mjs"
+  ],
+  "提取扫描范围正文到文本框": [
+    "src/app.mjs"
+  ],
+  "标题与页码用 Tab、至少两个空格或点线分隔；每两个前导空格表示一级缩进。": [
+    "src/app.mjs"
+  ],
+  "第一章 绪论 1\n 1.1 研究背景 3\n第二章 主要内容 …… 8": [
+    "src/app.mjs"
+  ],
+  "页间隔": [
+    "src/app.mjs"
+  ],
+  "标题模板": [
+    "src/app.mjs"
+  ],
+  "页码范围无效": [
+    "src/app.mjs"
+  ],
+  "导入 / 导出与工作工程": [
+    "src/app.mjs"
+  ],
+  "JSON 包含层级、颜色、字形和跳转参数。TXT 适合在 Excel 或文本编辑器中整理。": [
+    "src/app.mjs"
+  ],
+  "跨文件导入时，原始动作字典不会复制。可解析的本地目标会转为显式目标；不可解析的动作会提示并定位第 1 页。PDF-XChange 专用书签交换格式暂未实现。": [
+    "src/app.mjs"
+  ],
+  "导出 Folio JSON": [
+    "src/app.mjs"
+  ],
+  "导出目录 TXT": [
+    "src/app.mjs"
+  ],
+  "导入 Folio JSON": [
+    "src/app.mjs"
+  ],
+  "导入目录 TXT": [
+    "src/app.mjs"
+  ],
+  "保存工作工程 .folio": [
+    "src/app.mjs"
+  ],
+  "工作工程包含原 PDF、已应用修改、OCR 校对与流式段落结构，可通过“打开”继续编辑。PDF 用于交付，工程用于续编；工程保留原始内容与修改记录。": [
+    "src/app.mjs"
+  ],
+  "完成": [
+    "src/app.mjs",
+    "src/image-page-ui.mjs",
+    "src/object-selection-ui.mjs"
+  ],
+  "部分动作不能导入": [
+    "src/app.mjs"
+  ],
+  "{0} 个书签没有可解析的本地页码，导入后将定位第 1 页。": [
+    "src/app.mjs"
+  ],
+  "继续导入": [
+    "src/app.mjs"
+  ],
+  "已追加 {0} 个书签": [
+    "src/app.mjs"
+  ],
+  "已追加 {0} 项，跳过 {1} 行": [
+    "src/app.mjs"
+  ],
+  "整理书签": [
+    "src/app.mjs"
+  ],
+  "正则拆分书签…": [
+    "src/app.mjs"
+  ],
+  "按页码排序（保留层级）": [
+    "src/app.mjs"
+  ],
+  "按标题自然排序": [
+    "src/app.mjs"
+  ],
+  "查找重复书签…": [
+    "src/app.mjs"
+  ],
+  "按标题校准目标…": [
+    "src/app.mjs"
+  ],
+  "原始本地目标 → 可编辑目标": [
+    "src/app.mjs"
+  ],
+  "全选书签": [
+    "src/app.mjs",
+    "src/shortcuts.mjs"
+  ],
+  "校验跳转目标": [
+    "src/app.mjs"
+  ],
+  "转换目标会替换所选书签的原始动作链或命名目标，保留其解析出的页码和视图参数。外部动作保持原样；未选择时作用于全部。": [
+    "src/app.mjs"
+  ],
+  "转换为可编辑目标": [
+    "src/app.mjs"
+  ],
+  "此操作将用解析出的本地跳转替换原始动作链或命名目标。之后可批量修改页码、坐标和模式。": [
+    "src/app.mjs"
+  ],
+  "转换": [
+    "src/app.mjs"
+  ],
+  "已转换 {0} 个本地目标": [
+    "src/app.mjs"
+  ],
+  "结构与自定义目标有效；{0} 个特殊动作仅保留，未执行验证": [
+    "src/app.mjs"
+  ],
+  "页面操作": [
+    "src/app.mjs"
+  ],
+  "页码范围": [
+    "src/app.mjs"
+  ],
+  "页码使用物理页码。提取页以当前原始文档为基础，不包含尚未另存的修改，也不复制整本书签结构。合并先保存当前编辑，再追加另一个 PDF 的页面；追加文件的书签不自动合并。": [
+    "src/app.mjs"
+  ],
+  "所选页旋转 90°": [
+    "src/app.mjs"
+  ],
+  "提取为新 PDF": [
+    "src/app.mjs"
+  ],
+  "在末尾追加 PDF": [
+    "src/app.mjs"
+  ],
+  "导出当前页 PNG": [
+    "src/app.mjs"
+  ],
+  "正在提取页面…": [
+    "src/app.mjs"
+  ],
+  "正在合并 PDF…": [
+    "src/app.mjs"
+  ],
+  "页面已追加，请另存 PDF；合并操作不能撤销": [
+    "src/app.mjs"
+  ],
+  "PNG 仅导出页面画布，未保存批注请先另存并重新打开": [
+    "src/app.mjs"
+  ],
+  "文档属性": [
+    "src/app.mjs",
+    "src/index.html"
+  ],
+  "标题": [
+    "src/app.mjs",
+    "src/changes.mjs",
+    "src/flow-ui.mjs",
+    "src/large-workspace.mjs"
+  ],
+  "作者": [
+    "src/app.mjs"
+  ],
+  "主题": [
+    "src/app.mjs"
+  ],
+  "关键词（逗号分隔）": [
+    "src/app.mjs"
+  ],
+  "{4} 页 · {5} MB · {6} 个书签": [
+    "src/app.mjs"
+  ],
+  "保存采用完整重写。现有数字签名不保证有效；加密 PDF 暂不支持编辑。此版本支持基础文字/路径对象编辑与 OCR；不提供段落自动重排、表单编辑或安全涂黑。": [
+    "src/app.mjs"
+  ],
+  "应用属性": [
+    "src/app.mjs",
+    "src/shortcuts.mjs"
+  ],
+  "双击删除此批注": [
+    "src/app.mjs"
+  ],
+  "添加批注": [
+    "src/app.mjs",
+    "src/index.html"
+  ],
+  "选定类型后，在页面上拖出矩形区域。双击本次新增批注可删除。批注不是安全涂黑，不能用于隐去敏感内容。": [
+    "src/app.mjs"
+  ],
+  "类型": [
+    "src/app.mjs"
+  ],
+  "区域高亮": [
+    "src/app.mjs"
+  ],
+  "矩形边框": [
+    "src/app.mjs"
+  ],
+  "便笺": [
+    "src/app.mjs"
+  ],
+  "批注内容": [
+    "src/app.mjs"
+  ],
+  "按 Esc 退出绘制模式。当前编辑会写入标准 PDF 批注字典。": [
+    "src/app.mjs"
+  ],
+  "开始绘制": [
+    "src/app.mjs"
+  ],
+  "在页面上拖动添加批注 · Esc 退出": [
+    "src/app.mjs"
+  ],
+  "批注已添加；双击可删除": [
+    "src/app.mjs"
+  ],
+  "就绪": [
+    "src/app.mjs",
+    "src/index.html"
+  ],
+  "扫描 {0}/{1}": [
+    "src/app.mjs"
+  ],
+  "{0} 处匹配": [
+    "src/app.mjs"
+  ],
+  "{0}/{1} 处匹配": [
+    "src/app.mjs"
+  ],
+  "任务缓存管理需要桌面运行包": [
+    "src/app.mjs"
+  ],
+  "OCR 任务记录与缓存": [
+    "src/app.mjs"
+  ],
+  "任务缓存合计 {0} MB。当前任务受到保护；已应用结果和工作工程不依赖这里的任务缓存。": [
+    "src/app.mjs"
+  ],
+  "{0} · {1} 页 · {2} MB · {3}": [
+    "src/app.mjs"
+  ],
+  "当前任务": [
+    "src/app.mjs"
+  ],
+  "清理": [
+    "src/app.mjs"
+  ],
+  "暂无任务缓存": [
+    "src/app.mjs"
+  ],
+  "关闭": [
+    "src/app.mjs",
+    "src/bookmark-ui.mjs",
+    "src/copy-region-ui.mjs",
+    "src/large-workspace.mjs",
+    "src/native-ui.mjs",
+    "src/ocr-ui.mjs",
+    "src/page-diff.mjs",
+    "src/update-ui.mjs",
+    "src/index.html"
+  ],
+  "偏好设置": [
+    "src/app.mjs"
+  ],
+  "默认留白单位": [
+    "src/app.mjs"
+  ],
+  "毫米 mm": [
+    "src/app.mjs"
+  ],
+  "点 pt": [
+    "src/app.mjs"
+  ],
+  "浅色": [
+    "src/app.mjs"
+  ],
+  "深色": [
+    "src/app.mjs"
+  ],
+  "书签侧栏宽度（px）": [
+    "src/app.mjs"
+  ],
+  "书签行高": [
+    "src/app.mjs"
+  ],
+  "紧凑 · 28 px": [
+    "src/app.mjs"
+  ],
+  "标准 · 34 px": [
+    "src/app.mjs"
+  ],
+  "宽松 · 40 px": [
+    "src/app.mjs"
+  ],
+  "渲染像素倍率上限": [
+    "src/app.mjs"
+  ],
+  "1× · 节省内存": [
+    "src/app.mjs"
+  ],
+  "2× · 推荐": [
+    "src/app.mjs"
+  ],
+  "3× · 高清": [
+    "src/app.mjs"
+  ],
+  "撤销步数上限": [
+    "src/app.mjs"
+  ],
+  "保存后建议阅读器显示书签面板": [
+    "src/app.mjs"
+  ],
+  "原文件保护：首次保存为副本，之后更新副本": [
+    "src/app.mjs"
+  ],
+  "记住每本文档的阅读位置、缩放和布局（关闭后尊重文档初始视图）": [
+    "src/app.mjs"
+  ],
+  "忽略书签的缩放要求（不修改 PDF 目标）": [
+    "src/app.mjs"
+  ],
+  "长书签标题显示两行": [
+    "src/app.mjs"
+  ],
+  "保存前显示修改摘要": [
+    "src/app.mjs"
+  ],
+  "显卡兼容：关闭硬件加速（重新启动后生效）": [
+    "src/app.mjs"
+  ],
+  "HTTP 代理（更新共用）": [
+    "src/app.mjs"
+  ],
+  "自定义快捷键…": [
+    "src/app.mjs"
+  ],
+  "OCR 任务记录与缓存…": [
+    "src/app.mjs"
+  ],
+  "撤销快照受 32 MB 预算限制；画布按可见范围加载，高清画布与分块按约 128 MB 预算回收，当前可见区域优先，缩放期间保留已完成画面。恢复快照在编辑停止 0.7 秒后保存在本机。": [
+    "src/app.mjs"
+  ],
+  "留空使用系统代理": [
+    "src/app.mjs"
+  ],
+  "应用设置": [
+    "src/app.mjs"
+  ],
+  "设置数值超出范围": [
+    "src/app.mjs"
+  ],
+  "面向 Windows 11 x64 的离线书签工作台。建议先用副本验证实际工作文档。": [
+    "src/app.mjs"
+  ],
+  "快捷操作": [
+    "src/app.mjs"
+  ],
+  "Ctrl+O 打开 · Ctrl+S 保存 · Ctrl+Shift+S 另存 · Ctrl+B 书签面板 · Ctrl+Shift+B 新建": [
+    "src/app.mjs"
+  ],
+  "Ctrl+Z 撤销 · Ctrl+Y 重做 · Ctrl+F 搜索正文 · Ctrl+滚轮缩放 · Alt+左右返回视图": [
+    "src/app.mjs"
+  ],
+  "Ctrl / Shift 多选 · Delete 删除 · F2 改名": [
+    "src/app.mjs"
+  ],
+  "书签树中 Ctrl+A 全选 · Alt+左右箭头 升降级 · Tab 移动焦点": [
+    "src/app.mjs"
+  ],
+  "拖动行：上部插在前面，中部成为子项，下部插在后面；左侧退级区域移至根层。悬停展开，Esc 取消": [
+    "src/app.mjs"
+  ],
+  "精确目标": [
+    "src/app.mjs"
+  ],
+  "PDF 坐标以 pt 为单位，使用原生页面坐标系。XYZ = [左, 顶, 缩放]；留空为 null。FitR = [左, 底, 右, 顶]。XYZ 的 zoom=0 由阅读器解释为保持缩放。原始动作默认保持；使用「整理 → 原始本地目标 → 可编辑目标」后可统一偏移。": [
+    "src/app.mjs"
+  ],
+  "当前边界": [
+    "src/app.mjs"
+  ],
+  "已实现书签、批注、旋转、页面提取与追加、文档属性编辑。已加入文字/路径对象编辑、离线 OCR、段落流式编辑和同页分栏续排；工作工程可续编。加密文件可通过更多工具导出无密码副本后编辑。尚未实现跨页文章重排、公式结构编辑、表单编辑、安全涂黑、数字签名，以及 PDF-XChange 专有书签导入导出。不是 PDF-XChange 全功能替代品。": [
+    "src/app.mjs"
+  ],
+  "技术与许可": [
+    "src/app.mjs"
+  ],
+  "Electron 44.3.0 · PDF.js 5.6.205（Apache-2.0）· pdf-lib 1.17.1（MIT）。源码及依赖许可随包附带。图像调整离线运行；仅检查更新和下载时访问 GitHub。": [
+    "src/app.mjs"
+  ],
+  "检查更新": [
+    "src/app.mjs"
+  ],
+  "开始使用": [
+    "src/app.mjs"
+  ],
+  "恢复快照未写入：": [
+    "src/app.mjs"
+  ],
+  "第 {0} 页{1} · {2} × {3} pt": [
+    "src/app.mjs"
+  ],
+  "· 页标签": [
+    "src/app.mjs"
+  ],
+  "本地处理": [
+    "src/app.mjs"
+  ],
+  "诊断：画布 {0} MB · {1} 页缓存": [
+    "src/app.mjs"
+  ],
+  "跳转目标 · 拖动微调所选书签": [
+    "src/app.mjs"
+  ],
+  "目标": [
+    "src/app.mjs"
+  ],
+  "目标已微调，可撤销": [
+    "src/app.mjs"
+  ],
+  "{0} {1} 个书签": [
+    "src/app.mjs"
+  ],
+  "剪切": [
+    "src/app.mjs"
+  ],
+  "复制": [
+    "src/app.mjs",
+    "src/copy-region-ui.mjs"
+  ],
+  "已设置跳转目标": [
+    "src/app.mjs"
+  ],
+  "转到页面": [
+    "src/app.mjs"
+  ],
+  "物理页码或页标签": [
+    "src/app.mjs"
+  ],
+  "输入数字按物理页定位；输入 i、ii 等标签按 PDF 页标签定位。": [
+    "src/app.mjs"
+  ],
+  "转到": [
+    "src/app.mjs"
+  ],
+  "页码 / 标签不存在": [
+    "src/app.mjs"
+  ],
+  "选择页面": [
+    "src/app.mjs"
+  ],
+  "页面范围": [
+    "src/app.mjs"
+  ],
+  "选好页面后可直接识别或生成书签；双击导航请使用「转到首个所选页」。": [
+    "src/app.mjs"
+  ],
+  "转到首个所选页": [
+    "src/app.mjs"
+  ],
+  "OCR 所选页": [
+    "src/app.mjs"
+  ],
+  "生成书签": [
+    "src/app.mjs"
+  ],
+  "多级规则 · 自动生成书签": [
+    "src/app.mjs"
+  ],
+  "扫描物理页范围": [
+    "src/app.mjs"
+  ],
+  "子集": [
+    "src/app.mjs"
+  ],
+  "全部": [
+    "src/app.mjs",
+    "src/bookmark-split-ui.mjs",
+    "src/ocr-ui.mjs",
+    "src/page-picker.mjs"
+  ],
+  "奇数页": [
+    "src/app.mjs",
+    "src/page-picker.mjs"
+  ],
+  "偶数页": [
+    "src/app.mjs",
+    "src/page-picker.mjs"
+  ],
+  "标题顶部留白单位": [
+    "src/app.mjs"
+  ],
+  "排除页眉高度（pt）": [
+    "src/app.mjs"
+  ],
+  "排除页脚高度（pt）": [
+    "src/app.mjs"
+  ],
+  "文字区域右边界（pt，可留空）": [
+    "src/app.mjs"
+  ],
+  "规则按层级生成，父项取前面最近的有效上一级；停用的层级不参与生成，其余启用层级连续编号。多规则命中按列表优先级处理，可切换为跳过。缺少父项可跳过或提升层级。跨页范围从子级开始时，请把前面的父级页纳入扫描。": [
+    "src/app.mjs"
+  ],
+  "＋ 规则": [
+    "src/app.mjs"
+  ],
+  "通用层级示例": [
+    "src/app.mjs"
+  ],
+  "保存预设": [
+    "src/app.mjs",
+    "src/image-adjustments-ui.mjs"
+  ],
+  "加载预设…": [
+    "src/app.mjs"
+  ],
+  "导入": [
+    "src/app.mjs",
+    "src/shortcuts.mjs"
+  ],
+  "导出": [
+    "src/app.mjs",
+    "src/shortcuts.mjs"
+  ],
+  "字号 / 目录 / 页间隔…": [
+    "src/app.mjs"
+  ],
+  "多规则冲突": [
+    "src/app.mjs"
+  ],
+  "优先使用第一条命中规则": [
+    "src/app.mjs"
+  ],
+  "跳过并诊断": [
+    "src/app.mjs"
+  ],
+  "缺少父级": [
+    "src/app.mjs"
+  ],
+  "提升至最近有效层级": [
+    "src/app.mjs"
+  ],
+  "文字来源": [
+    "src/app.mjs"
+  ],
+  "自动（已校对 OCR 优先）": [
+    "src/app.mjs"
+  ],
+  "PDF 文字层": [
+    "src/app.mjs"
+  ],
+  "已应用的 OCR 结果": [
+    "src/app.mjs"
+  ],
+  "合并相邻跨行标题（最多 3 行，需核对预览）": [
+    "src/app.mjs"
+  ],
+  "插入方式": [
+    "src/app.mjs"
+  ],
+  "根层末尾追加": [
+    "src/app.mjs"
+  ],
+  "替换所有书签": [
+    "src/app.mjs"
+  ],
+  "所选书签之前": [
+    "src/app.mjs"
+  ],
+  "所选书签之后": [
+    "src/app.mjs"
+  ],
+  "所选书签的首个子项": [
+    "src/app.mjs"
+  ],
+  "跳过同父项、同标题、同页的重复匹配（含现有书签）": [
+    "src/app.mjs"
+  ],
+  "先测试当前页或扫描范围，再应用。预览中的书签可点击检查页面位置。": [
+    "src/app.mjs"
+  ],
+  "命中与忽略诊断（最多 3,000 行）": [
+    "src/app.mjs"
+  ],
+  "全宽": [
+    "src/app.mjs"
+  ],
+  "取消任务": [
+    "src/app.mjs"
+  ],
+  "任务已取消，可继续修改规则": [
+    "src/app.mjs"
+  ],
+  "测试当前页": [
+    "src/app.mjs"
+  ],
+  "生成范围预览": [
+    "src/app.mjs"
+  ],
+  "请先预览当前所选范围": [
+    "src/app.mjs"
+  ],
+  "请生成有效预览": [
+    "src/app.mjs"
+  ],
+  "已应用 {0} 个书签": [
+    "src/app.mjs"
+  ],
+  "高级：文字区域、来源与冲突处理": [
+    "src/app.mjs"
+  ],
+  "按阅读栏分开（默认拼接同行）": [
+    "src/app.mjs"
+  ],
+  "大间隔阈值（字高倍数）": [
+    "src/app.mjs"
+  ],
+  "左侧边界（pt，可留空）": [
+    "src/app.mjs"
+  ],
+  "同行判断": [
+    "src/app.mjs"
+  ],
+  "自动 · 参考局部字高和行距": [
+    "src/app.mjs"
+  ],
+  "严格": [
+    "src/app.mjs"
+  ],
+  "宽松": [
+    "src/app.mjs"
+  ],
+  "手动容差": [
+    "src/app.mjs"
+  ],
+  "手动基线容差（字高倍数）": [
+    "src/app.mjs"
+  ],
+  "容差只用于候选同行；仍检查邻行与重叠，避免跨行串接。规则不依赖文档行业或词语。": [
+    "src/app.mjs"
+  ],
+  "书签规则列表": [
+    "src/app.mjs"
+  ],
+  "匹配预览": [
+    "src/app.mjs"
+  ],
+  "高级匹配与插入方式": [
+    "src/app.mjs"
+  ],
+  "更多范围选择": [
+    "src/app.mjs"
+  ],
+  "规则设置": [
+    "src/app.mjs"
+  ],
+  "匹配结果": [
+    "src/app.mjs"
+  ],
+  "未命名规则": [
+    "src/app.mjs"
+  ],
+  "· 已停用": [
+    "src/app.mjs"
+  ],
+  "第 {0} 层 · {1} 项": [
+    "src/app.mjs"
+  ],
+  "预览待更新 · 正在编辑规则": [
+    "src/app.mjs"
+  ],
+  "启用": [
+    "src/app.mjs",
+    "src/bookmark-split-ui.mjs"
+  ],
+  "层级": [
+    "src/app.mjs"
+  ],
+  "标题来源": [
+    "src/app.mjs"
+  ],
+  "捕获组模板": [
+    "src/app.mjs"
+  ],
+  "完整行": [
+    "src/app.mjs"
+  ],
+  "匹配部分": [
+    "src/app.mjs"
+  ],
+  "标题模板（$0 / $1 / $2 / {page}）": [
+    "src/app.mjs"
+  ],
+  "定位捕获组（0 为匹配开头）": [
+    "src/app.mjs"
+  ],
+  "顶部留白": [
+    "src/app.mjs"
+  ],
+  "模板中的捕获组不能为空": [
+    "src/app.mjs"
+  ],
+  "规则名称": [
+    "src/app.mjs"
+  ],
+  "正则尚未完整：": [
+    "src/app.mjs"
+  ],
+  "撤销规则": [
+    "src/app.mjs"
+  ],
+  "重做": [
+    "src/app.mjs",
+    "src/shortcuts.mjs",
+    "src/table-ui.mjs"
+  ],
+  "撤销规则列表修改": [
+    "src/app.mjs"
+  ],
+  "重做规则列表修改": [
+    "src/app.mjs"
+  ],
+  "第 {0} 层": [
+    "src/app.mjs"
+  ],
+  "章": [
+    "src/app.mjs"
+  ],
+  "节": [
+    "src/app.mjs"
+  ],
+  "预设格式无效": [
+    "src/app.mjs",
+    "src/image-adjustments-ui.mjs"
+  ],
+  "预设已保存：": [
+    "src/app.mjs"
+  ],
+  "页眉页脚排除高度无效": [
+    "src/app.mjs"
+  ],
+  "提取文字 {0} 页 · {1} 行": [
+    "src/app.mjs"
+  ],
+  "文字行过多，请缩小范围": [
+    "src/app.mjs"
+  ],
+  "规则运行超过 5 秒，已终止；请简化正则": [
+    "src/app.mjs"
+  ],
+  "任务已取消": [
+    "src/app.mjs",
+    "native-bridge.cjs"
+  ],
+  "{0} {1}（{2} 页） · {3} 项 · {4} 个冲突 · {5} 个缺失父级 · {6} 行忽略（每组 100 项，可筛选）": [
+    "src/app.mjs"
+  ],
+  "仅测试当前页": [
+    "src/app.mjs"
+  ],
+  "已预览所选范围": [
+    "src/app.mjs"
+  ],
+  "上一组": [
+    "src/app.mjs",
+    "src/large-workspace.mjs",
+    "src/page-picker.mjs"
+  ],
+  "下一组": [
+    "src/app.mjs",
+    "src/large-workspace.mjs",
+    "src/page-picker.mjs"
+  ],
+  "筛选生成的标题…": [
+    "src/app.mjs"
+  ],
+  "{0} / {1} · {2} 项": [
+    "src/app.mjs"
+  ],
+  "第 {5} 层 · 第 {6} 页": [
+    "src/app.mjs"
+  ],
+  "输入：{1}": [
+    "src/app.mjs"
+  ],
+  "捕获组：{2}": [
+    "src/app.mjs"
+  ],
+  "应用 {0} 项书签": [
+    "src/app.mjs"
+  ],
+  "已恢复规则草稿，请重新测试预览": [
+    "src/app.mjs"
+  ],
+  "预览所选范围": [
+    "src/app.mjs"
+  ],
+  "底层 PDF 字典": [
+    "src/app.mjs"
+  ],
+  "原始字典只读，属于打开时的文档快照；保存会重建对象编号。当前编辑内容与源快照分别显示。": [
+    "src/app.mjs"
+  ],
+  "当前编辑内容（解码文本）": [
+    "src/app.mjs"
+  ],
+  "打开时的源对象 {1}（字节串以十六进制显示）": [
+    "src/app.mjs"
+  ],
+  "新建": [
+    "src/app.mjs"
+  ],
+  "此书签为新建，无原始对象。": [
+    "src/app.mjs"
+  ],
+  "移动 {0} 个书签": [
+    "src/app.mjs"
+  ],
+  "{0} 项 → 根层末尾": [
+    "src/app.mjs"
+  ],
+  "不能移入自身或后代": [
+    "src/app.mjs"
+  ],
+  "{0} 项 → {1}": [
+    "src/app.mjs"
+  ],
+  "成为子项": [
+    "src/app.mjs"
+  ],
+  "插到前面": [
+    "src/app.mjs"
+  ],
+  "插到后面": [
+    "src/app.mjs"
+  ],
+  "书签已移动，可撤销": [
+    "src/app.mjs"
+  ],
+  "正在处理文档，请完成后关闭": [
+    "src/app.mjs"
+  ],
+  "内容编辑和 OCR 需要完整桌面运行包": [
+    "src/app.mjs"
+  ],
+  "正在生成内容预览…": [
+    "src/app.mjs"
+  ],
+  "范围起点：第 {0} 页": [
+    "src/app.mjs"
+  ],
+  "范围终点：第 {0} 页": [
+    "src/app.mjs"
+  ],
+  "调整跳转留白…": [
+    "src/app.mjs"
+  ],
+  "编辑标题 · F2": [
+    "src/app.mjs"
+  ],
+  "新增同级书签": [
+    "src/app.mjs"
+  ],
+  "新增子书签": [
+    "src/app.mjs",
+    "src/index.html"
+  ],
+  "粘贴为子书签": [
+    "src/app.mjs"
+  ],
+  "删除所选与子项": [
+    "src/app.mjs"
+  ],
+  "仅删除所选，保留子项": [
+    "src/app.mjs"
+  ],
+  "仅删除子书签": [
+    "src/app.mjs"
+  ],
+  "设置当前视图为目标": [
+    "src/app.mjs"
+  ],
+  "属性": [
+    "src/app.mjs",
+    "src/index.html"
+  ],
+  "底层字典": [
+    "src/app.mjs",
+    "src/index.html"
+  ],
+  "已复制文字": [
+    "src/app.mjs"
+  ],
+  "复制 Ctrl+C": [
+    "src/app.mjs"
+  ],
+  "复制为单行": [
+    "src/app.mjs"
+  ],
+  "从选中文字创建书签": [
+    "src/app.mjs"
+  ],
+  "请先选中页面文字": [
+    "src/app.mjs"
+  ],
+  "用选中文字位置设置目标": [
+    "src/app.mjs"
+  ],
+  "框选文字并复制…": [
+    "src/app.mjs"
+  ],
+  "当前视图设置为目标": [
+    "src/app.mjs"
+  ],
+  "适合宽度": [
+    "src/app.mjs",
+    "src/large-workspace.mjs",
+    "src/shortcuts.mjs",
+    "src/index.html"
+  ],
+  "适合页面": [
+    "src/app.mjs",
+    "src/shortcuts.mjs",
+    "src/index.html"
+  ],
+  "页面缩略图": [
+    "src/app.mjs",
+    "src/index.html"
+  ],
+  "拖动调整侧栏宽度": [
+    "src/app.mjs"
+  ],
+  "没有未保存的恢复草稿": [
+    "src/app.mjs"
+  ],
+  "恢复未保存的编辑": [
+    "src/app.mjs"
+  ],
+  "选择草稿": [
+    "src/app.mjs"
+  ],
+  "恢复前会校验原文和编辑资源；首次保存需选择输出位置。": [
+    "src/app.mjs"
+  ],
+  "未命名": [
+    "src/app.mjs"
+  ],
+  "稍后": [
+    "src/app.mjs"
+  ],
+  "删除所选草稿": [
+    "src/app.mjs"
+  ],
+  "恢复编辑": [
+    "src/app.mjs"
+  ],
+  "草稿已不存在": [
+    "src/app.mjs"
+  ],
+  "请先关闭大文件工作区": [
+    "src/app.mjs"
+  ],
+  "关闭大文件": [
+    "src/app.mjs"
+  ],
+  "丢弃并关闭": [
+    "src/app.mjs"
+  ],
+  "此文档已打开": [
+    "src/app.mjs"
+  ],
+  "筛选表达式过长": [
+    "src/bookmark-filter.mjs"
+  ],
+  "正则表达式未完成或无效：": [
+    "src/bookmark-filter.mjs"
+  ],
+  "页码须为正整数": [
+    "src/bookmark-filter.mjs"
+  ],
+  "当前文档没有书签": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "正则拆分书签": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "所选书签（{1} 条，不自动含子项）": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "全部书签（{2} 条）": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "生成关系": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "同级多条（每条规则一项）": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "父子层级（每条规则一级，可分支）": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "所有规则独立读取同一个完整原题。父规则只决定输出位置；新书签继承原跳转目标。": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "编辑规则": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "结果预览": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "处理方式": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "独立正则 → 替换文本": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "按一个正则分隔原题": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "标题生成方式": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "查找替换：保留未匹配的原文": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "捕获模板：仅输出替换文本": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "分隔正则": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "＋ 添加独立规则": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "高级：原书签、子项及多匹配": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "保留原书签，在其子树之后插入结果": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "替换时原有子项": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "含子项时保留原项并提示": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "整体迁移至首个生成节点": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "整体迁移至最后生成节点": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "多个父项关联": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "有歧义时停止": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "按匹配序号一一配对": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "全部规则均未命中的原项自动保留；仅部分规则命中时整条原项保留并提示。选中祖先与后代时也各自只读取一次原题。": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "保存规则": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "加载上次规则": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "导出规则": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "导入规则": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "捕获组与替换说明": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "$0 或 $& 表示完整匹配，$1、$2…表示捕获组，$<名称> 表示命名组，$$ 表示美元符号。括号中的反向引用不会增加捕获组。": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "“查找替换”保留匹配前后的原文；只想生成捕获组内容时用“捕获模板”。高级的“每个匹配生成一条”始终以完整原题分别求值。": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "自动更新": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "刷新预览": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "正在准备预览…": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "显示": [
+    "src/bookmark-split-ui.mjs",
+    "src/page-diff.mjs"
+  ],
+  "将修改的书签": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "需处理的问题": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "未改变的书签": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "上一批": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "下一批": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "导出完整预览": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "有问题时，仅应用预览中的有效来源": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "拆分工作区": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "拆分规则": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "拆分结果预览": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "原题与拆分结果": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "预览结果": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "应用拆分": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "来源或范围已变化，已重新预览，请核对后应用": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "请先处理问题，或明确选择仅应用有效来源": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "已拆分 {0} 条，可整批撤销；保存后写入 PDF": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "规则 {1}": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "移除": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "查找正则": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "替换文本": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "生成节点的父级": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "前一条启用规则（首条为根级）": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "根级：与原书签同级": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "匹配选项": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "正则标志": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "每个匹配生成一条": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "移除规则 {5}": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "规则 {1} 的输出": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "＋ 添加规则 / 层级": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "＋ 添加同级规则": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "应用拆分（{0} 条来源）": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "{0} / {1} 批 · {2} 条来源": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "原书签 → {0} {1} 条": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "保留并新增": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "第 {0} 页 · 继承原目标": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "继承原始跳转动作": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "第 {0} 级": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "同级": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "· 规则 {0}": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "查看匹配与捕获组": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "匹配：{0}": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "（未匹配）": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "本条展示前 100 个输出；可导出完整预览查看全部。": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "此分类没有结果。未匹配的书签会保留原样。": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "调整规则后自动预览，或点击“刷新预览”。": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "正在输入…": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "规则或范围已改变，请刷新预览。": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "正在计算完整范围预览…": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "没有选中书签，请改选“全部书签”。": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "计算超时，请简化正则或缩小范围。": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "预览失败：{0}": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "来源已变化，请刷新预览。": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "{0} {1} 条 → 修改 {2} 条，生成 {3} 条；保留 {4} 条，问题 {5} 条。": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "所选": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "最多 100 条规则": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "拆分规则已保存": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "这不是有效的书签拆分规则文件": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "规则内容或数量无效": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "规则文件过大": [
+    "src/bookmark-split-ui.mjs"
+  ],
+  "替换文本引用 ${0}，但正则只有 {1} 个捕获组": [
+    "src/bookmark-split.mjs"
+  ],
+  "替换文本引用了不存在的捕获组 ${0}": [
+    "src/bookmark-split.mjs"
+  ],
+  "捕获组未参与本次匹配：$": [
+    "src/bookmark-split.mjs"
+  ],
+  "生成方式无效": [
+    "src/bookmark-split.mjs"
+  ],
+  "规则数量须为 1–100 条": [
+    "src/bookmark-split.mjs"
+  ],
+  "父规则须为前面的规则或根级": [
+    "src/bookmark-split.mjs"
+  ],
+  "规则 {0}：{1}": [
+    "src/bookmark-split.mjs"
+  ],
+  "请至少启用一条规则": [
+    "src/bookmark-split.mjs"
+  ],
+  "生成标题过长": [
+    "src/bookmark-split.mjs"
+  ],
+  "单条书签生成超过 5,000 项": [
+    "src/bookmark-split.mjs"
+  ],
+  "分隔符不能匹配空字符串": [
+    "src/bookmark-split.mjs"
+  ],
+  "未匹配，保留原项": [
+    "src/bookmark-split.mjs"
+  ],
+  "规则 {0} 匹配超过 5,000 项": [
+    "src/bookmark-split.mjs"
+  ],
+  "规则 {0} 未匹配，整条原书签保留": [
+    "src/bookmark-split.mjs"
+  ],
+  "规则 {0} 缺少父级（父规则可能未启用）": [
+    "src/bookmark-split.mjs"
+  ],
+  "多父项需选择按匹配序号配对，且数量一致": [
+    "src/bookmark-split.mjs"
+  ],
+  "规则 {0} 生成空标题": [
+    "src/bookmark-split.mjs"
+  ],
+  "没有生成有效书签": [
+    "src/bookmark-split.mjs"
+  ],
+  "结果未改变，保留原项": [
+    "src/bookmark-split.mjs"
+  ],
+  "原书签含子项，请在高级选项中指定保留或迁移方式": [
+    "src/bookmark-split.mjs"
+  ],
+  "输出总量超过 200,000 条，请缩小范围": [
+    "src/bookmark-split.mjs"
+  ],
+  "生成的父子关系无效，未应用任何修改": [
+    "src/bookmark-split.mjs"
+  ],
+  "去重模式无效": [
+    "src/bookmark-tools.mjs"
+  ],
+  "位置容差必须为非负数": [
+    "src/bookmark-tools.mjs"
+  ],
+  "合并将产生无效层级，请缩小比较范围": [
+    "src/bookmark-tools.mjs"
+  ],
+  "查找重复书签": [
+    "src/bookmark-ui.mjs"
+  ],
+  "判断方式": [
+    "src/bookmark-ui.mjs"
+  ],
+  "同页同标题（忽略坐标和缩放）": [
+    "src/bookmark-ui.mjs"
+  ],
+  "同页位置容差": [
+    "src/bookmark-ui.mjs"
+  ],
+  "完整目标完全一致": [
+    "src/bookmark-ui.mjs"
+  ],
+  "比较范围": [
+    "src/bookmark-ui.mjs"
+  ],
+  "同一父项": [
+    "src/bookmark-ui.mjs"
+  ],
+  "所选子树": [
+    "src/bookmark-ui.mjs"
+  ],
+  "整棵树": [
+    "src/bookmark-ui.mjs"
+  ],
+  "坐标容差（pt）": [
+    "src/bookmark-ui.mjs"
+  ],
+  "忽略空白和全半角差异": [
+    "src/bookmark-ui.mjs"
+  ],
+  "每组选择保留项；被移除书签的子项合并至保留项。祖先与后代不互相合并，整批可撤销。": [
+    "src/bookmark-ui.mjs"
+  ],
+  "应用去重": [
+    "src/bookmark-ui.mjs"
+  ],
+  "已移除 {0} 项，子项已保留": [
+    "src/bookmark-ui.mjs"
+  ],
+  "发现 {0} 组 · 将移除 {1} 项（展示前 500 组）": [
+    "src/bookmark-ui.mjs"
+  ],
+  "保留": [
+    "src/bookmark-ui.mjs"
+  ],
+  "{3} 项；其余项目的子项将合并": [
+    "src/bookmark-ui.mjs"
+  ],
+  "PDF 第 {2} 页 · {3} · {4}": [
+    "src/bookmark-ui.mjs"
+  ],
+  "按标题校准书签目标": [
+    "src/bookmark-ui.mjs"
+  ],
+  "书签范围": [
+    "src/bookmark-ui.mjs"
+  ],
+  "所选及后代": [
+    "src/bookmark-ui.mjs"
+  ],
+  "标题上方留白": [
+    "src/bookmark-ui.mjs"
+  ],
+  "单位": [
+    "src/bookmark-ui.mjs",
+    "src/native-ui.mjs"
+  ],
+  "匹配设置": [
+    "src/bookmark-ui.mjs"
+  ],
+  "忽略空白、换行和全半角差异": [
+    "src/bookmark-ui.mjs"
+  ],
+  "从书签标题去掉的正则（可空）": [
+    "src/bookmark-ui.mjs"
+  ],
+  "排除页眉（pt）": [
+    "src/bookmark-ui.mjs"
+  ],
+  "排除页脚（pt）": [
+    "src/bookmark-ui.mjs"
+  ],
+  "允许前后跨页数": [
+    "src/bookmark-ui.mjs"
+  ],
+  "允许转换原始本地动作／命名目标为独立直接目标": [
+    "src/bookmark-ui.mjs"
+  ],
+  "在原目标页优先寻找独立标题，结合边界与位置推荐匹配；找不到时保留原目标。修改设置后自动刷新。": [
+    "src/bookmark-ui.mjs"
+  ],
+  "查看原位置": [
+    "src/bookmark-ui.mjs"
+  ],
+  "查看新位置": [
+    "src/bookmark-ui.mjs"
+  ],
+  "例如：^\\d+[.、]\\s*": [
+    "src/bookmark-ui.mjs"
+  ],
+  "重新匹配": [
+    "src/bookmark-ui.mjs"
+  ],
+  "应用校准": [
+    "src/bookmark-ui.mjs"
+  ],
+  "已校准 {0} 项，可整批撤销": [
+    "src/bookmark-ui.mjs"
+  ],
+  "跨页数应为 0–20": [
+    "src/bookmark-ui.mjs"
+  ],
+  "正在提取第 {0} 页文字…": [
+    "src/bookmark-ui.mjs"
+  ],
+  "匹配超时，请简化标题预处理正则": [
+    "src/bookmark-ui.mjs"
+  ],
+  "选择 {0} 项 · 匹配 {1} 项 · 未匹配 {2} 项 · 不支持或未授权转换 {3} 项（显示前 500 项）": [
+    "src/bookmark-ui.mjs"
+  ],
+  "原目标：p.{2} {3}": [
+    "src/bookmark-ui.mjs"
+  ],
+  "保留原目标 / 暂不校准": [
+    "src/bookmark-ui.mjs"
+  ],
+  "匹配位置": [
+    "src/bookmark-ui.mjs"
+  ],
+  "留白数值无效": [
+    "src/calibrate-worker.mjs"
+  ],
+  "标题处理后为空": [
+    "src/calibrate-worker.mjs"
+  ],
+  "明确标题边界": [
+    "src/calibrate-worker.mjs"
+  ],
+  "整行标题": [
+    "src/calibrate-worker.mjs"
+  ],
+  "行首匹配": [
+    "src/calibrate-worker.mjs"
+  ],
+  "正文包含": [
+    "src/calibrate-worker.mjs"
+  ],
+  "已匹配": [
+    "src/calibrate-worker.mjs"
+  ],
+  "未找到，保留原目标": [
+    "src/calibrate-worker.mjs"
+  ],
+  "左侧 X": [
+    "src/changes.mjs"
+  ],
+  "顶部 Y": [
+    "src/changes.mjs"
+  ],
+  "缩放": [
+    "src/changes.mjs",
+    "src/large-workspace.mjs",
+    "src/index.html"
+  ],
+  "左侧": [
+    "src/changes.mjs"
+  ],
+  "底部": [
+    "src/changes.mjs"
+  ],
+  "右侧": [
+    "src/changes.mjs"
+  ],
+  "顶部": [
+    "src/changes.mjs"
+  ],
+  "书签": [
+    "src/changes.mjs",
+    "src/index.html"
+  ],
+  "新增": [
+    "src/changes.mjs"
+  ],
+  "替换": [
+    "src/changes.mjs"
+  ],
+  "父级": [
+    "src/changes.mjs"
+  ],
+  "默认展开": [
+    "src/changes.mjs"
+  ],
+  "目标类型": [
+    "src/changes.mjs"
+  ],
+  "显式转换": [
+    "src/changes.mjs"
+  ],
+  "视图模式": [
+    "src/changes.mjs",
+    "src/index.html"
+  ],
+  "原值 {0} {1}": [
+    "src/changes.mjs"
+  ],
+  "设为绝对值": [
+    "src/changes.mjs"
+  ],
+  "留白偏移超出范围": [
+    "src/changes.mjs"
+  ],
+  "不是本地页面目标": [
+    "src/changes.mjs"
+  ],
+  "原始动作需要允许转换": [
+    "src/changes.mjs"
+  ],
+  "此模式没有顶部定位": [
+    "src/changes.mjs"
+  ],
+  "顶部为 null，缺少绝对锚点": [
+    "src/changes.mjs"
+  ],
+  "旋转页需转换为 XYZ": [
+    "src/changes.mjs"
+  ],
+  "偏移方向坐标为 null": [
+    "src/changes.mjs"
+  ],
+  "框选文字 · 按视觉行复制": [
+    "src/copy-region-ui.mjs"
+  ],
+  "在左侧拖框选择代码与名称等区域。右侧显示将复制的文字；大间隔可转换为制表符，方便粘贴到 Excel。": [
+    "src/copy-region-ui.mjs"
+  ],
+  "拖框选择 / 重新选择": [
+    "src/copy-region-ui.mjs"
+  ],
+  "大间隔使用制表符": [
+    "src/copy-region-ui.mjs"
+  ],
+  "按片段范围提取，复制前可手动校对。": [
+    "src/copy-region-ui.mjs"
+  ],
+  "请使用包含 qpdf 引擎的完整便携包": [
+    "src/decrypt-ui.mjs"
+  ],
+  "导出无密码副本": [
+    "src/decrypt-ui.mjs",
+    "src/index.html"
+  ],
+  "在本机使用 qpdf 移除 PDF 加密，保留页面、书签和矢量内容。": [
+    "src/decrypt-ui.mjs"
+  ],
+  "文件来源": [
+    "src/decrypt-ui.mjs"
+  ],
+  "选择 PDF 文件": [
+    "src/decrypt-ui.mjs"
+  ],
+  "选择文件…": [
+    "src/decrypt-ui.mjs"
+  ],
+  "尚未选择文件": [
+    "src/decrypt-ui.mjs"
+  ],
+  "文档密码": [
+    "src/decrypt-ui.mjs",
+    "src/encrypted-open.mjs",
+    "src/large-workspace.mjs"
+  ],
+  "密码仅用于本次操作。另存为副本，原文件保持不变。含数字签名的文件在重写后需要重新签署。": [
+    "src/decrypt-ui.mjs"
+  ],
+  "无打开密码的文档可留空": [
+    "src/decrypt-ui.mjs"
+  ],
+  "当前文档的原始文件": [
+    "src/decrypt-ui.mjs"
+  ],
+  "当前文档（包含已应用修改）": [
+    "src/decrypt-ui.mjs"
+  ],
+  "导出副本": [
+    "src/decrypt-ui.mjs"
+  ],
+  "请先选择文件": [
+    "src/decrypt-ui.mjs"
+  ],
+  "正在解密并校验…": [
+    "src/decrypt-ui.mjs"
+  ],
+  "密码不正确或尚未输入，请重试": [
+    "src/decrypt-ui.mjs"
+  ],
+  "此 PDF 含数字签名。导出的副本会改变签名有效性，是否继续另存？": [
+    "src/decrypt-ui.mjs"
+  ],
+  "已导出 {0} 页无密码副本（qpdf {1}）": [
+    "src/decrypt-ui.mjs"
+  ],
+  "已取消保存": [
+    "src/decrypt-ui.mjs"
+  ],
+  "无密码副本已保存": [
+    "src/decrypt-ui.mjs"
+  ],
+  "松开以打开 PDF 或 Folio 工程": [
+    "src/drop-open.mjs"
+  ],
+  "正在处理文档，请完成当前操作后再拖入": [
+    "src/drop-open.mjs"
+  ],
+  "请拖入 PDF 或 .folio 文件；文件夹和快捷方式暂不支持": [
+    "src/drop-open.mjs"
+  ],
+  "选择要打开的文档": [
+    "src/drop-open.mjs"
+  ],
+  "撤销资源缺失": [
+    "src/edit-assets.mjs"
+  ],
+  "文字越出页面，导出可见范围会裁切": [
+    "src/edit-warnings.mjs"
+  ],
+  "文字超出文本框，可继续编辑或调整尺寸": [
+    "src/edit-warnings.mjs"
+  ],
+  "{0} 处可能遮挡，可继续编辑": [
+    "src/edit-warnings.mjs"
+  ],
+  "解密未完成，原文档保持不变": [
+    "src/encrypted-open.mjs"
+  ],
+  "此文档已加密，请使用包含 qpdf 引擎的完整 1.1 便携版": [
+    "src/encrypted-open.mjs"
+  ],
+  "正在检查文档密码…": [
+    "src/encrypted-open.mjs"
+  ],
+  "正在验证密码并解密…": [
+    "src/encrypted-open.mjs"
+  ],
+  "正在解密文档…": [
+    "src/encrypted-open.mjs"
+  ],
+  "密码不正确，请重新输入。": [
+    "src/encrypted-open.mjs"
+  ],
+  "等待文档密码…": [
+    "src/encrypted-open.mjs"
+  ],
+  "打开加密文档": [
+    "src/encrypted-open.mjs"
+  ],
+  "请输入打开此 PDF 所需的密码。": [
+    "src/encrypted-open.mjs"
+  ],
+  "密码仅用于本次打开。原文件保持不变，首次保存将另存为无密码副本。": [
+    "src/encrypted-open.mjs"
+  ],
+  "打开文档": [
+    "src/encrypted-open.mjs"
+  ],
+  "此文字需要复杂字形排版，使用精排模式": [
+    "src/fast-layout.mjs"
+  ],
+  "原文含固定列间距；本次修改无法保留各列位置，请缩短修改或明确选择段落重排": [
+    "src/fast-layout.mjs"
+  ],
+  "原始字位": [
+    "src/fast-layout.mjs",
+    "src/flow-ui.mjs"
+  ],
+  "局部行重排": [
+    "src/fast-layout.mjs"
+  ],
+  "快速排版": [
+    "src/fast-layout.mjs"
+  ],
+  "字体缺少字符：": [
+    "src/fast-layout.mjs"
+  ],
+  "；请选择覆盖此字符的字体": [
+    "src/fast-layout.mjs"
+  ],
+  "不同阅读方向的文字需要分别编辑": [
+    "src/flow-model.mjs",
+    "src/flow-structure.mjs"
+  ],
+  "Folio 文本流": [
+    "src/flow-model.mjs"
+  ],
+  "表格网格不确定，按原始行编辑": [
+    "src/flow-page-model.mjs"
+  ],
+  "这段文字已有对象修改，请先撤销该对象修改": [
+    "src/flow-page-model.mjs"
+  ],
+  "文字与已编辑段落发生遮挡": [
+    "src/flow-page-model.mjs"
+  ],
+  "文字与邻近正文发生遮挡，可接续段落或调整字号": [
+    "src/flow-page-model.mjs"
+  ],
+  "文字进入图片或复合对象区域": [
+    "src/flow-page-model.mjs"
+  ],
+  "文字跨过表格边框或分隔线": [
+    "src/flow-page-model.mjs"
+  ],
+  "单元格沿列宽换行，增加整行高度": [
+    "src/flow-page-model.mjs"
+  ],
+  "保留既有多栏宽度": [
+    "src/flow-page-model.mjs"
+  ],
+  "保留原有居中或右对齐锚点，可手动选择扩展": [
+    "src/flow-page-model.mjs"
+  ],
+  "本地版式识别为标题，右侧留白充足": [
+    "src/flow-page-model.mjs"
+  ],
+  "单行短文本，右侧留白充足": [
+    "src/flow-page-model.mjs"
+  ],
+  "保留当前段落宽度与阅读栏": [
+    "src/flow-page-model.mjs"
+  ],
+  "表格单元格请使用表格结构工具": [
+    "src/flow-structure.mjs"
+  ],
+  "当前方向暂不支持跨框串接，请分别编辑": [
+    "src/flow-structure.mjs"
+  ],
+  "这两个范围包含相同原文": [
+    "src/flow-structure.mjs"
+  ],
+  "请将光标放在文字中间的拆分位置": [
+    "src/flow-structure.mjs"
+  ],
+  "请使用表格单元格拆分": [
+    "src/flow-structure.mjs"
+  ],
+  "当前方向请保留原框编辑，暂不支持拆框": [
+    "src/flow-structure.mjs"
+  ],
+  "不能在一个字符内部拆分": [
+    "src/flow-structure.mjs"
+  ],
+  "对象样式映射不完整": [
+    "src/flow-style.mjs"
+  ],
+  "原文对象顺序与文字不一致，请检查字体": [
+    "src/flow-style.mjs"
+  ],
+  "内置替代字体": [
+    "src/flow-style.mjs",
+    "src/flow-ui.mjs"
+  ],
+  "页面编辑需要完整桌面运行包": [
+    "src/flow-ui.mjs"
+  ],
+  "此页坐标原点或单位暂不支持页面编辑，原文已保留": [
+    "src/flow-ui.mjs"
+  ],
+  "正在识别当前页的文字与版面…": [
+    "src/flow-ui.mjs"
+  ],
+  "页面已切换，请在当前页重新进入编辑": [
+    "src/flow-ui.mjs"
+  ],
+  "此页裁剪框与原页尺寸不同，暂不支持原位编辑": [
+    "src/flow-ui.mjs"
+  ],
+  "未能打开页面编辑：": [
+    "src/flow-ui.mjs"
+  ],
+  "页面编辑": [
+    "src/flow-ui.mjs",
+    "src/index.html"
+  ],
+  "原文样式": [
+    "src/flow-ui.mjs"
+  ],
+  "字号": [
+    "src/flow-ui.mjs",
+    "flow-validation.cjs"
+  ],
+  "左对齐": [
+    "src/flow-ui.mjs"
+  ],
+  "两端对齐": [
+    "src/flow-ui.mjs"
+  ],
+  "居中": [
+    "src/flow-ui.mjs"
+  ],
+  "右对齐": [
+    "src/flow-ui.mjs"
+  ],
+  "格式": [
+    "src/flow-ui.mjs"
+  ],
+  "取消本段": [
+    "src/flow-ui.mjs"
+  ],
+  "完成编辑": [
+    "src/flow-ui.mjs"
+  ],
+  "文字与布局": [
+    "src/flow-ui.mjs"
+  ],
+  "排版方式": [
+    "src/flow-ui.mjs"
+  ],
+  "优先保留原字位": [
+    "src/flow-ui.mjs"
+  ],
+  "重新排版整段": [
+    "src/flow-ui.mjs"
+  ],
+  "字距（pt）": [
+    "src/flow-ui.mjs"
+  ],
+  "行距（倍）": [
+    "src/flow-ui.mjs"
+  ],
+  "分栏": [
+    "src/flow-ui.mjs"
+  ],
+  "单栏": [
+    "src/flow-ui.mjs"
+  ],
+  "双栏续排": [
+    "src/flow-ui.mjs"
+  ],
+  "三栏续排": [
+    "src/flow-ui.mjs"
+  ],
+  "首行缩进（pt）": [
+    "src/flow-ui.mjs"
+  ],
+  "段前距（pt）": [
+    "src/flow-ui.mjs"
+  ],
+  "段后距（pt）": [
+    "src/flow-ui.mjs"
+  ],
+  "扩展方向": [
+    "src/flow-ui.mjs"
+  ],
+  "自动预选": [
+    "src/flow-ui.mjs"
+  ],
+  "向下": [
+    "src/flow-ui.mjs"
+  ],
+  "向右": [
+    "src/flow-ui.mjs"
+  ],
+  "固定文本框": [
+    "src/flow-ui.mjs"
+  ],
+  "位置与尺寸": [
+    "src/flow-ui.mjs"
+  ],
+  "宽度（pt）": [
+    "src/flow-ui.mjs"
+  ],
+  "高度（pt）": [
+    "src/flow-ui.mjs"
+  ],
+  "重新评估方向": [
+    "src/flow-ui.mjs"
+  ],
+  "表格单元格": [
+    "src/flow-ui.mjs"
+  ],
+  "接续段落": [
+    "src/flow-ui.mjs"
+  ],
+  "添加文字": [
+    "src/flow-ui.mjs"
+  ],
+  "本段原文对照": [
+    "src/flow-ui.mjs",
+    "src/index.html"
+  ],
+  "全页输出对照": [
+    "src/flow-ui.mjs",
+    "src/page-diff.mjs",
+    "src/index.html"
+  ],
+  "格式刷范围": [
+    "src/flow-ui.mjs"
+  ],
+  "字符与段落": [
+    "src/flow-ui.mjs"
+  ],
+  "仅字符": [
+    "src/flow-ui.mjs"
+  ],
+  "仅段落": [
+    "src/flow-ui.mjs"
+  ],
+  "吸取样式": [
+    "src/flow-ui.mjs"
+  ],
+  "应用样式": [
+    "src/flow-ui.mjs"
+  ],
+  "查看遮挡": [
+    "src/flow-ui.mjs"
+  ],
+  "设为新增默认": [
+    "src/flow-ui.mjs"
+  ],
+  "新增样式": [
+    "src/flow-ui.mjs"
+  ],
+  "沿用附近文字": [
+    "src/flow-ui.mjs"
+  ],
+  "使用默认样式": [
+    "src/flow-ui.mjs"
+  ],
+  "叠放与选择": [
+    "src/flow-ui.mjs"
+  ],
+  "相对原页面": [
+    "src/flow-ui.mjs"
+  ],
+  "位于原页面上方": [
+    "src/flow-ui.mjs"
+  ],
+  "位于原页面下方": [
+    "src/flow-ui.mjs"
+  ],
+  "上移一层": [
+    "src/flow-ui.mjs"
+  ],
+  "下移一层": [
+    "src/flow-ui.mjs"
+  ],
+  "置于顶层": [
+    "src/flow-ui.mjs"
+  ],
+  "置于底层": [
+    "src/flow-ui.mjs"
+  ],
+  "选择重叠段落…": [
+    "src/flow-ui.mjs"
+  ],
+  "修改范围：当前段落。接续后仅影响所选段落。": [
+    "src/flow-ui.mjs"
+  ],
+  "选择字体": [
+    "src/flow-ui.mjs"
+  ],
+  "按原文字形推荐": [
+    "src/flow-ui.mjs"
+  ],
+  "缺字自动优先匹配原字体轮廓与字宽。": [
+    "src/flow-ui.mjs"
+  ],
+  "应用于": [
+    "src/flow-ui.mjs"
+  ],
+  "全部文字": [
+    "src/flow-ui.mjs"
+  ],
+  "英文字母与数字": [
+    "src/flow-ui.mjs"
+  ],
+  "中文等非拉丁文字": [
+    "src/flow-ui.mjs"
+  ],
+  "有选区时应用于选区；没有选区时用于后续输入。换行效果直接显示在原页。": [
+    "src/flow-ui.mjs"
+  ],
+  "保留重叠": [
+    "src/flow-ui.mjs"
+  ],
+  "显示溢出并保留": [
+    "src/flow-ui.mjs"
+  ],
+  "本次仅标记": [
+    "src/flow-ui.mjs"
+  ],
+  "字体替代详情": [
+    "src/flow-ui.mjs"
+  ],
+  "文字颜色": [
+    "src/flow-ui.mjs",
+    "src/object-selection-ui.mjs"
+  ],
+  "对齐": [
+    "src/flow-ui.mjs"
+  ],
+  "关闭格式面板": [
+    "src/flow-ui.mjs"
+  ],
+  "选择重叠段落": [
+    "src/flow-ui.mjs"
+  ],
+  "关闭字体选择": [
+    "src/flow-ui.mjs"
+  ],
+  "搜索字体名称…": [
+    "src/flow-ui.mjs"
+  ],
+  "搜索字体": [
+    "src/flow-ui.mjs"
+  ],
+  "当前字符的字体解析来源": [
+    "src/flow-ui.mjs"
+  ],
+  "页外内容 · 查看": [
+    "src/flow-ui.mjs"
+  ],
+  "文本框溢出 · 可继续": [
+    "src/flow-ui.mjs"
+  ],
+  "{0} 处遮挡 · 可继续": [
+    "src/flow-ui.mjs"
+  ],
+  "结构提示 · 查看": [
+    "src/flow-ui.mjs"
+  ],
+  "定位输入末尾": [
+    "src/flow-ui.mjs"
+  ],
+  "横排 · 左→右": [
+    "src/flow-ui.mjs"
+  ],
+  "后台精排中": [
+    "src/flow-ui.mjs"
+  ],
+  "保留快速排版": [
+    "src/flow-ui.mjs"
+  ],
+  "应用精排": [
+    "src/flow-ui.mjs"
+  ],
+  "书写方向": [
+    "src/flow-ui.mjs"
+  ],
+  "横排 · 向下换行": [
+    "src/flow-ui.mjs"
+  ],
+  "竖排 · 向左换列": [
+    "src/flow-ui.mjs"
+  ],
+  "竖排 · 向右换列": [
+    "src/flow-ui.mjs"
+  ],
+  "当前页面段落文字": [
+    "src/flow-ui.mjs"
+  ],
+  "拖动调整段落宽度与高度": [
+    "src/flow-ui.mjs"
+  ],
+  "拖动移动文本框 · Shift 水平/垂直约束 · 方向键 1 pt / Shift 10 pt": [
+    "src/flow-ui.mjs"
+  ],
+  "移动文本框": [
+    "src/flow-ui.mjs"
+  ],
+  "结构与文本链": [
+    "src/flow-ui.mjs"
+  ],
+  "区域类型": [
+    "src/flow-ui.mjs"
+  ],
+  "正文": [
+    "src/flow-ui.mjs"
+  ],
+  "图注": [
+    "src/flow-ui.mjs"
+  ],
+  "所属栏": [
+    "src/flow-ui.mjs"
+  ],
+  "阅读顺序": [
+    "src/flow-ui.mjs"
+  ],
+  "锁定人工结构": [
+    "src/flow-ui.mjs"
+  ],
+  "合并段落": [
+    "src/flow-ui.mjs"
+  ],
+  "在光标处拆分": [
+    "src/flow-ui.mjs"
+  ],
+  "保存结构纠正": [
+    "src/flow-ui.mjs"
+  ],
+  "恢复自动结构": [
+    "src/flow-ui.mjs"
+  ],
+  "拆分会先显示两个结果；确认后整批提交，可撤销。结构随工程与恢复草稿保存。": [
+    "src/flow-ui.mjs"
+  ],
+  "框 {0} · {1}, {2} · {3} × {4}": [
+    "src/flow-ui.mjs"
+  ],
+  "上移": [
+    "src/flow-ui.mjs",
+    "src/shortcuts.mjs"
+  ],
+  "下移": [
+    "src/flow-ui.mjs",
+    "src/shortcuts.mjs"
+  ],
+  "在此断开": [
+    "src/flow-ui.mjs"
+  ],
+  "此框没有文字，请先调整文本链": [
+    "src/flow-ui.mjs"
+  ],
+  "拆分后的文本框容不下全部文字，请先扩大范围或换一个拆分位置": [
+    "src/flow-ui.mjs"
+  ],
+  "确认拆分为两个独立段落": [
+    "src/flow-ui.mjs"
+  ],
+  "确认拆分": [
+    "src/flow-ui.mjs"
+  ],
+  "先选择第一段": [
+    "src/flow-ui.mjs"
+  ],
+  "点击要合并的另一段：保留字符样式，合并为一个范围": [
+    "src/flow-ui.mjs"
+  ],
+  "栏与顺序须为正整数": [
+    "src/flow-ui.mjs"
+  ],
+  "结构纠正已保存；重新识别时保留锁定范围": [
+    "src/flow-ui.mjs"
+  ],
+  "已恢复自动结构；退出本段后重新选择": [
+    "src/flow-ui.mjs"
+  ],
+  "表格行高调整后仍有文字溢出，请调整布局": [
+    "src/flow-ui.mjs"
+  ],
+  "表格 · 第 {0} 行，第 {1} 列 · {2}": [
+    "src/flow-ui.mjs"
+  ],
+  "空单元格": [
+    "src/flow-ui.mjs"
+  ],
+  "竖排 ·": [
+    "src/flow-ui.mjs"
+  ],
+  "向右换列": [
+    "src/flow-ui.mjs"
+  ],
+  "向左换列": [
+    "src/flow-ui.mjs"
+  ],
+  "横排 · {0}{1}": [
+    "src/flow-ui.mjs"
+  ],
+  "右→左": [
+    "src/flow-ui.mjs"
+  ],
+  "左→右": [
+    "src/flow-ui.mjs"
+  ],
+  "· 旋转": [
+    "src/flow-ui.mjs"
+  ],
+  "已匹配原文嵌入字体：": [
+    "src/flow-ui.mjs"
+  ],
+  "原字体不可复用，替代为内置字体：": [
+    "src/flow-ui.mjs"
+  ],
+  "表格编辑": [
+    "src/flow-ui.mjs"
+  ],
+  "手动：保持栏宽，向下增加高度": [
+    "src/flow-ui.mjs"
+  ],
+  "手动：保持左侧位置，向右增加宽度": [
+    "src/flow-ui.mjs"
+  ],
+  "手动：保留框尺寸，溢出由你决定": [
+    "src/flow-ui.mjs"
+  ],
+  "自动预选 → {0} · {1}": [
+    "src/flow-ui.mjs"
+  ],
+  "拖动增加行高，同一行及后续行同步调整": [
+    "src/flow-ui.mjs"
+  ],
+  "已选择段落，正在准备编辑…": [
+    "src/flow-ui.mjs"
+  ],
+  "单元格独立编辑，Tab 可切换下一格": [
+    "src/flow-ui.mjs"
+  ],
+  "此阅读方向或倾斜角度尚不支持可靠编辑，原文已保留": [
+    "src/flow-ui.mjs"
+  ],
+  "快速字体不可用": [
+    "src/flow-ui.mjs"
+  ],
+  "原文字位已保留；快速字体不可用：": [
+    "src/flow-ui.mjs"
+  ],
+  "原始字位完成 · {0} 字符": [
+    "src/flow-ui.mjs"
+  ],
+  "准备原页编辑…": [
+    "src/flow-ui.mjs"
+  ],
+  "载入所选字体…": [
+    "src/flow-ui.mjs"
+  ],
+  "快速字体不可用，正在尝试原生排版…": [
+    "src/flow-ui.mjs"
+  ],
+  "正在精排…": [
+    "src/flow-ui.mjs"
+  ],
+  "{0} 字替代 · 查看": [
+    "src/flow-ui.mjs"
+  ],
+  "{0}完成 · {1} 字符 · {2} ms{3}": [
+    "src/flow-ui.mjs"
+  ],
+  "· 内容溢出": [
+    "src/flow-ui.mjs"
+  ],
+  "同一源对象已有另一项修改，请先完成或撤销该修改": [
+    "src/flow-ui.mjs"
+  ],
+  "保留当前方向": [
+    "src/flow-ui.mjs"
+  ],
+  "等待后台精排": [
+    "src/flow-ui.mjs"
+  ],
+  "精排未通过，可继续快速编辑": [
+    "src/flow-ui.mjs"
+  ],
+  "预览精排": [
+    "src/flow-ui.mjs"
+  ],
+  "精排暂不可用": [
+    "src/flow-ui.mjs"
+  ],
+  "精排预览 · 选择保留快速排版或应用精排后继续编辑": [
+    "src/flow-ui.mjs"
+  ],
+  "部分文字在页面可见范围外，保存保留文本并按页面裁切": [
+    "src/flow-ui.mjs"
+  ],
+  "表格后续行超出可见页面，可调整或保留裁切": [
+    "src/flow-ui.mjs"
+  ],
+  "表格增高可能覆盖下方内容，可调整或保留": [
+    "src/flow-ui.mjs"
+  ],
+  "草稿已保留，请选择如何显示完整内容": [
+    "src/flow-ui.mjs"
+  ],
+  "此段包含暂不能可靠定位的复杂字形，草稿已保留": [
+    "src/flow-ui.mjs"
+  ],
+  "{0} · {1} 字符 · {2} · {3}{4}完成{5}{6}": [
+    "src/flow-ui.mjs"
+  ],
+  "表格 · 第 {0} 行，第 {1} 列 · Tab 下一格": [
+    "src/flow-ui.mjs"
+  ],
+  "第 {0} 页": [
+    "src/flow-ui.mjs",
+    "src/large-workspace.mjs"
+  ],
+  "固定框": [
+    "src/flow-ui.mjs"
+  ],
+  "已自动扩容 ·": [
+    "src/flow-ui.mjs"
+  ],
+  "段落重排": [
+    "src/flow-ui.mjs"
+  ],
+  "· 可保留重叠": [
+    "src/flow-ui.mjs"
+  ],
+  "· 此字体字距按默认度量": [
+    "src/flow-ui.mjs"
+  ],
+  "嵌入字体": [
+    "src/flow-ui.mjs"
+  ],
+  "标准字体": [
+    "src/flow-ui.mjs"
+  ],
+  "本机同名字体": [
+    "src/flow-ui.mjs"
+  ],
+  "度量近似字体": [
+    "src/flow-ui.mjs"
+  ],
+  "原字体未解析": [
+    "src/flow-ui.mjs"
+  ],
+  "所选字体": [
+    "src/flow-ui.mjs"
+  ],
+  "混合字体": [
+    "src/flow-ui.mjs"
+  ],
+  "正在恢复布局…": [
+    "src/flow-ui.mjs"
+  ],
+  "已到表格边缘": [
+    "src/flow-ui.mjs"
+  ],
+  "未找到单元格所属表格，草稿已保留": [
+    "src/flow-ui.mjs"
+  ],
+  "此表格按原边界编辑；可显示溢出，暂不自动移动边框": [
+    "src/flow-ui.mjs"
+  ],
+  "空文本框": [
+    "src/flow-ui.mjs"
+  ],
+  "已保留重叠效果，可完成编辑或保存": [
+    "src/flow-ui.mjs"
+  ],
+  "返回编辑效果": [
+    "src/flow-ui.mjs"
+  ],
+  "原文对照": [
+    "src/flow-ui.mjs"
+  ],
+  "已保存新增文字的默认样式": [
+    "src/flow-ui.mjs"
+  ],
+  "样式已吸取，选择目标文字后应用": [
+    "src/flow-ui.mjs"
+  ],
+  "文档字体": [
+    "src/flow-ui.mjs"
+  ],
+  "字形推荐 ·": [
+    "src/flow-ui.mjs"
+  ],
+  "字证据": [
+    "src/flow-ui.mjs"
+  ],
+  "最近使用": [
+    "src/flow-ui.mjs"
+  ],
+  "· 名称预览使用系统字体": [
+    "src/flow-ui.mjs"
+  ],
+  "· 可编辑（字符覆盖按原字体）": [
+    "src/flow-ui.mjs"
+  ],
+  "· 本机字体": [
+    "src/flow-ui.mjs"
+  ],
+  "· 原字体不可复用": [
+    "src/flow-ui.mjs"
+  ],
+  "正在读取本机字体…": [
+    "src/flow-ui.mjs"
+  ],
+  "选择字体，可在原页预览排版": [
+    "src/flow-ui.mjs"
+  ],
+  "此段原字体不可提取，暂无法比较字形": [
+    "src/flow-ui.mjs"
+  ],
+  "正在比较实际轮廓和字宽…": [
+    "src/flow-ui.mjs"
+  ],
+  "文字已更新，旧推荐已忽略；可重新推荐。": [
+    "src/flow-ui.mjs"
+  ],
+  "按轮廓与字宽排序；样本一致不代表整套字体已被证明相同。": [
+    "src/flow-ui.mjs"
+  ],
+  "本机没有覆盖全文且具有足够字形证据的候选。": [
+    "src/flow-ui.mjs"
+  ],
+  "关闭替代详情": [
+    "src/flow-ui.mjs"
+  ],
+  "· {0}（{1}置信）": [
+    "src/flow-ui.mjs"
+  ],
+  "先点击需要接续的第一段": [
+    "src/flow-ui.mjs"
+  ],
+  "点击下一个文本框：保留各框边界，按连接顺序续排": [
+    "src/flow-ui.mjs"
+  ],
+  "点击页面空白处添加文字": [
+    "src/flow-ui.mjs"
+  ],
+  "已识别 {0} 个表格，点击单元格直接编辑；Tab / Shift+Tab 切换": [
+    "src/flow-ui.mjs"
+  ],
+  "当前页未检测到可编辑的有线表格": [
+    "src/flow-ui.mjs"
+  ],
+  "已取消本段，原 PDF 未改变。点击段落继续编辑。": [
+    "src/flow-ui.mjs"
+  ],
+  "正在准备页面，请稍候": [
+    "src/flow-ui.mjs"
+  ],
+  "请先完成当前输入法组词": [
+    "src/flow-ui.mjs"
+  ],
+  "请先选择保留快速排版或应用精排": [
+    "src/flow-ui.mjs"
+  ],
+  "连接文本框": [
+    "src/flow-ui.mjs"
+  ],
+  "第 {0} 页 · 点击原页文字开始编辑 · 版式分析在后台进行": [
+    "src/flow-ui.mjs"
+  ],
+  "第 {0} 页 · {1}": [
+    "src/flow-ui.mjs"
+  ],
+  "没有可直接替换的文字，可在格式面板添加文字": [
+    "src/flow-ui.mjs"
+  ],
+  "版式分析暂不可用，当前使用几何布局": [
+    "src/flow-ui.mjs"
+  ],
+  "第 {0} 页 · 已识别版面，可点击文字开始编辑": [
+    "src/flow-ui.mjs"
+  ],
+  "Noto 宋体（简体中文）": [
+    "src/font-label.mjs"
+  ],
+  "Noto 黑体（简体中文）": [
+    "src/font-label.mjs"
+  ],
+  "宋体": [
+    "src/font-label.mjs"
+  ],
+  "新宋体": [
+    "src/font-label.mjs"
+  ],
+  "黑体": [
+    "src/font-label.mjs"
+  ],
+  "楷体": [
+    "src/font-label.mjs"
+  ],
+  "仿宋": [
+    "src/font-label.mjs"
+  ],
+  "微软雅黑": [
+    "src/font-label.mjs"
+  ],
+  "等线": [
+    "src/font-label.mjs"
+  ],
+  "粗斜体": [
+    "src/font-label.mjs"
+  ],
+  "细体": [
+    "src/font-label.mjs"
+  ],
+  "常规": [
+    "src/font-label.mjs"
+  ],
+  "页码格式：1-5,8,12-20": [
+    "src/generation.mjs"
+  ],
+  "页码超出范围": [
+    "src/generation.mjs",
+    "src/page-diff.mjs"
+  ],
+  "第 1 层": [
+    "src/generation.mjs"
+  ],
+  "门类": [
+    "src/generation.mjs"
+  ],
+  "大类": [
+    "src/generation.mjs"
+  ],
+  "中类": [
+    "src/generation.mjs"
+  ],
+  "小类": [
+    "src/generation.mjs"
+  ],
+  "请至少添加一个层级（资源上限 10,000 条规则）": [
+    "src/generation.mjs"
+  ],
+  "层级必须为正整数（上限 10,000）": [
+    "src/generation.mjs"
+  ],
+  "留白超出范围": [
+    "src/generation.mjs"
+  ],
+  "页眉 / 页脚排除": [
+    "src/generation.mjs"
+  ],
+  "未命中规则": [
+    "src/generation.mjs"
+  ],
+  "多规则冲突：": [
+    "src/generation.mjs"
+  ],
+  "缺少第 {0} 级父项（已跳过）": [
+    "src/generation.mjs"
+  ],
+  "标题缺少第 {0} 组": [
+    "src/generation.mjs"
+  ],
+  "{2}滑块": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "红": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "绿": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "蓝": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "图像调整": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "预设": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "自定义 / 原图": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "扫描件 · 保留颜色": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "扫描件 · 灰度清晰": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "显示调整前对照": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "调整项目": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "选择调整工具…": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "图像调整预览": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "曲线": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "平滑曲线": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "线性": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "自动": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "点曲线": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "铅笔绘制": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "平滑": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "细网格": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "图上调整": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "输入": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "输出": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "删除控制点": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "重置此通道": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "曲线通道": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "曲线插值": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "曲线模式": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "RGB 曲线，点击添加或拖动控制点": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "色阶": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "自动色阶": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "色阶通道": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "输入直方图": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "输入黑场": [
+    "src/image-adjustments-ui.mjs",
+    "src/levels-handles.mjs"
+  ],
+  "输入中间调": [
+    "src/image-adjustments-ui.mjs",
+    "src/levels-handles.mjs"
+  ],
+  "输入白场": [
+    "src/image-adjustments-ui.mjs",
+    "src/levels-handles.mjs"
+  ],
+  "输出黑场": [
+    "src/image-adjustments-ui.mjs",
+    "src/levels-handles.mjs"
+  ],
+  "输出白场": [
+    "src/image-adjustments-ui.mjs",
+    "src/levels-handles.mjs"
+  ],
+  "色彩平衡": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "阴影": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "中间调": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "高光": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "青 ↔ 红": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "洋红 ↔ 绿": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "黄 ↔ 蓝": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "黑白": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "启用黑白": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "黄": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "青": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "洋红": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "通道混合器": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "输出红": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "输出绿": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "输出蓝": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "单色（使用输出红通道）": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "红（%）": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "绿（%）": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "蓝（%）": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "常数（%）": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "颜色查找": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "无": [
+    "src/image-adjustments-ui.mjs",
+    "src/image-crop-ui.mjs"
+  ],
+  "暖色": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "冷色": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "电影色调": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "自定义 3D LUT": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "导入 .cube": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "强度（%）": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "可选颜色": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "绝对（默认相对）": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "白": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "中性色": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "黑": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "反相": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "启用反相": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "渐变映射": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "启用渐变映射": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "添加色标": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "恢复原图参数": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "载入预设": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "源像素计算，应用后可撤销。RGB 调整会转换为 8 位 RGB；算法为 Folio 实现。扫描增强请检查小数点、负号与细表线。": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "输入：": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "正在计算图像预览…": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "{0} × {1} 像素 · 预览已更新{2}": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "（快速预览，应用保留原分辨率）": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "等待更新预览…": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "色标 {0} 位置": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "色标 {0} 颜色": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "黑场取样": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "灰场取样": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "白场取样": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "请在页面图片上点击取样": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "滤镜颜色": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "保留明度": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "启用阈值": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "粗网格": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "在页面图片上点击取样，然后上下拖动调整明暗": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "LUT 文件限 4 MB": [
+    "src/image-adjustments-ui.mjs",
+    "src/image-color-model.mjs"
+  ],
+  "预设文件过大": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "曲线输入白场": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "曲线输入黑场": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "Alt 拖动黑场／白场查看剪切；Esc 撤回本次拖动。": [
+    "src/image-adjustments-ui.mjs"
+  ],
+  "3D LUT 边长限 2–33": [
+    "src/image-color-model.mjs"
+  ],
+  "LUT 仅支持 0–1 输入域": [
+    "src/image-color-model.mjs"
+  ],
+  "不支持的 .cube 内容": [
+    "src/image-color-model.mjs"
+  ],
+  "LUT 数据量不完整": [
+    "src/image-color-model.mjs"
+  ],
+  "亮度 / 对比度": [
+    "src/image-color-model.mjs"
+  ],
+  "亮度": [
+    "src/image-color-model.mjs"
+  ],
+  "对比度": [
+    "src/image-color-model.mjs"
+  ],
+  "颜色 / 自然饱和度": [
+    "src/image-color-model.mjs"
+  ],
+  "色温": [
+    "src/image-color-model.mjs"
+  ],
+  "色调": [
+    "src/image-color-model.mjs"
+  ],
+  "自然饱和度": [
+    "src/image-color-model.mjs"
+  ],
+  "清晰度 / 去除薄雾": [
+    "src/image-color-model.mjs"
+  ],
+  "清晰度": [
+    "src/image-color-model.mjs"
+  ],
+  "去除薄雾": [
+    "src/image-color-model.mjs"
+  ],
+  "高斯模糊（像素）": [
+    "src/image-color-model.mjs"
+  ],
+  "锐化（%）": [
+    "src/image-color-model.mjs"
+  ],
+  "颗粒": [
+    "src/image-color-model.mjs"
+  ],
+  "颗粒强度": [
+    "src/image-color-model.mjs"
+  ],
+  "曝光度": [
+    "src/image-color-model.mjs"
+  ],
+  "曝光（EV）": [
+    "src/image-color-model.mjs"
+  ],
+  "位移": [
+    "src/image-color-model.mjs"
+  ],
+  "曝光灰度系数": [
+    "src/image-color-model.mjs"
+  ],
+  "色相 / 饱和度": [
+    "src/image-color-model.mjs"
+  ],
+  "色相": [
+    "src/image-color-model.mjs"
+  ],
+  "饱和度": [
+    "src/image-color-model.mjs"
+  ],
+  "明度": [
+    "src/image-color-model.mjs"
+  ],
+  "照片滤镜": [
+    "src/image-color-model.mjs"
+  ],
+  "浓度（%）": [
+    "src/image-color-model.mjs"
+  ],
+  "色调分离": [
+    "src/image-color-model.mjs"
+  ],
+  "色阶数": [
+    "src/image-color-model.mjs"
+  ],
+  "阈值": [
+    "src/image-color-model.mjs"
+  ],
+  "在页面裁剪": [
+    "src/image-crop-ui.mjs"
+  ],
+  "拉直": [
+    "src/image-crop-ui.mjs"
+  ],
+  "透视裁剪": [
+    "src/image-crop-ui.mjs"
+  ],
+  "比例": [
+    "src/image-crop-ui.mjs"
+  ],
+  "自由比例": [
+    "src/image-crop-ui.mjs"
+  ],
+  "原始比例": [
+    "src/image-crop-ui.mjs"
+  ],
+  "自定义比例": [
+    "src/image-crop-ui.mjs"
+  ],
+  "宽": [
+    "src/image-crop-ui.mjs"
+  ],
+  "高": [
+    "src/image-crop-ui.mjs"
+  ],
+  "交换宽高": [
+    "src/image-crop-ui.mjs"
+  ],
+  "旋转 90°": [
+    "src/image-crop-ui.mjs"
+  ],
+  "辅助线": [
+    "src/image-crop-ui.mjs"
+  ],
+  "三等分": [
+    "src/image-crop-ui.mjs"
+  ],
+  "网格": [
+    "src/image-crop-ui.mjs"
+  ],
+  "黄金比例": [
+    "src/image-crop-ui.mjs"
+  ],
+  "确认裁剪 ↵": [
+    "src/image-crop-ui.mjs"
+  ],
+  "取消 Esc": [
+    "src/image-crop-ui.mjs"
+  ],
+  "拖动角点或边缘裁剪，框内移动，框外圆点旋转。Enter 确认，Esc 取消。保留源像素，可恢复裁剪；不改变 PDF 页大小。": [
+    "src/image-crop-ui.mjs"
+  ],
+  "页面图像裁剪框": [
+    "src/image-crop-ui.mjs"
+  ],
+  "沿图片中的水平线拖动，松开后自动拉直": [
+    "src/image-crop-ui.mjs"
+  ],
+  "拖动四个角点包围平面内容，再按 Enter 校正透视": [
+    "src/image-crop-ui.mjs"
+  ],
+  "透视裁剪四边形不能交叉或过窄": [
+    "src/image-crop-ui.mjs"
+  ],
+  "透视裁剪不可逆": [
+    "src/image-crop-ui.mjs"
+  ],
+  "正在读取当前页图片…": [
+    "src/image-page-ui.mjs"
+  ],
+  "当前页未发现可选择的图片对象": [
+    "src/image-page-ui.mjs"
+  ],
+  "编辑图像": [
+    "src/image-page-ui.mjs",
+    "src/index.html"
+  ],
+  "点击页面中的图片，调整结果直接显示在原位置。": [
+    "src/image-page-ui.mjs"
+  ],
+  "应用调整": [
+    "src/image-page-ui.mjs"
+  ],
+  "取消本次调整": [
+    "src/image-page-ui.mjs"
+  ],
+  "请选择页面中的图片": [
+    "src/image-page-ui.mjs"
+  ],
+  "第 {0} 页 · {1}图片 #{2}{3}": [
+    "src/image-page-ui.mjs"
+  ],
+  "批量调整": [
+    "src/image-page-ui.mjs"
+  ],
+  "张图片 · 参考": [
+    "src/image-page-ui.mjs"
+  ],
+  "裁剪 / 替换图片": [
+    "src/image-page-ui.mjs"
+  ],
+  "左": [
+    "src/image-page-ui.mjs",
+    "src/native-ui.mjs"
+  ],
+  "上": [
+    "src/image-page-ui.mjs",
+    "src/native-ui.mjs"
+  ],
+  "右": [
+    "src/image-page-ui.mjs",
+    "src/native-ui.mjs"
+  ],
+  "下": [
+    "src/image-page-ui.mjs",
+    "src/native-ui.mjs"
+  ],
+  "恢复裁剪": [
+    "src/image-page-ui.mjs"
+  ],
+  "替换图片": [
+    "src/image-page-ui.mjs",
+    "src/native-ui.mjs"
+  ],
+  "适配": [
+    "src/image-page-ui.mjs",
+    "src/native-ui.mjs"
+  ],
+  "完整显示": [
+    "src/image-page-ui.mjs"
+  ],
+  "铺满裁边": [
+    "src/image-page-ui.mjs"
+  ],
+  "拉伸": [
+    "src/image-page-ui.mjs",
+    "src/native-ui.mjs"
+  ],
+  "点击当前图片取样：": [
+    "src/image-page-ui.mjs"
+  ],
+  "黑场": [
+    "src/image-page-ui.mjs"
+  ],
+  "灰场": [
+    "src/image-page-ui.mjs"
+  ],
+  "白场": [
+    "src/image-page-ui.mjs"
+  ],
+  "曲线，按住并上下拖动": [
+    "src/image-page-ui.mjs"
+  ],
+  "替换图片限 32 MB": [
+    "src/image-page-ui.mjs",
+    "src/native-ui.mjs"
+  ],
+  "图片变换不可逆": [
+    "src/image-page-ui.mjs"
+  ],
+  "请点击图片有效像素区域": [
+    "src/image-page-ui.mjs"
+  ],
+  "请在不透明区域取样": [
+    "src/image-page-ui.mjs"
+  ],
+  "图片 #{0}{1}": [
+    "src/image-page-ui.mjs"
+  ],
+  "请先确认有效裁剪区域，或按 Esc 取消裁剪": [
+    "src/image-page-ui.mjs"
+  ],
+  "正在应用 {0} 张图片的调整…": [
+    "src/image-page-ui.mjs"
+  ],
+  "已完成 {0} 张图片 · 可整批撤销": [
+    "src/image-page-ui.mjs"
+  ],
+  "图片调整已应用，可撤销": [
+    "src/image-page-ui.mjs"
+  ],
+  "应用失败：": [
+    "src/image-page-ui.mjs"
+  ],
+  "Folio · 大文件": [
+    "src/large-workspace.mjs"
+  ],
+  "另存书签副本": [
+    "src/large-workspace.mjs"
+  ],
+  "停止任务": [
+    "src/large-workspace.mjs"
+  ],
+  "解锁文档": [
+    "src/large-workspace.mjs"
+  ],
+  "此通道支持阅读和书签整理。原件保留，修改另存副本。OCR、页上编辑与工程续编请使用普通工作区。": [
+    "src/large-workspace.mjs"
+  ],
+  "添加": [
+    "src/large-workspace.mjs"
+  ],
+  "撤销": [
+    "src/large-workspace.mjs",
+    "src/shortcuts.mjs"
+  ],
+  "筛选书签": [
+    "src/large-workspace.mjs",
+    "src/index.html"
+  ],
+  "级别": [
+    "src/large-workspace.mjs"
+  ],
+  "物理页": [
+    "src/large-workspace.mjs"
+  ],
+  "更新所选书签": [
+    "src/large-workspace.mjs"
+  ],
+  "自动书签 · 预览后追加": [
+    "src/large-workspace.mjs"
+  ],
+  "每行一个层级的正则": [
+    "src/large-workspace.mjs"
+  ],
+  "开始页": [
+    "src/large-workspace.mjs"
+  ],
+  "扫描文字": [
+    "src/large-workspace.mjs"
+  ],
+  "追加预览结果": [
+    "src/large-workspace.mjs"
+  ],
+  "扫描图需先有文字层；扫描不会自动执行 OCR。": [
+    "src/large-workspace.mjs"
+  ],
+  "上一页": [
+    "src/large-workspace.mjs",
+    "src/ocr-ui.mjs",
+    "src/shortcuts.mjs",
+    "src/index.html"
+  ],
+  "下一页": [
+    "src/large-workspace.mjs",
+    "src/ocr-ui.mjs",
+    "src/shortcuts.mjs",
+    "src/index.html"
+  ],
+  "书签列表": [
+    "src/large-workspace.mjs"
+  ],
+  "当前页": [
+    "src/large-workspace.mjs",
+    "src/page-picker.mjs"
+  ],
+  "当前 PDF 页面": [
+    "src/large-workspace.mjs"
+  ],
+  "· 书签未保存": [
+    "src/large-workspace.mjs"
+  ],
+  "请先等待当前任务或停止": [
+    "src/large-workspace.mjs"
+  ],
+  "原动作": [
+    "src/large-workspace.mjs"
+  ],
+  "保留原动作": [
+    "src/large-workspace.mjs"
+  ],
+  "读取第 {0} 页…": [
+    "src/large-workspace.mjs"
+  ],
+  "第 {0} / {1} 页 · {2} GiB · {3}": [
+    "src/large-workspace.mjs"
+  ],
+  "书签未保存": [
+    "src/large-workspace.mjs"
+  ],
+  "原件未改变": [
+    "src/large-workspace.mjs"
+  ],
+  "正则执行超时，请简化表达式": [
+    "src/large-workspace.mjs"
+  ],
+  "书签修改尚未保存，关闭大文件工作区？": [
+    "src/large-workspace.mjs"
+  ],
+  "正在读取文档结构…": [
+    "src/large-workspace.mjs"
+  ],
+  "已请求停止，正在清理任务…": [
+    "src/large-workspace.mjs"
+  ],
+  "级别无效": [
+    "src/large-workspace.mjs"
+  ],
+  "页码无效": [
+    "src/large-workspace.mjs"
+  ],
+  "正在复制原件并写入书签，请保留足够磁盘空间…": [
+    "src/large-workspace.mjs"
+  ],
+  "已保存 {0} · {1} 个书签已核对；当前仍阅读原件": [
+    "src/large-workspace.mjs"
+  ],
+  "请输入 1–8 层正则，每层不超过 1000 字符": [
+    "src/large-workspace.mjs"
+  ],
+  "扫描页范围无效": [
+    "src/large-workspace.mjs"
+  ],
+  "扫描已停止，预览未应用": [
+    "src/large-workspace.mjs"
+  ],
+  "扫描第 {0} / {1} 页…": [
+    "src/large-workspace.mjs"
+  ],
+  "命中过多，请缩小范围": [
+    "src/large-workspace.mjs"
+  ],
+  "扫描已停止": [
+    "src/large-workspace.mjs"
+  ],
+  "共 {0} 项": [
+    "src/large-workspace.mjs"
+  ],
+  "扫描完成，请核对预览后追加": [
+    "src/large-workspace.mjs"
+  ],
+  "预览有缺少父级的命中，请调整规则后重新扫描": [
+    "src/large-workspace.mjs"
+  ],
+  "预览包含已有同名同页书签，请缩小范围，避免破坏父子归属": [
+    "src/large-workspace.mjs"
+  ],
+  "保留原件，另存书签副本": [
+    "src/large-workspace.mjs"
+  ],
+  "此文件无法增量写入，当前仅供阅读": [
+    "src/large-workspace.mjs"
+  ],
+  "密码": [
+    "src/large-workspace.mjs"
+  ],
+  "；可关闭工作区，原件未改变": [
+    "src/large-workspace.mjs"
+  ],
+  "输入色阶": [
+    "src/levels-handles.mjs"
+  ],
+  "输出色阶": [
+    "src/levels-handles.mjs"
+  ],
+  "书签数量无效（最多 200,000 条）": [
+    "src/model.mjs"
+  ],
+  "书签 ID 缺失或重复": [
+    "src/model.mjs"
+  ],
+  "标题无效或过长": [
+    "src/model.mjs"
+  ],
+  "书签层级必须为合法的前序树": [
+    "src/model.mjs"
+  ],
+  "书签颜色无效": [
+    "src/model.mjs"
+  ],
+  "跳转目标无效": [
+    "src/model.mjs"
+  ],
+  "原始目标页码无效": [
+    "src/model.mjs"
+  ],
+  "「{0}」的页码超出文档范围": [
+    "src/model.mjs"
+  ],
+  "跳转模式或坐标数量无效": [
+    "src/model.mjs"
+  ],
+  "坐标必须是有限数值或 null": [
+    "src/model.mjs"
+  ],
+  "FitR 需要有效的 left、bottom、right、top 矩形": [
+    "src/model.mjs"
+  ],
+  "缩放比例不能为负数": [
+    "src/model.mjs"
+  ],
+  "不能移动到自身或子书签中": [
+    "src/model.mjs"
+  ],
+  "「{0}」不是本地页目标": [
+    "src/model.mjs"
+  ],
+  "原始目标需要勾选「转换原始本地目标」": [
+    "src/model.mjs"
+  ],
+  "所选目标模式参数不同，请分模式处理": [
+    "src/model.mjs"
+  ],
+  "参数不是有效数字": [
+    "src/model.mjs"
+  ],
+  "null 参数不能相对偏移，请先设绝对值": [
+    "src/model.mjs"
+  ],
+  "页码不能为 null": [
+    "src/model.mjs"
+  ],
+  "未知批处理规则": [
+    "src/model.mjs"
+  ],
+  "不是 Folio 书签 JSON 文件": [
+    "src/model.mjs"
+  ],
+  "此功能需要完整桌面运行包": [
+    "src/native-source.mjs"
+  ],
+  "此功能需要完整 Windows 桌面运行包": [
+    "src/native-ui.mjs"
+  ],
+  "{1} 个字段变化": [
+    "src/native-ui.mjs"
+  ],
+  "字段": [
+    "src/native-ui.mjs"
+  ],
+  "原值": [
+    "src/native-ui.mjs"
+  ],
+  "操作 / 换算": [
+    "src/native-ui.mjs"
+  ],
+  "结果": [
+    "src/native-ui.mjs"
+  ],
+  "完整跳转目标": [
+    "src/native-ui.mjs"
+  ],
+  "调整书签跳转留白": [
+    "src/native-ui.mjs"
+  ],
+  "正值增加标题上方的视觉留白，负值减少留白。按每页旋转方向换算，保持页码和缩放不变。": [
+    "src/native-ui.mjs"
+  ],
+  "范围": [
+    "src/native-ui.mjs"
+  ],
+  "所选及子项": [
+    "src/native-ui.mjs"
+  ],
+  "增加顶部留白": [
+    "src/native-ui.mjs"
+  ],
+  "允许将原始本地动作 / 命名目标转换为直接目标（不修改共享目标）": [
+    "src/native-ui.mjs"
+  ],
+  "null 缺少绝对锚点；整页适合模式没有顶部定位，均列出跳过原因。": [
+    "src/native-ui.mjs"
+  ],
+  "修改前": [
+    "src/native-ui.mjs"
+  ],
+  "修改后": [
+    "src/native-ui.mjs"
+  ],
+  "跳过详情": [
+    "src/native-ui.mjs"
+  ],
+  "导出全部报告": [
+    "src/native-ui.mjs"
+  ],
+  "应用修改": [
+    "src/native-ui.mjs"
+  ],
+  "已修改 {0} 个书签，可整批撤销": [
+    "src/native-ui.mjs"
+  ],
+  "{0} {1} = {2} pt，按视觉方向偏移": [
+    "src/native-ui.mjs"
+  ],
+  "范围 {0} 项 · 修改 {1} 项 · 跳过 {2} 项 · 显示前 100 项": [
+    "src/native-ui.mjs"
+  ],
+  "正在读取当前页内容对象…": [
+    "src/native-ui.mjs"
+  ],
+  "编辑页面内容对象": [
+    "src/native-ui.mjs"
+  ],
+  "直接修改文字、图片和矢量路径。修改文字时使用 Noto Sans SC 衍生字体；复杂裁剪、嵌套与特殊绘制模式只读。坐标为 PDF 原生单位。": [
+    "src/native-ui.mjs"
+  ],
+  "内容对象": [
+    "src/native-ui.mjs"
+  ],
+  "请选择或点击左侧对象": [
+    "src/native-ui.mjs"
+  ],
+  "新增文字": [
+    "src/native-ui.mjs"
+  ],
+  "新增矩形路径": [
+    "src/native-ui.mjs"
+  ],
+  "选择对象后编辑属性。": [
+    "src/native-ui.mjs"
+  ],
+  "· 只读": [
+    "src/native-ui.mjs"
+  ],
+  "应用到文档": [
+    "src/native-ui.mjs"
+  ],
+  "已修改实际 PDF 内容，可撤销": [
+    "src/native-ui.mjs"
+  ],
+  "变换矩阵 [a,b,c,d,e,f]": [
+    "src/native-ui.mjs"
+  ],
+  "填充": [
+    "src/native-ui.mjs"
+  ],
+  "描边": [
+    "src/native-ui.mjs"
+  ],
+  "删除此对象": [
+    "src/native-ui.mjs"
+  ],
+  "文字": [
+    "src/native-ui.mjs"
+  ],
+  "字号（pt）": [
+    "src/native-ui.mjs",
+    "src/object-selection-ui.mjs"
+  ],
+  "使用内置字体，保留未修改内容。复杂文字组保持只读。": [
+    "src/native-ui.mjs"
+  ],
+  "文本框自动换行": [
+    "src/native-ui.mjs"
+  ],
+  "宽度（pt，0 表示不自动换行）": [
+    "src/native-ui.mjs"
+  ],
+  "最大高度（pt）": [
+    "src/native-ui.mjs"
+  ],
+  "行高倍数": [
+    "src/native-ui.mjs"
+  ],
+  "线宽": [
+    "src/native-ui.mjs"
+  ],
+  "填充规则": [
+    "src/native-ui.mjs"
+  ],
+  "不填充": [
+    "src/native-ui.mjs"
+  ],
+  "奇偶规则": [
+    "src/native-ui.mjs"
+  ],
+  "非零规则": [
+    "src/native-ui.mjs"
+  ],
+  "绘制描边": [
+    "src/native-ui.mjs"
+  ],
+  "路径节点 JSON（0=直线，1=贝塞尔，2=移动）": [
+    "src/native-ui.mjs"
+  ],
+  "完整显示 · 留边": [
+    "src/native-ui.mjs"
+  ],
+  "铺满 · 裁边": [
+    "src/native-ui.mjs"
+  ],
+  "可恢复裁切（百分比）": [
+    "src/native-ui.mjs"
+  ],
+  "恢复完整图片": [
+    "src/native-ui.mjs"
+  ],
+  "仅裁切选中实例的显示区域，工程保留原图。替换默认沿用位置尺寸。": [
+    "src/native-ui.mjs"
+  ],
+  "新文字": [
+    "src/native-ui.mjs"
+  ],
+  "OCR 原位预览已开启": [
+    "src/native-ui.mjs"
+  ],
+  "OCR 原位预览已关闭": [
+    "src/native-ui.mjs"
+  ],
+  "选择与批量编辑": [
+    "src/object-selection-ui.mjs"
+  ],
+  "拖动框选；Ctrl 点击切换；Shift 添加；Alt 拖动强制框选。拖动已选对象移动，Shift 锁定轴向。": [
+    "src/object-selection-ui.mjs"
+  ],
+  "框选规则": [
+    "src/object-selection-ui.mjs"
+  ],
+  "完全包含": [
+    "src/object-selection-ui.mjs"
+  ],
+  "相交即选": [
+    "src/object-selection-ui.mjs"
+  ],
+  "全选当前页": [
+    "src/object-selection-ui.mjs"
+  ],
+  "取消选择": [
+    "src/object-selection-ui.mjs"
+  ],
+  "位置": [
+    "src/object-selection-ui.mjs"
+  ],
+  "水平位移（pt）": [
+    "src/object-selection-ui.mjs"
+  ],
+  "垂直位移（pt，向下为正）": [
+    "src/object-selection-ui.mjs"
+  ],
+  "移动所选对象": [
+    "src/object-selection-ui.mjs"
+  ],
+  "文字属性": [
+    "src/object-selection-ui.mjs"
+  ],
+  "仅修改勾选的属性；保留原有字体和字符间距比例。": [
+    "src/object-selection-ui.mjs"
+  ],
+  "应用文字属性": [
+    "src/object-selection-ui.mjs"
+  ],
+  "调整所选图片…": [
+    "src/object-selection-ui.mjs"
+  ],
+  "删除所选对象": [
+    "src/object-selection-ui.mjs"
+  ],
+  "请框选当前页的文字或图片": [
+    "src/object-selection-ui.mjs"
+  ],
+  "页面对象框选区域": [
+    "src/object-selection-ui.mjs"
+  ],
+  "第 {0} 页 · 已选 {1} 项（文字 {2} · 图片 {3}）": [
+    "src/object-selection-ui.mjs"
+  ],
+  "与段落编辑重叠，请先保存并重新打开文档": [
+    "src/object-selection-ui.mjs"
+  ],
+  "正在读取页面对象…": [
+    "src/object-selection-ui.mjs"
+  ],
+  "可框选、Ctrl 多选；方向键 1 pt，Shift + 方向键 10 pt": [
+    "src/object-selection-ui.mjs"
+  ],
+  "读取失败：": [
+    "src/object-selection-ui.mjs"
+  ],
+  "移动 {0} 项 · ΔX {1} / ΔY {2} pt": [
+    "src/object-selection-ui.mjs"
+  ],
+  "所选内容包含只读对象，请先取消选择该对象": [
+    "src/object-selection-ui.mjs"
+  ],
+  "正在应用 {0} 个对象的修改…": [
+    "src/object-selection-ui.mjs"
+  ],
+  "已完成 {0} 项 · 可整批撤销": [
+    "src/object-selection-ui.mjs"
+  ],
+  "修改失败，文档保持原状态：": [
+    "src/object-selection-ui.mjs"
+  ],
+  "位移数值无效": [
+    "src/object-selection-ui.mjs"
+  ],
+  "字号应为 1–1000 pt": [
+    "src/object-selection-ui.mjs"
+  ],
+  "请勾选要修改的文字属性": [
+    "src/object-selection-ui.mjs"
+  ],
+  "校对草稿保存失败": [
+    "src/ocr-review-store.mjs"
+  ],
+  "第 {0} 页{1}": [
+    "src/ocr-stream.mjs"
+  ],
+  "· 中间页面不在当前范围": [
+    "src/ocr-stream.mjs"
+  ],
+  "请使用完整 0.5 桌面运行包": [
+    "src/ocr-ui.mjs"
+  ],
+  "离线 OCR · 双层 PDF": [
+    "src/ocr-ui.mjs"
+  ],
+  "识别范围与设置": [
+    "src/ocr-ui.mjs"
+  ],
+  "模型": [
+    "src/ocr-ui.mjs"
+  ],
+  "分辨率": [
+    "src/ocr-ui.mjs"
+  ],
+  "资源模式": [
+    "src/ocr-ui.mjs"
+  ],
+  "自动 · 兼顾内存与响应": [
+    "src/ocr-ui.mjs"
+  ],
+  "低占用": [
+    "src/ocr-ui.mjs"
+  ],
+  "高性能": [
+    "src/ocr-ui.mjs"
+  ],
+  "自定义": [
+    "src/ocr-ui.mjs"
+  ],
+  "并行页数": [
+    "src/ocr-ui.mjs"
+  ],
+  "每进程线程": [
+    "src/ocr-ui.mjs"
+  ],
+  "文字行批量": [
+    "src/ocr-ui.mjs"
+  ],
+  "跳过已有文字的整页": [
+    "src/ocr-ui.mjs"
+  ],
+  "智能：正文文字充足才跳过": [
+    "src/ocr-ui.mjs"
+  ],
+  "任意已有文字（旧版策略）": [
+    "src/ocr-ui.mjs"
+  ],
+  "续做相同文档与设置的已完成页": [
+    "src/ocr-ui.mjs"
+  ],
+  "语言与输出文字": [
+    "src/ocr-ui.mjs"
+  ],
+  "简体中文": [
+    "src/ocr-ui.mjs"
+  ],
+  "繁体中文": [
+    "src/ocr-ui.mjs"
+  ],
+  "英文": [
+    "src/ocr-ui.mjs"
+  ],
+  "保留引擎识别出的其他文字": [
+    "src/ocr-ui.mjs"
+  ],
+  "输出字形": [
+    "src/ocr-ui.mjs"
+  ],
+  "保留原始识别": [
+    "src/ocr-ui.mjs"
+  ],
+  "统一为简体": [
+    "src/ocr-ui.mjs"
+  ],
+  "统一为繁体": [
+    "src/ocr-ui.mjs"
+  ],
+  "语言勾选用于校对提示；不扩展模型的语言能力。字形转换在识别后进行，原始文字保留，置信度仍是引擎原始分数。": [
+    "src/ocr-ui.mjs"
+  ],
+  "局部识别区域": [
+    "src/ocr-ui.mjs"
+  ],
+  "相对左上角百分比：左、上、宽、高。局部识别不会因页面其他区域有文字而跳过。": [
+    "src/ocr-ui.mjs"
+  ],
+  "在左侧拖框选择区域": [
+    "src/ocr-ui.mjs"
+  ],
+  "清除区域": [
+    "src/ocr-ui.mjs"
+  ],
+  "开始识别": [
+    "src/ocr-ui.mjs"
+  ],
+  "停止并保留结果": [
+    "src/ocr-ui.mjs"
+  ],
+  "取消应用": [
+    "src/ocr-ui.mjs"
+  ],
+  "识别框": [
+    "src/ocr-ui.mjs"
+  ],
+  "识别文字": [
+    "src/ocr-ui.mjs"
+  ],
+  "原图": [
+    "src/ocr-ui.mjs"
+  ],
+  "完全离线 · 原扫描图保留 · 识别结果逐页保存；关闭后可按相同设置续做。": [
+    "src/ocr-ui.mjs"
+  ],
+  "失败详情": [
+    "src/ocr-ui.mjs"
+  ],
+  "正在校对": [
+    "src/ocr-ui.mjs"
+  ],
+  "连续滚动": [
+    "src/ocr-ui.mjs"
+  ],
+  "单页": [
+    "src/ocr-ui.mjs",
+    "src/index.html"
+  ],
+  "下一处待复核": [
+    "src/ocr-ui.mjs"
+  ],
+  "确认并下一处": [
+    "src/ocr-ui.mjs"
+  ],
+  "暂缓": [
+    "src/ocr-ui.mjs"
+  ],
+  "页状态": [
+    "src/ocr-ui.mjs"
+  ],
+  "已识别": [
+    "src/ocr-ui.mjs"
+  ],
+  "需校对": [
+    "src/ocr-ui.mjs"
+  ],
+  "失败": [
+    "src/ocr-ui.mjs"
+  ],
+  "跳过": [
+    "src/ocr-ui.mjs"
+  ],
+  "本页识别结果": [
+    "src/ocr-ui.mjs"
+  ],
+  "方向与识别诊断": [
+    "src/ocr-ui.mjs"
+  ],
+  "校对文字": [
+    "src/ocr-ui.mjs"
+  ],
+  "调整四角 PDF 坐标": [
+    "src/ocr-ui.mjs"
+  ],
+  "不写入此条": [
+    "src/ocr-ui.mjs"
+  ],
+  "保存此条校对": [
+    "src/ocr-ui.mjs"
+  ],
+  "切换条目、翻页和应用前会自动保存。关闭窗口前也会保存。": [
+    "src/ocr-ui.mjs"
+  ],
+  "跳过策略": [
+    "src/ocr-ui.mjs"
+  ],
+  "例如 0,10,100,80": [
+    "src/ocr-ui.mjs"
+  ],
+  "校对浏览方式": [
+    "src/ocr-ui.mjs"
+  ],
+  "校对 PDF 页": [
+    "src/ocr-ui.mjs"
+  ],
+  "识别页状态": [
+    "src/ocr-ui.mjs"
+  ],
+  "收起并继续": [
+    "src/ocr-ui.mjs"
+  ],
+  "应用 OCR 文字层": [
+    "src/ocr-ui.mjs"
+  ],
+  "四角坐标须为四组有限数值": [
+    "src/ocr-ui.mjs"
+  ],
+  "复用已构建内容，请稍候…": [
+    "src/ocr-ui.mjs"
+  ],
+  "正在写入第 {0} 页；完成后可撤销，请稍候…": [
+    "src/ocr-ui.mjs"
+  ],
+  "正在检查字体并准备文字层…": [
+    "src/ocr-ui.mjs"
+  ],
+  "应用已取消，识别结果仍保留": [
+    "src/ocr-ui.mjs"
+  ],
+  "{0} 条文字含当前字体不支持的字符": [
+    "src/ocr-ui.mjs"
+  ],
+  "请先校对，或明确排除这些条目后应用其余结果。原 PDF 尚未改变。": [
+    "src/ocr-ui.mjs"
+  ],
+  "排除上述缺字条目并应用": [
+    "src/ocr-ui.mjs"
+  ],
+  "第 {0} 页 · {1} · {2}": [
+    "src/ocr-ui.mjs"
+  ],
+  "字体检查发现问题，请在右侧处理后重试。": [
+    "src/ocr-ui.mjs"
+  ],
+  "已应用 {0} 条文字，可撤销；请保存 PDF{1}": [
+    "src/ocr-ui.mjs"
+  ],
+  "（已排除 {0} 条缺字结果）": [
+    "src/ocr-ui.mjs"
+  ],
+  "第 {0} 页 · {1} 条文字": [
+    "src/ocr-ui.mjs"
+  ],
+  "第 {0} 页 · 置信度 {1}%{2}": [
+    "src/ocr-ui.mjs"
+  ],
+  "· 建议核对": [
+    "src/ocr-ui.mjs"
+  ],
+  "· 已转换字形": [
+    "src/ocr-ui.mjs"
+  ],
+  "· 字形与语言偏好不一致": [
+    "src/ocr-ui.mjs"
+  ],
+  "旧结果无阶段诊断，可重新识别": [
+    "src/ocr-ui.mjs"
+  ],
+  "· 待确认，应用前须校对或排除": [
+    "src/ocr-ui.mjs"
+  ],
+  "空结果": [
+    "src/ocr-ui.mjs"
+  ],
+  "原始文字：{0}": [
+    "src/ocr-ui.mjs"
+  ],
+  "校对页码超出范围": [
+    "src/ocr-ui.mjs"
+  ],
+  "本页校对已保存": [
+    "src/ocr-ui.mjs"
+  ],
+  "第 {1} 页 · {2}{3}": [
+    "src/ocr-ui.mjs"
+  ],
+  "等待": [
+    "src/ocr-ui.mjs"
+  ],
+  "识别中": [
+    "src/ocr-ui.mjs"
+  ],
+  "已跳过": [
+    "src/ocr-ui.mjs"
+  ],
+  "· {0} 条待校对": [
+    "src/ocr-ui.mjs"
+  ],
+  "已完成页中没有更多低置信度结果": [
+    "src/ocr-ui.mjs"
+  ],
+  "{0} {1}/{2} 页 · 活动页 {3} · 近期 {4} 页/分 · 实际 {5} / 目标 {6} 个进程 × {7} 线程{8} · 续用 {9} 页 · 失败 {10}": [
+    "src/ocr-ui.mjs"
+  ],
+  "后台识别": [
+    "src/ocr-ui.mjs"
+  ],
+  "已停止": [
+    "src/ocr-ui.mjs"
+  ],
+  "已完成": [
+    "src/ocr-ui.mjs"
+  ],
+  "另有 {0} 页失败。": [
+    "src/ocr-ui.mjs"
+  ],
+  "请至少选择一页": [
+    "src/ocr-ui.mjs"
+  ],
+  "正在编辑第 {0} 页": [
+    "src/ocr-ui.mjs"
+  ],
+  "页面旋转角度须为 90 度的倍数": [
+    "src/page-coordinates.mjs"
+  ],
+  "PDF 页": [
+    "src/page-diff.mjs"
+  ],
+  "上一处变化页": [
+    "src/page-diff.mjs"
+  ],
+  "下一处变化页": [
+    "src/page-diff.mjs"
+  ],
+  "并排": [
+    "src/page-diff.mjs"
+  ],
+  "叠加": [
+    "src/page-diff.mjs"
+  ],
+  "变化标记": [
+    "src/page-diff.mjs"
+  ],
+  "叠加强度": [
+    "src/page-diff.mjs"
+  ],
+  "正在读取实际输出…": [
+    "src/page-diff.mjs"
+  ],
+  "打开时的原件": [
+    "src/page-diff.mjs"
+  ],
+  "当前待保存输出": [
+    "src/page-diff.mjs"
+  ],
+  "点击输出中的变化区域可定位到页面。标记来自整页像素差异，含文字、图片、边框和位移；轻微抗锯齿差异已过滤，仍需人工核对。": [
+    "src/page-diff.mjs"
+  ],
+  "正在比较第 {0} 页…": [
+    "src/page-diff.mjs"
+  ],
+  "第 {0} 页 · {1} 个变化网格 · 显著差异像素 {2}% · 当前输出已成功重新解析和渲染": [
+    "src/page-diff.mjs"
+  ],
+  "自定义 PDF 页码范围": [
+    "src/page-picker.mjs"
+  ],
+  "所选页": [
+    "src/page-picker.mjs"
+  ],
+  "当前页至末尾": [
+    "src/page-picker.mjs"
+  ],
+  "已标记范围": [
+    "src/page-picker.mjs"
+  ],
+  "至": [
+    "src/page-picker.mjs"
+  ],
+  "使用范围": [
+    "src/page-picker.mjs"
+  ],
+  "全部页": [
+    "src/page-picker.mjs"
+  ],
+  "从缩略图选择页面": [
+    "src/page-picker.mjs"
+  ],
+  "全选": [
+    "src/page-picker.mjs"
+  ],
+  "清空": [
+    "src/page-picker.mjs"
+  ],
+  "反选": [
+    "src/page-picker.mjs"
+  ],
+  "Shift 连选 · Ctrl 加选 · 再次点击取消；PDF 页序 / 页面标签": [
+    "src/page-picker.mjs"
+  ],
+  "起始 PDF 页": [
+    "src/page-picker.mjs"
+  ],
+  "结束 PDF 页": [
+    "src/page-picker.mjs"
+  ],
+  "页码子集": [
+    "src/page-picker.mjs"
+  ],
+  "已选 {0} / {1} 页 · PDF 页序 {2}": [
+    "src/page-picker.mjs"
+  ],
+  "部分缩略图无法加载，仍可按页码选择": [
+    "src/page-picker.mjs"
+  ],
+  "页面预览已关闭": [
+    "src/page-preview.mjs"
+  ],
+  "原书签包含循环引用，已跳过重复节点": [
+    "src/pdf-core.mjs"
+  ],
+  "文档书签超过 200,000 条": [
+    "src/pdf-core.mjs"
+  ],
+  "命名目标：{0}": [
+    "src/pdf-core.mjs"
+  ],
+  "原始动作：{0}": [
+    "src/pdf-core.mjs"
+  ],
+  "无可解析目标": [
+    "src/pdf-core.mjs"
+  ],
+  "原始书签动作过于复杂，无法安全核对来源": [
+    "src/pdf-core.mjs"
+  ],
+  "原始书签包含失效引用，无法安全核对来源": [
+    "src/pdf-core.mjs"
+  ],
+  "原始动作已失去来源，请重新指定该书签目标": [
+    "src/pdf-core.mjs"
+  ],
+  "内容预览的原始书签来源发生变化，请重新打开文档": [
+    "src/pdf-core.mjs"
+  ],
+  "旋转参数无效": [
+    "src/pdf-core.mjs"
+  ],
+  "批注页码无效": [
+    "src/pdf-core.mjs"
+  ],
+  "批注坐标无效": [
+    "src/pdf-core.mjs"
+  ],
+  "提取页码无效": [
+    "src/pdf-core.mjs"
+  ],
+  "工程编辑状态无效": [
+    "src/portable-state.mjs"
+  ],
+  "工程编辑数量超过上限": [
+    "src/portable-state.mjs"
+  ],
+  "工程编辑嵌套过深": [
+    "src/portable-state.mjs"
+  ],
+  "工程包含无效字段": [
+    "src/portable-state.mjs"
+  ],
+  "工程数值无效：": [
+    "src/portable-state.mjs"
+  ],
+  "工程内容编辑无效": [
+    "src/portable-state.mjs"
+  ],
+  "工程缺少文字编辑资源": [
+    "src/portable-state.mjs"
+  ],
+  "工程缺少文字几何资源": [
+    "src/portable-state.mjs"
+  ],
+  "工程缺少": [
+    "src/project.mjs"
+  ],
+  "工程清单格式无效": [
+    "src/project.mjs"
+  ],
+  "工程清单资源数量不一致": [
+    "src/project.mjs"
+  ],
+  "工程资源校验不一致：": [
+    "src/project.mjs"
+  ],
+  "工程原文缺失或过大": [
+    "src/project.mjs"
+  ],
+  "Folio 工程格式无效": [
+    "src/project.mjs"
+  ],
+  "工程原件校验不一致": [
+    "src/project.mjs"
+  ],
+  "工程处理超时，已有文档未改变": [
+    "src/project.mjs"
+  ],
+  "工程处理失败": [
+    "src/project.mjs"
+  ],
+  "草稿原文缺失，未覆盖已有恢复记录": [
+    "src/recovery.mjs"
+  ],
+  "草稿空间不足，已保留上一份快照，请保存工程": [
+    "src/recovery.mjs"
+  ],
+  "草稿未写入或超过 1 GB 配额，已保留上一份快照，请保存工程": [
+    "src/recovery.mjs"
+  ],
+  "恢复资源不完整；已有快照保留，请重新选择原文件或恢复工程": [
+    "src/recovery.mjs"
+  ],
+  "恢复原文校验失败": [
+    "src/recovery.mjs"
+  ],
+  "恢复编辑资源校验失败": [
+    "src/recovery.mjs"
+  ],
+  "恢复原文缺失，未打开空会话": [
+    "src/recovery.mjs"
+  ],
+  "文档已变化，本次结果未应用": [
+    "src/session-state.mjs"
+  ],
+  "打开": [
+    "src/shortcuts.mjs",
+    "src/index.html"
+  ],
+  "另存为": [
+    "src/shortcuts.mjs",
+    "src/index.html"
+  ],
+  "偏好": [
+    "src/shortcuts.mjs"
+  ],
+  "书签面板": [
+    "src/shortcuts.mjs"
+  ],
+  "从选中文字 / 当前视图新建书签": [
+    "src/shortcuts.mjs"
+  ],
+  "搜索": [
+    "src/shortcuts.mjs",
+    "src/index.html"
+  ],
+  "下个搜索结果": [
+    "src/shortcuts.mjs"
+  ],
+  "上个搜索结果": [
+    "src/shortcuts.mjs"
+  ],
+  "全屏": [
+    "src/shortcuts.mjs"
+  ],
+  "第一页": [
+    "src/shortcuts.mjs"
+  ],
+  "最后一页": [
+    "src/shortcuts.mjs"
+  ],
+  "转到页": [
+    "src/shortcuts.mjs"
+  ],
+  "上一视图": [
+    "src/shortcuts.mjs"
+  ],
+  "下一视图": [
+    "src/shortcuts.mjs"
+  ],
+  "实际大小": [
+    "src/shortcuts.mjs"
+  ],
+  "放大": [
+    "src/shortcuts.mjs"
+  ],
+  "缩小": [
+    "src/shortcuts.mjs"
+  ],
+  "下一屏": [
+    "src/shortcuts.mjs"
+  ],
+  "上一屏": [
+    "src/shortcuts.mjs"
+  ],
+  "重命名": [
+    "src/shortcuts.mjs"
+  ],
+  "删除子树": [
+    "src/shortcuts.mjs"
+  ],
+  "在后面新增": [
+    "src/shortcuts.mjs"
+  ],
+  "在前面新增": [
+    "src/shortcuts.mjs"
+  ],
+  "新增首个子书签": [
+    "src/shortcuts.mjs"
+  ],
+  "降级": [
+    "src/shortcuts.mjs"
+  ],
+  "升级": [
+    "src/shortcuts.mjs"
+  ],
+  "复制书签": [
+    "src/shortcuts.mjs",
+    "src/index.html"
+  ],
+  "剪切书签": [
+    "src/shortcuts.mjs"
+  ],
+  "粘贴书签": [
+    "src/shortcuts.mjs"
+  ],
+  "缩略图": [
+    "src/shortcuts.mjs"
+  ],
+  "属性面板": [
+    "src/shortcuts.mjs"
+  ],
+  "快捷键 · 焦点优先": [
+    "src/shortcuts.mjs"
+  ],
+  "点击输入框后按下快捷键；Backspace 清除。输入文本时保留原生编辑操作，Tab 始终移动焦点。": [
+    "src/shortcuts.mjs"
+  ],
+  "书签树": [
+    "src/shortcuts.mjs"
+  ],
+  "阅读区": [
+    "src/shortcuts.mjs"
+  ],
+  "通用": [
+    "src/shortcuts.mjs"
+  ],
+  "恢复默认": [
+    "src/shortcuts.mjs"
+  ],
+  "快捷键配置格式错误": [
+    "src/shortcuts.mjs"
+  ],
+  "应用": [
+    "src/shortcuts.mjs"
+  ],
+  "请先解决快捷键冲突": [
+    "src/shortcuts.mjs"
+  ],
+  "无冲突。相同按键可分别用于书签树与阅读区。": [
+    "src/shortcuts.mjs"
+  ],
+  "表格结构限 1–1,000 格": [
+    "src/table-model.mjs"
+  ],
+  "合并单元格结构不完整或重叠": [
+    "src/table-model.mjs"
+  ],
+  "表格存在空缺结构": [
+    "src/table-model.mjs"
+  ],
+  "请选择完整矩形区域，不要跨过现有合并单元格": [
+    "src/table-model.mjs"
+  ],
+  "请先选择单元格": [
+    "src/table-model.mjs"
+  ],
+  "请选择合并单元格的左上角": [
+    "src/table-model.mjs"
+  ],
+  "列宽至少 12 pt": [
+    "src/table-model.mjs"
+  ],
+  "单列表格宽度由表格范围控制": [
+    "src/table-model.mjs"
+  ],
+  "相邻列剩余宽度不足": [
+    "src/table-model.mjs"
+  ],
+  "请先拆开合并单元格，再插入或删除行列": [
+    "src/table-model.mjs"
+  ],
+  "行列位置超出范围": [
+    "src/table-model.mjs"
+  ],
+  "至少保留一行一列": [
+    "src/table-model.mjs"
+  ],
+  "当前页没有可靠的有线表格": [
+    "src/table-ui.mjs"
+  ],
+  "表格结构编辑": [
+    "src/table-ui.mjs"
+  ],
+  "选择可靠的矩形有线表格。新增行列在原表格范围内分配空间；不会移动表格外内容。应用前检查实际排版预览。": [
+    "src/table-ui.mjs"
+  ],
+  "表格": [
+    "src/table-ui.mjs"
+  ],
+  "行": [
+    "src/table-ui.mjs"
+  ],
+  "列": [
+    "src/table-ui.mjs"
+  ],
+  "至行": [
+    "src/table-ui.mjs"
+  ],
+  "至列": [
+    "src/table-ui.mjs"
+  ],
+  "上方插入行": [
+    "src/table-ui.mjs"
+  ],
+  "删除行": [
+    "src/table-ui.mjs"
+  ],
+  "左侧插入列": [
+    "src/table-ui.mjs"
+  ],
+  "删除列": [
+    "src/table-ui.mjs"
+  ],
+  "合并矩形": [
+    "src/table-ui.mjs"
+  ],
+  "拆开单元格": [
+    "src/table-ui.mjs"
+  ],
+  "所选列宽（pt）": [
+    "src/table-ui.mjs"
+  ],
+  "调整列宽": [
+    "src/table-ui.mjs"
+  ],
+  "撤销结构操作": [
+    "src/table-ui.mjs"
+  ],
+  "导出 CSV": [
+    "src/table-ui.mjs"
+  ],
+  "导出 XLSX": [
+    "src/table-ui.mjs"
+  ],
+  "XLSX 保留合并单元格、前导零和原始文本": [
+    "src/table-ui.mjs"
+  ],
+  "实际输出预览": [
+    "src/table-ui.mjs"
+  ],
+  "表格实际排版预览": [
+    "src/table-ui.mjs"
+  ],
+  "表格 {1} · {2} 行 × {3} 列": [
+    "src/table-ui.mjs"
+  ],
+  "应用表格修改": [
+    "src/table-ui.mjs"
+  ],
+  "请等待有效预览": [
+    "src/table-ui.mjs"
+  ],
+  "表格结构已应用，可整批撤销": [
+    "src/table-ui.mjs"
+  ],
+  "表格已导出": [
+    "src/table-ui.mjs"
+  ],
+  "此表格边框样式复杂，请使用单元格文字编辑": [
+    "src/table-ui.mjs"
+  ],
+  "表格与外部对象共用边界或内容，暂不能安全重建": [
+    "src/table-ui.mjs"
+  ],
+  "表格含图片、复杂路径或不可独立替换的文字，请使用单元格编辑": [
+    "src/table-ui.mjs"
+  ],
+  "行列边界不足以可靠重建": [
+    "src/table-ui.mjs"
+  ],
+  "缺少可编辑单元格": [
+    "src/table-ui.mjs"
+  ],
+  "列 {0}": [
+    "src/table-ui.mjs"
+  ],
+  "拖动调整列宽": [
+    "src/table-ui.mjs"
+  ],
+  "调整第 {0} 列宽": [
+    "src/table-ui.mjs"
+  ],
+  "正在校验文字与边界…": [
+    "src/table-ui.mjs"
+  ],
+  "{0} 行 × {1} 列 · 排版检查通过{2}": [
+    "src/table-ui.mjs"
+  ],
+  "字使用替代字体": [
+    "src/table-ui.mjs"
+  ],
+  "检查更新需要桌面版": [
+    "src/update-ui.mjs"
+  ],
+  "关于 Folio · 检查更新": [
+    "src/update-ui.mjs"
+  ],
+  "更新通道": [
+    "src/update-ui.mjs"
+  ],
+  "仅正式版": [
+    "src/update-ui.mjs"
+  ],
+  "包含预发布": [
+    "src/update-ui.mjs"
+  ],
+  "HTTP 代理": [
+    "src/update-ui.mjs"
+  ],
+  "启动时自动检查（下载和安装由你确认）": [
+    "src/update-ui.mjs"
+  ],
+  "与首选项共用网络设置。安装保持当前程序目录名称；旧版保留在同级备份目录，设置保存在用户配置目录。": [
+    "src/update-ui.mjs"
+  ],
+  "保存设置并检查更新": [
+    "src/update-ui.mjs"
+  ],
+  "下载更新": [
+    "src/update-ui.mjs"
+  ],
+  "取消下载": [
+    "src/update-ui.mjs"
+  ],
+  "安装并重启": [
+    "src/update-ui.mjs"
+  ],
+  "留空复用系统代理，例如 http://127.0.0.1:7890": [
+    "src/update-ui.mjs"
+  ],
+  "可检查新版本": [
+    "src/update-ui.mjs"
+  ],
+  "正在检查 GitHub Releases…": [
+    "src/update-ui.mjs"
+  ],
+  "发现新版本": [
+    "src/update-ui.mjs"
+  ],
+  "当前通道没有更新版本": [
+    "src/update-ui.mjs"
+  ],
+  "正在下载并校验…": [
+    "src/update-ui.mjs"
+  ],
+  "更新包已通过 SHA-256 校验，可安装": [
+    "src/update-ui.mjs"
+  ],
+  "正在准备安装；校验成功后将自动关闭并重启…": [
+    "src/update-ui.mjs"
+  ],
+  "更新失败": [
+    "src/update-ui.mjs"
+  ],
+  "当前版本 {0}{1}": [
+    "src/update-ui.mjs"
+  ],
+  "· 可用": [
+    "src/update-ui.mjs"
+  ],
+  "工程资源数量过多": [
+    "src/zip-store.mjs"
+  ],
+  "工程超过 1 GB 上限": [
+    "src/zip-store.mjs"
+  ],
+  "工程 ZIP 大小无效": [
+    "src/zip-store.mjs"
+  ],
+  "工程 ZIP 尾部损坏": [
+    "src/zip-store.mjs"
+  ],
+  "工程 ZIP 目录无效": [
+    "src/zip-store.mjs"
+  ],
+  "工程 ZIP 目录损坏": [
+    "src/zip-store.mjs"
+  ],
+  "工程 ZIP 资源格式不支持": [
+    "src/zip-store.mjs"
+  ],
+  "工程 ZIP 资源路径无效": [
+    "src/zip-store.mjs"
+  ],
+  "工程 ZIP 头部不一致": [
+    "src/zip-store.mjs"
+  ],
+  "工程 ZIP 资源长度无效": [
+    "src/zip-store.mjs"
+  ],
+  "工程资源校验失败：": [
+    "src/zip-store.mjs"
+  ],
+  "工程 ZIP 目录长度不一致": [
+    "src/zip-store.mjs"
+  ],
+  "原文件保护已开启，请选择不同的副本文件名": [
+    "file-store.cjs"
+  ],
+  "保存位置或文件大小无效": [
+    "file-store.cjs"
+  ],
+  "已有文件正在写入": [
+    "file-store.cjs"
+  ],
+  "文件写入序列无效": [
+    "file-store.cjs"
+  ],
+  "文件尚未完整写入": [
+    "file-store.cjs"
+  ],
+  "失败：": [
+    "file-store.cjs"
+  ],
+  "保存位置已失效，请重新选择": [
+    "file-store.cjs"
+  ],
+  "目标文件只读、被占用或没有替换权限": [
+    "file-store.cjs"
+  ],
+  "没有目标目录的写入权限": [
+    "file-store.cjs"
+  ],
+  "目标文件被占用": [
+    "file-store.cjs"
+  ],
+  "磁盘空间不足": [
+    "file-store.cjs"
+  ],
+  "保存 {0} 失败：{1}": [
+    "file-store.cjs"
+  ],
+  "字体未覆盖字符：": [
+    "flow-layout-legacy.cjs"
+  ],
+  "，请校对后再排版": [
+    "flow-layout-legacy.cjs"
+  ],
+  "单个文本流限 100,000 字符": [
+    "flow-validation.cjs"
+  ],
+  "超出范围": [
+    "flow-validation.cjs"
+  ],
+  "页面宽度": [
+    "flow-validation.cjs"
+  ],
+  "页面高度": [
+    "flow-validation.cjs"
+  ],
+  "缺少文本框": [
+    "flow-validation.cjs"
+  ],
+  "文本框 X": [
+    "flow-validation.cjs"
+  ],
+  "文本框 Y": [
+    "flow-validation.cjs"
+  ],
+  "文本框宽度": [
+    "flow-validation.cjs"
+  ],
+  "文本框高度": [
+    "flow-validation.cjs"
+  ],
+  "段后间距": [
+    "flow-validation.cjs"
+  ],
+  "栏数": [
+    "flow-validation.cjs"
+  ],
+  "栏数须为整数": [
+    "flow-validation.cjs"
+  ],
+  "栏间距": [
+    "flow-validation.cjs"
+  ],
+  "行高": [
+    "flow-validation.cjs"
+  ],
+  "栏间距占满了文本框，请减少栏数或栏间距": [
+    "flow-validation.cjs"
+  ],
+  "对齐方式无效": [
+    "flow-validation.cjs"
+  ],
+  "文字颜色无效": [
+    "flow-validation.cjs"
+  ],
+  "字体无效": [
+    "flow-validation.cjs"
+  ],
+  "请先关闭已打开的大文件工作区": [
+    "large-files.cjs"
+  ],
+  "大文件通道当前支持至 8 GiB，尚需按实际文档验收": [
+    "large-files.cjs"
+  ],
+  "不是有效的 PDF 文件": [
+    "large-files.cjs"
+  ],
+  "文件句柄已失效": [
+    "large-files.cjs"
+  ],
+  "原件已被其他程序修改，请重新打开": [
+    "large-files.cjs"
+  ],
+  "读取范围无效": [
+    "large-files.cjs"
+  ],
+  "文件意外结束": [
+    "large-files.cjs"
+  ],
+  "密码格式无效": [
+    "large-files.cjs"
+  ],
+  "已有保存任务": [
+    "large-files.cjs"
+  ],
+  "大文件工作区请另存副本，保留原件": [
+    "large-files.cjs"
+  ],
+  "请先等待保存或取消完成": [
+    "large-files.cjs"
+  ],
+  "仅支持 PDF 与 Folio 文件": [
+    "main.cjs"
+  ],
+  "文件无效或超过 768 MB": [
+    "main.cjs"
+  ],
+  "复制文字过长": [
+    "main.cjs"
+  ],
+  "无效的 qpdf 请求": [
+    "main.cjs"
+  ],
+  "本地引擎响应超过预算": [
+    "native-bridge.cjs"
+  ],
+  "请求标识不匹配": [
+    "native-bridge.cjs"
+  ],
+  "响应类型无效": [
+    "native-bridge.cjs"
+  ],
+  "本地引擎协议失效，已重启隔离：": [
+    "native-bridge.cjs"
+  ],
+  "无法启动本地引擎，请完整解压运行包": [
+    "native-bridge.cjs"
+  ],
+  "本地引擎退出：": [
+    "native-bridge.cjs"
+  ],
+  "· 第": [
+    "native-bridge.cjs"
+  ],
+  "页": [
+    "native-bridge.cjs"
+  ],
+  "本地任务超时，已停止工作进程；可重试，草稿仍保留": [
+    "native-bridge.cjs"
+  ],
+  "本地请求无效": [
+    "native-bridge.cjs"
+  ],
+  "原文句柄无效": [
+    "native-bridge.cjs"
+  ],
+  "复用已构建内容": [
+    "native-bridge.cjs"
+  ],
+  "OCR 文档或页码无效": [
+    "ocr-jobs.cjs"
+  ],
+  "OCR 参数无效": [
+    "ocr-jobs.cjs"
+  ],
+  "OCR 区域无效": [
+    "ocr-jobs.cjs"
+  ],
+  "既有 OCR 校对数据无效": [
+    "ocr-jobs.cjs"
+  ],
+  "检测到已有文字，可选此页强制重识别": [
+    "ocr-jobs.cjs"
+  ],
+  "可用内存偏低，暂减并行": [
+    "ocr-jobs.cjs"
+  ],
+  "等待资源稳定后恢复并行": [
+    "ocr-jobs.cjs"
+  ],
+  "受可用内存限制": [
+    "ocr-jobs.cjs"
+  ],
+  "识别结果不存在或任务已变化": [
+    "ocr-jobs.cjs"
+  ],
+  "校对页或坐标无效": [
+    "ocr-jobs.cjs"
+  ],
+  "请等待识别停止后应用": [
+    "ocr-jobs.cjs"
+  ],
+  "应用页范围无效": [
+    "ocr-jobs.cjs"
+  ],
+  "{0} 条 OCR 疑点尚未确认，请在校对中确认或排除后应用": [
+    "ocr-jobs.cjs"
+  ],
+  "字体缺字": [
+    "ocr-jobs.cjs"
+  ],
+  "OCR 结果版本已失效，请重新应用": [
+    "ocr-jobs.cjs"
+  ],
+  "当前任务不能清理": [
+    "ocr-jobs.cjs"
+  ],
+  "未知 OCR 操作": [
+    "ocr-jobs.cjs"
+  ],
+  "原文大小无效": [
+    "source-store.cjs"
+  ],
+  "打开的原文过多，请关闭文档后重试": [
+    "source-store.cjs"
+  ],
+  "原文句柄已失效，请重新打开文档": [
+    "source-store.cjs"
+  ],
+  "版本号无效": [
+    "update-manager.cjs"
+  ],
+  "更新通道无效": [
+    "update-manager.cjs"
+  ],
+  "代理请填写 http://主机:端口，不包含账号或路径": [
+    "update-manager.cjs"
+  ],
+  "更新资源地址不可信": [
+    "update-manager.cjs"
+  ],
+  "更新任务进行中": [
+    "update-manager.cjs"
+  ],
+  "下载服务返回 HTTP {0}": [
+    "update-manager.cjs"
+  ],
+  "发布列表无效": [
+    "update-manager.cjs"
+  ],
+  "更新已取消或超时": [
+    "update-manager.cjs"
+  ],
+  "请先检查更新": [
+    "update-manager.cjs"
+  ],
+  "此版本缺少 SHA-256 校验，不能自动安装": [
+    "update-manager.cjs"
+  ],
+  "校验文件过大": [
+    "update-manager.cjs"
+  ],
+  "下载校验值无效": [
+    "update-manager.cjs"
+  ],
+  "下载大小无效": [
+    "update-manager.cjs"
+  ],
+  "下载大小超出发布信息": [
+    "update-manager.cjs"
+  ],
+  "更新包 SHA-256 校验失败": [
+    "update-manager.cjs"
+  ],
+  "自动替换仅用于 Windows 便携发行包": [
+    "update-manager.cjs"
+  ],
+  "请先下载并校验更新": [
+    "update-manager.cjs"
+  ],
+  "请先保存或关闭当前文档，再安装更新": [
+    "update-manager.cjs"
+  ],
+  "更新程序提前退出，请查看 updates/install.log": [
+    "update-manager.cjs"
+  ],
+  "更新准备超时，当前版本保持打开。请查看 updates/install.log": [
+    "update-manager.cjs"
+  ],
+  "文档有未保存更改，已停止安装，请保存后重试": [
+    "update-manager.cjs"
+  ],
+  "未打开文档": [
+    "src/index.html"
+  ],
+  "自动书签": [
+    "src/index.html"
+  ],
+  "更多工具": [
+    "src/index.html"
+  ],
+  "页面": [
+    "src/index.html"
+  ],
+  "编辑对象": [
+    "src/index.html"
+  ],
+  "文字预览": [
+    "src/index.html"
+  ],
+  "目标校准": [
+    "src/index.html"
+  ],
+  "跳转留白": [
+    "src/index.html"
+  ],
+  "导入 / 导出": [
+    "src/index.html"
+  ],
+  "表格结构": [
+    "src/index.html"
+  ],
+  "恢复草稿": [
+    "src/index.html"
+  ],
+  "搜索正文": [
+    "src/index.html"
+  ],
+  "首选项": [
+    "src/index.html"
+  ],
+  "选中匹配项": [
+    "src/index.html"
+  ],
+  "批量处理": [
+    "src/index.html"
+  ],
+  "展开": [
+    "src/index.html"
+  ],
+  "折叠": [
+    "src/index.html"
+  ],
+  "整理": [
+    "src/index.html"
+  ],
+  "把长文档变得有条理": [
+    "src/index.html"
+  ],
+  "打开 PDF 后，创建或生成书签": [
+    "src/index.html"
+  ],
+  "起点": [
+    "src/index.html"
+  ],
+  "终点": [
+    "src/index.html"
+  ],
+  "手型": [
+    "src/index.html"
+  ],
+  "选择文本": [
+    "src/index.html"
+  ],
+  "选择对象": [
+    "src/index.html"
+  ],
+  "文字框选": [
+    "src/index.html"
+  ],
+  "图片框选": [
+    "src/index.html"
+  ],
+  "连续 · 纵向": [
+    "src/index.html"
+  ],
+  "双页": [
+    "src/index.html"
+  ],
+  "双页连续": [
+    "src/index.html"
+  ],
+  "连续 · 横向": [
+    "src/index.html"
+  ],
+  "显示设置": [
+    "src/index.html"
+  ],
+  "封面单独显示": [
+    "src/index.html"
+  ],
+  "页面间距": [
+    "src/index.html"
+  ],
+  "批注": [
+    "src/index.html"
+  ],
+  "上一处": [
+    "src/index.html"
+  ],
+  "下一处": [
+    "src/index.html"
+  ],
+  "每一页，都有章可循。": [
+    "src/index.html"
+  ],
+  "精确定位 · 批量编辑 · 自动生成": [
+    "src/index.html"
+  ],
+  "为长文档打造的本地书签工作台": [
+    "src/index.html"
+  ],
+  "选择 PDF 文档": [
+    "src/index.html"
+  ],
+  "深入目标坐标": [
+    "src/index.html"
+  ],
+  "让目录自动成形": [
+    "src/index.html"
+  ],
+  "标题字号 · 正则 · 目录文本": [
+    "src/index.html"
+  ],
+  "文档留在本机": [
+    "src/index.html"
+  ],
+  "离线处理 · 默认另存副本": [
+    "src/index.html"
+  ],
+  "准备就绪": [
+    "src/index.html"
+  ],
+  "精细编辑": [
+    "src/index.html"
+  ],
+  "页面文字编辑": [
+    "src/index.html"
+  ],
+  "点击页面中的段落开始编辑。优先保留原字位，排版结果显示在原页。": [
+    "src/index.html"
+  ],
+  "文字与布局…": [
+    "src/index.html"
+  ],
+  "字体与字形推荐…": [
+    "src/index.html"
+  ],
+  "状态栏显示实际排版方式。完成编辑后，使用保存写入 PDF。": [
+    "src/index.html"
+  ],
+  "从一个书签开始": [
+    "src/index.html"
+  ],
+  "选择书签，调整标题、层级、样式和精确跳转目标。": [
+    "src/index.html"
+  ],
+  "Ctrl / Shift 多选": [
+    "src/index.html"
+  ],
+  "拖动可调整层级和顺序": [
+    "src/index.html"
+  ],
+  "批量样式包含后代": [
+    "src/index.html"
+  ],
+  "书签标题": [
+    "src/index.html"
+  ],
+  "在 PDF 阅读器中默认展开": [
+    "src/index.html"
+  ],
+  "跳转目标": [
+    "src/index.html"
+  ],
+  "坐标使用 PDF 原生单位 pt，原点通常在左下角。留空表示 null，继承阅读器当前值。": [
+    "src/index.html"
+  ],
+  "保留原始目标 / 动作": [
+    "src/index.html"
+  ],
+  "使用当前页面与视图": [
+    "src/index.html"
+  ],
+  "降一级 →": [
+    "src/index.html"
+  ],
+  "← 升一级": [
+    "src/index.html"
+  ],
+  "离线运行 · 不上传文档": [
+    "src/index.html"
+  ],
+  "按需页面渲染": [
+    "src/index.html"
+  ],
+  "文档工具": [
+    "src/index.html"
+  ],
+  "打开 Ctrl+O": [
+    "src/index.html"
+  ],
+  "保存 Ctrl+S": [
+    "src/index.html"
+  ],
+  "撤销 Ctrl+Z": [
+    "src/index.html"
+  ],
+  "重做 Ctrl+Y": [
+    "src/index.html"
+  ],
+  "在页面上编辑段落及表格单元格": [
+    "src/index.html"
+  ],
+  "点击页面图片，原位调整色阶、曲线及颜色": [
+    "src/index.html"
+  ],
+  "按多级规则自动生成书签": [
+    "src/index.html"
+  ],
+  "另存为 Ctrl+Shift+S": [
+    "src/index.html"
+  ],
+  "切换明暗主题": [
+    "src/index.html"
+  ],
+  "关于与使用说明": [
+    "src/index.html"
+  ],
+  "新增同级书签 Ctrl+Shift+B": [
+    "src/index.html"
+  ],
+  "筛选书签标题…": [
+    "src/index.html"
+  ],
+  "清空筛选": [
+    "src/index.html"
+  ],
+  "页码": [
+    "src/index.html"
+  ],
+  "筛选物理页码": [
+    "src/index.html"
+  ],
+  "展开全部": [
+    "src/index.html"
+  ],
+  "折叠全部": [
+    "src/index.html"
+  ],
+  "PDF 书签": [
+    "src/index.html"
+  ],
+  "删除所选书签及其子项 Delete": [
+    "src/index.html"
+  ],
+  "展开书签": [
+    "src/index.html"
+  ],
+  "标记当前页为处理范围起点": [
+    "src/index.html"
+  ],
+  "标记当前页为处理范围终点": [
+    "src/index.html"
+  ],
+  "页面选择工具": [
+    "src/index.html"
+  ],
+  "拖动页面浏览": [
+    "src/index.html"
+  ],
+  "选择文字内容并复制": [
+    "src/index.html"
+  ],
+  "框选文字和图片对象": [
+    "src/index.html"
+  ],
+  "只框选文字对象": [
+    "src/index.html"
+  ],
+  "只框选图片对象": [
+    "src/index.html"
+  ],
+  "书签侧栏：展开 / 窄列 / 隐藏": [
+    "src/index.html"
+  ],
+  "上一视图 Alt+←": [
+    "src/index.html"
+  ],
+  "下一视图 Alt+→": [
+    "src/index.html"
+  ],
+  "页面布局": [
+    "src/index.html"
+  ],
+  "临时视图旋转 90°（不修改 PDF）": [
+    "src/index.html"
+  ],
+  "属性侧栏：展开 / 窄列 / 隐藏": [
+    "src/index.html"
+  ],
+  "在全文中查找…": [
+    "src/index.html"
+  ],
+  "书签颜色": [
+    "src/index.html"
+  ],
+  "展开属性": [
+    "src/index.html"
+  ]
+}
