@@ -31,6 +31,7 @@ const patterns = Object.keys(en).filter(k => /\{\d+\}/.test(k)).map(key => {
 }).sort((a,b)=>b.weight-a.weight);
 const exact = new Map(Object.keys(en).map(key => [normalize(key),key]));
 const cache = new Map();
+const prefixes = Object.keys(en).filter(k=>/[：:]$/.test(k) && k.length>3 && !/\{\d+\}/.test(k)).sort((a,b)=>b.length-a.length);
 export function identify(text) {
   const source = normalize(text);
   if (exact.has(source)) return { key:exact.get(source), args:{} };
@@ -53,6 +54,7 @@ export function t(source, args = {}, locale = language) {
 export function translate(text, locale = language) {
   const message = identify(text);
   if (message) return String(text).match(/^\s*/)[0] + t(message.key,message.args,locale) + String(text).match(/\s*$/)[0];
+  for(const prefix of prefixes)if(String(text).startsWith(prefix))return t(prefix,{},locale)+String(text).slice(prefix.length);
   // Concatenated legacy notices keep variable data intact; only independently
   // recognized sentence fragments on either side of a separator are translated.
   return String(text).split(/(\n| · |；|; )/).map(part=>{

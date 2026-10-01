@@ -1,3 +1,5 @@
+import { getLanguage, onLanguageChange } from "./i18n.mjs";
+import { localizedReleaseNotes } from "./release-notes.mjs";
 export async function updateDialog({ modal, closeModal, setCleanup }) {
   const api = window.desktop;
   if (!api?.updateInfo) throw Error("检查更新需要桌面版");
@@ -28,7 +30,7 @@ export async function updateDialog({ modal, closeModal, setCleanup }) {
     $("[data-update-current]").textContent =
       `当前版本 ${r.current}${r.release ? " · 可用 " + r.release.version : ""}`;
     $("#update-status").textContent = r.error || labels[r.phase];
-    $("#update-notes").textContent = r.release?.notes || "";
+    $("#update-notes").textContent = localizedReleaseNotes(r.release?.notes, getLanguage());
     const busy = ["checking", "downloading", "installing"].includes(r.phase);
     $("#update-check").disabled = busy;
     $("#update-download").disabled = r.phase !== "available";
@@ -63,9 +65,11 @@ export async function updateDialog({ modal, closeModal, setCleanup }) {
   $("#update-cancel").onclick = () => api.updateCancel();
   $("#update-install").onclick = run(() => api.updateInstall());
   const off = api.onUpdate(render);
+  const offLanguage = onLanguageChange(() => render(info));
   setCleanup(() => {
     closed = true;
     off();
+    offLanguage();
   });
   render(info);
 }

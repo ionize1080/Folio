@@ -56,6 +56,7 @@ let app,page;
   await app.evaluate(({dialog},file)=>{dialog.showOpenDialog=async()=>({canceled:false,filePaths:[file]});},file);
   await page.locator('[data-action="open"]').first().click();
   await page.waitForFunction(()=>document.querySelector('#page-total').textContent.includes('3'));
+  await page.waitForFunction(()=>document.querySelector('#busy').hidden);
   await page.evaluate(async()=>{
    const {S,commit}=await import('./app.mjs');const {makeNode}=await import('./model.mjs');
    const node=makeNode('保存',1);commit([...S.nodes,node]);S.selected=new Set([node.id]);
@@ -70,7 +71,7 @@ let app,page;
    await page.waitForSelector('#modal[open]');
    await audit(action);
    await page.screenshot({path:path.join(out,`v16-${action}.png`)});
-   await page.evaluate(()=>document.querySelector('#modal').close());
+   await page.locator('#modal-close').click();
   }
   for(const size of [[1080,800],[1280,900],[1920,1080]]){
    await app.evaluate(({BrowserWindow},size)=>BrowserWindow.getAllWindows()[0].setContentSize(...size),size);

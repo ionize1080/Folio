@@ -4885,3 +4885,19 @@ html[lang="en"] .panel-heading h2 { white-space:nowrap; }
 html[lang="en"] .menu-grid button { min-height:36px; height:auto; white-space:normal; }
 html[lang="en"] .adjust-tools, html[lang="en"] .pe-object-tools, html[lang="en"] .pe-primary, html[lang="en"] .table-tools { flex-wrap:wrap; }
 @media(max-width:1250px) { .appbar { flex-wrap:wrap; height:auto; } .appbar .toolbar { order:3; width:100%; justify-content:flex-start; } .app-actions { margin-left:auto; } }
+/* Reserve a complete row for commands so translated labels never overlap. */
+.appbar, html[lang="en"] .appbar {
+ display:grid; grid-template-columns:auto minmax(0,1fr) auto;
+ grid-template-areas:"brand document actions" "commands commands commands";
+ gap:4px 12px; padding:7px 12px; height:auto; min-height:92px;
+}
+.appbar .brand { grid-area:brand; }
+.appbar .doc-tab { grid-area:document; max-width:none; min-width:0; display:flex; }
+.appbar .app-actions { grid-area:actions; margin-left:0; }
+.appbar > .toolbar, html[lang="en"] .appbar > .toolbar {
+ grid-area:commands; width:100%; height:auto; min-height:36px;
+ flex-wrap:nowrap; justify-content:flex-start; order:initial;
+}
+.appbar .more-tools { margin-left:auto; flex:none; }
+.language-picker { border-color:var(--line); }
+html[lang="zh-Hant"] { font-family:Inter,"Segoe UI Variable","Segoe UI","Microsoft JhengHei UI","Microsoft JhengHei","Folio UI",sans-serif; }
