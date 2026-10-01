@@ -4909,3 +4909,10 @@ html[lang="zh-Hant"] .preview-origin::before { content:"原文："; }
 body[data-left="narrow"] .outline-panel,
 body[data-right="narrow"] .inspector { overflow:clip; }
 .viewer-toolbar { flex-wrap:wrap; height:auto; min-height:38px; }
+/* Long action labels wrap within narrow editor panels. */
+.image-panel-scroll .adjust-tools button { white-space:normal; }
+.image-panel-scroll .form-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+@container (max-width:820px) {
+ html[lang="en"] .viewer-toolbar [data-action="annotate"] span { display:none; }
+ html[lang="en"] .viewer-toolbar { gap:3px; padding-inline:6px; }
+}

@@ -69,6 +69,7 @@ jobs:
         env:
           FOLIO_EXE: ${{ github.workspace }}\dist\Folio-PDF-Studio-win-x64\Folio.exe
       - run: python tests/selection-v14-saved.py
+      - run: python tests/native-v11.py
       - run: node tests/electron-v12.cjs
         env:
           FOLIO_EXE: ${{ github.workspace }}\dist\Folio-PDF-Studio-win-x64\Folio.exe
