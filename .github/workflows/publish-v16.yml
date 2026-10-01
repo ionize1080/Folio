@@ -2,7 +2,7 @@ name: Publish visually reviewed Folio 1.6.0
 on:
   push:
     branches: [codex/folio-v16-publish]
-    paths: [.github/workflows/publish-v16.yml]
+    paths: [.github/workflows/publish-v16.yml, scripts/publish-v16.py]
 permissions:
   contents: write
   actions: read

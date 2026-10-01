@@ -44,7 +44,9 @@ with zipfile.ZipFile(source) as z:
     for name in ['README.md', 'README.zh-Hans.md', 'README.zh-Hant.md',
                  'src/i18n.mjs', 'src/locales/en.json', 'src/locales/zh-Hant.json',
                  'docs/RELEASE-1.6.0.md', 'docs/RELEASE-1.6.0.zh-Hans.md', 'docs/RELEASE-1.6.0.zh-Hant.md']:
-        assert z.read(base + name) == Path(name).read_bytes(), name
+        # Windows checkout uses CRLF; compare UTF-8 content with only EOL normalized.
+        archived = z.read(base + name).decode('utf-8').replace('\r\n', '\n')
+        assert archived == Path(name).read_text(encoding='utf-8'), name
     assert not any('/tests/output/' in n or '/.venv/' in n for n in z.namelist())
 shutil.copyfile(portable, out / f'{prefix}-portable-win-x64.zip')
 shutil.copyfile(source, out / source.name)
