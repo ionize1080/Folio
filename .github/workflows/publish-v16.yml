@@ -1,0 +1,30 @@
+name: Publish visually reviewed Folio 1.6.0
+on:
+  push:
+    branches: [codex/folio-v16-publish]
+    paths: [.github/workflows/publish-v16.yml]
+permissions:
+  contents: write
+  actions: read
+concurrency:
+  group: folio-v16-publish
+  cancel-in-progress: false
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ionize1080/Folio
+      FOLIO_SOURCE_COMMIT: eefe97afb7a7703caad17b9e2e14c6a47fa0701d
+      FOLIO_RUN_ID: '36816037502'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          run-id: 36816037502
+          pattern: folio-v16-*
+          path: downloaded
+      - name: Verify source, acceptance and binary hashes; publish complete release
+        run: python scripts/publish-v16.py
