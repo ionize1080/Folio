@@ -2389,11 +2389,11 @@ export function installFlowUI(ctx) {
       ];
       const select = bar.querySelector("#pe-overlap-select");
       select.replaceChildren(new Option("选择重叠段落…", ""));
-      overlapping.forEach((e, i) =>
-        select.add(
-          new Option(e.model.text.slice(0, 35) || "空文本框", String(i)),
-        ),
-      );
+      overlapping.forEach((e, i) => {
+        const option = new Option(e.model.text.slice(0, 35) || "空文本框", String(i));
+        if (e.model.text) option.setAttribute("translate", "no");
+        select.add(option);
+      });
       select.disabled = !overlapping.length;
     }
     listen(bar.querySelector("#pe-overlap-select"), "change", (e) => {
@@ -2831,6 +2831,7 @@ export function installFlowUI(ctx) {
       p.append(close);
       for (const f of preview?.fallbackDetails || []) {
         const b = document.createElement("button");
+        b.setAttribute("translate", "no");
         b.textContent = `${f.text}：${f.original} → ${f.actual}${f.match ? ` · ${f.match}（${f.confidence}置信）` : ""}`;
         b.onclick = () => {
           input.setSelectionRange(f.start, f.end);

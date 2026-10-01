@@ -67,7 +67,7 @@ const contentSelector = [
  '.textLayer','.page-edit-input','.page-edit-composition','.annotation-mark',
  '#tree-rows .title','#tree-rows [role="treeitem"]','#doc-name[data-file]',
  '#ocr-results','#ocr-boxes','#ocr-candidates','#ocr-evidence',
- '#pe-font-list button','#pe-overlap-select','#pe-fallback-panel',
+ '#pe-font-list button',
  '#table-grid','[data-list]','[data-name]','.large-workspace [data-preview]',
  '#open-password-file','#decrypt-file','#rule-nav button','#gen-toc','#raw-current','#raw-original','#update-notes',
  '#rule-list input','#rule-list textarea',

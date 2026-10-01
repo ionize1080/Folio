@@ -82,7 +82,13 @@ let app,page;
    await page.locator('#language-select').selectOption(locale);
    assert.equal(await page.locator('.page-edit-input').inputValue(),editorValue);
   }
-  await page.locator('#pe-more').click();await audit('text-edit');
+  await page.locator('#pe-more').click();
+  await page.locator('.pe-layers').evaluate(el=>el.open=true);
+  await audit('text-edit');
+  await page.evaluate(()=>document.querySelector('#pe-fallback').click());
+  await audit('font-substitution');
+  assert.equal(await page.locator('#pe-fallback-panel button').first().innerText(),'Close substitution details');
+  await page.locator('#pe-fallback-panel button').first().click();
   await page.screenshot({path:path.join(out,'v16-text-edit.png')});
   await page.locator('#pe-cancel').click();
   await page.locator('#pe-done').click();
