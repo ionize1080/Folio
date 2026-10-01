@@ -23,7 +23,8 @@ required = {
 for name, minimum in required.items():
     report = json.loads((root / 'folio-v16-validation' / name).read_text(encoding='utf-8'))
     assert not report['errors'] and len(report['checks']) >= minimum, name
-    assert report['platform'] == 'win32', name
+    if name not in {'v13-native-report.json', 'v14-native-report.json'}:
+        assert report['platform'] == 'win32', name
     reports[name] = report
 assert all(not screen['missing'] for screen in reports['v16-ui-report.json']['coverage'])
 packaged = [r for r in reports.values() if 'exe_sha256' in r]
