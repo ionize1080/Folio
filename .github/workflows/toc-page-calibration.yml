@@ -1,0 +1,37 @@
+name: TOC page calibration
+on:
+  push:
+    branches: [codex/toc-page-calibration-20261006]
+  pull_request:
+    paths:
+      - 'src/page-calibration*'
+      - 'src/page-labels.mjs'
+      - 'tests/page-calibration*'
+      - '.github/workflows/toc-page-calibration.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: toc-page-calibration-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm run test:unit
+      - name: Real PDF browser workflow on Windows Edge
+        run: node tests/page-calibration-ui.cjs
+        env:
+          FOLIO_CHROMIUM: 'C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: toc-page-calibration-validation
+          path: tests/output/page-calibration-*

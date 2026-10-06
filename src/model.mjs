@@ -1,4 +1,5 @@
 import { EditAssets } from "./edit-assets.mjs";
+import { parsePageLabel } from "./page-labels.mjs";
 // Flat preorder outline model. Parent references avoid recursive traversal limits.
 export const MODES = {
   XYZ: 3,
@@ -275,22 +276,38 @@ export function importJSON(text, pageCount) {
   return { nodes: validate(nodes, pageCount), skipped };
 }
 export function parseTOC(text, pageCount, offset = 0) {
+  if (!Number.isInteger(offset)) throw Error("页码偏移必须为整数");
   const nodes = [],
     parents = [];
   let bad = 0;
   for (const line of text.split(/\r?\n/)) {
     if (!line.trim()) continue;
-    const m = line.match(
-      /^(\s*)(.*?)\s*(?:\t|\.{2,}|…+|·{2,}|\s{2,})\s*(\d+)\s*$/,
+    const leading = line.match(/^\s*/)[0],
+      body = line.slice(leading.length);
+    const separators = [
+      ...body.matchAll(/\t|\.{2,}|…+|·{2,}| {2,}/g),
+    ].reverse();
+    const separator = separators.find((m) =>
+      parsePageLabel(body.slice(m.index + m[0].length).trim()),
     );
-    if (!m) {
+    const rawLabel =
+      separator && body.slice(separator.index + separator[0].length).trim();
+    const label = rawLabel && parsePageLabel(rawLabel);
+    const title = separator && body.slice(0, separator.index).trim();
+    if (!title || !label) {
       bad++;
       continue;
     }
-    const indent = m[1].replaceAll("\t", "  ").length,
+    const indent = leading.replaceAll("\t", "  ").length,
       depth = Math.min(Math.floor(indent / 2), parents.length),
-      page = Number(m[3]) + offset;
-    const n = makeNode(m[2].trim(), page, depth ? parents[depth - 1] : null);
+      page = label.value + offset;
+    const n = makeNode(title, page, depth ? parents[depth - 1] : null);
+    n.origin = {
+      source: "TOC",
+      text: line,
+      printedPageLabel: rawLabel,
+      pageLabelSystem: label.system,
+    };
     parents.length = depth;
     parents.push(n.id);
     nodes.push(n);

@@ -4916,3 +4916,46 @@ body[data-right="narrow"] .inspector { overflow:clip; }
  html[lang="en"] .viewer-toolbar [data-action="annotate"] span { display:none; }
  html[lang="en"] .viewer-toolbar { gap:3px; padding-inline:6px; }
 }
+
+/* Independent TOC destination calibration keeps evidence and page previews
+   inside the modal; rows remain accessible through bounded pagination. */
+.pc-toolbar,
+.pc-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.pc-toolbar {
+  padding: 10px 0;
+}
+.pc-toolbar #pc-selected {
+  margin-left: auto;
+}
+.pc-actions label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.pc-actions input {
+  width: 85px;
+}
+.pc-preview-box canvas {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 0 auto;
+}
+.pc-preview-box {
+  max-height: 340px;
+  overflow: auto;
+}
+.pc-confidence {
+  font-weight: 600;
+}
+.pc-confidence[data-status="high"] {
+  color: var(--accent, #5368db);
+}
+.pc-row select {
+  width: 100%;
+}
