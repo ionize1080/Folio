@@ -199,8 +199,8 @@ export function calibratePages({
       }
     }
   }
-  // Exact matches use an index; the bounded fuzzy fallback only visits lines
-  // with compatible lengths. Work runs in a cancellable Web Worker.
+  // Length buckets skip lines too short to match; similarity also rejects
+  // incompatible lengths. Work runs in a cancellable Web Worker.
   const byLength = new Map();
   for (const l of lines) {
     const len = norm(l.text).length;

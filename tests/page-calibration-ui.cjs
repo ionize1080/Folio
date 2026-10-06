@@ -128,6 +128,16 @@ const errors = [],
   );
   assert(await page.locator("#pc-apply").isDisabled());
   assert.match(await page.locator("#pc-status").innerText(), /Complete/);
+  const alpha = page
+    .locator(".pc-row")
+    .filter({ hasText: "Alpha chapter" })
+    .first();
+  await alpha.locator("[data-choice]").selectOption("1");
+  assert.equal(
+    await alpha.locator(".pc-confidence").getAttribute("data-status"),
+    "review",
+  );
+  await page.locator("#pc-clear").click();
   await page.locator("#pc-high").click();
   assert.equal(
     await page.locator("#pc-selected").innerText(),
@@ -213,10 +223,22 @@ const errors = [],
     "Changed settings invalidate preview; changed document rejects stale apply",
   );
   await open();
-  await page.locator("#pc-run").click();
-  await page.locator("#pc-stop").click();
+  // Start and cancel in the same event turn so this tiny cached fixture cannot
+  // finish while Playwright waits for the moving dialog to become stable.
+  await page.evaluate(() => {
+    document.querySelector("#pc-run").click();
+    const stop = document.querySelector("#pc-stop");
+    if (stop.disabled)
+      throw Error("Analysis did not enter a cancellable state");
+    stop.click();
+  });
   await page.waitForTimeout(250);
   assert(await page.locator("#pc-apply").isDisabled());
+  assert.match(await page.locator("#pc-status").innerText(), /stopped/i);
+  assert.deepEqual(
+    await page.evaluate(() => window.__qa.S.nodes),
+    await page.evaluate(() => window.__before),
+  );
   await page.locator("#modal-close").click();
   checks.push("Cancel leaves document unchanged and disables apply");
   for (const locale of ["zh-Hans", "zh-Hant", "en"]) {

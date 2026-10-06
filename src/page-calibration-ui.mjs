@@ -313,7 +313,12 @@ export function installPageCalibrationUI({
         .map((r) => {
           const choice = choices.get(r.id),
             manual = typeof choice === "object",
+            alternative = Number.isInteger(choice) && choice > 0,
             c = !manual && choice >= 0 ? r.candidates[choice] : r.candidates[0];
+          const status = alternative ? "review" : r.status,
+            confidence = alternative
+              ? Math.min(r.confidence, c.score)
+              : r.confidence;
           const before = r.before?.page || "?",
             best = manual ? choice.page : c?.page,
             delta =
@@ -328,7 +333,7 @@ export function installPageCalibrationUI({
                 ].join(" · ")
               : "";
           return `<article class="change-card pc-row" data-row="${esc(r.id)}"><strong translate="no">${esc(r.title)}</strong>
-          <p><span class="pc-confidence" data-status="${manual ? "manual" : r.status}">${manual ? esc(t("手动指定，未自动验证")) : `<span>${esc(t(statusText[r.status]))}</span> · ${r.confidence}/100`}</span></p>
+          <p><span class="pc-confidence" data-status="${manual ? "manual" : status}">${manual ? esc(t("手动指定，未自动验证")) : `<span>${esc(t(statusText[status]))}</span> · ${confidence}/100`}</span></p>
           <p>${esc(t("原目标 PDF 第 {0} 页；建议第 {1} 页；本条偏移 {2}", { 0: before, 1: best ?? "—", 2: delta === null ? "—" : delta > 0 ? `+${delta}` : delta }))}</p>
           ${r.printedLabel ? `<p>${esc(t("目录原始页码"))}：<span translate="no">${esc(r.printedLabel)}</span></p>` : ""}
           <label>${esc(t("匹配位置"))}<select data-choice="${esc(r.id)}"><option value="-1">${esc(t("保留原目标 / 暂不校准"))}</option>${r.candidates.map((c, i) => `<option translate="no" value="${i}">${esc(localized("PDF 第 {0} 页 · 证据评分 {1} · {2}", { 0: c.page, 1: c.score, 2: c.text.slice(0, 140) }))}</option>`).join("")}${manual ? `<option value="manual">${esc(t("手动指定 PDF 第 {0} 页", { 0: choice.page }))}</option>` : ""}</select></label>
