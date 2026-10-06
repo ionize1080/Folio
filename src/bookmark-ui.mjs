@@ -3,6 +3,7 @@ import { appendLine } from "./line-geometry.mjs";
 import { duplicatePlan } from "./bookmark-tools.mjs";
 import { extractLines } from "./text-lines.mjs";
 import { clone, descendants } from "./model.mjs";
+import { installPageCalibrationUI } from "./page-calibration-ui.mjs";
 export function installBookmarkUI({
   S,
   surface,
@@ -15,6 +16,17 @@ export function installBookmarkUI({
   setCleanup,
 }) {
   const $ = (s) => document.querySelector(s);
+  const pageCalibrationDialog = installPageCalibrationUI({
+    S,
+    surface,
+    modal,
+    closeModal,
+    esc,
+    commit,
+    guarded,
+    toast,
+    setCleanup,
+  });
   const scopeIds = (value) =>
     value === "all"
       ? new Set(S.nodes.map((n) => n.id))
@@ -96,6 +108,7 @@ export function installBookmarkUI({
       `<div class="form-grid three"><label>书签范围<select id="cal-scope"><option value="selected">所选书签</option><option value="subtree">所选及后代</option><option value="all">全部书签</option></select></label><label>标题上方留白<input id="cal-offset" type="number" value="5" step="0.5"></label><label>单位<select id="cal-unit"><option>mm</option><option>pt</option></select></label></div><details><summary>匹配设置</summary><label class="check"><input id="cal-loose" type="checkbox" checked>忽略空白、换行和全半角差异</label><label>从书签标题去掉的正则（可空）<input id="cal-strip" placeholder="例如：^\\d+[.、]\\s*"></label><div class="form-grid three"><label>排除页眉（pt）<input id="cal-header" type="number" value="0" min="0"></label><label>排除页脚（pt）<input id="cal-footer" type="number" value="0" min="0"></label><label>允许前后跨页数<input id="cal-radius" type="number" min="0" max="20" value="0"></label></div><label class="check"><input id="cal-convert" type="checkbox">允许转换原始本地动作／命名目标为独立直接目标</label></details><p id="cal-status" class="callout">在原目标页优先寻找独立标题，结合边界与位置推荐匹配；找不到时保留原目标。修改设置后自动刷新。</p><div class="menu-grid"><button id="cal-before">查看原位置</button><button id="cal-after">查看新位置</button></div><canvas id="cal-preview" hidden></canvas><div id="cal-results" class="preview-list"></div>`,
       [
         { text: "关闭", run: closeModal },
+        { text: "逐条校准目录页码", run: () => pageCalibrationDialog() },
         { text: "重新匹配", run: () => guarded(scan) },
         {
           text: "应用校准",
@@ -367,5 +380,5 @@ export function installBookmarkUI({
     });
     guarded(scan);
   }
-  return { dedupeDialog, calibrateDialog };
+  return { dedupeDialog, calibrateDialog, pageCalibrationDialog };
 }

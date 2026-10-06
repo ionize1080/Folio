@@ -1580,6 +1580,7 @@ function generateDialog() {
         run: async () => {
           generated = null;
           $("#gen-apply").disabled = true;
+          $("#gen-calibrate").disabled = true;
           $("#gen-run").disabled = true;
           $$(
             "#modal-body input,#modal-body select,#modal-body textarea",
@@ -1688,6 +1689,7 @@ function generateDialog() {
               )
               .join("");
             $("#gen-apply").disabled = !nodes.length;
+            $("#gen-calibrate").disabled = !nodes.length;
           } catch (e) {
             if (!cancelled) {
               $("#gen-summary").textContent = e.message;
@@ -1700,6 +1702,20 @@ function generateDialog() {
               ).forEach((e) => (e.disabled = false));
             }
           }
+        },
+      },
+      {
+        text: "逐条校准目录页码",
+        id: "gen-calibrate",
+        run: () => {
+          if (!generated?.length) throw Error("请先生成有效预览");
+          const nodes = generated,
+            replace = $("#gen-merge").value === "replace";
+          bookmarkUI.pageCalibrationDialog({
+            nodes,
+            onApply: (calibrated) =>
+              commit(replace ? calibrated : [...S.nodes, ...calibrated]),
+          });
         },
       },
       {
@@ -1731,6 +1747,7 @@ function generateDialog() {
     },
   });
   $("#gen-apply").disabled = true;
+  $("#gen-calibrate").disabled = true;
   const fields = () => {
     $("#gen-fields").innerHTML = {
       font: '<label>最小标题字号（pt）<input id="gen-size" type="number" min="1" step="0.5" value="15"></label><p class="hint">字号从大到小对应由浅到深的层级。建议先扫描少量页面调整阈值。</p>',
@@ -1759,12 +1776,14 @@ function generateDialog() {
     );
     generated = null;
     $("#gen-apply").disabled = true;
+    $("#gen-calibrate").disabled = true;
   };
   $("#gen-mode").onchange = fields;
   fields();
   const invalidate = () => {
     generated = null;
     $("#gen-apply").disabled = true;
+    $("#gen-calibrate").disabled = true;
   };
   $("#modal-body").addEventListener("input", invalidate);
   modalCleanup = () => {
@@ -3970,6 +3989,7 @@ Object.assign(actions, {
   "page-diff": openPageDiff,
   whitespace: nativeUI.whitespaceDialog,
   calibrate: bookmarkUI.calibrateDialog,
+  "calibrate-pages": () => bookmarkUI.pageCalibrationDialog(),
   dedupe: bookmarkUI.dedupeDialog,
   "range-start": () => {
     S.rangeStart = S.page;
