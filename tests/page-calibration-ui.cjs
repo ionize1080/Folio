@@ -145,7 +145,11 @@ const errors = [],
   );
   await page.locator(".pc-row").first().locator("[data-after]").click();
   await page.waitForFunction(
-    () => !document.querySelector("#pc-preview").hidden,
+    () =>
+      !document.querySelector("#pc-preview").hidden &&
+      document
+        .querySelector("#pc-preview-label")
+        .textContent.includes("page 6"),
   );
   assert.match(await page.locator("#pc-preview-label").innerText(), /page 6/);
   await page.screenshot({

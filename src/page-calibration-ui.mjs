@@ -80,16 +80,21 @@ export function installPageCalibrationUI({
       settleWorker = null;
       busy = false;
     }
+    function resetPreview() {
+      drawRevision++;
+      renderTask?.cancel();
+      if (closed) return;
+      $("#pc-preview").hidden = true;
+      $("#pc-preview-label").textContent = "";
+    }
     function invalidate() {
       stop();
       ready = false;
       results = [];
       choices.clear();
-      drawRevision++;
-      renderTask?.cancel();
+      resetPreview();
       if (closed) return;
       $("#pc-results").replaceChildren();
-      $("#pc-preview").hidden = true;
       $("#pc-status").textContent = t("设置已更改，请重新分析。");
       updateButtons();
     }
@@ -173,9 +178,7 @@ export function installPageCalibrationUI({
       choices.clear();
       pageIndex = 0;
       $("#pc-results").replaceChildren();
-      $("#pc-preview").hidden = true;
-      drawRevision++;
-      renderTask?.cancel();
+      resetPreview();
       updateButtons();
       try {
         if (stale()) throw Error(t("文档已改变，请重新打开校准预览。"));
@@ -308,6 +311,7 @@ export function installPageCalibrationUI({
       }
     }
     function renderRows() {
+      resetPreview();
       $("#pc-results").innerHTML = results
         .slice(pageIndex * 50, (pageIndex + 1) * 50)
         .map((r) => {
@@ -359,8 +363,8 @@ export function installPageCalibrationUI({
           : candidate?.target
         : r.before;
       if (!target?.page) return;
-      const rev = ++drawRevision;
-      renderTask?.cancel();
+      resetPreview();
+      const rev = drawRevision;
       const p = await pdf.getPage(target.page);
       if (closed || rev !== drawRevision) return;
       const vp = p.getViewport({
