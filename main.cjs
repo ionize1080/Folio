@@ -173,7 +173,10 @@ app.whenReady().then(async () => {
       !/^install-[\da-f-]+\.json\.health\.json$/.test(path.basename(file))
     )
       return;
-    if (!win.isDestroyed() && win.isVisible()) {
+    // The authenticated renderer signals after its modules have initialized.
+    // Minimization/occlusion is not a startup failure and must not roll back an
+    // otherwise healthy upgrade.
+    if (!win.isDestroyed()) {
       await fs.writeFile(
         file + ".tmp",
         JSON.stringify({ version: updater.current, pid: process.pid }),

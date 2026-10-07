@@ -4361,4 +4361,6 @@ installDropOpen({
   isBusy: () => S.busy || !!document.querySelector("dialog[open]"),
 });
 // Acknowledgement follows complete renderer initialization, not process spawn.
-requestAnimationFrame(() => window.desktop?.updateStarted?.().catch(() => {}));
+// A background or occluded window may not receive an animation frame. Confirm
+// initialization independently of painting so successful updates do not time out.
+window.desktop?.updateStarted?.().catch(() => {});

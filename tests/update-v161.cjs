@@ -8,10 +8,11 @@ const { execFileSync } = require("node:child_process");
 const assert = require("node:assert/strict");
 const root = path.resolve(__dirname, ".."),
   out = path.join(root, "tests/output");
+const version = require("../package.json").version;
 const base = fs.mkdtempSync(path.join(out, "updater 中文 ' "));
 const archive = path.resolve(
   process.env.FOLIO_UPDATE_ZIP ||
-    "deliverables/Folio-PDF-Studio-1.6.1-win-x64.zip",
+    `deliverables/Folio-PDF-Studio-${version}-win-x64.zip`,
 );
 const hash = (f) =>
   crypto.createHash("sha256").update(fs.readFileSync(f)).digest("hex");
@@ -120,7 +121,7 @@ function stop() {
       const oldProcess = app.process();
       console.log("Native worker exercised:", mode);
       await app.evaluate(
-        ({ app }, { modulePath, archive, hash }) => {
+        ({ app }, { modulePath, archive, hash, version }) => {
           const req = process
             .getBuiltinModule("module")
             .createRequire(app.getAppPath() + "/main.cjs");
@@ -130,7 +131,7 @@ function stop() {
           global.__updateIntegration.ready = {
             file: archive,
             hash,
-            version: "v1.6.1",
+            version: "v" + version,
           };
           // Start after the RPC returns; app.quit() must close the real process.
           setTimeout(
@@ -150,6 +151,7 @@ function stop() {
           modulePath:
             mode === "legacy15" ? path.join(root, "update-manager.cjs") : null,
           archive,
+          version,
           hash: hash(archive),
         },
       );
@@ -173,8 +175,8 @@ function stop() {
       );
       app = null;
       const health = read(manifest + ".health.json");
-      assert.equal(health.version, "1.6.1");
-      assert.equal(read(path.join(target, "BUILD-INFO.json")).version, "1.6.1");
+      assert.equal(health.version, version);
+      assert.equal(read(path.join(target, "BUILD-INFO.json")).version, version);
       assert.equal(
         hash(path.join(result.backup, "resources/app.asar")),
         oldHash,
@@ -197,7 +199,7 @@ function stop() {
           env: { ...process.env, FOLIO_TEST_PID: String(health.pid) },
         },
       ).trim();
-      assert(visible.includes("1.6.1"), visible);
+      assert(visible.includes(version), visible);
       checks.push({
         mode,
         oldProcessExited: true,
