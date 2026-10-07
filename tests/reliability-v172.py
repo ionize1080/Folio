@@ -37,6 +37,17 @@ for text,expected in [('New',True),('This replacement is outside the inherited c
 for edit in [dict(obj,page=1,text='This generic replacement extends beyond clip'),dict(obj,page=1,matrix=[1,0,0,1,130,240],objectStyle={'scale':1})]:
  try:apply(raw,[edit]);raise AssertionError('generic clipped text edit accepted')
  except ValueError as error:assert '裁剪边界' in str(error)
+# Equal-advance digits can still have wider ink; the original-font fast path
+# must measure the candidate without clipping, rather than trusting advances.
+from p8_helpers import models as edit_models, save as save_model
+d=fitz.open();p=d.new_page(width=300,height=300);p.insert_text((30,60),'1',fontsize=12)
+base=d.tobytes();digit=call(base,'inspect',page=1)['objects'][0];x0,y0,x1,y1=digit['bounds']
+w=PdfWriter();p=w.add_page(PdfReader(io.BytesIO(base)).pages[0]);st=DecodedStreamObject()
+st.set_data(f'q {x0-.05} {y0-1} {x1-x0+.1} {y1-y0+2} re W n\n'.encode()+p.get_contents().get_data()+b'\nQ');p[N('/Contents')]=w._add_object(st);narrow=dump(w)
+_,digit_models=edit_models(narrow);assert len(digit_models)==1
+model=digit_models[0];model['text']='8'
+try:save_model(narrow,model);raise AssertionError('equal-width glyph escaped clip')
+except ValueError as error:assert '裁剪边界' in str(error)
 checks.append('Inherited rectangular clip: inside replacement succeeds, overflowing paragraph, generic text and object transform reject with preserved source')
 # Replacement on mixed text/image page remains editable through three cold reopens, all fit modes.
 im=Image.new('RGB',(80,40),'red');b=io.BytesIO();im.save(b,format='PNG');image=b.getvalue()

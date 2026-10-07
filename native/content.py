@@ -277,6 +277,10 @@ def compose(data,edits,blocks,inspect,fragment,progress=None):
                     original_stream,_=map_objects(page)
                     patch=correction(page,original_stream,mapped[sources[0]['index']],desc[sources[0]['index']],flow)
                 if patch is not None:
+                    from clip_contract import validate_patch
+                    idx=sources[0]['index']
+                    if not validate_patch(page,original_stream,idx,len(desc),mapped[idx]['at'],patch,desc[idx].get('clipBounds',())):patch=None
+                if patch is not None:
                     original_patches[mapped[sources[0]['index']]['at']]=patch
                     flow_indices.update(indices)
                     continue

@@ -10,7 +10,7 @@ sha = os.environ['GITHUB_SHA']
 run = f"https://github.com/{os.environ['GITHUB_REPOSITORY']}/actions/runs/{os.environ['GITHUB_RUN_ID']}"
 required = {
     'v172-native-report.json': 5, 'v172-ui-report.json': 7,
-    'smart-toc-electron-report.json': 3,
+    'smart-toc-electron-report.json': 4,
     'smart-toc-ui-report.json': 7, 'page-calibration-ui-report.json': 6,
     'v16-ui-report.json': 7, 'v15-ui-report.json': 6,
     'v14-ui-report.json': 6, 'v13-ui-report.json': 3,

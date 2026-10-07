@@ -104,9 +104,15 @@ let app, page;
     [5, 2, 4],
   );
   await page.screenshot({ path: path.join(out, "smart-toc-packaged-ocr.png") });
-  assert.equal(await page.locator("[data-field=selected]:checked").count(), 3,
-    "Clean high-confidence OCR diagnostics must allow automatic selection");
+  // OCR normalizes this fixture's whitespace, leaving title-number entries
+  // without leaders. Their recognition score is 65: correct body matches do
+  // not justify bypassing the new independent recognition-review gate.
+  assert.equal(await page.locator("[data-field=selected]:checked").count(), 0);
+  assert.equal(await page.locator('.st-state[data-status="review"]').count(), 3);
+  assert(!(await page.locator("#st-apply").isEnabled()));
+  for (let i = 0; i < 3; i++) await page.locator("[data-field=selected]").nth(i).check();
   assert(await page.locator("#st-apply").isEnabled());
+  checks.push("OCR entries without reliable title-number separators retain correct destinations but require explicit selection before applying");
   await page.locator("#st-apply").click();
   assert.deepEqual(
     await page.evaluate(async () => {

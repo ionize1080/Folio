@@ -44,3 +44,32 @@ def validate_fragment(blob, clips):
         page=doc[0]
         try:validate_ink([o.get_bounds() for o in page.get_objects(max_depth=1)],clips)
         finally:page.close()
+
+
+def validate_patch(page, stream, index, count, at, patch, clips):
+    """Measure original-font replacement ink before the inherited clip is applied.
+
+    Keep the original font/codes when possible. A verified object-order match is
+    required; otherwise the caller uses its normal validated fragment path.
+    """
+    if not clips:return True
+    import io
+    import pypdfium2 as pdfium
+    from pypdf import PdfWriter
+    from pypdf.generic import ContentStream, NameObject
+    writer=PdfWriter();candidate=writer.add_page(page)
+    content=ContentStream(None,writer);operations=[]
+    for i,(args,op) in enumerate(stream.operations):
+        if op in (b'W',b'W*'):continue
+        operations.extend(patch if i==at else [(args,op)])
+    content.operations=operations
+    candidate[NameObject('/Contents')]=writer._add_object(content)
+    output=io.BytesIO();writer.write(output)
+    with pdfium.PdfDocument(output.getvalue()) as document:
+        rendered=document[0]
+        try:
+            objects=list(rendered.get_objects(max_depth=1))
+            if len(objects)!=count or objects[index].type!=1:return False
+            validate_ink([objects[index].get_bounds()],clips)
+        finally:rendered.close()
+    return True
