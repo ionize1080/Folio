@@ -60,7 +60,7 @@ def publish(repo, tag, sha, title, notes, assets):
             raise RuntimeError('Draft creation is not yet visible; retry later without creating another draft') from create_error
     assert release and release['target_commitish'] == sha, 'Existing tag targets another commit'
 
-    def current():
+    def current_release():
         return json.loads(gh('api', endpoint + f"/{release['id']}"))
     expected = {}
     for file in assets:
@@ -98,14 +98,14 @@ def publish(repo, tag, sha, title, notes, assets):
     assert set(actual) == set(expected)
     assert all(actual[name]['state'] == 'uploaded' and actual[name].get('digest') == digest for name, digest in expected.items())
     for attempt in range(4):
-        if not current()['draft']:
+        if not current_release()['draft']:
             return
         try:
             gh('release', 'edit', tag, '--repo', repo, '--draft=false', '--prerelease=false', '--latest')
         except RuntimeError:
-            if not current()['draft']:
+            if not current_release()['draft']:
                 return
             if attempt == 3:
                 raise
             time.sleep(3 * (attempt + 1))
-    assert not current()['draft'], 'Release remained a draft'
+    assert not current_release()['draft'], 'Release remained a draft'
