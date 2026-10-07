@@ -41,9 +41,15 @@ function stop() {
       "-NoProfile",
       "-NonInteractive",
       "-Command",
-      "Get-CimInstance Win32_Process | Where-Object { $_.ExecutablePath -and $_.ExecutablePath.StartsWith($env:FOLIO_TEST_ROOT + '\\') } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }",
+      "$root=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($env:FOLIO_TEST_ROOT_B64)); Get-CimInstance Win32_Process | Where-Object { $_.ExecutablePath -and $_.ExecutablePath.StartsWith($root + '\\') } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }",
     ],
-    { windowsHide: true, env: { ...process.env, FOLIO_TEST_ROOT: base } },
+    {
+      windowsHide: true,
+      env: {
+        ...process.env,
+        FOLIO_TEST_ROOT_B64: Buffer.from(base).toString("base64"),
+      },
+    },
   );
 }
 (async () => {
@@ -77,14 +83,14 @@ function stop() {
           "-NoProfile",
           "-NonInteractive",
           "-Command",
-          "$s=(New-Object -ComObject WScript.Shell).CreateShortcut($env:FOLIO_TEST_LINK);$s.TargetPath=$env:FOLIO_TEST_EXE;$s.WorkingDirectory=Split-Path $env:FOLIO_TEST_EXE;$s.Save()",
+          "$ErrorActionPreference='Stop';$link=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($env:FOLIO_TEST_LINK_B64));$exe=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($env:FOLIO_TEST_EXE_B64));$s=(New-Object -ComObject WScript.Shell).CreateShortcut($link);$s.TargetPath=$exe;$s.WorkingDirectory=Split-Path $exe;$s.Save()",
         ],
         {
           windowsHide: true,
           env: {
             ...process.env,
-            FOLIO_TEST_LINK: shortcut,
-            FOLIO_TEST_EXE: exe,
+            FOLIO_TEST_LINK_B64: Buffer.from(shortcut).toString("base64"),
+            FOLIO_TEST_EXE_B64: Buffer.from(exe).toString("base64"),
           },
         },
       );
