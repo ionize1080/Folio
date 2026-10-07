@@ -1,7 +1,7 @@
 name: Folio 1.6.1 Windows acceptance and release
 on:
   push:
-    branches: [codex/folio-v1611-updater]
+    branches: [codex/folio-v161-updater]
   workflow_dispatch:
 concurrency:
   group: folio-v161-windows
