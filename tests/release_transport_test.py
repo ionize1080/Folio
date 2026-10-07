@@ -12,17 +12,22 @@ spec.loader.exec_module(transport)
 
 
 class ReleaseTransportTests(unittest.TestCase):
-    def scenario(self, mismatch=False, wrong_commit=False):
+    def scenario(self, mismatch=False, wrong_commit=False, delayed=False):
         with tempfile.TemporaryDirectory() as folder:
             asset = Path(folder) / 'package.zip'
             asset.write_bytes(b'the exact accepted binary')
             digest = 'sha256:' + hashlib.sha256(asset.read_bytes()).hexdigest()
-            state = {'release': None, 'assets': [], 'creates': 0, 'uploads': 0}
+            state = {'release': None, 'assets': [], 'creates': 0, 'uploads': 0, 'hidden_reads': 2 if delayed else 0}
 
             def fake(*args, **kwargs):
                 if args[0] == 'api':
                     if args[-1].endswith('/releases?per_page=100&page=1'):
+                        if state['release'] and state['hidden_reads']:
+                            state['hidden_reads'] -= 1
+                            return '[]'
                         return json.dumps([state['release']] if state['release'] else [])
+                    if args[-1].endswith('/releases/1'):
+                        return json.dumps(state['release'])
                     if args[-1].endswith('/assets'):
                         return json.dumps(state['assets'])
                 if args[:2] == ('release', 'create'):
@@ -62,6 +67,9 @@ class ReleaseTransportTests(unittest.TestCase):
 
     def test_wrong_commit_is_not_published(self):
         self.scenario(wrong_commit=True)
+
+    def test_delayed_draft_visibility_does_not_create_duplicates(self):
+        self.scenario(delayed=True)
 
 
 if __name__ == '__main__':

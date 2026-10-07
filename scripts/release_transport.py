@@ -41,21 +41,27 @@ def publish(repo, tag, sha, title, notes, assets):
             page += 1
 
     release = find()
-    for attempt in range(4):
-        if release:
-            break
+    if not release:
+        create_error = None
         try:
             gh('release', 'create', tag, '--repo', repo, '--target', sha,
                '--title', title, '--notes-file', str(notes), '--draft')
-        except RuntimeError:
+        except RuntimeError as error:
+            create_error = error
+        # Creation has an unknown remote outcome on transport failure, and
+        # list visibility can lag even on success. Never create a second draft
+        # during reconciliation; a later invocation can resume the first one.
+        for attempt in range(6):
             release = find()
             if release:
                 break
-            if attempt == 3:
-                raise
             time.sleep(3 * (attempt + 1))
-        release = find()
+        if not release:
+            raise RuntimeError('Draft creation is not yet visible; retry later without creating another draft') from create_error
     assert release and release['target_commitish'] == sha, 'Existing tag targets another commit'
+
+    def current():
+        return json.loads(gh('api', endpoint + f"/{release['id']}"))
     expected = {}
     for file in assets:
         with file.open('rb') as stream:
@@ -92,14 +98,14 @@ def publish(repo, tag, sha, title, notes, assets):
     assert set(actual) == set(expected)
     assert all(actual[name]['state'] == 'uploaded' and actual[name].get('digest') == digest for name, digest in expected.items())
     for attempt in range(4):
-        if not find()['draft']:
+        if not current()['draft']:
             return
         try:
             gh('release', 'edit', tag, '--repo', repo, '--draft=false', '--prerelease=false', '--latest')
         except RuntimeError:
-            if not find()['draft']:
+            if not current()['draft']:
                 return
             if attempt == 3:
                 raise
             time.sleep(3 * (attempt + 1))
-    assert not find()['draft'], 'Release remained a draft'
+    assert not current()['draft'], 'Release remained a draft'
