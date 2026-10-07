@@ -82,8 +82,10 @@ function stop() {
         [
           "-NoProfile",
           "-NonInteractive",
-          "-Command",
-          "$ErrorActionPreference='Stop';$link=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($env:FOLIO_TEST_LINK_B64));$exe=[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($env:FOLIO_TEST_EXE_B64));$s=(New-Object -ComObject WScript.Shell).CreateShortcut($link);$s.TargetPath=$exe;$s.WorkingDirectory=Split-Path $exe;$s.Save()",
+          "-ExecutionPolicy",
+          "Bypass",
+          "-File",
+          path.join(__dirname, "create-shortcut-windows.ps1"),
         ],
         {
           windowsHide: true,
