@@ -264,6 +264,7 @@ test("auxiliary OCR review evidence survives extraction and entry recognition", 
       confidence: 0.4,
       needsReview: true,
       diagnostic: "orientation",
+      reviewAccepted: true,
       quad: [
         [50, 650],
         [400, 650],
@@ -274,5 +275,6 @@ test("auxiliary OCR review evidence survives extraction and entry recognition", 
   ]);
   const entry = recognizeTocPage(page).entries[0];
   assert(entry.ocrEvidence[0].needsReview);
+  assert(entry.ocrEvidence[0].reviewed);
   assert.equal(entry.ocrEvidence[0].confidence, 0.4);
 });

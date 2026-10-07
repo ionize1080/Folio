@@ -418,7 +418,11 @@ def compose(data,edits,blocks,inspect,fragment,progress=None):
                     if abs(det)<1e-12:raise ValueError('页面变换不可逆')
                     inv=[d0/det,-b/det,-c/det,a/det,(c*f-d0*e0)/det,(b*e0-a*f)/det]
                     patch={**d,**e,'index':None}
-                    calls=form(page,fragment(width,height,[patch],[]))
+                    blob=fragment(width,height,[patch],[])
+                    if m['type']=='text':
+                        from clip_contract import validate_fragment
+                        validate_fragment(blob,d.get('clipBounds',()))
+                    calls=form(page,blob)
                     after.setdefault(position,[]).extend([([],b'q'),([FloatObject(v) for v in inv],b'cm')]+calls+[([],b'Q')])
             operations=[]
             for i,(args,op) in enumerate(stream.operations):

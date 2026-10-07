@@ -34,7 +34,10 @@ for text,expected in [('New',True),('This replacement is outside the inherited c
   for cmd in ['apply','flow-background']:
    try:call(raw,cmd,page=1,edits=[edit]);raise AssertionError('clipped replacement accepted')
    except ValueError as error:assert '裁剪边界' in str(error)
-checks.append('Inherited rectangular clip: inside replacement succeeds, overflowing preview/apply both reject with preserved source')
+for edit in [dict(obj,page=1,text='This generic replacement extends beyond clip'),dict(obj,page=1,matrix=[1,0,0,1,130,240],objectStyle={'scale':1})]:
+ try:apply(raw,[edit]);raise AssertionError('generic clipped text edit accepted')
+ except ValueError as error:assert '裁剪边界' in str(error)
+checks.append('Inherited rectangular clip: inside replacement succeeds, overflowing paragraph, generic text and object transform reject with preserved source')
 # Replacement on mixed text/image page remains editable through three cold reopens, all fit modes.
 im=Image.new('RGB',(80,40),'red');b=io.BytesIO();im.save(b,format='PNG');image=b.getvalue()
 im=Image.new('RGB',(40,80),'blue');b=io.BytesIO();im.save(b,format='PNG');replacement=base64.b64encode(b.getvalue()).decode()

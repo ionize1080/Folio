@@ -77,7 +77,7 @@ export async function extractTocPage(pdf, number, rotation, ocr = []) {
         confidence: b.confidence,
         needsReview: b.needsReview,
         diagnostic: b.diagnostic,
-        reviewed: b.reviewed,
+        reviewed: !!(b.reviewed || b.reviewAccepted || b.corrected),
       };
     });
     // Prefer reviewed OCR only where its box overlaps native text.

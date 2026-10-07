@@ -15,6 +15,10 @@ def wrappers(stream,position,description,edit):
     if not isinstance(scale,(int,float)) or not math.isfinite(scale) or not .001<=scale<=1000:raise ValueError('字号缩放无效')
     if len(matrix)!=6 or any(not isinstance(v,(int,float)) or not math.isfinite(v) or abs(v)>1e7 for v in matrix):raise ValueError('对象变换无效')
     desired=mul(matrix,[scale,0,0,scale,0,0]);delta=mul(desired,inverse(description['matrix']))
+    from clip_contract import validate_ink
+    x0,y0,x1,y1=description['bounds'];a,b,c,d,e,f=delta
+    points=[(a*x+c*y+e,b*x+d*y+f) for x,y in ((x0,y0),(x1,y0),(x1,y1),(x0,y1))]
+    validate_ink([(min(x for x,y in points),min(y for x,y in points),max(x for x,y in points),max(y for x,y in points))],description.get('clipBounds',()))
     ctm=[1,0,0,1,0,0];stack=[]
     for args,op in stream.operations[:position]:
         if op==b'q':stack.append(ctm[:])

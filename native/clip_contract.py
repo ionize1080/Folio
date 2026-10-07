@@ -28,3 +28,19 @@ def clip_states(operations):
             pending=False;path=[]
         result[i]=clips
     return result
+
+
+def validate_ink(boxes, clips):
+    if not clips:return
+    if any(clip is None for clip in clips) or any(
+        box[0]<clip[0]-.01 or box[1]<clip[1]-.01 or box[2]>clip[2]+.01 or box[3]>clip[3]+.01
+        for box in boxes for clip in clips):
+        raise ValueError('新文字超出原 PDF 裁剪边界，请缩小文字或调整位置；草稿已保留')
+
+def validate_fragment(blob, clips):
+    if not clips:return
+    import pypdfium2 as pdfium
+    with pdfium.PdfDocument(blob) as doc:
+        page=doc[0]
+        try:validate_ink([o.get_bounds() for o in page.get_objects(max_depth=1)],clips)
+        finally:page.close()
