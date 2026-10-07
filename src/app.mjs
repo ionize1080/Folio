@@ -4295,7 +4295,7 @@ for (const side of ["left", "right"]) {
   handle.tabIndex = 0;
   handle.setAttribute("role", "separator");
   handle.setAttribute("aria-orientation", "vertical");
-  handle.setAttribute("aria-label", t("拖动调整侧栏宽度"));
+  handle.setAttribute("aria-label", "拖动调整侧栏宽度");
   handle.setAttribute("aria-valuemin", "220");
   handle.setAttribute("aria-valuemax", "520");
   const widthKey = side === "left" ? "sidebar" : "inspectorWidth";

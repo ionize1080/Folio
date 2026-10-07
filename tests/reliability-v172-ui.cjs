@@ -118,7 +118,9 @@ const errors = [],
       ocrJob: async (d) => (d.action === "history" ? [] : {}),
     };
   });
-  await page.addInitScript(() => localStorage.setItem("folio-language", "en"));
+  await page.addInitScript(() => {
+    if (!localStorage.getItem("folio-language")) localStorage.setItem("folio-language", "en");
+  });
   await page.goto("http://localhost");
   console.log("app loaded");
   await page.waitForFunction(() => window.__qa);
@@ -433,8 +435,15 @@ const errors = [],
       });
       await close();
     }
+  await page.evaluate(() => { window.__qa.S.dirty = false; window.__qa.S.flowDraftDirty = false; });
+  await page.reload();
+  await page.waitForFunction(() => window.__qa);
+  assert.equal(await page.locator("#language-select").inputValue(), "zh-Hant");
+  await page.locator("#language-select").selectOption("en");
+  await page.evaluate(async () => (await import("./i18n.mjs")).localizeTree(document.body));
+  assert((await page.locator('.panel-resizer').evaluateAll(es => es.map(e => e.getAttribute('aria-label')))).every(text => text && !/[\u3400-\u9fff]/.test(text)));
   checks.push(
-    "Three languages / two themes: named dialogs, searchable icon controls and bounded settings layout",
+    "Three languages / two themes and persisted-language reload: named dialogs, searchable controls, translated separators and bounded settings layout",
   );
   assert.deepEqual(errors, []);
   fs.writeFileSync(
