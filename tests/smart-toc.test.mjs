@@ -31,6 +31,7 @@ test("leaders, adjacent digits, numeral systems, ranges, alphabets and invalid l
     ["Introduction —— iv", 4],
     ["عنوان .... ١٢", 12],
     ["Title17", 17],
+    ["绪论Ⅻ", 12],
     ["Title  4–7", 4],
     ["附录　A-12", 12],
   ])
@@ -178,6 +179,7 @@ test("manual hierarchy normalizes missing parent levels, retaining source labels
   assert.equal(nodes[0].origin.printedPageLabel, "iv");
 });
 test("page-first French and superscript art labels survive geometry", () => {
+  assert.equal(splitTocText("18 God Save the Queen").printedLabel, "18");
   assert.equal(
     splitTocText("P. 12 _ Analyser les phénomènes").printedLabel,
     "12",

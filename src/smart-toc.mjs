@@ -35,10 +35,28 @@ export function splitTocText(raw, options = {}) {
     };
   // Page ranges point to the first page; keep the original range as evidence.
   const ranged = text.replace(/(\p{Nd}+)\s*[-–—]\s*\p{Nd}+\s*$/u, "$1");
+  const pageFirst = () => {
+    const first = text.match(/^(\p{Nd}{1,6})\s+(.+)$/u);
+    if (
+      !first ||
+      !parsePageLabel(first[1]) ||
+      first[2].length < 2 ||
+      !/\p{L}/u.test(first[2])
+    )
+      return null;
+    return {
+      title: first[2].trim(),
+      printedLabel: first[1],
+      label: parsePageLabel(first[1]),
+      raw: text,
+      confidence: 45,
+      leading: true,
+    };
+  };
   const m = ranged.match(endLabel);
-  if (!m || m.index === 0) return null;
+  if (!m || m.index === 0) return pageFirst();
   const label = parsePageLabel(m[1], options);
-  if (!label) return null;
+  if (!label) return pageFirst();
   const before = ranged.slice(0, m.index),
     title = trimLeader(before);
   if (
@@ -54,7 +72,7 @@ export function splitTocText(raw, options = {}) {
   )
     return null;
   // Latin letters must be separated: don't interpret the end of ordinary words.
-  if (/[a-z]$/i.test(m[1]) && !/[\s\p{P}\p{S}]$/u.test(before)) return null;
+  if (/[a-z]$/i.test(m[1]) && /[a-z]$/i.test(before)) return pageFirst();
   // Prevent a title ending in a year from becoming a confident entry.
   return {
     title,

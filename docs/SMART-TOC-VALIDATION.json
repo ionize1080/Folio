@@ -16,7 +16,7 @@
         "high": 0,
         "review": 0,
         "unmatched": 0,
-        "seconds": 0.021
+        "seconds": 0.02
       },
       {
         "name": "acrobat-sdk-js-dev-guide.pdf",
@@ -65,20 +65,26 @@
         "high": 136,
         "review": 64,
         "unmatched": 0,
-        "seconds": 4.275
+        "seconds": 4.195
       },
       {
         "name": "High-tech development in China-2023.pdf",
         "pages": 35,
         "scanPages": 35,
         "emptyPages": [],
-        "candidates": [],
-        "extracted": 0,
-        "matchedSample": 0,
-        "high": 0,
+        "candidates": [
+          {
+            "page": 2,
+            "score": 67,
+            "entries": 2
+          }
+        ],
+        "extracted": 2,
+        "matchedSample": 2,
+        "high": 1,
         "review": 0,
-        "unmatched": 0,
-        "seconds": 0.022
+        "unmatched": 1,
+        "seconds": 0.036
       },
       {
         "name": "National Geographic USA 12.2021.pdf",
@@ -100,7 +106,7 @@
         "high": 0,
         "review": 0,
         "unmatched": 0,
-        "seconds": 0.049
+        "seconds": 0.05
       },
       {
         "name": "New Scientist.pdf",
@@ -117,7 +123,7 @@
         "high": 0,
         "review": 0,
         "unmatched": 0,
-        "seconds": 0.125
+        "seconds": 0.154
       },
       {
         "name": "Newsweek USA - 10 December, 2021.pdf",
@@ -255,7 +261,7 @@
         "high": 195,
         "review": 5,
         "unmatched": 0,
-        "seconds": 5.992
+        "seconds": 5.886
       },
       {
         "name": "Synology_DS1621_Plus_Data_Sheet_chs.pdf",
@@ -268,7 +274,7 @@
         "high": 0,
         "review": 0,
         "unmatched": 0,
-        "seconds": 0.024
+        "seconds": 0.025
       },
       {
         "name": "The Economist (16 October 2021) by The Economist (z-lib.org).pdf",
@@ -278,16 +284,16 @@
         "candidates": [
           {
             "page": 2,
-            "score": 90,
-            "entries": 15
+            "score": 92,
+            "entries": 22
           }
         ],
-        "extracted": 15,
-        "matchedSample": 15,
+        "extracted": 22,
+        "matchedSample": 22,
         "high": 0,
-        "review": 15,
+        "review": 22,
         "unmatched": 0,
-        "seconds": 0.777
+        "seconds": 1.02
       },
       {
         "name": "The Economist Asia 10.23.2021.pdf",
@@ -297,16 +303,16 @@
         "candidates": [
           {
             "page": 7,
-            "score": 91,
-            "entries": 17
+            "score": 93,
+            "entries": 22
           }
         ],
-        "extracted": 17,
-        "matchedSample": 17,
+        "extracted": 22,
+        "matchedSample": 22,
         "high": 0,
-        "review": 16,
+        "review": 21,
         "unmatched": 1,
-        "seconds": 0.87
+        "seconds": 1.063
       },
       {
         "name": "The Wired World In 2022.pdf",
@@ -331,7 +337,7 @@
         "high": 0,
         "review": 0,
         "unmatched": 0,
-        "seconds": 0.057
+        "seconds": 0.058
       },
       {
         "name": "中国交通年鉴2025.pdf",
@@ -358,16 +364,16 @@
           },
           {
             "page": 16,
-            "score": 96,
-            "entries": 17
+            "score": 99,
+            "entries": 22
           }
         ],
-        "extracted": 122,
-        "matchedSample": 122,
+        "extracted": 127,
+        "matchedSample": 127,
         "high": 4,
-        "review": 118,
+        "review": 123,
         "unmatched": 0,
-        "seconds": 14.075
+        "seconds": 14.126
       },
       {
         "name": "中国城市统计年鉴2025.pdf",
@@ -431,7 +437,7 @@
         "high": 0,
         "review": 0,
         "unmatched": 0,
-        "seconds": 0
+        "seconds": 0.001
       },
       {
         "name": "中国能源统计年鉴2024.pdf",
@@ -570,7 +576,7 @@
           {
             "page": 4,
             "score": 99,
-            "entries": 22
+            "entries": 23
           },
           {
             "page": 5,
@@ -578,12 +584,12 @@
             "entries": 28
           }
         ],
-        "extracted": 50,
-        "matchedSample": 50,
+        "extracted": 51,
+        "matchedSample": 51,
         "high": 5,
-        "review": 45,
+        "review": 46,
         "unmatched": 0,
-        "seconds": 0.517
+        "seconds": 0.53
       },
       {
         "name": "义务教育教科书·语文六年级上册.pdf",
@@ -607,7 +613,7 @@
         "high": 6,
         "review": 50,
         "unmatched": 0,
-        "seconds": 0.612
+        "seconds": 0.621
       },
       {
         "name": "恒隆地产 HLP_2026-interim-results_chi.pdf",
@@ -626,7 +632,7 @@
         "high": 4,
         "review": 2,
         "unmatched": 0,
-        "seconds": 0.073
+        "seconds": 0.075
       },
       {
         "name": "普通高中教科书·语文必修 上册.pdf",
@@ -637,20 +643,20 @@
           {
             "page": 4,
             "score": 99,
-            "entries": 20
+            "entries": 21
           },
           {
             "page": 5,
-            "score": 60,
-            "entries": 21
+            "score": 61,
+            "entries": 22
           }
         ],
-        "extracted": 41,
-        "matchedSample": 41,
-        "high": 7,
-        "review": 31,
+        "extracted": 43,
+        "matchedSample": 43,
+        "high": 8,
+        "review": 32,
         "unmatched": 3,
-        "seconds": 0.912
+        "seconds": 0.964
       },
       {
         "name": "浙江省绿色金融发展报告2025.pdf",
@@ -679,7 +685,7 @@
         "high": 0,
         "review": 68,
         "unmatched": 0,
-        "seconds": 2.418
+        "seconds": 2.402
       },
       {
         "name": "金融机构编码规范.pdf",
@@ -692,7 +698,7 @@
         "high": 0,
         "review": 0,
         "unmatched": 0,
-        "seconds": 0.006
+        "seconds": 0.007
       },
       {
         "name": "长三角绿色金融发展报告2025.pdf",
@@ -711,20 +717,20 @@
           {
             "page": 8,
             "score": 99,
-            "entries": 16
+            "entries": 17
           },
           {
             "page": 9,
             "score": 65,
-            "entries": 19
+            "entries": 20
           }
         ],
-        "extracted": 47,
-        "matchedSample": 47,
-        "high": 3,
-        "review": 41,
+        "extracted": 49,
+        "matchedSample": 49,
+        "high": 4,
+        "review": 42,
         "unmatched": 3,
-        "seconds": 1.523
+        "seconds": 1.482
       },
       {
         "name": "bundesbank-de-art.pdf",
@@ -748,7 +754,7 @@
           {
             "page": 4,
             "score": 99,
-            "entries": 18
+            "entries": 21
           },
           {
             "page": 5,
@@ -756,12 +762,12 @@
             "entries": 11
           }
         ],
-        "extracted": 29,
-        "matchedSample": 29,
+        "extracted": 32,
+        "matchedSample": 32,
         "high": 1,
-        "review": 28,
-        "unmatched": 0,
-        "seconds": 0.266
+        "review": 30,
+        "unmatched": 1,
+        "seconds": 0.272
       },
       {
         "name": "insee-fr-art.pdf",
@@ -784,7 +790,7 @@
         "high": 1,
         "review": 24,
         "unmatched": 0,
-        "seconds": 0.321
+        "seconds": 0.333
       },
       {
         "name": "insee-fr.pdf",
@@ -803,7 +809,7 @@
         "high": 0,
         "review": 8,
         "unmatched": 1,
-        "seconds": 0.183
+        "seconds": 0.196
       },
       {
         "name": "japan-en.pdf",
@@ -857,7 +863,7 @@
         "high": 66,
         "review": 134,
         "unmatched": 0,
-        "seconds": 2.505
+        "seconds": 2.534
       },
       {
         "name": "japan-jp.pdf",
@@ -872,7 +878,7 @@
           {
             "page": 8,
             "score": 99,
-            "entries": 66
+            "entries": 68
           },
           {
             "page": 9,
@@ -900,12 +906,12 @@
             "entries": 55
           }
         ],
-        "extracted": 348,
+        "extracted": 350,
         "matchedSample": 200,
         "high": 54,
         "review": 137,
         "unmatched": 9,
-        "seconds": 4.318
+        "seconds": 4.244
       },
       {
         "name": "moma-art.pdf",
@@ -924,7 +930,7 @@
         "high": 0,
         "review": 7,
         "unmatched": 0,
-        "seconds": 0.074
+        "seconds": 0.084
       },
       {
         "name": "undp-ar.pdf",
@@ -939,7 +945,7 @@
         "high": 0,
         "review": 0,
         "unmatched": 0,
-        "seconds": 0.057
+        "seconds": 0.062
       }
     ]
   },
