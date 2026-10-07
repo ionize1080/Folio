@@ -67,7 +67,7 @@ function chineseNumber(s) {
   }
   return total + section + (digit || 0);
 }
-export function parsePageLabel(raw) {
+export function parsePageLabel(raw, { alphabetic = false } = {}) {
   if (typeof raw !== "string" || !raw.trim() || raw.length > 80) return null;
   let s = raw.normalize("NFKC").trim();
   for (const [a, b] of [
@@ -90,7 +90,13 @@ export function parsePageLabel(raw) {
     system = "decimal",
     prefix = "";
   if (/^\d+$/u.test(s)) value = Number(s);
-  else if (
+  else if (alphabetic && /^[a-z]{1,4}$/i.test(s)) {
+    system = "alphabetic";
+    value = [...s.toUpperCase()].reduce(
+      (n, c) => n * 26 + c.charCodeAt(0) - 64,
+      0,
+    );
+  } else if (
     /^[零〇一二三四五六七八九十百千万萬壹贰貳叁參肆伍陆陸柒捌玖拾佰仟两兩]+$/u.test(
       s,
     )

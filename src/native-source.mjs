@@ -6,6 +6,7 @@ export async function nativeRequest(data) {
     !window.desktop.registerSource ||
     ![
       "inspect",
+      "ocr",
       "layout",
       "apply",
       "flow-background",

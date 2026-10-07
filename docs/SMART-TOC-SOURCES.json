@@ -1,0 +1,66 @@
+[
+  {
+    "file": "moma-art.pdf",
+    "language": "en",
+    "kind": "art / multi-column",
+    "url": "https://www.moma.org/momaorg/shared/pdfs/docs/support/may_jun_mc_digital.pdf",
+    "bytes": 2255720,
+    "sha256": "464ed029b8738a6e828be68bcbb3cd9be5436b8dc7e72f6dba7e11efebc6a481"
+  },
+  {
+    "file": "japan-jp.pdf",
+    "language": "ja",
+    "kind": "statistics / book",
+    "url": "https://www.stat.go.jp/data/nihon/pdf/25nihon.pdf",
+    "bytes": 4350295,
+    "sha256": "c028c13e2f25bf7e082a02413ff939db806420809b72043a1eebb5f73fd72aca"
+  },
+  {
+    "file": "japan-en.pdf",
+    "language": "en",
+    "kind": "statistics / book",
+    "url": "https://www.stat.go.jp/english/data/handbook/pdf/2025all.pdf",
+    "bytes": 2073380,
+    "sha256": "120e7b916d1d5331661d30a8c5d40da41dadbbd8359d871ad91d4506e7ecf9ae"
+  },
+  {
+    "file": "insee-fr-art.pdf",
+    "language": "fr",
+    "kind": "annual report / artistic",
+    "url": "https://www.insee.fr/fr/statistiques/fichier/4130132/rapport-activite-insee_2024.pdf",
+    "bytes": 7227107,
+    "sha256": "aec2c93bd8df2d4fb91f0e0c34ba3759b600b332dd4d6a631de035b4531bb288"
+  },
+  {
+    "file": "insee-fr.pdf",
+    "language": "fr",
+    "kind": "economics / wrapped titles",
+    "url": "https://www.insee.fr/fr/statistiques/fichier/8268529/ndc-oct-2024.pdf",
+    "bytes": 1609724,
+    "sha256": "ced2dd7774a72d3ad4fce0889fcb28e1ef268f5aada51ccf08a337ced3fe6763"
+  },
+  {
+    "file": "ine-es.pdf",
+    "language": "es",
+    "kind": "annual report",
+    "url": "https://www.ine.es/ine/planine/informe_anual_2024.pdf",
+    "bytes": 1010953,
+    "sha256": "ac43242bbfe26329e33a1d5fcaaa96d218f0fd2fa7dbb3b0cd73828204d268fd"
+  },
+  {
+    "file": "undp-ar.pdf",
+    "language": "ar",
+    "kind": "development / RTL",
+    "url": "https://hdr.undp.org/system/files/documents/global-report-document/hdr2023-24overviewar.pdf",
+    "bytes": 581630,
+    "sha256": "757c31d483c4442a1bd8835cda3bc9b85a57db8b52098a595b0d82b822058290"
+  },
+  {
+    "file": "bundesbank-de-art.pdf",
+    "language": "de",
+    "kind": "art / architecture",
+    "url": "https://www.bundesbank.de/resource/blob/607120/d293367805cac8447f123d96ed41212c/mL/architektur-und-kunst-data.pdf",
+    "bytes": 1250858,
+    "sha256": "20546fe4cbb42e3eeee0f49ce14d27c46581893acf2fd84969a1501d5e61028e"
+  }
+]

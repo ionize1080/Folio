@@ -22,6 +22,7 @@ import { installPagePicker, compactPages } from "./page-picker.mjs";
 import { extractLines } from "./text-lines.mjs";
 import { patchStyles, duplicatePlan } from "./bookmark-tools.mjs";
 import { installBookmarkUI } from "./bookmark-ui.mjs";
+import { smartTocDialog } from "./smart-toc-ui.mjs";
 import { installNativeUI } from "./native-ui.mjs";
 import { describeChanges } from "./changes.mjs";
 import { PageSurface } from "./viewer.mjs";
@@ -3990,6 +3991,17 @@ Object.assign(actions, {
   whitespace: nativeUI.whitespaceDialog,
   calibrate: bookmarkUI.calibrateDialog,
   "calibrate-pages": () => bookmarkUI.pageCalibrationDialog(),
+  "smart-toc": () =>
+    smartTocDialog({
+      S,
+      surface,
+      modal,
+      closeModal,
+      esc,
+      commit,
+      toast,
+      setCleanup: (fn) => (modalCleanup = fn),
+    }),
   dedupe: bookmarkUI.dedupeDialog,
   "range-start": () => {
     S.rangeStart = S.page;
