@@ -40,6 +40,11 @@ jobs:
       - run: python tests/fixture-v16.py
       - run: npm run build:win
       - run: npm run test:package
+      - run: python scripts/archive-release.py deliverables
+      - run: node tests/update-v161.cjs
+        timeout-minutes: 10
+        env:
+          FOLIO_EXE: ${{ github.workspace }}\dist\Folio-PDF-Studio-win-x64\Folio.exe
       - run: node tests/i18n-v16.cjs
         timeout-minutes: 8
         env:
@@ -74,11 +79,6 @@ jobs:
         env:
           FOLIO_EXE: ${{ github.workspace }}\dist\Folio-PDF-Studio-win-x64\Folio.exe
       - run: node tests/electron-p7.cjs
-        env:
-          FOLIO_EXE: ${{ github.workspace }}\dist\Folio-PDF-Studio-win-x64\Folio.exe
-      - run: python scripts/archive-release.py deliverables
-      - run: node tests/update-v161.cjs
-        timeout-minutes: 10
         env:
           FOLIO_EXE: ${{ github.workspace }}\dist\Folio-PDF-Studio-win-x64\Folio.exe
       - uses: actions/upload-artifact@v4
