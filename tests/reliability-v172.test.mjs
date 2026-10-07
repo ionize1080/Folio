@@ -235,6 +235,7 @@ test("links never bypass ambiguous, repeated-margin, short-title or OCR review g
     { ...e, confidence: 50 },
     { ...e, ocrEvidence: [{ confidence: 0.99, needsReview: true }] },
     { ...e, ocrEvidence: [{ confidence: 0.3 }] },
+    { ...e, ocrEvidence: [{ confidence: 0.99, diagnostic: { reasons: ["direction-conflict"] } }] },
     { ...e, title: "AB" },
   ])
     assert(
@@ -243,6 +244,10 @@ test("links never bypass ambiguous, repeated-margin, short-title or OCR review g
   assert(
     resolveTocEntries([e], { 3: [line("Alpha chapter", 3)] }, 5)[0].selected,
   );
+  for (const evidence of [
+    { confidence: 0.99, needsReview: false, diagnostic: { schema: 1, reasons: [], classifier: { label: "0", score: 0.99 } } },
+    { confidence: 0.3, needsReview: true, reviewed: true, diagnostic: { reasons: ["direction-conflict"] } },
+  ]) assert(resolveTocEntries([{ ...e, ocrEvidence: [evidence] }], { 3: [line(e.title, 3)] }, 5)[0].selected);
 });
 test("auxiliary OCR review evidence survives extraction and entry recognition", async () => {
   const vp = {

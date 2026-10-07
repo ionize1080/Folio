@@ -104,6 +104,9 @@ let app, page;
     [5, 2, 4],
   );
   await page.screenshot({ path: path.join(out, "smart-toc-packaged-ocr.png") });
+  assert.equal(await page.locator("[data-field=selected]:checked").count(), 3,
+    "Clean high-confidence OCR diagnostics must allow automatic selection");
+  assert(await page.locator("#st-apply").isEnabled());
   await page.locator("#st-apply").click();
   assert.deepEqual(
     await page.evaluate(async () => {

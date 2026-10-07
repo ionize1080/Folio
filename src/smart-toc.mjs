@@ -613,7 +613,8 @@ export function resolveTocEntries(
         (o) =>
           !o.reviewed &&
           (o.needsReview ||
-            o.diagnostic ||
+            o.diagnostic?.reasons?.length ||
+            (typeof o.diagnostic === "string" && o.diagnostic.trim()) ||
             !Number.isFinite(o.confidence) ||
             o.confidence < 0.85),
       );

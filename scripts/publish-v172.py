@@ -9,7 +9,7 @@ prefix = 'Folio-PDF-Studio-1.7.2'
 sha = os.environ['GITHUB_SHA']
 run = f"https://github.com/{os.environ['GITHUB_REPOSITORY']}/actions/runs/{os.environ['GITHUB_RUN_ID']}"
 required = {
-    'v172-native-report.json': 5, 'v172-ui-report.json': 5,
+    'v172-native-report.json': 5, 'v172-ui-report.json': 7,
     'smart-toc-electron-report.json': 3,
     'smart-toc-ui-report.json': 7, 'page-calibration-ui-report.json': 6,
     'v16-ui-report.json': 7, 'v15-ui-report.json': 6,
@@ -64,7 +64,7 @@ for lang, suffix in [('en', ''), ('zh-Hans', '.zh-Hans'), ('zh-Hant', '.zh-Hant'
     notes.append(f'<!-- folio-locale:{lang} -->\n' + (root / f'docs/RELEASE-1.7.2{suffix}.md').read_text(encoding='utf-8') + '\n<!-- /folio-locale -->')
 notes.append(f'Verified source: `{sha}`\n\n[Windows acceptance]({run})\n')
 notes_file = out / 'release-notes.md'
-notes_file.write_text('\n\n'.join(notes), encoding='utf-8')
+notes_file.write_text('\n\n'.join(notes).replace('(REVIEW-2026-10-07-response.md)', f'(https://github.com/{os.environ["GITHUB_REPOSITORY"]}/blob/{sha}/docs/REVIEW-2026-10-07-response.md)'), encoding='utf-8')
 # Resume the same draft safely after transient GitHub transport failures.
 from release_transport import publish
 publish(os.environ['GITHUB_REPOSITORY'], 'v1.7.2', sha,
