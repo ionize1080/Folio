@@ -21,13 +21,13 @@ class ReleaseTransportTests(unittest.TestCase):
 
             def fake(*args, **kwargs):
                 if args[0] == 'api':
-                    if args[-1].endswith('/tags/v1'):
-                        return json.dumps(state['release']) if state['release'] else None
+                    if args[-1].endswith('/releases?per_page=100&page=1'):
+                        return json.dumps([state['release']] if state['release'] else [])
                     if args[-1].endswith('/assets'):
                         return json.dumps(state['assets'])
                 if args[:2] == ('release', 'create'):
                     state['creates'] += 1
-                    state['release'] = {'id': 1, 'draft': True, 'target_commitish': 'other' if wrong_commit else 'sha'}
+                    state['release'] = {'id': 1, 'tag_name': 'v1', 'draft': True, 'target_commitish': 'other' if wrong_commit else 'sha'}
                     if mismatch:
                         state['assets'] = [{'name': asset.name, 'state': 'uploaded', 'size': asset.stat().st_size, 'digest': 'sha256:other'}]
                     raise RuntimeError('TLS handshake timeout after remote create')

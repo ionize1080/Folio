@@ -27,8 +27,18 @@ def publish(repo, tag, sha, title, notes, assets):
     endpoint = f'repos/{repo}/releases'
 
     def find():
-        response = gh('api', endpoint + '/tags/' + tag, missing=True)
-        return json.loads(response) if response else None
+        # The tag endpoint only finds published releases. Drafts have no public
+        # tag yet, so enumerate authenticated releases before creating anything.
+        page = 1
+        while True:
+            releases = json.loads(gh('api', endpoint + f'?per_page=100&page={page}'))
+            matches = [r for r in releases if r['tag_name'] == tag]
+            assert len(matches) <= 1, 'Multiple drafts require reconciliation'
+            if matches:
+                return matches[0]
+            if len(releases) < 100:
+                return None
+            page += 1
 
     release = find()
     for attempt in range(4):
