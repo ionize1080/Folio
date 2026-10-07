@@ -1,4 +1,4 @@
-param([string]$InstallDir, [string]$Archive, [switch]$Headless)
+param([string]$InstallDir, [string]$Archive, [string]$UserData, [switch]$Headless)
 $ErrorActionPreference = 'Stop'
 # Run directly, never with DETACHED_PROCESS. This bridges the broken launchers
 # shipped in 1.3 through 1.6 without modifying an installed app.asar in place.
@@ -25,7 +25,8 @@ try {
   $running = Get-CimInstance Win32_Process | Where-Object { $_.ExecutablePath -and $_.ExecutablePath.StartsWith($InstallDir + '\', [StringComparison]::OrdinalIgnoreCase) }
   if ($running) { throw 'Save your documents and close Folio before running the repair.' }
   if ((Get-FileHash -LiteralPath $Archive -Algorithm SHA256).Hash -ne $config.sha256) { throw 'The ZIP does not match the verified 1.6.1 release. Download it again.' }
-  $userData = Join-Path $env:APPDATA 'Folio PDF Studio'
+  if (!$UserData) { $UserData = Join-Path $env:APPDATA 'Folio PDF Studio' }
+  $UserData = [IO.Path]::GetFullPath($UserData)
   $updates = Join-Path $userData 'updates'
   New-Item -ItemType Directory -Path $updates -Force | Out-Null
   $manifest = Join-Path $updates ('install-' + [guid]::NewGuid().ToString() + '.json')
