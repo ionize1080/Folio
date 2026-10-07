@@ -4959,3 +4959,37 @@ body[data-right="narrow"] .inspector { overflow:clip; }
 .pc-row select {
   width: 100%;
 }
+
+/* Smart contents uses one scrolling results surface and compact editable rows. */
+.smart-toc-dialog .modal-header { padding:14px 22px; }
+.smart-toc-dialog #modal-body { max-height:calc(94vh - 150px); padding:10px 22px; }
+.smart-toc-dialog #modal-body > p { margin:6px 0; }
+.smart-toc-dialog .pc-toolbar { padding:6px 0; }
+.smart-toc-dialog #st-settings { border:1px solid var(--line); border-radius:10px; padding:10px 12px; margin:8px 0; }
+.smart-toc-dialog summary { cursor:pointer; }
+.smart-toc-dialog #st-settings[open] > summary { margin-bottom:12px; }
+.smart-toc-dialog .st-controls { display:flex; align-items:center; gap:10px; flex-wrap:wrap; padding:8px 0; }
+.smart-toc-dialog .st-controls .check { display:flex; align-items:center; gap:6px; margin:0; white-space:nowrap; }
+.smart-toc-dialog .st-controls select { width:140px; }
+.smart-toc-dialog #st-search { flex:1; min-width:150px; }
+.smart-toc-dialog #st-count { white-space:nowrap; }
+.smart-toc-dialog .st-column-head,
+.smart-toc-dialog .st-row-main { display:grid; grid-template-columns:24px minmax(180px,1fr) 64px 92px 92px 120px; gap:8px; align-items:center; }
+.smart-toc-dialog .st-column-head { padding:8px; color:var(--muted); font-size:12px; }
+.smart-toc-dialog .st-row { border-top:1px solid var(--line); padding:7px 8px 4px; }
+.smart-toc-dialog .st-row-main input { min-width:0; width:100%; padding:6px 8px; height:34px; font-size:13px; }
+.smart-toc-dialog .st-row-main input[type=checkbox] { width:16px; height:16px; }
+.smart-toc-dialog .st-state { font-size:12px; }
+.smart-toc-dialog .st-state[data-status=high] { color:var(--accent); }
+.smart-toc-dialog .st-detail { margin-left:32px; }
+.smart-toc-dialog .st-detail summary { font-size:12px; padding:3px 0; color:var(--muted); }
+.smart-toc-dialog .st-detail-body { padding:8px 0; }
+.smart-toc-dialog .st-detail select { width:100%; }
+.smart-toc-dialog #st-preview { display:block; margin:8px auto; }
+.smart-toc-dialog #st-preview[hidden] { display:none; }
+@media (max-width:850px) {
+  .smart-toc-dialog .st-column-head { display:none; }
+  .smart-toc-dialog .st-row-main { grid-template-columns:24px minmax(160px,1fr) 56px; }
+  .smart-toc-dialog .st-row-main [data-field=printedLabel] { grid-column:2; }
+  .smart-toc-dialog .st-row-main .st-state { grid-column:2 / span 2; }
+}

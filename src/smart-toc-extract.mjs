@@ -1,4 +1,29 @@
 import { ocrPage } from "./ocr-data.mjs";
+const destinations = new WeakMap();
+async function internalTarget(pdf, destination) {
+  if (!destinations.has(pdf)) destinations.set(pdf, new Map());
+  const cache = destinations.get(pdf),
+    key = JSON.stringify(destination);
+  if (!cache.has(key))
+    cache.set(
+      key,
+      (async () => {
+        const dest =
+          typeof destination === "string"
+            ? await pdf.getDestination(destination)
+            : destination;
+        if (!Array.isArray(dest) || !dest.length) return null;
+        const index =
+          typeof dest[0] === "number"
+            ? dest[0]
+            : await pdf.getPageIndex(dest[0]);
+        if (!Number.isInteger(index) || index < 0 || index >= pdf.numPages)
+          return null;
+        return { kind: "dest", page: index + 1, mode: "Fit", args: [] };
+      })().catch(() => null),
+    );
+  return cache.get(key);
+}
 export async function extractTocPage(pdf, number, rotation, ocr = []) {
   const page = await pdf.getPage(number),
     vp = page.getViewport({ scale: 1, rotation });
@@ -90,5 +115,21 @@ export async function extractTocPage(pdf, number, rotation, ocr = []) {
       })
       .concat(recognized);
   }
-  return { page: number, width: vp.width, height: vp.height, fragments };
+  const links = [];
+  for (const annotation of await page.getAnnotations()) {
+    if (!annotation.dest || !annotation.rect) continue;
+    const target = await internalTarget(pdf, annotation.dest);
+    if (!target) continue;
+    const b = vp.convertToViewportRectangle(annotation.rect);
+    links.push({
+      bounds: [
+        Math.min(b[0], b[2]),
+        Math.min(b[1], b[3]),
+        Math.max(b[0], b[2]),
+        Math.max(b[1], b[3]),
+      ],
+      target,
+    });
+  }
+  return { page: number, width: vp.width, height: vp.height, fragments, links };
 }

@@ -1,0 +1,52 @@
+{
+  "version": "1.7.1",
+  "unitTests": 181,
+  "releaseRecoveryTests": 3,
+  "sample": {
+    "name": "acrobat-sdk-js-dev-guide.pdf",
+    "sha256": "619255d7f36f91e7192a73d7d5e518158f13639550b33ba100a9d043b05a283e",
+    "mainContentsPages": [
+      3,
+      4,
+      5,
+      6,
+      7,
+      8
+    ],
+    "recognized": 291,
+    "automaticallyLocated": 291,
+    "originalOutlineCompared": 291,
+    "comparison": "Title comparison ignores chapter prefixes, whitespace and punctuation; physical pages and hierarchy compared exactly. Parenthesis preservation covered independently. Saved PDF reopened with all 291 destinations unchanged."
+  },
+  "browser": {
+    "checks": [
+      "Real PDF.js extraction detects TOC and independently resolves incorrect printed numbers to 6,2,5",
+      "Editing title invalidates target, manual correction is explicit, selected bookmarks commit atomically",
+      "Saved PDF reopens with the three exact physical destinations",
+      "Out-of-range manual pages and stale document revisions cannot be applied",
+      "Smart TOC is translated in English, Simplified Chinese and Traditional Chinese",
+      "Cancellation leaves the document and existing bookmarks unchanged",
+      "One-click workflow, menu icon, cross-page select all, deselect, search and filtered selection generate all 35 entries",
+      "User Acrobat PDF: all 291 main contents titles, destination pages and hierarchy agree with its original outline via real PDF.js and matching worker"
+    ],
+    "errors": []
+  },
+  "nativeOCR": {
+    "checks": [
+      "Packaged native OCR detects and extracts all three entries from an image-only contents page",
+      "Offline OCR of body headings independently corrects wrong printed labels to physical pages 5,2,4",
+      "One undo restores the original empty bookmark tree after OCR generation"
+    ],
+    "errors": [],
+    "exe_sha256": "b8e07d5f24e8d5934bfd2d3904664b2ce659e6e32686e8294d2360de840e9709",
+    "asar_sha256": "4adee730531bfebcf4df29c7f91a087aa83e382a025c145303b593fa745bac37"
+  },
+  "curatedArt": {
+    "checks": [
+      "MoMA image grid: 7/7 human-counted entries and all seven printed labels; Good Design offers actual PDF page 6 for printed page 8",
+      "French artistic annual report: 25/25 human-counted entries, including page-first labels and wrapped display headings",
+      "Traditional Chinese report: 6/6 contents labels; financial tables across all 45 pages are not auto-selected as contents"
+    ],
+    "errors": []
+  }
+}

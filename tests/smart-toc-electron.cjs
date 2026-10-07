@@ -73,6 +73,7 @@ let app, page;
   await page.evaluate(() =>
     document.querySelector('[data-action="smart-toc"]').click(),
   );
+  await page.locator("#st-settings summary").click();
   await page.locator("#st-ocr").check();
   await page.locator("#st-range").fill("1");
   await page.locator("#st-range").blur();

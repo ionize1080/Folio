@@ -11,7 +11,7 @@ const heading =
   /^(目录|目次|目錄|contents|highlights|tableofcontents|sommaire|tabledesmatières|inhalt|inhaltsverzeichnis|índice|indice|contenido|содержание|المحتويات|الفهرس)$/iu;
 const trimLeader = (s) =>
   s
-    .replace(/[\s\p{P}\p{S}]+$/gu, "")
+    .replace(/[\s.·…_—–\-:：*★•⋅]+$/gu, "")
     .replace(/^[\s·.…_—–]+/u, "")
     .trim();
 const cn = "零〇一二三四五六七八九十百千万萬壹贰貳叁參肆伍陆陸柒捌玖拾佰仟两兩";
@@ -75,7 +75,7 @@ export function splitTocText(raw, options = {}) {
   if (/[a-z]$/i.test(m[1]) && /[a-z]$/i.test(before)) return pageFirst();
   // Prevent a title ending in a year from becoming a confident entry.
   return {
-    title,
+    title: title.replace(/\s+/gu, " "),
     printedLabel: m[1],
     label,
     raw: text,
@@ -200,6 +200,31 @@ export function recognizeTocPage(page, options = {}) {
       (row.top < page.height * 0.12 || row.bottom > page.height * 0.9)
     )
       return;
+    // A running title followed by the current folio is not a contents entry.
+    if (
+      page.height &&
+      row.top < page.height * 0.08 &&
+      value.confidence < 75 &&
+      value.label?.value === page.page
+    )
+      return;
+    const content = row.items.find((f) => /\p{L}/u.test(f.text));
+    const links = (page.links || []).filter((link) => {
+      const b = link.bounds;
+      const overlap = Math.max(
+        0,
+        Math.min(row.bottom, b[3]) - Math.max(row.top, b[1]),
+      );
+      return (
+        overlap >= Math.min(row.bottom - row.top, b[3] - b[1]) * 0.6 &&
+        Math.max(row.left, b[0]) < Math.min(row.right, b[2])
+      );
+    });
+    const targets = [
+      ...new Map(
+        links.map((l) => [JSON.stringify(l.target), l.target]),
+      ).values(),
+    ];
     entries.push({
       ...value,
       ...extra,
@@ -207,6 +232,8 @@ export function recognizeTocPage(page, options = {}) {
       bounds: [row.left, row.top, row.right, row.bottom],
       angle: row.angle,
       fontHeight: row.h,
+      indent: content ? Math.min(...box(content).map((p) => p[0])) : row.left,
+      linkedTarget: targets.length === 1 ? targets[0] : null,
       level: 1,
     });
     indices.forEach((i) => used.add(i));
@@ -407,6 +434,94 @@ export function recognizeTocPage(page, options = {}) {
   return result;
 }
 
+// Analyse pages together: recurring marginal text and hierarchy are document
+// properties, not independent guesses for each continuation page.
+export function recognizeTocPages(pages, options = {}) {
+  const marginal = new Map();
+  const key = (row, page) =>
+    norm(row.text.replace(/\s*\p{Nd}+\s*$/u, "")) +
+    ":" +
+    Math.round((row.top / page.height) * 40);
+  const rowsByPage = pages.map((p) => tocRows(p.fragments, options));
+  pages.forEach((page, i) =>
+    rowsByPage[i].forEach((row) => {
+      if (
+        !page.height ||
+        heading.test(norm(row.text)) ||
+        (row.top >= page.height * 0.085 && row.bottom <= page.height * 0.93)
+      )
+        return;
+      const k = key(row, page);
+      if (!marginal.has(k)) marginal.set(k, new Set());
+      marginal.get(k).add(page.page);
+    }),
+  );
+  const results = pages.map((page, i) => {
+    const removed = new Set();
+    for (const row of rowsByPage[i]) {
+      if (
+        page.height &&
+        (row.top < page.height * 0.085 || row.bottom > page.height * 0.93) &&
+        !heading.test(norm(row.text)) &&
+        (marginal.get(key(row, page))?.size || 0) >= 3
+      )
+        row.items.forEach((f) => removed.add(f.quad));
+    }
+    const result = recognizeTocPage(
+      {
+        ...page,
+        fragments: page.fragments.filter((f) => !removed.has(f.quad)),
+      },
+      options,
+    );
+    result.auxiliary = rowsByPage[i].some((r) =>
+      /^(list of (examples|figures|tables)|图表目录|插图目录|表格目录)$/iu.test(
+        r.text.trim(),
+      ),
+    );
+    if (result.auxiliary) result.selected = false;
+    return result;
+  });
+  let group = [];
+  const finish = () => {
+    const values = group
+      .flatMap((r) => r.entries)
+      .filter((e) => Math.abs(e.angle) < 5);
+    const chapterRows = values.filter((e) => /^\d{1,3}\s+\p{L}/u.test(e.title));
+    // A two-digit chapter number may share a PDF text fragment with its title,
+    // unlike one-digit chapters. Align those fragments to the same heading tier.
+    if (chapterRows.length >= 2) {
+      const anchor = Math.max(...chapterRows.map((e) => e.indent));
+      for (const e of chapterRows)
+        if (anchor - e.indent <= e.fontHeight * 2.5) e.indent = anchor;
+    }
+    const indents = [];
+    for (const x of values.map((e) => e.indent).sort((a, b) => a - b)) {
+      if (!indents.length || x - indents.at(-1) > 7) indents.push(x);
+    }
+    if (indents.length <= 6)
+      for (const e of values) {
+        const numbered = e.title.match(/^\d+(?:\.\d+)+/);
+        e.level = numbered
+          ? Math.min(8, numbered[0].split(".").length)
+          : 1 + indents.findIndex((x) => Math.abs(x - e.indent) <= 7);
+      }
+    group = [];
+  };
+  for (const r of results) {
+    if (
+      group.length &&
+      (r.page !== group.at(-1).page + 1 ||
+        r.auxiliary !== group.at(-1).auxiliary ||
+        !r.selected)
+    )
+      finish();
+    if (r.selected || r.auxiliary) group.push(r);
+  }
+  finish();
+  return results;
+}
+
 export function resolveTocEntries(
   entries,
   pages,
@@ -415,7 +530,7 @@ export function resolveTocEntries(
   excludedPages = [],
 ) {
   const nodes = entries.map((e, i) => ({
-    ...makeNode(e.title, 1),
+    ...makeNode(e.title.replace(/^\d+(?:\.\d+)*\s+/u, ""), 1),
     id: String(i),
     origin: { printedPageLabel: e.printedLabel },
   }));
@@ -463,14 +578,49 @@ export function resolveTocEntries(
           reason: "page-label",
           target: { kind: "dest", page: p, mode: "Fit", args: [] },
         });
+    // Internal links are useful evidence, but still require an independent
+    // title match on their destination page. Conflicting links remain reviewable.
+    const linked = e.linkedTarget;
+    const searchTitle = norm(nodes[i].title);
+    const verifiedLink =
+      linked &&
+      linked.page >= 1 &&
+      linked.page <= pageCount &&
+      !excluded.has(linked.page) &&
+      (pages[linked.page] || []).some((l) => {
+        const text = norm(l.text.replace(/^\d+(?:\.\d+)*\s+/u, ""));
+        return (
+          text === searchTitle ||
+          (searchTitle.length >= 8 &&
+            text.includes(searchTitle) &&
+            text.length <= searchTitle.length * 1.25)
+        );
+      });
+    if (
+      linked &&
+      linked.page >= 1 &&
+      linked.page <= pageCount &&
+      !excluded.has(linked.page)
+    )
+      candidates[verifiedLink ? "unshift" : "push"]({
+        page: linked.page,
+        score: verifiedLink ? 98 : 60,
+        reason: verifiedLink ? "verified-link" : "pdf-link",
+        target: linked,
+      });
+    const high = verifiedLink || result.status === "high";
     // Printed numbers alone are review candidates, never silent destinations.
     return {
       ...e,
       candidates,
-      target: result.status === "high" ? candidates[0]?.target : null,
-      status: result.status,
-      selected: result.status === "high",
-      confidence: Math.min(e.confidence, result.confidence),
+      target: verifiedLink
+        ? linked
+        : result.status === "high"
+          ? result.candidates[0]?.target
+          : null,
+      status: high ? "high" : result.status,
+      selected: !!high,
+      confidence: verifiedLink ? 98 : Math.min(e.confidence, result.confidence),
     };
   });
 }

@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   splitTocText,
   recognizeTocPage,
+  recognizeTocPages,
   resolveTocEntries,
   entriesToNodes,
 } from "../src/smart-toc.mjs";
@@ -111,6 +112,86 @@ const line = (text, page, y = 100) => ({
   y: 800 - y,
   upX: 0,
   upY: 1,
+});
+test("balanced title punctuation survives leaders and a trailing page label", () => {
+  assert.equal(
+    splitTocText("Creating an ID (default security) .... 163").title,
+    "Creating an ID (default security)",
+  );
+  assert.equal(
+    splitTocText("The “quoted title” ——— 12").title,
+    "The “quoted title”",
+  );
+});
+test("cross-page detection removes running folios and keeps continuation levels stable", () => {
+  const pages = [1, 2, 3].map((page) => ({
+    page,
+    width: 600,
+    height: 800,
+    fragments: [
+      fragment("Developer Guide", 35, 45, 130),
+      fragment(String(page), 550, 45, 10),
+      fragment("Heading " + page + " .... 10", 60, 130, 470),
+      fragment("Child " + page + " .... 11", 90, 155, 440),
+      fragment("Nested " + page + " .... 12", 110, 180, 420),
+    ],
+  }));
+  const result = recognizeTocPages(pages);
+  assert.deepEqual(
+    result.map((p) => p.entries.length),
+    [3, 3, 3],
+  );
+  assert.deepEqual(
+    result.map((p) => p.entries.map((e) => e.level)),
+    [
+      [1, 2, 3],
+      [1, 2, 3],
+      [1, 2, 3],
+    ],
+  );
+  const auxiliary = recognizeTocPages([
+    {
+      page: 4,
+      width: 600,
+      height: 800,
+      fragments: [
+        fragment("List of Examples", 50, 100, 180),
+        fragment("One example .... 10", 50, 160, 450),
+        fragment("Another example .... 15", 50, 190, 450),
+      ],
+    },
+  ])[0];
+  assert(auxiliary.auxiliary);
+  assert(!auxiliary.selected);
+  assert.equal(auxiliary.entries.length, 2);
+});
+test("PDF links must be corroborated by a heading, and cannot override contrary body evidence", () => {
+  const e = {
+    ...splitTocText("1 Alpha chapter .... 2"),
+    level: 1,
+    linkedTarget: { kind: "dest", page: 3, mode: "Fit", args: [] },
+  };
+  const resolved = resolveTocEntries(
+    [e],
+    { 2: [line("Alpha chapter", 2)], 3: [line("Alpha chapter", 3)] },
+    4,
+  );
+  assert.equal(resolved[0].target.page, 3);
+  assert.equal(resolved[0].candidates[0].reason, "verified-link");
+  const contradicted = resolveTocEntries(
+    [e],
+    { 2: [line("Alpha chapter", 2)], 3: [line("Unrelated heading", 3)] },
+    4,
+  );
+  assert.equal(contradicted[0].target.page, 2);
+  assert.equal(contradicted[0].candidates[0].page, 2);
+  const missing = resolveTocEntries(
+    [e],
+    { 3: [line("Unrelated heading", 3)] },
+    4,
+  );
+  assert(!missing[0].selected);
+  assert.equal(missing[0].target, null);
 });
 test("wrong printed numbers are overridden by independent title evidence; no fixed offset", () => {
   const entries = ["Alpha heading", "Beta heading", "Gamma heading"].map(

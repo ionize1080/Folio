@@ -98,23 +98,16 @@ const errors = [],
   });
   async function open() {
     await page.evaluate(() => window.__qa.actions["smart-toc"]());
-    await page.waitForSelector("#st-range");
+    await page.waitForSelector("#st-start");
   }
   await open();
-  await page.locator("#st-detect").click();
+  assert.equal(await page.locator('[data-action="smart-toc"] svg').count(), 1);
+  await page.locator("#st-start").click();
   await page.waitForFunction(
-    () => !document.querySelector("#st-detect").disabled,
+    () => !document.querySelector("#st-start").disabled,
   );
   assert.equal(await page.locator("#st-pages-input").inputValue(), "1");
-  await page.locator("#st-extract").click();
-  await page.waitForFunction(
-    () => document.querySelectorAll(".st-row").length === 3,
-  );
-  assert(await page.locator("#st-apply").isDisabled());
-  await page.locator("#st-resolve").click();
-  await page.waitForFunction(
-    () => !document.querySelector("#st-resolve").disabled,
-  );
+  assert.equal(await page.locator(".st-row").count(), 3);
   assert.deepEqual(
     await page
       .locator("[data-field=page]")
@@ -124,6 +117,7 @@ const errors = [],
   checks.push(
     "Real PDF.js extraction detects TOC and independently resolves incorrect printed numbers to 6,2,5",
   );
+  await page.locator(".st-detail summary").first().click();
   await page.locator("[data-source]").first().click();
   await page.waitForSelector("#st-preview:not([hidden])");
   await page.screenshot({ path: path.join(out, "smart-toc-source.png") });
@@ -221,6 +215,113 @@ const errors = [],
   checks.push(
     "Cancellation leaves the document and existing bookmarks unchanged",
   );
+  await page.locator("#modal-close").click();
+  await page.evaluate(async () => {
+    const { PDFDocument, StandardFonts } = await import("./vendor/pdf-lib.js");
+    const doc = await PDFDocument.create(),
+      font = await doc.embedFont(StandardFonts.Helvetica);
+    const toc = doc.addPage([600, 1000]),
+      body = doc.addPage([600, 1000]);
+    toc.drawText("Contents", { x: 50, y: 930, font, size: 16 });
+    for (let i = 0; i < 35; i++) {
+      const title = "Section " + String(i + 1).padStart(3, "0") + " example";
+      toc.drawText(title + " .......... 2", {
+        x: 50,
+        y: 880 - i * 20,
+        font,
+        size: 12,
+      });
+      body.drawText(title, { x: 50, y: 880 - i * 20, font, size: 12 });
+    }
+    await window.__qa.loadPDF(await doc.save(), "bulk-contents.pdf");
+  });
+  await open();
+  await page.locator("#st-start").click();
+  await page.waitForFunction(
+    () => !document.querySelector("#st-start").disabled,
+  );
+  assert.match(await page.locator("#st-count").innerText(), /35/);
+  await page.locator("#st-none").click();
+  assert(await page.locator("#st-apply").isDisabled());
+  await page.locator("#st-all").check();
+  await page.locator("#st-next").click();
+  assert.equal(await page.locator("[data-field=selected]:checked").count(), 5);
+  await page.locator("#st-search").fill("Section 035");
+  assert.equal(await page.locator(".st-row").count(), 1);
+  await page.locator("#st-none").click();
+  await page.locator("#st-search").fill("");
+  await page.locator("#st-filter").selectOption("selected");
+  assert.match(await page.locator("#st-paging").innerText(), /34/);
+  await page.locator("#st-filter").selectOption("all");
+  await page.locator("#st-all").check();
+  await page.locator("#st-apply").click();
+  assert.equal(await page.evaluate(() => window.__qa.S.nodes.length), 35);
+  checks.push(
+    "One-click workflow, menu icon, cross-page select all, deselect, search and filtered selection generate all 35 entries",
+  );
+
+  if (process.env.FOLIO_ACROBAT) {
+    await page.locator("#language-select").selectOption("zh-Hans");
+    await page.evaluate(async (bytes) => {
+      await window.__qa.loadPDF(
+        Uint8Array.from(atob(bytes), (c) => c.charCodeAt(0)),
+        "acrobat-sdk-js-dev-guide.pdf",
+      );
+      window.__acrobatExpected = structuredClone(window.__qa.S.nodes);
+    }, fs.readFileSync(process.env.FOLIO_ACROBAT).toString("base64"));
+    await open();
+    await page.locator("#st-start").click();
+    await page.waitForFunction(
+      () => !document.querySelector("#st-start").disabled,
+      {},
+      { timeout: 180000 },
+    );
+    assert.equal(
+      await page.locator("#st-pages-input").inputValue(),
+      "3,4,5,6,7,8",
+    );
+    await page.screenshot({ path: path.join(out, "smart-toc-acrobat.png") });
+    console.log(
+      "Acrobat result:",
+      await page.locator("#st-count").innerText(),
+      await page.locator("#st-summary").innerText(),
+    );
+    await page.locator("#st-all").check();
+    await page.locator("#st-merge").selectOption("replace");
+    await page.locator("#st-apply").click();
+    const result = await page.evaluate(() => {
+      const normalize = (s) =>
+        s
+          .replace(/^\d+\s+/, "")
+          .replace(/[\s\p{P}]/gu, "")
+          .toLowerCase();
+      const flat = (nodes) =>
+        nodes.map((n) => {
+          let level = 1,
+            p = n.parent;
+          while (p) {
+            level++;
+            p = nodes.find((x) => x.id === p)?.parent;
+          }
+          return [normalize(n.title), n.target.page, level];
+        });
+      return {
+        expected: flat(window.__acrobatExpected),
+        actual: flat(window.__qa.S.nodes),
+      };
+    });
+    assert.equal(result.expected.length, 291);
+    assert.deepEqual(result.actual, result.expected);
+    await page.evaluate(async () => {
+      const q=window.__qa;
+      const bytes=await q.rpc('save',{nodes:q.S.nodes,rotations:q.S.rotation,annotations:q.S.annotations,metadata:q.S.metadata});
+      await q.loadPDF(bytes,'acrobat-smart-contents-saved.pdf');
+    });
+    assert.deepEqual(await page.evaluate(()=>window.__qa.S.nodes.map(n=>n.target.page)),result.expected.map(n=>n[1]));
+    checks.push(
+      "User Acrobat PDF: all 291 main contents titles, destination pages and hierarchy agree with its original outline via real PDF.js and matching worker",
+    );
+  }
   assert.deepEqual(errors, []);
   fs.writeFileSync(
     path.join(out, "smart-toc-ui-report.json"),

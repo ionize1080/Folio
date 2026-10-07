@@ -7,7 +7,7 @@
       http-equiv="Content-Security-Policy"
       content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' blob: data:; connect-src 'self' blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'none'"
     />
-    <title>Folio PDF Studio 1.7.0</title>
+    <title>Folio PDF Studio 1.7.1</title>
     <link rel="stylesheet" href="style.css" />
     <link rel="stylesheet" href="vendor/pdf_viewer.css" />
   </head>
@@ -16,7 +16,7 @@
       <div class="brand">
         <span class="logo">f</span>
         <div>Folio <b>PDF Studio</b></div>
-        <span class="version">1.7.0</span>
+        <span class="version">1.7.1</span>
       </div>
       <div class="doc-tab">
         <i data-icon="file"></i><span id="doc-name">未打开文档</span
@@ -93,7 +93,7 @@
             <button data-action="calibrate" data-doc>
               <i data-icon="crosshair"></i>目标校准
             </button>
-            <button data-action="smart-toc" data-doc>智能目录识别</button>
+            <button data-action="smart-toc" data-doc><i data-icon="scan"></i><span>智能目录识别</span></button>
             <button data-action="calibrate-pages" data-doc>
               <i data-icon="crosshair"></i>逐条校准目录页码
             </button>
@@ -456,7 +456,7 @@
     <dialog id="modal">
       <div class="modal-header">
         <div>
-          <span class="eyebrow" id="modal-kicker">FOLIO 1.7.0</span>
+          <span class="eyebrow" id="modal-kicker">FOLIO 1.7.1</span>
           <h2 id="modal-title"></h2>
         </div>
         <button id="modal-close" aria-label="关闭">×</button>
