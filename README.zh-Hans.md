@@ -2,8 +2,8 @@
 
 [English](README.md) · **简体中文** · [繁體中文](README.zh-Hant.md)
 
-> **1.6.0 正式通道**：英文默认界面、简体/繁体中文即时切换、离线语言包，以及多语言 README 和发行说明。
-> [下载 1.6.0](https://github.com/ionize1080/Folio/releases/tag/v1.6.0) · [发布说明与限制](docs/RELEASE-1.6.0.zh-Hans.md) · [验收入口](docs/VALIDATION.md)。发布附件由同提交 Windows 验收门控；以本版附件报告为准。
+> **1.6.1 正式通道**：修复 Windows 自动升级启动及重启交接，增加安装日志、结果提示和旧版一次性修复工具；保留三种界面语言。
+> [下载 1.6.1](https://github.com/ionize1080/Folio/releases/tag/v1.6.1) · [发布说明与限制](docs/RELEASE-1.6.1.zh-Hans.md) · [验收入口](docs/VALIDATION.md)。发布附件由同提交 Windows 验收门控；以本版附件报告为准。
 
 面向 Windows x64 的离线 PDF 工作台，重点解决长文档的**书签生成与整理、页面内文字编辑、OCR 识别与校对**。阅读、版面分析、字体匹配和 OCR 在本地运行；完整便携包无需另装 Python、Node.js 或模型。
 
@@ -27,10 +27,10 @@
 
 | 文件 | 用途 |
 | --- | --- |
-| `Folio-PDF-Studio-1.6.0-portable-win-x64.zip` | 完整便携包，解压后运行 `Folio.exe` |
-| `Folio-PDF-Studio-1.6.0-source.zip` | 完整离线源码与随包运行资源 |
-| `Folio-PDF-Studio-1.6.0-validation.json` | 同提交 Windows 回归及公开样本结果 |
-| `Folio-PDF-Studio-1.6.0-SHA256.txt` | 附件校验值 |
+| `Folio-PDF-Studio-1.6.1-portable-win-x64.zip` | 完整便携包，解压后运行 `Folio.exe` |
+| `Folio-PDF-Studio-1.6.1-source.zip` | 完整离线源码与随包运行资源 |
+| `Folio-PDF-Studio-1.6.1-validation.json` | 同提交 Windows 回归及公开样本结果 |
+| `Folio-PDF-Studio-1.6.1-SHA256.txt` | 附件校验值 |
 
 请保留解压后的完整目录，包括 `resources`、`locales` 和 DLL。GitHub 自动生成的 **Source code (zip/tar.gz)** 是仓库快照，与上述完整离线 `source.zip` 的资产范围不同。
 
@@ -55,7 +55,7 @@
 
 ## 已实现功能
 
-以下基础功能沿用 P6/P7；本版新增及修复见 [1.6.0 发布说明](docs/RELEASE-1.6.0.zh-Hans.md)。功能存在并不表示任意 PDF 都能无损处理；复杂结构和已知缺陷单独列在后文。
+以下基础功能沿用 P6/P7；本版新增及修复见 [1.6.1 发布说明](docs/RELEASE-1.6.1.zh-Hans.md)。功能存在并不表示任意 PDF 都能无损处理；复杂结构和已知缺陷单独列在后文。
 
 ### 1. 阅读、定位与日常文档操作
 

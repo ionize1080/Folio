@@ -156,7 +156,7 @@ app.whenReady().then(async () => {
     },
   });
   await updater.init();
-  ipc("update-info", () => updater.info());
+  ipc("update-info", () => updater.readInstallResult());
   ipc("update-configure", (v) => updater.configure(v));
   ipc("update-check", () => updater.check());
   ipc("update-download", () => updater.download());

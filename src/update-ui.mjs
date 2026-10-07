@@ -29,12 +29,20 @@ export async function updateDialog({ modal, closeModal, setCleanup }) {
     info = r;
     $("[data-update-current]").textContent =
       `当前版本 ${r.current}${r.release ? " · 可用 " + r.release.version : ""}`;
-    $("#update-status").textContent = r.error || labels[r.phase];
-    $("#update-notes").textContent = localizedReleaseNotes(r.release?.notes, getLanguage());
+    $("#update-status").textContent =
+      r.error ||
+      (r.phase === "installing" && r.installMessage) ||
+      labels[r.phase];
+    if (r.lastInstall?.message && !busyPhase(r.phase))
+      $("#update-status").textContent += "\n" + r.lastInstall.message;
+    $("#update-notes").textContent = localizedReleaseNotes(
+      r.release?.notes,
+      getLanguage(),
+    );
     const busy = ["checking", "downloading", "installing"].includes(r.phase);
     $("#update-check").disabled = busy;
-    $("#update-download").disabled = r.phase !== "available";
-    $("#update-install").disabled = r.phase !== "ready" || !r.supported;
+    $("#update-download").disabled = !r.canDownload;
+    $("#update-install").disabled = !r.canInstall || !r.supported;
     $("#update-cancel").disabled = r.phase !== "downloading";
     $("#update-progress").hidden = !["downloading", "installing"].includes(
       r.phase,
@@ -43,6 +51,9 @@ export async function updateDialog({ modal, closeModal, setCleanup }) {
     $("#update-progress").value = r.received || 0;
     if (r.phase === "installing")
       $("#update-progress").removeAttribute("value");
+  }
+  function busyPhase(phase) {
+    return ["checking", "downloading", "installing"].includes(phase);
   }
   const run = (fn) => async () => {
     try {

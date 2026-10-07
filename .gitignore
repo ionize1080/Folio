@@ -10,3 +10,5 @@ __pycache__/
 tests/output/
 docs/validation*/
 dist/
+deliverables/
+release-assets/

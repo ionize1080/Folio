@@ -27,4 +27,12 @@ with tempfile.TemporaryDirectory(prefix="Folio 更新 ' test ",ignore_cleanup_er
  failure_log=(base/'install.log').read_text(encoding='utf-8-sig')
  assert '[failed]' in failure_log and 'Restarted previous installation after failure' in failure_log
  checks.append('Locked installation directory fails safely and reopens the original even before the swap starts')
+ before_backups=len(list(base.glob('Folio fixed directory.backup-*')))
+ run(archive,digest(archive),commitFile=str(base/'missing-commit.json'),token='expected',headless=True)
+ assert len(list(base.glob('Folio fixed directory.backup-*')))==before_backups
+ checks.append('Preparation without an explicit installation acknowledgement leaves the original directory untouched')
+ commit=base/'wrong-commit.json';commit.write_text(json.dumps({'token':'wrong'}))
+ run(archive,digest(archive),commitFile=str(commit),token='expected',headless=True)
+ assert len(list(base.glob('Folio fixed directory.backup-*')))==before_backups
+ checks.append('An acknowledgement belonging to a different installation is rejected before replacement')
 Path('tests/output/v13-updater-report.json').write_text(json.dumps({'platform':sys.platform,'checks':checks,'errors':[]},indent=2));print(json.dumps(checks))

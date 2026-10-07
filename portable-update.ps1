@@ -1,5 +1,16 @@
-﻿param([Parameter(Mandatory=$true)][string]$Manifest)
+﻿param([Parameter(Mandatory=$true)][string]$Manifest, [switch]$Bootstrap)
 $ErrorActionPreference = 'Stop'
+if ($Bootstrap) {
+  # Start-Process creates a separate hidden console on Windows. Node's detached
+  # flag can prevent PowerShell from executing; sharing Folio's console instead
+  # can terminate the helper when Folio exits. Keep both lifetimes independent.
+  try {
+    $arguments = @('-NoProfile','-STA','-NonInteractive','-WindowStyle','Hidden','-ExecutionPolicy','Bypass','-File',('"'+$PSCommandPath+'"'),'-Manifest',('"'+$Manifest+'"'))
+    $helper = Start-Process -FilePath (Join-Path $PSHOME 'powershell.exe') -ArgumentList $arguments -WindowStyle Hidden -PassThru -RedirectStandardOutput ($Manifest+'.helper.log') -RedirectStandardError ($Manifest+'.helper-error.log')
+    @{pid=$helper.Id} | ConvertTo-Json | Set-Content -LiteralPath ($Manifest+'.helper.json') -Encoding UTF8
+    exit 0
+  } catch { Write-Error $_ -ErrorAction Continue; exit 1 }
+}
 $m = $null; $stage = $null; $moved = $false; $newProcess = $null; $form = $null
 $log = Join-Path (Split-Path -Parent $Manifest) 'install.log'
 function Localized([string]$english, [string]$simplified, [string]$traditional) {
@@ -11,7 +22,7 @@ function Report([string]$phase, [string]$message) {
   ('{0:o} [{1}] {2}' -f (Get-Date),$phase,$message) | Add-Content -LiteralPath $log -Encoding UTF8
   if ($m.statusFile) {
     $temporary = $m.statusFile + '.tmp'
-    @{phase=$phase;message=$message;version=$m.version;target=$m.target} | ConvertTo-Json | Set-Content -LiteralPath $temporary -Encoding UTF8
+    @{phase=$phase;message=$message;version=$m.version;target=$m.target;backup=$backup;log=$log} | ConvertTo-Json | Set-Content -LiteralPath $temporary -Encoding UTF8
     Move-Item -LiteralPath $temporary -Destination $m.statusFile -Force
   }
   if ($form) { $label.Text = $message; [Windows.Forms.Application]::DoEvents() }
@@ -27,6 +38,14 @@ function Move-WithRetry([string]$source, [string]$destination) {
     try { Move-Item -LiteralPath $source -Destination $destination; return }
     catch { if ((Get-Date) -gt $until) { throw }; Start-Sleep -Milliseconds 300; if ($form) { [Windows.Forms.Application]::DoEvents() } }
   }
+}
+function Start-Folio([bool]$checkHealth) {
+  $options = @{FilePath=(Join-Path $m.target 'Folio.exe');WorkingDirectory=$m.target;PassThru=$true}
+  $arguments = @()
+  if ($m.userData) { $arguments += ('"--user-data-dir=' + $m.userData + '"') }
+  if ($checkHealth) { $arguments += ('"--folio-update-health=' + $m.healthFile + '"') }
+  if ($arguments.Count) { $options.ArgumentList = $arguments }
+  return Start-Process @options
 }
 try {
   $m = Get-Content -LiteralPath $Manifest -Raw -Encoding UTF8 | ConvertFrom-Json
@@ -71,13 +90,16 @@ try {
     if ((Get-Date) -gt $until) { throw 'Folio did not close; installation cancelled safely' }
     Start-Sleep -Milliseconds 250; if ($form) { [Windows.Forms.Application]::DoEvents() }
   }
+  if ($m.commitFile) {
+    $commit = Get-Content -LiteralPath $m.commitFile -Raw -Encoding UTF8 | ConvertFrom-Json
+    if (!$m.token -or $commit.token -ne $m.token) { throw 'Installation was not acknowledged; original retained' }
+  }
   Report 'replacing' (Localized 'Installing in the original folder. Shortcuts remain valid.' '正在原目录安装，桌面快捷方式保持有效。' '正在原資料夾安裝，桌面捷徑保持有效。')
   Move-WithRetry $m.target $backup; $moved=$true
   Move-WithRetry $new $m.target
   if ($m.healthFile) {
     Remove-Item -LiteralPath $m.healthFile -Force -ErrorAction SilentlyContinue
-    $argument='"--folio-update-health='+$m.healthFile+'"'
-    $newProcess=Start-Process -FilePath (Join-Path $m.target 'Folio.exe') -ArgumentList $argument -WorkingDirectory $m.target -PassThru
+    $newProcess=Start-Folio $true
     Report 'starting' (Localized 'Starting the new version and checking its window…' '正在启动新版并检查窗口…' '正在啟動新版本並檢查視窗…')
     $until=(Get-Date).AddSeconds(45)
     while (!(Test-Path -LiteralPath $m.healthFile)) {
@@ -85,8 +107,8 @@ try {
       Start-Sleep -Milliseconds 250; if ($form) { [Windows.Forms.Application]::DoEvents() }
     }
     $health=Get-Content -LiteralPath $m.healthFile -Raw | ConvertFrom-Json
-    if ($health.version -ne $fullVersion) { throw 'Restarted version does not match the download' }
-  } else { Start-Process -FilePath (Join-Path $m.target 'Folio.exe') -WorkingDirectory $m.target }
+    if ($health.version -ne $fullVersion -or $health.pid -ne $newProcess.Id) { throw 'Restarted version or process does not match the download' }
+  } else { $newProcess=Start-Folio $false }
   Report 'complete' ((Localized 'Updated. Rollback copy: ' '更新完成。回滚副本：' '更新完成。回復副本：') + $backup)
 } catch {
   $failure=$_.Exception.Message
@@ -101,7 +123,7 @@ try {
     }
     Report 'failed' ((Localized 'Update failed; original retained: ' '更新失败，已保留原版本：' '更新失敗，已保留原版本：') + $failure)
     if ($m -and !(Get-Process -Id $m.pid -ErrorAction SilentlyContinue) -and (Test-Path -LiteralPath (Join-Path $m.target 'Folio.exe'))) {
-      Start-Process -FilePath (Join-Path $m.target 'Folio.exe') -WorkingDirectory $m.target
+      Start-Folio $false | Out-Null
       'Restarted previous installation after failure' | Add-Content -LiteralPath $log -Encoding UTF8
     }
   } catch { Report 'failed' ((Localized 'Update and recovery failed. Check the log and backup: ' '更新与恢复失败，请检查日志和备份：' '更新與復原失敗，請檢查記錄與備份：') + "$failure. $_. $backup") }

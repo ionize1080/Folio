@@ -99,7 +99,29 @@ class UpdateManager {
     try {
       this.settings = config(JSON.parse(await fs.readFile(this.file, "utf8")));
     } catch {}
+    await this.readInstallResult();
     await this.proxy();
+    return this.info();
+  }
+  async readInstallResult() {
+    try {
+      const pending = JSON.parse(
+        (
+          await fs.readFile(path.join(this.home, "last-install.json"), "utf8")
+        ).replace(/^\uFEFF/, ""),
+      );
+      // Only read updater-owned status files, never arbitrary paths from disk.
+      if (/^install-[\da-f-]+\.json$/.test(pending.manifest)) {
+        const manifest = path.join(this.home, pending.manifest);
+        const result = JSON.parse(
+          (await fs.readFile(manifest + ".status.json", "utf8")).replace(
+            /^\uFEFF/,
+            "",
+          ),
+        );
+        this.state.lastInstall = result;
+      }
+    } catch {}
     return this.info();
   }
   async proxy() {
@@ -116,6 +138,12 @@ class UpdateManager {
       settings: this.settings,
       current: this.current,
       supported: process.platform === "win32" && this.app.isPackaged,
+      canInstall:
+        !!this.ready &&
+        !["checking", "downloading", "installing"].includes(this.state.phase),
+      canDownload:
+        !!this.release &&
+        !["checking", "downloading", "installing"].includes(this.state.phase),
     };
   }
   status(phase, extra = {}) {
@@ -189,6 +217,7 @@ class UpdateManager {
       clearTimeout(this.deadline);
       this.busy = false;
       this.abort = null;
+      this.notify(this.info());
     }
   }
   cancel() {
@@ -269,7 +298,11 @@ class UpdateManager {
     if (this.busy || !this.ready) throw Error("请先下载并校验更新");
     if (this.dirty()) throw Error("请先保存或关闭当前文档，再安装更新");
     return this.task(async () => {
-      this.status("installing");
+      this.status("installing", {
+        error: null,
+        installStage: null,
+        installMessage: null,
+      });
       const target = path.dirname(this.app.getPath("exe"));
       const manifest = path.join(
         this.home,
@@ -277,6 +310,9 @@ class UpdateManager {
       );
       const statusFile = manifest + ".status.json";
       const healthFile = manifest + ".health.json";
+      const commitFile = manifest + ".commit.json";
+      const token = crypto.randomUUID();
+      const launchLog = manifest + ".launch.log";
       await fs.writeFile(
         manifest,
         JSON.stringify({
@@ -286,64 +322,147 @@ class UpdateManager {
           pid: process.pid,
           statusFile,
           healthFile,
+          commitFile,
+          token,
+          userData: this.app.getPath("userData"),
+          headless: !!this.headless,
         }),
       );
-      const script = path.join(this.home, "portable-update.ps1");
+      await fs.writeFile(
+        path.join(this.home, "last-install.json"),
+        JSON.stringify({ manifest: path.basename(manifest) }),
+      );
+      const script = manifest + ".ps1";
       await fs.writeFile(
         script,
-        await fs.readFile(path.join(__dirname, "portable-update.ps1")),
+        "\uFEFF" +
+          (
+            await fs.readFile(
+              path.join(__dirname, "portable-update.ps1"),
+              "utf8",
+            )
+          ).replace(/^\uFEFF/, ""),
       );
-      const child = spawn(
-        "powershell.exe",
-        [
-          "-NoProfile",
-          "-STA",
-          "-NonInteractive",
-          "-ExecutionPolicy",
-          "Bypass",
-          "-File",
-          script,
-          "-Manifest",
-          manifest,
-        ],
-        { detached: true, stdio: "ignore", cwd: this.home, windowsHide: true },
-      );
-      await new Promise((resolve, reject) => {
-        child.once("spawn", resolve);
-        child.once("error", reject);
-      });
-      child.unref();
-      // Close the application only after successful extraction and checks.
-      const deadline = Date.now() + 180000;
-      let prepared = false;
-      while (Date.now() < deadline) {
-        let state;
-        try {
-          state = JSON.parse(
-            (await fs.readFile(statusFile, "utf8")).replace(/^\uFEFF/, ""),
-          );
-        } catch {}
-        if (state?.phase === "failed") throw Error(state.message);
-        if (state?.phase === "ready") {
-          prepared = true;
-          break;
-        }
-        if (child.exitCode !== null)
-          throw Error("更新程序提前退出，请查看 updates/install.log");
-        await new Promise((resolve) => setTimeout(resolve, 250));
-      }
-      if (!prepared) {
-        child.kill();
-        throw Error(
-          "更新准备超时，当前版本保持打开。请查看 updates/install.log",
+      const output = await fs.open(launchLog, "a");
+      let child,
+        helperPid,
+        committed = false;
+      try {
+        child = spawn(
+          path.join(
+            process.env.SystemRoot || "C:\\Windows",
+            "System32",
+            "WindowsPowerShell",
+            "v1.0",
+            "powershell.exe",
+          ),
+          [
+            "-NoProfile",
+            "-STA",
+            "-NonInteractive",
+            "-WindowStyle",
+            "Hidden",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            script,
+            "-Manifest",
+            manifest,
+            "-Bootstrap",
+          ],
+          // A short-lived normal PowerShell bootstrap starts the actual helper
+          // with its own hidden console. Neither DETACHED_PROCESS nor sharing
+          // the parent's console reliably survives the Windows handoff.
+          {
+            detached: false,
+            stdio: ["ignore", output.fd, output.fd],
+            cwd: this.home,
+            windowsHide: true,
+          },
         );
+        await new Promise((resolve, reject) => {
+          child.once("spawn", resolve);
+          child.once("error", reject);
+        });
+        child.unref();
+        // Close the application only after successful extraction and checks.
+        const deadline = Date.now() + 10 * 60 * 1000;
+        let prepared = false;
+        while (Date.now() < deadline) {
+          this.abort.signal.throwIfAborted();
+          if (!helperPid) {
+            try {
+              helperPid = JSON.parse(
+                (await fs.readFile(manifest + ".helper.json", "utf8")).replace(
+                  /^\uFEFF/,
+                  "",
+                ),
+              ).pid;
+            } catch {}
+          }
+          let state;
+          try {
+            state = JSON.parse(
+              (await fs.readFile(statusFile, "utf8")).replace(/^\uFEFF/, ""),
+            );
+          } catch {}
+          if (state?.phase === "failed") throw Error(state.message);
+          if (state?.phase && state.phase !== this.state.installStage)
+            this.status("installing", {
+              installStage: state.phase,
+              installMessage: state.message,
+            });
+          if (state?.phase === "ready") {
+            prepared = true;
+            break;
+          }
+          let helperExited = false;
+          if (helperPid) {
+            try {
+              process.kill(helperPid, 0);
+            } catch (error) {
+              helperExited = error.code === "ESRCH";
+            }
+          }
+          if (
+            (child.exitCode !== null && child.exitCode !== 0) ||
+            child.signalCode !== null ||
+            helperExited
+          )
+            throw Error(
+              `更新程序提前退出。日志：${launchLog}；${manifest}.helper-error.log`,
+            );
+          await new Promise((resolve) => setTimeout(resolve, 250));
+        }
+        if (!prepared) {
+          child.kill();
+          throw Error(
+            "更新准备超时，当前版本保持打开。请查看 updates/install.log",
+          );
+        }
+        if (this.dirty()) {
+          child.kill();
+          throw Error("文档有未保存更改，已停止安装，请保存后重试");
+        }
+        this.abort.signal.throwIfAborted();
+        // Preparation alone never authorizes replacement. A closed/crashed app
+        // without this final acknowledgement leaves its installation untouched.
+        await fs.writeFile(commitFile + ".tmp", JSON.stringify({ token }));
+        await fs.rename(commitFile + ".tmp", commitFile);
+        committed = true;
+        this.app.quit();
+        return true;
+      } finally {
+        if (!committed) {
+          if (child && child.exitCode === null) child.kill();
+          if (helperPid) {
+            try {
+              process.kill(helperPid);
+            } catch {}
+          }
+        }
+        await output.close();
       }
-      if (this.dirty()) {
-        child.kill();
-        throw Error("文档有未保存更改，已停止安装，请保存后重试");
-      }
-      this.app.quit();
-      return true;
     });
   }
 }
