@@ -36,6 +36,7 @@ export function smartTocDialog({
     worker,
     settle,
     renderTask,
+    previewReturn,
     draw = 0,
     found = [],
     entries = [],
@@ -170,6 +171,7 @@ export function smartTocDialog({
     <div class="menu-grid"><button id="st-extract">${esc(t("提取目录条目"))}</button></div></details>
     <p id="st-status" role="status" class="callout">${esc(t("点击一键识别即可开始；也可展开高级设置，指定目录范围。"))}</p>
     <canvas id="st-preview" hidden style="max-width:100%;max-height:360px"></canvas>
+    <button id="st-hide-preview" hidden>${esc(t("关闭预览并返回条目"))}</button>
     <div class="st-controls"><label class="check"><input id="st-all" type="checkbox">${esc(t("全选可生成项"))}</label><button id="st-none">${esc(t("取消全选"))}</button><select id="st-filter" aria-label="${esc(t("筛选条目"))}"><option value="all">${esc(t("全部条目"))}</option><option value="review">${esc(t("待复核"))}</option><option value="unresolved">${esc(t("未定位"))}</option><option value="selected">${esc(t("已选条目"))}</option></select><input id="st-search" placeholder="${esc(t("搜索目录标题"))}" aria-label="${esc(t("搜索目录标题"))}"><span id="st-count"></span></div>
     <p class="hint">${esc(t("全选作用于当前筛选的所有分页；尚无目标页的条目需先校准。"))}</p>
     <div class="pc-toolbar"><button id="st-best">${esc(t("待定位项采用首选候选"))}</button><button id="st-resolve">${esc(t("定位实际页码"))}</button><button id="st-add">${esc(t("添加条目"))}</button></div>
@@ -199,6 +201,8 @@ export function smartTocDialog({
   );
   $("#modal").classList.add("native-dialog");
   $("#modal").classList.add("smart-toc-dialog");
+  // Keep the append/replace choice beside Create, visible even on long lists.
+  $("#modal-footer").prepend($("#st-merge").closest("label"));
   async function read(p, r) {
     if (cache.has(p)) return cache.get(p);
     status(
@@ -377,6 +381,7 @@ export function smartTocDialog({
       if (alive(r)) await resolve(r);
     });
   async function preview(p, bounds) {
+    previewReturn = document.activeElement;
     const id = ++draw;
     renderTask?.cancel();
     const page = await pdf.getPage(p);
@@ -386,6 +391,7 @@ export function smartTocDialog({
       v = page.getViewport({ scale, rotation: surface.rotation(p) }),
       c = $("#st-preview");
     c.hidden = false;
+    $("#st-hide-preview").hidden = false;
     c.width = v.width;
     c.height = v.height;
     renderTask = page.render({
@@ -394,6 +400,7 @@ export function smartTocDialog({
     });
     try {
       await renderTask.promise;
+      if (!closed && id === draw) c.scrollIntoView({ block: "nearest" });
       if (bounds && id === draw) {
         const ctx = c.getContext("2d");
         ctx.strokeStyle = "#e27800";
@@ -409,6 +416,16 @@ export function smartTocDialog({
       if (e.name !== "RenderingCancelledException") status(e.message);
     }
   }
+  $("#st-hide-preview").onclick = () => {
+    draw++;
+    renderTask?.cancel();
+    $("#st-preview").hidden = true;
+    $("#st-hide-preview").hidden = true;
+    if (previewReturn?.isConnected) {
+      previewReturn.focus();
+      previewReturn.scrollIntoView({ block: "nearest" });
+    }
+  };
   function renderRows() {
     const visible = visibleEntries();
     group = Math.min(group, Math.max(0, Math.ceil(visible.length / 30) - 1));

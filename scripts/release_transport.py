@@ -74,6 +74,7 @@ def publish(repo, tag, sha, title, notes, assets):
                     current = uploaded().get(file.name)
                     if not current or current.get('digest') != expected[file.name]:
                         raise
+                    break
                 time.sleep(3 * (attempt + 1))
         else:
             raise RuntimeError('Asset upload could not be verified: ' + file.name)
