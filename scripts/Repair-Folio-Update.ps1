@@ -13,7 +13,7 @@ try {
   }
   if (!$Archive) {
     $picker = New-Object Windows.Forms.OpenFileDialog
-    $picker.Title = 'Select the downloaded Folio 1.6.2 portable ZIP'; $picker.Filter = 'Portable ZIP|*.zip'
+    $picker.Title = ("Select the downloaded Folio " + $config.version + " portable ZIP"); $picker.Filter = 'Portable ZIP|*.zip'
     if ($picker.ShowDialog() -ne 'OK') { exit 1 }
     $Archive = $picker.FileName; $picker.Dispose()
   }
@@ -24,7 +24,7 @@ try {
   if ([version]$installed.version -gt [version]$config.version.TrimStart('v')) { throw 'A newer version is installed; downgrade refused.' }
   $running = Get-CimInstance Win32_Process | Where-Object { $_.ExecutablePath -and $_.ExecutablePath.StartsWith($InstallDir + '\', [StringComparison]::OrdinalIgnoreCase) }
   if ($running) { throw 'Save your documents and close Folio before running the repair.' }
-  if ((Get-FileHash -LiteralPath $Archive -Algorithm SHA256).Hash -ne $config.sha256) { throw 'The ZIP does not match the verified 1.6.2 release. Download it again.' }
+  if ((Get-FileHash -LiteralPath $Archive -Algorithm SHA256).Hash -ne $config.sha256) { throw ("The ZIP does not match verified release " + $config.version + ". Download it again.") }
   if (!$UserData) { $UserData = Join-Path $env:APPDATA 'Folio PDF Studio' }
   $UserData = [IO.Path]::GetFullPath($UserData)
   $updates = Join-Path $userData 'updates'

@@ -176,8 +176,9 @@ test("PDF links must be corroborated by a heading, and cannot override contrary 
     { 2: [line("Alpha chapter", 2)], 3: [line("Alpha chapter", 3)] },
     4,
   );
-  assert.equal(resolved[0].target.page, 3);
-  assert.equal(resolved[0].candidates[0].reason, "verified-link");
+  assert.equal(resolved[0].target, null);
+  assert.equal(resolved[0].selected, false);
+  assert(resolved[0].candidates.some(c => c.reason === "pdf-link" && c.page === 3));
   const contradicted = resolveTocEntries(
     [e],
     { 2: [line("Alpha chapter", 2)], 3: [line("Unrelated heading", 3)] },

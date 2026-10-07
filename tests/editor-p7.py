@@ -57,13 +57,19 @@ checks.append('Same-page repeated Do and cross-page shared Form: exact dual-engi
 for text in ['Short','Shared 2026 added phrase','Shared 2026 '+('A long edit contains 2026 words. '*12),'']:
  r,ms=models(raw);m=ms[0];m.update(text=text,allowOverflow=True,layoutMode='reflow')
  m['runs']=[{**m['runs'][0],'start':0,'end':len(text)}] if text else []
+ if len(text)>100:
+  # Inherited Form BBox cannot be enlarged by allowOverflow. Refuse instead
+  # of claiming success after text extraction while visible ink is clipped.
+  try:save(raw,m);raise AssertionError('inherited Form clip overflow accepted')
+  except ValueError as error:assert '裁剪边界' in str(error)
+  continue
  changed=save(raw,m);after=inspect(changed)
  assert pixels(raw,1)==pixels(changed,1)
  logical=''.join(o.get('text','') for o in after['objects'])
  assert 'Shared 2026' in logical  # The untouched same-page instance.
  if text:assert text.replace(' ','') in logical.replace(' ','').replace('\r','').replace('\n','')
  else:assert logical.count('Shared 2026')==1
-checks.append('Shared Form instance supports short/long replacement and complete deletion without changing other-page content')
+checks.append('Shared Form instance supports fitting replacements and deletion; inherited-BBox overflow rejects; other-page content unchanged')
 
 # Repeated source glyphs supply their own ink bounds for tight-frame previews.
 r,ms=models(raw);m=ms[0];m['text']=m['text'].replace('2026','2022');res=layout(m)

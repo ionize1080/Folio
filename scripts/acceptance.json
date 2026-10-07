@@ -1,0 +1,18 @@
+{
+  "quick": [
+    {"capability":"all unit contracts", "runtime":"node", "args":["--test"], "unitGlob":true},
+    {"capability":"source archive and release transport", "runtime":"python", "args":["-m","unittest","discover","-s","tests","-p","*_test.py"]}
+  ],
+  "native": [
+    {"capability":"clipping, replacement roundtrip and decode budgets", "runtime":"python", "args":["tests/reliability-v172.py"]},
+    {"capability":"shared forms, fonts, semantics and crop origins", "runtime":"python", "args":["tests/editor-p7.py"]},
+    {"capability":"images, alpha and page isolation", "runtime":"python", "args":["tests/editor-p8.py"]}
+  ],
+  "browser": [
+    {"capability":"table and OCR fixture", "runtime":"python", "args":["tests/fixture-v9.py"]},
+    {"capability":"multipage fixture", "runtime":"python", "args":["tests/fixture-v10.py"]},
+    {"capability":"transaction failures, export roundtrip, keyboard and locales", "runtime":"node", "args":["tests/reliability-v172-ui.cjs"]},
+    {"capability":"smart TOC extraction and save/reopen", "runtime":"node", "args":["tests/smart-toc-ui.cjs"]},
+    {"capability":"independent page calibration", "runtime":"node", "args":["tests/page-calibration-ui.cjs"]}
+  ]
+}

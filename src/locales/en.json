@@ -2226,5 +2226,12 @@
   "已定位 {0} 项 · 待定位 {1} 项 · 待复核 {2} 项": "{0} located · {1} unresolved · {2} need review",
   "目录链接与正文一致": "Contents link verified against heading",
   "目录原有链接（待核对）": "Original contents link (review needed)",
-  "关闭预览并返回条目": "Close preview and return to entry"
+  "关闭预览并返回条目": "Close preview and return to entry",
+  "目标文件已被其他程序修改、替换或删除。请另存副本，或重新打开文件后再保存。": "The target file was changed, replaced or deleted by another program. Save a copy, or reopen it before saving.",
+  "文件正在被其他程序修改，请另存副本": "Another program is changing this file. Save a copy.",
+  "新文字超出原 PDF 裁剪边界，请缩小文字或调整位置；草稿已保留": "The new text exceeds the original PDF clipping boundary. Reduce its size or adjust its position; your draft is preserved.",
+  "表格边框与其他图形共用路径，请使用单元格文字编辑": "Table borders share a path with other graphics. Use cell text editing.",
+  "请选择有效表格": "Select a valid table.",
+  "图像尺寸超过处理预算（1亿像素，边长32768）": "Image dimensions exceed the processing budget (100 million pixels; maximum side 32768).",
+  "保存文件大小无效": "Invalid file size for saving."
 }

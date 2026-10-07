@@ -17,6 +17,10 @@ def bounded(value, low, high, name):
 
 from image_color import validate, tonal, colors, dehaze
 
+def validate_dimensions(width, height):
+    if width <= 0 or height <= 0 or width > 32768 or height > 32768 or width*height > MAX_PIXELS:
+        raise ValueError("图像尺寸超过处理预算（1亿像素，边长32768）")
+
 def read_image(page, original, image_data=None):
     if image_data:
         data = base64.b64decode(image_data,validate=True)
@@ -26,7 +30,7 @@ def read_image(page, original, image_data=None):
         name = original[0][0]
         obj = page['/Resources']['/XObject'][name].get_object()
         if obj.get('/Subtype') != '/Image': raise ValueError('请选择直接图片对象')
-        if int(obj['/Width'])*int(obj['/Height'])>MAX_PIXELS: raise ValueError('图像超过 1 亿像素处理预算')
+        validate_dimensions(int(obj['/Width']),int(obj['/Height']))
         try:
             if str(obj.get('/ColorSpace'))!='/DeviceRGB' or any(k in obj for k in ('/Decode','/SMask','/Mask','/SMaskInData')) or '/JPXDecode' in str(obj.get('/Filter')):
                 raise ValueError('Resolve PDF color spaces, Decode and masks with the PDF engine')
@@ -48,7 +52,7 @@ def read_image(page, original, image_data=None):
                 pix=doc[0].get_pixmap(alpha=True)
                 image=Image.open(io.BytesIO(pix.tobytes('png')))
 
-    if image.width*image.height>MAX_PIXELS: raise ValueError('图像超过 1 亿像素处理预算')
+    validate_dimensions(image.width,image.height)
     image.load()
     if 'A' in image.getbands() and image.getchannel('A').getextrema()==(255,255):image=image.convert('RGB')
     return image.convert('RGBA') if 'A' in image.getbands() else image.convert('RGB')

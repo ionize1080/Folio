@@ -59,7 +59,7 @@ def replace(source,target):
 
 def get_color(r,obj,stroke=False):
  vals=[C.c_uint() for _ in range(4)];(r.FPDFPageObj_GetStrokeColor if stroke else r.FPDFPageObj_GetFillColor)(obj,*map(C.byref,vals));return [v.value for v in vals]
-def contains_ink_clip(r,clip,bounds=None):
+def contains_ink_clip(r,clip,bounds=None,rectangles=None):
  """Only closed, axis-aligned rectangles; optionally require complete ink.
  Keep curves, holes, partial glyph clipping and unknown paths read-only.
  PDFium clip segments and object bounds are both in page coordinates.
@@ -82,6 +82,7 @@ def contains_ink_clip(r,clip,bounds=None):
   xs=sorted(set(p[0] for p in pts));ys=sorted(set(p[1] for p in pts))
   if len(xs)!=2 or len(ys)!=2 or set(pts)!={(x,y) for x in xs for y in ys}:return False
   if any(a[0]!=b[0] and a[1]!=b[1] for a,b in zip(pts,pts[1:]+pts[:1])):return False
+  if rectangles is not None:rectangles.append([xs[0],ys[0],xs[1],ys[1]])
   if bounds is not None and not (xs[0]<=bounds[0]+.001 and ys[0]<=bounds[1]+.001 and xs[1]>=bounds[2]-.001 and ys[1]>=bounds[3]-.001):return False
  return True
 def describe(r,obj,i,tp):
@@ -102,6 +103,8 @@ def describe(r,obj,i,tp):
  # Image replacement stays at its original Do, inside the existing clip. Unlike
  # text reflow, a rectangular partial image crop does not discard source ink.
  clip=r.FPDFPageObj_GetClipPath(obj);out['editable']=typ in (1,2,3) and (typ!=1 or out['renderMode']==0) and (not clip or r.FPDFClipPath_CountPaths(clip)<=0 or (typ==3 and contains_ink_clip(r,clip)))
+ rectangles=[]
+ if contains_ink_clip(r,clip,rectangles=rectangles):out['clipBounds']=rectangles
  out['simpleText']=typ==1 and out['renderMode'] in (0,2) and contains_ink_clip(r,clip,out['bounds'])
  if not out['editable']:out['reason']='复杂裁剪、嵌套或特殊绘制模式暂为只读'
  out['signature']=hashlib.sha256(json.dumps({k:out[k] for k in ['type','matrix','bounds']+(['text'] if typ==1 else [])},sort_keys=True).encode()).hexdigest()[:20];return out

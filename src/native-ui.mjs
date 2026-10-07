@@ -106,10 +106,16 @@ export function installNativeUI(ctx) {
           `范围 ${ids.size} 项 · 修改 ${changes.length} 项 · 跳过 ${preview.skipped.length} 项 · 显示前 100 项`;
         $("#space-diffs").innerHTML = diffTable(changes.slice(0, 100));
         $("#space-item").innerHTML = changes
-          .map((c) => `<option translate="no" value="${esc(c.id)}">${esc(c.title)}</option>`)
+          .map(
+            (c) =>
+              `<option translate="no" value="${esc(c.id)}">${esc(c.title)}</option>`,
+          )
           .join("");
         $("#space-skipped").innerHTML = preview.skipped
-          .map((n) => `<p><span translate="no">${esc(n.title)}</span>：${esc(n.reason)}</p>`)
+          .map(
+            (n) =>
+              `<p><span translate="no">${esc(n.title)}</span>：${esc(n.reason)}</p>`,
+          )
           .join("");
         $("#space-apply").disabled = !changes.length;
       } catch (e) {
@@ -209,6 +215,8 @@ export function installNativeUI(ctx) {
   async function objectDialog() {
     if (!S.pdf) return;
     toast("正在读取当前页内容对象…");
+    const objectSource = S.bytes,
+      objectSession = S.sessionId;
     const p = S.page,
       result = await native("inspect", { page: p }),
       objects = result.objects.map((o) => ({
@@ -223,7 +231,8 @@ export function installNativeUI(ctx) {
       viewport,
       closed = false,
       applying = false,
-      imageEditor = null;
+      imageEditor = null,
+      replacementRequest = 0;
     modal(
       "编辑页面内容对象",
       `<p class="callout">直接修改文字、图片和矢量路径。修改文字时使用 Noto Sans SC 衍生字体；复杂裁剪、嵌套与特殊绘制模式只读。坐标为 PDF 原生单位。</p><div class="native-workspace"><div class="native-preview"><canvas id="object-canvas"></canvas><div id="object-boxes"></div></div><div class="native-properties"><label>内容对象<select id="object-select" disabled><option value="">请选择或点击左侧对象</option>${objects.map((o) => `<option value="${o.index}">#${o.index} ${o.type} ${esc((o.text || "").slice(0, 35))}${o.editable ? "" : " · 只读"}</option>`).join("")}</select></label><div class="menu-grid"><button id="object-new-text">新增文字</button><button id="object-new-path">新增矩形路径</button></div><div id="object-fields">选择对象后编辑属性。</div></div></div>`,
@@ -235,6 +244,12 @@ export function installNativeUI(ctx) {
           id: "object-apply",
           run: async () => {
             if (!chosen || applying) return;
+            if (
+              closed ||
+              S.bytes !== objectSource ||
+              S.sessionId !== objectSession
+            )
+              throw Error("文档已变化，本次结果未应用");
             applying = true;
             try {
               const edit = read();
@@ -319,7 +334,19 @@ export function installNativeUI(ctx) {
             const f = $("#obj-image-file").files[0];
             if (!f) return;
             if (f.size > 32 * 1024 * 1024) throw Error("替换图片限 32 MB");
+            const target = chosen,
+              editor = imageEditor,
+              request = ++replacementRequest;
             const bytes = new Uint8Array(await f.arrayBuffer());
+            if (
+              closed ||
+              chosen !== target ||
+              imageEditor !== editor ||
+              request !== replacementRequest ||
+              S.bytes !== objectSource ||
+              S.sessionId !== objectSession
+            )
+              return;
             let raw = "";
             for (let i = 0; i < bytes.length; i += 32768)
               raw += String.fromCharCode(...bytes.subarray(i, i + 32768));
@@ -373,6 +400,9 @@ export function installNativeUI(ctx) {
         });
       if (e.type === "image")
         Object.assign(e, {
+          perspective: chosen.perspective
+            ? structuredClone(chosen.perspective)
+            : null,
           imageData: chosen.imageData || null,
           adjustments: chosen.adjustments || null,
           imageFit: $("#obj-image-fit").value,

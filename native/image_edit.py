@@ -38,7 +38,10 @@ def operations(writer,page,original,matrix,ctm,crop,image_data=None,fit='contain
   import fitz
   width=max(1,math.hypot(matrix[0],matrix[1]));height=max(1,math.hypot(matrix[2],matrix[3]))
   doc=fitz.open();p=doc.new_page(width=width,height=height)
-  pix=fitz.Pixmap(data);iw,ih=pix.width,pix.height;del pix
+  from PIL import Image
+  from image_adjustments import validate_dimensions
+  with Image.open(io.BytesIO(data)) as header:
+   iw,ih=header.size;validate_dimensions(iw,ih)
   if fit not in ('contain','cover','stretch'):raise ValueError('图片适配方式无效')
   if fit=='stretch':rect=p.rect
   else:
@@ -47,6 +50,9 @@ def operations(writer,page,original,matrix,ctm,crop,image_data=None,fit='contain
   source=PdfReader(io.BytesIO(doc.tobytes()));sp=source.pages[0]
   from pypdf.generic import DecodedStreamObject,ArrayObject
   form=DecodedStreamObject();form.set_data(sp.get_contents().get_data());form.update({NameObject('/Type'):NameObject('/XObject'),NameObject('/Subtype'):NameObject('/Form'),NameObject('/BBox'):ArrayObject([FloatObject(x) for x in [0,0,width,height]]),NameObject('/Matrix'):ArrayObject([FloatObject(x) for x in [1/width,0,0,1/height,0,0]]),NameObject('/Resources'):sp['/Resources'].clone(writer)})
+  from pypdf.generic import NumberObject
+  form[NameObject('/FolioLayerVersion')]=NumberObject(2)
+  form[NameObject('/FolioLayerKind')]=NameObject('/Image')
   resources=DictionaryObject(dict(page['/Resources']));xs=resources.get('/XObject',{});xs=xs.get_object() if hasattr(xs,'get_object') else xs;xs=DictionaryObject(dict(xs));j=1
   while NameObject('/FolioImage'+str(j)) in xs:j+=1
   name=NameObject('/FolioImage'+str(j));xs[name]=writer._add_object(form);resources[NameObject('/XObject')]=xs;page[NameObject('/Resources')]=resources;draw=([name],b'Do');doc.close()

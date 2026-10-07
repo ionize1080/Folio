@@ -228,6 +228,15 @@ export function recognizeTocPage(page, options = {}) {
     entries.push({
       ...value,
       ...extra,
+      ocrEvidence: indices
+        .flatMap((i) => rows[i].items)
+        .filter((f) => f.source === "OCR")
+        .map((f) => ({
+          confidence: f.confidence,
+          needsReview: f.needsReview,
+          diagnostic: f.diagnostic,
+          reviewed: f.reviewed,
+        })),
       sourcePage: page.page,
       bounds: [row.left, row.top, row.right, row.bottom],
       angle: row.angle,
@@ -581,21 +590,10 @@ export function resolveTocEntries(
     // Internal links are useful evidence, but still require an independent
     // title match on their destination page. Conflicting links remain reviewable.
     const linked = e.linkedTarget;
-    const searchTitle = norm(nodes[i].title);
     const verifiedLink =
       linked &&
-      linked.page >= 1 &&
-      linked.page <= pageCount &&
-      !excluded.has(linked.page) &&
-      (pages[linked.page] || []).some((l) => {
-        const text = norm(l.text.replace(/^\d+(?:\.\d+)*\s+/u, ""));
-        return (
-          text === searchTitle ||
-          (searchTitle.length >= 8 &&
-            text.includes(searchTitle) &&
-            text.length <= searchTitle.length * 1.25)
-        );
-      });
+      result.status === "high" &&
+      result.candidates[0]?.page === linked.page;
     if (
       linked &&
       linked.page >= 1 &&
@@ -608,7 +606,18 @@ export function resolveTocEntries(
         reason: verifiedLink ? "verified-link" : "pdf-link",
         target: linked,
       });
-    const high = verifiedLink || result.status === "high";
+    const entryReady =
+      e.confidence >= 75 &&
+      !e.needsReview &&
+      !(e.ocrEvidence || []).some(
+        (o) =>
+          !o.reviewed &&
+          (o.needsReview ||
+            o.diagnostic ||
+            !Number.isFinite(o.confidence) ||
+            o.confidence < 0.85),
+      );
+    const high = entryReady && result.status === "high";
     // Printed numbers alone are review candidates, never silent destinations.
     return {
       ...e,
@@ -618,9 +627,16 @@ export function resolveTocEntries(
         : result.status === "high"
           ? result.candidates[0]?.target
           : null,
-      status: high ? "high" : result.status,
+      status: high
+        ? "high"
+        : result.status === "high"
+          ? "review"
+          : result.status,
+      recognitionConfidence: e.confidence,
+      locationConfidence: result.confidence,
+      needsReview: !entryReady,
       selected: !!high,
-      confidence: verifiedLink ? 98 : Math.min(e.confidence, result.confidence),
+      confidence: Math.min(e.confidence, result.confidence),
     };
   });
 }

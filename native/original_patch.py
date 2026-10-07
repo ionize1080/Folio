@@ -9,7 +9,7 @@ from text_advance import font_metrics
 def correction(page, stream, mapped, description, flow):
     try:
         # Existing ActualText is removed by the semantic-aware replacement path.
-        if mapped.get('semanticScopes'):return None
+        if mapped.get('semanticScopes') or description.get('clipBounds'):return None
         model=flow.get('model') or {}; original=model.get('originalLayout') or {}
         old=original.get('text'); new=model.get('text')
         if not old or not new or old==new or len(old)!=len(new): return None

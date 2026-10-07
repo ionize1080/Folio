@@ -1,4 +1,5 @@
-import { installLocalization, languagePicker } from "./i18n.mjs";
+import { buildExportSnapshot } from "./export-snapshot.mjs";
+import { installLocalization, languagePicker, t } from "./i18n.mjs";
 import { installObjectSelection } from "./object-selection-ui.mjs";
 import { installPageImages } from "./image-page-ui.mjs";
 import { updateDialog } from "./update-ui.mjs";
@@ -300,6 +301,30 @@ async function guarded(fn) {
     error(err);
   }
 }
+function fitPanels() {
+  let left = settings.sidebar,
+    right = settings.inspectorWidth;
+  const visibleWidth = (mode, full) =>
+    mode === "full" ? full : mode === "narrow" ? 48 : 0;
+  const available = Math.max(0, innerWidth - 320);
+  let excess = Math.max(
+    0,
+    visibleWidth(settings.leftMode, left) +
+      visibleWidth(settings.rightMode, right) -
+      available,
+  );
+  for (const side of ["right", "left"]) {
+    if (settings[side + "Mode"] !== "full") continue;
+    const width = side === "left" ? left : right,
+      reduction = Math.min(excess, Math.max(0, width - 220));
+    if (side === "left") left -= reduction;
+    else right -= reduction;
+    excess -= reduction;
+  }
+  document.documentElement.style.setProperty("--sidebar", left + "px");
+  document.documentElement.style.setProperty("--inspector-width", right + "px");
+}
+window.addEventListener("resize", fitPanels);
 function applySettings(redraw = true) {
   document.body.classList.toggle("dark", settings.theme === "dark");
   document.documentElement.style.setProperty(
@@ -314,6 +339,7 @@ function applySettings(redraw = true) {
     "--inspector-width",
     settings.inspectorWidth + "px",
   );
+  fitPanels();
   document.body.classList.toggle("wrap-titles", settings.wrap);
   localStorage.setItem("folio-settings", JSON.stringify(settings));
   if (S.pdf) {
@@ -763,22 +789,20 @@ async function savePDF(forceAs = false, skipSummary = false) {
     documentSession.assert(saveSession);
     const state = stateKey();
     let stage = "整理书签与文档属性";
-    const contentBytes =
-      S.nativeEdits.length || S.ocr.length ? await S.pdf.getData() : null;
+    const exportSnapshot = await buildExportSnapshot(
+      S,
+      settings,
+      documentSession,
+    );
+    const { contentBytes } = exportSnapshot;
     if (contentBytes) stage = "复用已应用内容，整理书签与文档属性";
     timer = setInterval(() => {
       $("#busy-text").textContent =
         `${stage} · ${((performance.now() - started) / 1000).toFixed(1)} 秒`;
     }, 200);
     const serialStart = performance.now();
-    const bytes = await rpc("save", {
-      contentBytes,
-      nodes: S.nodes,
-      rotations: S.rotation,
-      annotations: S.annotations,
-      metadata: S.metadata,
-      showBookmarks: settings.showBookmarks,
-    });
+    const bytes = await rpc("save", exportSnapshot);
+    documentSession.assert(saveSession);
     timings.serializeMs = performance.now() - serialStart;
     stage = "正在完成写入";
     const writeStart = performance.now();
@@ -865,7 +889,12 @@ function requestFilter() {
     if (epoch !== filterEpoch || key !== filterKey() || nodes !== S.nodes)
       return;
     filterJob = null;
-    filterCache = { ...data, key, nodes };
+    filterCache = {
+      ...data,
+      key,
+      nodes,
+      matchSet: new Set(data.matches || []),
+    };
     $("#filter-status").textContent =
       data.error || `${data.matches.length} 项匹配 · 祖先仅作路径显示`;
     $("#filter-status").classList.toggle("error", !!data.error);
@@ -970,15 +999,17 @@ function renderTree() {
     row.className =
       "tree-row" +
       (S.selected.has(n.id) ? " selected" : "") +
-      (filterReady() && filterCache.matches.includes(n.id)
-        ? " filter-match"
-        : "");
+      (filterReady() && filterCache.matchSet.has(n.id) ? " filter-match" : "");
     row.dataset.id = n.id;
     row.style.top = i * rowHeight() + "px";
     row.style.height = rowHeight() + "px";
     row.style.paddingLeft = Math.min(d, 24) * 16 + 4 + "px";
     row.draggable = true;
     row.role = "treeitem";
+    row.id = "tree-node-" + n.id;
+    const siblings = S.children.get(n.parent) || [];
+    row.setAttribute("aria-posinset", siblings.indexOf(n) + 1);
+    row.setAttribute("aria-setsize", siblings.length);
     row.setAttribute("aria-level", d + 1);
     row.setAttribute("aria-selected", S.selected.has(n.id));
     if (S.children.has(n.id))
@@ -993,8 +1024,14 @@ function renderTree() {
     fragment.append(row);
   }
   $("#tree-rows").replaceChildren(fragment);
+  const active = document.getElementById(
+    "tree-node-" + (S.activeId || S.selected.values().next().value),
+  );
+  if (active) $("#tree").setAttribute("aria-activedescendant", active.id);
+  else $("#tree").removeAttribute("aria-activedescendant");
 }
 function selectNode(id, event = {}) {
+  S.activeId = id;
   if (event.shiftKey && S.anchor) {
     const a = S.visible.findIndex((n) => n.id === S.anchor),
       b = S.visible.findIndex((n) => n.id === id);
@@ -1015,7 +1052,9 @@ function selectNode(id, event = {}) {
   $("#selection-count").textContent = `已选 ${S.selected.size} 项`;
 }
 function selectedNode() {
-  return S.index.get([...S.selected][0]);
+  return S.index.get(
+    S.selected.has(S.activeId) ? S.activeId : S.selected.values().next().value,
+  );
 }
 const coordNames = {
   XYZ: ["Left / X", "Top / Y", "Zoom（1 = 100%）"],
@@ -1976,18 +2015,20 @@ function pagesDialog() {
     });
   $("#pages-merge").onclick = () =>
     guarded(async () => {
+      await S.flowEdit?.finish?.(true);
+      await S.imageEdit?.flush?.();
+      const mergeSession = documentSession.capture();
       const f = await choose("pdf");
       if (!f) return;
+      documentSession.assert(mergeSession);
       closeModal();
       setBusy(true, "正在合并 PDF…");
       try {
-        const current = await rpc("save", {
-          nodes: S.nodes,
-          rotations: S.rotation,
-          annotations: S.annotations,
-          metadata: S.metadata,
-          showBookmarks: settings.showBookmarks,
-        });
+        const current = await rpc(
+          "save",
+          await buildExportSnapshot(S, settings, documentSession),
+        );
+        documentSession.assert(mergeSession);
         const temp = new Worker(new URL("./pdf-worker.mjs", import.meta.url), {
           type: "module",
         });
@@ -2003,6 +2044,7 @@ function pagesDialog() {
         try {
           await call("open", current);
           const merged = await call("merge", new Uint8Array(f.bytes));
+          documentSession.assert(mergeSession);
           await loadPDF(merged, S.name.replace(/\.pdf$/i, "") + "-merged.pdf");
           setDirty();
           toast("页面已追加，请另存 PDF；合并操作不能撤销");
@@ -2299,7 +2341,7 @@ async function settingsDialog() {
   const network = (await window.desktop?.updateInfo?.())?.settings;
   modal(
     "偏好设置",
-    `<div class="preferences-language"><span>界面语言</span>${languagePicker("settings-language")}<small>立即生效，并记住选择。不会改变文档文字或 OCR 语言。</small></div><div class="form-grid"><label>默认留白单位<select id="set-whitespace-unit"><option value="mm">毫米 mm</option><option value="pt">点 pt</option></select></label><label>外观主题<select id="set-theme"><option value="light">浅色</option><option value="dark">深色</option></select></label><label>书签侧栏宽度（px）<input id="set-sidebar" type="number" min="240" max="480" value="${settings.sidebar}"></label><label>书签行高<select id="set-row"><option value="28">紧凑 · 28 px</option><option value="34">标准 · 34 px</option><option value="40">宽松 · 40 px</option></select></label><label>渲染像素倍率上限<select id="set-quality"><option value="1">1× · 节省内存</option><option value="2">2× · 推荐</option><option value="3">3× · 高清</option></select></label><label>撤销步数上限<input id="set-undo" type="number" min="5" max="100" value="${settings.undo}"></label></div><label class="check"><input id="set-outline" type="checkbox" ${settings.showBookmarks ? "checked" : ""}>保存后建议阅读器显示书签面板</label><label class="check"><input id="set-protect" type="checkbox" ${settings.protect ? "checked" : ""}>原文件保护：首次保存为副本，之后更新副本</label><label class="check"><input id="set-restore" type="checkbox" ${settings.restoreView ? "checked" : ""}>记住每本文档的阅读位置、缩放和布局（关闭后尊重文档初始视图）</label><label class="check"><input id="set-ignore-zoom" type="checkbox" ${settings.ignoreZoom ? "checked" : ""}>忽略书签的缩放要求（不修改 PDF 目标）</label><label class="check"><input id="set-wrap" type="checkbox" ${settings.wrap ? "checked" : ""}>长书签标题显示两行</label><label class="check"><input id="set-summary" type="checkbox" ${settings.saveSummary ? "checked" : ""}>保存前显示修改摘要</label><label class="check"><input id="set-gpu" type="checkbox" ${software ? "checked" : ""} ${window.desktop?.graphics ? "" : "disabled"}>显卡兼容：关闭硬件加速（重新启动后生效）</label><label>HTTP 代理（更新共用）<input id="set-http-proxy" placeholder="留空使用系统代理"></label><button data-action="shortcuts">自定义快捷键…</button><button id="ocr-cache-open">OCR 任务记录与缓存…</button><p class="hint">撤销快照受 32 MB 预算限制；画布按可见范围加载，高清画布与分块按约 128 MB 预算回收，当前可见区域优先，缩放期间保留已完成画面。恢复快照在编辑停止 0.7 秒后保存在本机。</p>`,
+    `<div class="preferences-language"><span>界面语言</span>${languagePicker("settings-language")}<small>立即生效，并记住选择。不会改变文档文字或 OCR 语言。</small></div><div class="form-grid"><label>默认留白单位<select id="set-whitespace-unit"><option value="mm">毫米 mm</option><option value="pt">点 pt</option></select></label><label>外观主题<select id="set-theme"><option value="light">浅色</option><option value="dark">深色</option></select></label><label>书签侧栏宽度（px）<input id="set-sidebar" type="number" min="220" max="520" value="${settings.sidebar}"></label><label>书签行高<select id="set-row"><option value="28">紧凑 · 28 px</option><option value="34">标准 · 34 px</option><option value="40">宽松 · 40 px</option></select></label><label>渲染像素倍率上限<select id="set-quality"><option value="1">1× · 节省内存</option><option value="2">2× · 推荐</option><option value="3">3× · 高清</option></select></label><label>撤销步数上限<input id="set-undo" type="number" min="5" max="100" value="${settings.undo}"></label></div><label class="check"><input id="set-outline" type="checkbox" ${settings.showBookmarks ? "checked" : ""}>保存后建议阅读器显示书签面板</label><label class="check"><input id="set-protect" type="checkbox" ${settings.protect ? "checked" : ""}>原文件保护：首次保存为副本，之后更新副本</label><label class="check"><input id="set-restore" type="checkbox" ${settings.restoreView ? "checked" : ""}>记住每本文档的阅读位置、缩放和布局（关闭后尊重文档初始视图）</label><label class="check"><input id="set-ignore-zoom" type="checkbox" ${settings.ignoreZoom ? "checked" : ""}>忽略书签的缩放要求（不修改 PDF 目标）</label><label class="check"><input id="set-wrap" type="checkbox" ${settings.wrap ? "checked" : ""}>长书签标题显示两行</label><label class="check"><input id="set-summary" type="checkbox" ${settings.saveSummary ? "checked" : ""}>保存前显示修改摘要</label><label class="check"><input id="set-gpu" type="checkbox" ${software ? "checked" : ""} ${window.desktop?.graphics ? "" : "disabled"}>显卡兼容：关闭硬件加速（重新启动后生效）</label><label>HTTP 代理（更新共用）<input id="set-http-proxy" placeholder="留空使用系统代理"></label><button data-action="shortcuts">自定义快捷键…</button><button id="ocr-cache-open">OCR 任务记录与缓存…</button><p class="hint">撤销快照受 32 MB 预算限制；画布按可见范围加载，高清画布与分块按约 128 MB 预算回收，当前可见区域优先，缩放期间保留已完成画面。恢复快照在编辑停止 0.7 秒后保存在本机。</p>`,
     [
       { text: "取消", run: closeModal },
       {
@@ -2308,7 +2350,7 @@ async function settingsDialog() {
         run: async () => {
           const sidebar = Number($("#set-sidebar").value),
             undo = Number($("#set-undo").value);
-          if (sidebar < 240 || sidebar > 480 || undo < 5 || undo > 100)
+          if (sidebar < 220 || sidebar > 520 || undo < 5 || undo > 100)
             throw Error("设置数值超出范围");
           if (window.desktop?.graphics)
             await window.desktop.graphics($("#set-gpu").checked);
@@ -2369,37 +2411,40 @@ let recoveryPending = new Map(),
   recoveryChain = Promise.resolve(),
   clipboardNodes = null,
   clipboardCut = null;
-function scheduleRecovery() {
+function scheduleRecovery(immediate = false) {
   if (!recoveryReady) return;
   clearTimeout(recoveryTimer);
-  recoveryTimer = setTimeout(() => {
-    const value =
-      S.dirty || S.flowDraftDirty
-        ? {
-            sessionId: S.sessionId,
-            name: S.name,
-            bytes: S.bytes,
-            state: {
-              ...clone({ ...snapshot(), ocr: [], nativeEdits: [] }),
-              ocr: S.ocr,
-              nativeEdits: immutableEdits(S.nativeEdits),
-            },
-            baseline: S.baseline,
-            view: surface.capture(),
-            flowDraft: S.flowEdit?.draft?.() || null,
-            savedAt: Date.now(),
+  recoveryTimer = setTimeout(
+    () => {
+      const value =
+        S.dirty || S.flowDraftDirty
+          ? {
+              sessionId: S.sessionId,
+              name: S.name,
+              bytes: S.bytes,
+              state: {
+                ...clone({ ...snapshot(), ocr: [], nativeEdits: [] }),
+                ocr: S.ocr,
+                nativeEdits: immutableEdits(S.nativeEdits),
+              },
+              baseline: S.baseline,
+              view: surface.capture(),
+              flowDraft: S.flowEdit?.draft?.() || null,
+              savedAt: Date.now(),
+            }
+          : null;
+      recoveryPending.set(S.sessionId, value);
+      recoveryChain = recoveryChain
+        .then(async () => {
+          for (const [id, latest] of recoveryPending) {
+            recoveryPending.delete(id);
+            await recoveryStore(latest, id);
           }
-        : null;
-    recoveryPending.set(S.sessionId, value);
-    recoveryChain = recoveryChain
-      .then(async () => {
-        for (const [id, latest] of recoveryPending) {
-          recoveryPending.delete(id);
-          await recoveryStore(latest, id);
-        }
-      })
-      .catch((e) => toast("恢复快照未写入：" + e.message));
-  }, 700);
+        })
+        .catch((e) => toast("恢复快照未写入：" + e.message));
+    },
+    immediate ? 0 : 700,
+  );
 }
 function saveView() {
   if (S.pdf && S.fingerprint && settings.restoreView) {
@@ -2537,6 +2582,7 @@ function renameInline() {
   };
   input.onkeydown = (e) => {
     e.stopPropagation();
+    if (e.isComposing || e.keyCode === 229) return;
     if (e.key === "Enter") {
       e.preventDefault();
       finish(true);
@@ -2643,17 +2689,49 @@ function contextMenu(e, items) {
   const box = document.createElement("div");
   box.id = "context-menu";
   box.role = "menu";
+  const previousFocus = document.activeElement;
+  const dismiss = () => {
+    box.remove();
+    previousFocus?.focus?.({ preventScroll: true });
+  };
+  box.onkeydown = (e) => {
+    if (e.isComposing || e.keyCode === 229) return;
+    if (e.key === "Escape") {
+      e.preventDefault();
+      e.stopPropagation();
+      dismiss();
+      return;
+    }
+    if (e.key === "Tab") {
+      dismiss();
+      return;
+    }
+    if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(e.key)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const buttons = [...box.querySelectorAll("button")],
+      at = buttons.indexOf(document.activeElement);
+    const next =
+      e.key === "Home"
+        ? 0
+        : e.key === "End"
+          ? buttons.length - 1
+          : (at + (e.key === "ArrowDown" ? 1 : -1) + buttons.length) %
+            buttons.length;
+    buttons[next]?.focus();
+  };
   for (const [label, fn] of items) {
     const b = document.createElement("button");
     b.textContent = label;
     b.role = "menuitem";
     b.onclick = () => {
-      box.remove();
+      dismiss();
       guarded(fn);
     };
     box.append(b);
   }
   document.body.append(box);
+  box.querySelector("button")?.focus();
   box.style.left = Math.min(e.clientX, innerWidth - box.offsetWidth - 8) + "px";
   box.style.top =
     Math.min(e.clientY, innerHeight - box.offsetHeight - 8) + "px";
@@ -2703,6 +2781,7 @@ function gotoDialog() {
   );
   $("#goto-value").select();
   $("#goto-value").onkeydown = (e) => {
+    if (e.isComposing || e.keyCode === 229) return;
     if (e.key === "Enter") $("#modal-footer button").click();
   };
 }
@@ -3564,7 +3643,18 @@ $("#prop-mode").onchange = () => {
   coordinates(
     mode,
     mode === "FitR"
-      ? [0, 0, S.info.pages[S.page - 1].width, S.info.pages[S.page - 1].height]
+      ? [
+          0,
+          0,
+          S.info.pages[
+            (+$("#prop-page").value || selectedNode()?.target.page || S.page) -
+              1
+          ]?.width || 0,
+          S.info.pages[
+            (+$("#prop-page").value || selectedNode()?.target.page || S.page) -
+              1
+          ]?.height || 0,
+        ]
       : Array(MODES[mode] || 0).fill(null),
   );
 };
@@ -3574,6 +3664,7 @@ $("#zoom").onchange = () => {
   guarded(() => surface.zoom($("#zoom").value));
 };
 $("#find-text").onkeydown = (e) => {
+  if (e.isComposing || e.keyCode === 229) return;
   if (e.key === "Enter") guarded(searchText);
 };
 let filterComposing = false;
@@ -3912,15 +4003,10 @@ async function openPageDiff() {
   if (!S.pdf) return;
   await S.flowEdit?.flush?.();
   await S.imageEdit?.flush();
-  const output = await rpc("save", {
-    contentBytes:
-      S.nativeEdits.length || S.ocr.length ? await S.pdf.getData() : null,
-    nodes: S.nodes,
-    rotations: S.rotation,
-    annotations: S.annotations,
-    metadata: S.metadata,
-    showBookmarks: settings.showBookmarks,
-  });
+  const output = await rpc(
+    "save",
+    await buildExportSnapshot(S, settings, documentSession),
+  );
   return pageDiff({
     S,
     source: S.bytes,
@@ -4206,6 +4292,30 @@ for (const side of ["left", "right"]) {
   const handle = document.createElement("div");
   handle.className = "panel-resizer " + side;
   handle.title = "拖动调整侧栏宽度";
+  handle.tabIndex = 0;
+  handle.setAttribute("role", "separator");
+  handle.setAttribute("aria-orientation", "vertical");
+  handle.setAttribute("aria-label", t("拖动调整侧栏宽度"));
+  handle.setAttribute("aria-valuemin", "220");
+  handle.setAttribute("aria-valuemax", "520");
+  const widthKey = side === "left" ? "sidebar" : "inspectorWidth";
+  handle.setAttribute("aria-valuenow", settings[widthKey]);
+  handle.onkeydown = (e) => {
+    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key)) return;
+    e.preventDefault();
+    const delta =
+      (e.key === "ArrowRight" ? 1 : -1) *
+      (side === "left" ? 1 : -1) *
+      (e.shiftKey ? 50 : 10);
+    settings[widthKey] =
+      e.key === "Home"
+        ? 220
+        : e.key === "End"
+          ? 520
+          : Math.max(220, Math.min(520, settings[widthKey] + delta));
+    handle.setAttribute("aria-valuenow", settings[widthKey]);
+    applySettings(false);
+  };
   document
     .querySelector(side === "left" ? ".outline-panel" : ".inspector")
     .append(handle);
@@ -4224,6 +4334,12 @@ for (const side of ["left", "right"]) {
       side === "left" ? "--sidebar" : "--inspector-width",
       settings[side === "left" ? "sidebar" : "inspectorWidth"] + "px",
     );
+  };
+  const originalMove = handle.onpointermove;
+  handle.onpointermove = (e) => {
+    originalMove(e);
+    fitPanels();
+    handle.setAttribute("aria-valuenow", settings[widthKey]);
   };
   handle.onpointerup = (e) => {
     handle.releasePointerCapture(e.pointerId);

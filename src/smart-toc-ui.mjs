@@ -447,7 +447,7 @@ export function smartTocDialog({
           <input aria-label="${esc(t("手动目标页"))}" data-field="page" type="number" min="1" max="${S.info.pageCount}" value="${e.target?.page || ""}">
           <span class="st-state" data-status="${e.status}">${esc(label)}</span></div>
           <details class="st-detail" ${e.expanded ? "open" : ""}><summary>${esc(t("校准与预览"))}</summary>
-          <div class="st-detail-body"><label>${esc(t("匹配位置"))}<select data-field="candidate"><option value="">${esc(t("请选择候选或手动输入"))}</option>${(e.candidates || []).map((c, k) => `<option value="${k}" translate="no">PDF ${c.page} · ${c.score}/100 · ${esc(c.text || t(c.reason === "verified-link" ? "目录链接与正文一致" : c.reason === "pdf-link" ? "目录原有链接（待核对）" : c.reason))}</option>`).join("")}</select></label>
+          <div class="st-detail-body"><label>${esc(t("匹配位置"))}<select data-field="candidate"><option value="">${esc(t("请选择候选或手动输入"))}</option>${(e.candidates || []).map((c, k) => `<option value="${k}" ${JSON.stringify(c.target) === JSON.stringify(e.target) ? "selected" : ""} translate="no">PDF ${c.page} · ${c.score}/100 · ${esc(c.text || t(c.reason === "verified-link" ? "目录链接与正文一致" : c.reason === "pdf-link" ? "目录原有链接（待核对）" : c.reason))}</option>`).join("")}</select></label>
           <div class="pc-toolbar"><button data-source="${i}">${esc(t("查看目录原文"))}</button><button data-target="${i}">${esc(t("查看候选位置"))}</button><button aria-label="${esc(t("上移"))}" data-up="${i}">↑</button><button aria-label="${esc(t("下移"))}" data-down="${i}">↓</button><button data-remove="${i}">${esc(t("删除"))}</button></div></div></details></article>`;
       })
       .join("");
@@ -484,7 +484,8 @@ export function smartTocDialog({
           : null;
       item.selected = !!item.target;
       item.status = "manual";
-      buttons();
+      item.confidence = 0;
+      renderRows();
     } else if (field === "candidate") {
       const c = item.candidates[Number(value)];
       if (value !== "" && c) {

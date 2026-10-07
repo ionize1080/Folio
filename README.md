@@ -4,7 +4,7 @@
 
 An offline PDF workspace for Windows x64, built for **long-document bookmarks, in-page text and image editing, and OCR review**. The portable package includes its runtime, fonts and models. No separate Python or Node.js installation is needed.
 
-[Download](https://github.com/ionize1080/Folio/releases/latest) · [1.7.1 release notes](docs/RELEASE-1.7.1.md) · [Limitations](#limitations) · [Development](#development)
+[Download](https://github.com/ionize1080/Folio/releases/latest) · [1.7.2 release notes](docs/RELEASE-1.7.2.md) · [Limitations](#limitations) · [Development](#development)
 
 ## Language and appearance
 
@@ -16,10 +16,10 @@ Display language is independent of PDF text, bookmark titles, fonts, OCR setting
 
 | Attachment | Purpose |
 | --- | --- |
-| `Folio-PDF-Studio-1.7.1-portable-win-x64.zip` | Complete portable application; extract everything and run `Folio.exe` |
-| `Folio-PDF-Studio-1.7.1-source.zip` | Complete offline source and bundled resources |
-| `Folio-PDF-Studio-1.7.1-validation.json` | Acceptance results tied to source and binary hashes |
-| `Folio-PDF-Studio-1.7.1-SHA256.txt` | Attachment checksums |
+| `Folio-PDF-Studio-1.7.2-portable-win-x64.zip` | Complete portable application; extract everything and run `Folio.exe` |
+| `Folio-PDF-Studio-1.7.2-source.zip` | Complete offline source and bundled resources |
+| `Folio-PDF-Studio-1.7.2-validation.json` | Acceptance results tied to source and binary hashes |
+| `Folio-PDF-Studio-1.7.2-SHA256.txt` | Attachment checksums |
 
 Keep the entire folder, including `resources`, `locales` and DLLs. GitHub's automatic Source code archives are repository snapshots and contain fewer resources than the complete source attachment.
 
@@ -28,7 +28,7 @@ Keep the entire folder, including `resources`, `locales` and DLLs. GitHub's auto
 3. Apply or finish the edit, then **Save**. Applying updates the session; it does not save the file.
 4. For continued editing with paragraph structure and OCR corrections, use **More tools → Import / Export → Save .folio project**.
 
-Original protection saves a copy first. **About → Check for updates** offers stable/prerelease channels and the HTTP proxy shared with Preferences. Updates are verified before installation. The updater retains the application folder name and a previous-version backup. Versions 1.3–1.6 can fail to launch or retain the update helper; use the one-time repair tool to reach 1.6.2, as described in [Upgrading](docs/RELEASE-1.6.2.md#upgrading-from-13–16).
+Original protection saves a copy first. **About → Check for updates** offers stable/prerelease channels and the HTTP proxy shared with Preferences. Updates are verified before installation. The updater retains the application folder name and a previous-version backup. Versions 1.3–1.6 can fail to launch or retain the update helper; use the one-time repair tool attached to the current release, as described in [Upgrading](docs/RELEASE-1.6.2.md#upgrading-from-13–16).
 
 ## Features
 
@@ -160,4 +160,8 @@ Document processing and translation stay local. There is no telemetry. Checking/
 **More tools → Smart table of contents** detects candidate pages, reconstructs entries from geometry, and searches each target independently. Review titles, hierarchy and candidate pages before applying. Optional bundled offline OCR supports image-only documents. [Workflow and limitations](docs/RELEASE-1.7.0.md) · [Corpus evidence](docs/SMART-TOC-VALIDATION.json) · [Online sample provenance](docs/SMART-TOC-SOURCES.json).
 
 
-Smart contents 1.7.1 adds a menu icon, one-click detection/matching, compact review and cross-page bulk selection. See [release notes](docs/RELEASE-1.7.1.md) for the Acrobat regression and validation limits.
+Smart contents 1.7.2 adds a menu icon, one-click detection/matching, compact review and cross-page bulk selection. See [release notes](docs/RELEASE-1.7.2.md) for the Acrobat regression and validation limits.
+
+### Reliability acceptance
+
+`npm run test:quick` runs all unit contracts and archive/release transport tests. `npm run test:full` also runs native preservation and browser transaction tests; install the test dependencies and Playwright browser first. The machine-readable capability list is `scripts/acceptance.json`. Native Windows package, updater and offline OCR checks remain part of the release workflow. See [review decisions](docs/REVIEW-2026-10-07-response.md).

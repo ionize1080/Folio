@@ -1,3 +1,4 @@
+import { boundedCanvasScale } from "./canvas-budget.mjs";
 import { constrainedDelta, nudgeDelta } from "./object-movement.mjs";
 import { editWarnings } from "./edit-warnings.mjs";
 import { FastFonts, fastLayout, canFast } from "./fast-layout.mjs";
@@ -1039,11 +1040,16 @@ export function installFlowUI(ctx) {
       backgroundTask?.cancel();
       const p = await background.getPage(1);
       if (closed || serial !== backgroundSerial) return;
-      const z = scale() * Math.min(devicePixelRatio || 1, 3),
+      const natural = p.getViewport({ scale: 1, rotation: 0 });
+      const z = boundedCanvasScale(
+          natural.width,
+          natural.height,
+          scale() * Math.min(devicePixelRatio || 1, 3),
+        ),
         v = p.getViewport({ scale: z, rotation: 0 });
       const canvas = document.createElement("canvas");
-      canvas.width = Math.ceil(v.width);
-      canvas.height = Math.ceil(v.height);
+      canvas.width = Math.max(1, Math.floor(v.width));
+      canvas.height = Math.max(1, Math.floor(v.height));
       backgroundTask = p.render({
         canvasContext: canvas.getContext("2d"),
         viewport: v,
@@ -1051,13 +1057,18 @@ export function installFlowUI(ctx) {
       try {
         await backgroundTask.promise;
       } catch (e) {
+        canvas.width = canvas.height = 0;
         if (e.name === "RenderingCancelledException") return;
         throw e;
       }
-      if (closed || serial !== backgroundSerial) return;
+      if (closed || serial !== backgroundSerial) {
+        canvas.width = canvas.height = 0;
+        return;
+      }
       base.width = canvas.width;
       base.height = canvas.height;
       base.getContext("2d").drawImage(canvas, 0, 0);
+      canvas.width = canvas.height = 0;
     }
     function showCollisions(conflicts) {
       collisionMarks.replaceChildren();
@@ -2390,7 +2401,10 @@ export function installFlowUI(ctx) {
       const select = bar.querySelector("#pe-overlap-select");
       select.replaceChildren(new Option("选择重叠段落…", ""));
       overlapping.forEach((e, i) => {
-        const option = new Option(e.model.text.slice(0, 35) || "空文本框", String(i));
+        const option = new Option(
+          e.model.text.slice(0, 35) || "空文本框",
+          String(i),
+        );
         if (e.model.text) option.setAttribute("translate", "no");
         select.add(option);
       });
@@ -2909,6 +2923,7 @@ export function installFlowUI(ctx) {
       composition.hidden = true;
       window.desktop?.setDirty?.(S.dirty);
       candidateButtons();
+      ctx.scheduleRecovery?.(true);
       status("已取消本段，原 PDF 未改变。点击段落继续编辑。");
     }
     async function finish(exit = false) {
@@ -2962,6 +2977,7 @@ export function installFlowUI(ctx) {
       backgroundSerial++;
       backgroundTask?.cancel();
       background?.destroy();
+      base.width = base.height = 0;
       signal.abort();
       observer.disconnect();
       resizeObserver.disconnect();

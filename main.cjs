@@ -223,7 +223,11 @@ app.whenReady().then(async () => {
     if (s.size > (/\.folio$/i.test(file) ? 1024 : 768) * 1024 * 1024)
       throw Error("当前版本单文件上限为 768 MB");
     const bytes = await fs.readFile(file);
-    return { name: path.basename(file), bytes, handle: fileStore.grant(file) };
+    return {
+      name: path.basename(file),
+      bytes,
+      handle: fileStore.grant(file, bytes),
+    };
   });
   ipc("open-drop", async (file) => {
     if (typeof file !== "string" || !/\.(pdf|folio)$/i.test(file))
@@ -236,10 +240,11 @@ app.whenReady().then(async () => {
       stat.size > (/\.folio$/i.test(file) ? 1024 : 768) * 1024 ** 2
     )
       throw Error("文件无效或超过 768 MB");
+    const bytes = await fs.readFile(file);
     return {
       name: path.basename(file),
-      bytes: await fs.readFile(file),
-      handle: fileStore.grant(file),
+      bytes,
+      handle: fileStore.grant(file, bytes),
     };
   });
   ipc("save", (data) => fileStore.save(data));

@@ -1,3 +1,4 @@
+import { isTableGridPath, hasTableGridSegment } from "./table-paths.mjs";
 import { nativeRequest, releaseSource } from "./native-source.mjs";
 import { pageCandidates, topBounds } from "./flow-page-model.mjs";
 import { gridOperation, cellFrames, validateGrid } from "./table-model.mjs";
@@ -19,6 +20,8 @@ export async function tableDialog(ctx) {
   await S.flowEdit?.finish?.(true);
   const page = S.page,
     source = S.bytes,
+    sessionId = S.sessionId,
+    documentEdits = S.nativeEdits,
     result = await nativeRequest({
       command: "inspect",
       bytes: source,
@@ -49,7 +52,17 @@ export async function tableDialog(ctx) {
         id: "table-apply",
         primary: true,
         run: async () => {
-          if (!preview || source !== S.bytes) throw Error("请等待有效预览");
+          if (
+            closed ||
+            !preview ||
+            source !== S.bytes ||
+            S.sessionId !== sessionId ||
+            S.nativeEdits !== documentEdits ||
+            preview.revision !== revision ||
+            preview.tableId !== original?.id ||
+            preview.parameters !== JSON.stringify(table)
+          )
+            throw Error("请等待有效预览");
           const textSources = candidates
               .filter((c) => c.model.cell?.tableId === original.id)
               .flatMap((c) => c.model.sources),
@@ -57,7 +70,8 @@ export async function tableDialog(ctx) {
           const paths = result.objects.filter(
             (o) =>
               o.type === "path" &&
-              inside(topBounds(o, result.size[1]), original.bounds),
+              inside(topBounds(o, result.size[1]), original.bounds) &&
+              isTableGridPath(o, original, result.size[1]),
           );
           const pathIds = new Set(paths.map((o) => o.index));
           let edits = structuredClone(S.nativeEdits || []).filter(
@@ -147,10 +161,22 @@ export async function tableDialog(ctx) {
     );
   }
   function setup(index) {
-    original = result.tables[index];
-    if (original.structureSupported === false)
+    revision++;
+    clearTimeout(timer);
+    preview = null;
+    table = null;
+    original = null;
+    history = [];
+    future = [];
+    $("#table-apply").disabled = true;
+    $("#table-output").removeAttribute("src");
+    $("#table-grid").replaceChildren();
+    $("#table-columns").replaceChildren();
+    const candidateOriginal = result.tables[index];
+    if (!candidateOriginal) throw Error("请选择有效表格");
+    if (candidateOriginal.structureSupported === false)
       throw Error("此表格边框样式复杂，请使用单元格文字编辑");
-    const bounds = original.bounds;
+    const bounds = candidateOriginal.bounds;
     const overlap = (b, t) =>
       b[2] > t[0] + 1 && b[0] < t[2] - 1 && b[3] > t[1] + 1 && b[1] < t[3] - 1;
     for (const o of result.objects) {
@@ -158,6 +184,12 @@ export async function tableDialog(ctx) {
       if (!overlap(b, bounds)) continue;
       if (!inside(b, bounds))
         throw Error("表格与外部对象共用边界或内容，暂不能安全重建");
+      if (
+        o.type === "path" &&
+        !isTableGridPath(o, candidateOriginal, result.size[1]) &&
+        hasTableGridSegment(o, candidateOriginal, result.size[1])
+      )
+        throw Error("表格边框与其他图形共用路径，请使用单元格文字编辑");
       if (
         (o.type === "text" && !o.flowEditable) ||
         (o.type === "path" && !o.editable) ||
@@ -168,25 +200,32 @@ export async function tableDialog(ctx) {
         );
     }
     const xs = [
-        ...new Set(original.cells.flatMap((c) => [c.bounds[0], c.bounds[2]])),
+        ...new Set(
+          candidateOriginal.cells.flatMap((c) => [c.bounds[0], c.bounds[2]]),
+        ),
       ].sort((a, b) => a - b),
       ys = [
-        ...new Set(original.cells.flatMap((c) => [c.bounds[1], c.bounds[3]])),
+        ...new Set(
+          candidateOriginal.cells.flatMap((c) => [c.bounds[1], c.bounds[3]]),
+        ),
       ].sort((a, b) => a - b);
-    if (xs.length !== original.columns + 1 || ys.length !== original.rows + 1)
+    if (
+      xs.length !== candidateOriginal.columns + 1 ||
+      ys.length !== candidateOriginal.rows + 1
+    )
       throw Error("行列边界不足以可靠重建");
     const prior = S.nativeEdits.find(
-      (e) => e.page === page && e.tableModel?.id === original.id,
+      (e) => e.page === page && e.tableModel?.id === candidateOriginal.id,
     );
-    table = prior
+    const candidateTable = prior
       ? structuredClone(prior.tableModel)
       : {
-          ...structuredClone(original),
+          ...structuredClone(candidateOriginal),
           pageWidth: result.size[0],
           pageHeight: result.size[1],
           widths: xs.slice(1).map((x, i) => x - xs[i]),
           heights: ys.slice(1).map((y, i) => y - ys[i]),
-          cells: original.cells.map((c) => {
+          cells: candidateOriginal.cells.map((c) => {
             const candidate = candidates.find((q) => q.model.cell?.id === c.id);
             if (!candidate) throw Error("缺少可编辑单元格");
             const edit = S.nativeEdits.find(
@@ -200,7 +239,9 @@ export async function tableDialog(ctx) {
             };
           }),
         };
-    validateGrid(table);
+    validateGrid(candidateTable);
+    original = candidateOriginal;
+    table = candidateTable;
     history = [];
     future = [];
     draw();
@@ -297,16 +338,32 @@ export async function tableDialog(ctx) {
     $("#table-apply").disabled = true;
     clearTimeout(timer);
     const rev = ++revision;
+    const captured = structuredClone(table),
+      tableId = original?.id;
+    if (!captured || !tableId) return;
     $("#table-status").textContent = "正在校验文字与边界…";
     timer = setTimeout(async () => {
       try {
         const r = await nativeRequest({
           command: "table-render",
           bytes: source,
-          table,
+          table: captured,
         });
-        if (closed || rev !== revision) return;
-        preview = r;
+        if (
+          closed ||
+          rev !== revision ||
+          source !== S.bytes ||
+          sessionId !== S.sessionId ||
+          S.nativeEdits !== documentEdits ||
+          original?.id !== tableId
+        )
+          return;
+        preview = {
+          ...r,
+          revision: rev,
+          tableId,
+          parameters: JSON.stringify(captured),
+        };
         $("#table-output").src =
           "data:image/svg+xml;base64," +
           btoa(unescape(encodeURIComponent(r.svg)));

@@ -13,6 +13,8 @@ def raw_strings(v):
 
 def map_objects(page):
     stream=ContentStream(page.get('/Contents'),page.pdf)
+    from clip_contract import clip_states
+    clipping=clip_states(stream.operations)
     objects=[]; start=None; shown=[];path_started=False;marks=[];graphics={};graphics_stack=[]
     fonts=page['/Resources'].get('/XObject',{});fonts=fonts.get_object() if hasattr(fonts,'get_object') else fonts
     for i,(args,op) in enumerate(stream.operations):
@@ -67,6 +69,7 @@ def map_objects(page):
         elif op in (b'sh',b'INLINE IMAGE'):objects.append({'type':'shading' if op==b'sh' else 'image','at':i})
         if op not in TEXT and len(objects)>previous_count:
             for mark in marks:mark['objects'].extend(objects[previous_count:])
+    for obj in objects:obj['clipBounds']=clipping.get(obj['at'],())
     return stream,objects
 
 def decoded_texts(page,stream):
@@ -126,7 +129,8 @@ def check_editable(page,descriptions):
                 b['editable']=False;b['flowEditable']=False;b['reason']='此图形对象属于替代文字语义范围，保留原对象';continue
             if a.get('unmapped'):
                 b['editable']=False;b['flowEditable']=False;b['reason']='此对象无法验证内容流对应关系，保留原对象；已验证的文字可独立编辑';continue
-            b['flowEditable']=bool((b['editable'] or b.get('simpleText')) and a['type']=='text')
+            b['clipBounds']=a.get('clipBounds',())
+            b['flowEditable']=bool((b['editable'] or b.get('simpleText')) and a['type']=='text' and None not in b['clipBounds'])
             if a['type']=='text':
                 if a.get('complexGraphics'):
                     b['editable']=False;b['flowEditable']=False;b['reason']='此文字含透明度、混合或传递函数，保留原绘制状态';continue
@@ -330,6 +334,9 @@ def compose(data,edits,blocks,inspect,fragment,progress=None):
                         left=float(page.cropbox.left);bottom=float(page.cropbox.bottom)
                         ink_boxes=[[left+x0,bottom+y0,left+x1,bottom+y1] for obj in fragment_page.get_objects(max_depth=1) for x0,y0,x1,y1 in [obj.get_bounds()] if x1>x0 and y1>y0]
                         fragment_page.close()
+                    clips=[clip for source in sources for clip in desc[source['index']].get('clipBounds',[])]
+                    if any(box[0]<clip[0]-.01 or box[1]<clip[1]-.01 or box[2]>clip[2]+.01 or box[3]>clip[3]+.01 for box in ink_boxes for clip in clips):
+                        raise ValueError('新文字超出原 PDF 裁剪边界，请缩小文字或调整位置；草稿已保留')
                     for j,item in enumerate(mapped):
                         if j in indices or j in deleted_indices or item.get('at') is None or not first<=item['at']<=position:continue
                         other=desc[j].get('bounds')

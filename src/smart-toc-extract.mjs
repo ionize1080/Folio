@@ -74,6 +74,10 @@ export async function extractTocPage(pdf, number, rotation, ocr = []) {
         quad,
         angle: Math.abs(angle - cardinal) < 12 ? cardinal : angle,
         source: "OCR",
+        confidence: b.confidence,
+        needsReview: b.needsReview,
+        diagnostic: b.diagnostic,
+        reviewed: b.reviewed,
       };
     });
     // Prefer reviewed OCR only where its box overlaps native text.
