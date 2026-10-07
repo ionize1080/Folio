@@ -19,4 +19,14 @@ class ArchiveTests(unittest.TestCase):
    root=Path(temp);subprocess.run(['git','init','-q',temp],check=True)
    (root/'.env').write_text('secret');subprocess.run(['git','add','.env'],cwd=root,check=True)
    self.assertRaises(ValueError,source_files,root)
+ def test_only_pinned_public_certificate_bundle_is_allowed(self):
+  name='native/runtime/Lib/site-packages/certifi/cacert.pem'
+  data=(Path(__file__).resolve().parents[1]/name).read_bytes().replace(b'\r\n',b'\n')
+  with tempfile.TemporaryDirectory() as temp:
+   root=Path(temp);subprocess.run(['git','init','-q',temp],check=True)
+   cert=root/name;cert.parent.mkdir(parents=True);cert.write_bytes(data.replace(b'\n',b'\r\n'))
+   subprocess.run(['git','add',name],cwd=root,check=True)
+   self.assertEqual([p.as_posix() for p in source_files(root)],[name])
+   cert.write_bytes(data+b'\nPRIVATE KEY')
+   self.assertRaises(ValueError,source_files,root)
 if __name__=='__main__':unittest.main()

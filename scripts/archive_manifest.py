@@ -4,6 +4,13 @@ import hashlib
 import json
 import subprocess
 
+# Bundled certifi public CA certificates are runtime data, not private keys.
+# Pin the reviewed contents and exact path; all other PEM/key files still fail.
+PUBLIC_CERTIFICATES = {
+    'native/runtime/Lib/site-packages/certifi/cacert.pem':
+        '9cc2a774b5198dcff14d9be1e66091f538975d867ce029a96bce15a55dfd730f',
+}
+
 def source_files(root):
     root = Path(root).resolve()
     names = subprocess.check_output(['git', 'ls-files', '-z'], cwd=root).decode().split('\0')
@@ -33,7 +40,10 @@ def source_files(root):
             continue
         if p.is_symlink() or root not in p.resolve().parents:
             raise ValueError('Unsafe archive path: ' + str(rel))
-        if rel.name == '.env' or rel.name.startswith('.env.') or rel.suffix.lower() in ('.key', '.pem'):
+        public_certificate = rel.as_posix() in PUBLIC_CERTIFICATES
+        if public_certificate and hashlib.sha256(p.read_bytes().replace(b'\r\n',b'\n')).hexdigest() != PUBLIC_CERTIFICATES[rel.as_posix()]:
+            raise ValueError('Unverified public certificate bundle: ' + str(rel))
+        if rel.name == '.env' or rel.name.startswith('.env.') or (rel.suffix.lower() in ('.key', '.pem') and not public_certificate):
             raise ValueError('Sensitive filename in source manifest: ' + str(rel))
         if not p.is_file():
             raise ValueError('Missing tracked source: ' + str(rel))
