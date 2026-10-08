@@ -726,6 +726,10 @@ export function recognizeTocPages(pages, options = {}) {
       r.page === group.at(-1).page + 1 &&
       r.entries.length >= 3 &&
       (r.entries.length / Math.max(1, r.rows) >= 0.45 ||
+        (r.entries.length <= 10 &&
+          r.entries.every(
+            (e) => e.confidence >= 75 && /[.…·]{2}/u.test(e.raw),
+          )) ||
         (r.entries.length / Math.max(1, r.rows) >= 0.25 &&
           r.entries.filter((e) => /^\d+(?:[-–]\d+)+/u.test(e.title)).length >=
             r.entries.length * 0.5))

@@ -82,6 +82,30 @@ test("yearbook font families distinguish unindented sections and children", () =
     [1, 2, 3, 2, 3],
   );
 });
+test("a sparse bilingual final contents page continues only with reliable leader rows", () => {
+  const start = page(1, [
+    f("Contents", 30, 20),
+    ...[1, 2, 3, 4].map((i) =>
+      f(`Chapter ${i} .... ${i + 4}`, 30, 40 + i * 30, 250),
+    ),
+  ]);
+  const tail = page(2, [
+    f("Appendix", 30, 20),
+    f("Translation", 30, 35),
+    f("Other heading", 30, 50),
+    ...[1, 2, 3].flatMap((i) => [
+      f(`Annex ${i} ...... ${i + 20}`, 30, 80 + i * 40, 250),
+      f(
+        `Unnumbered translation ${String.fromCharCode(64 + i)}`,
+        30,
+        96 + i * 40,
+        250,
+      ),
+    ]),
+  ]);
+  assert(recognizeTocPages([start, tail])[1].selected);
+  assert(!recognizeTocPages([tail])[0].selected);
+});
 test("superscript lesson star cannot steal the title folio", () => {
   const r = recognizeTocPage(
     page(1, [
