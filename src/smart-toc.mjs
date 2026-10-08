@@ -1,6 +1,7 @@
 import { parsePageLabel } from "./page-labels.mjs";
 import { makeNode, validate } from "./model.mjs";
 import { calibratePages, calibrationLines } from "./page-calibration.mjs";
+import { columnCuts } from "./line-geometry.mjs";
 
 const norm = (s) =>
   String(s || "")
@@ -8,7 +9,7 @@ const norm = (s) =>
     .replace(/[\s\p{P}\p{Cf}]/gu, "")
     .toLowerCase();
 const heading =
-  /^(目录|目次|目錄|contents|highlights|tableofcontents|sommaire|tabledesmatières|inhalt|inhaltsverzeichnis|índice|indice|contenido|содержание|المحتويات|الفهرس)$/iu;
+  /^(目录|目次|目錄|内容|contents|highlights|tableofcontents|sommaire|tabledesmatières|inhalt|inhaltsverzeichnis|índice|indice|contenido|содержание|المحتويات|الفهرس)$/iu;
 const trimLeader = (s) =>
   s
     .replace(/[\s.·…_—–\-:：*★•⋅]+$/gu, "")
@@ -57,8 +58,16 @@ export function splitTocText(raw, options = {}) {
   if (!m || m.index === 0) return pageFirst();
   const label = parsePageLabel(m[1], options);
   if (!label) return pageFirst();
+  if (label.value >= 1900 && /[（(]\s*\d{4}\s*[）)]$/u.test(text)) return null;
+  if (label.value >= 1900 && /[-–—]\s*\d{4}\s*$/u.test(text)) return null;
   const before = ranged.slice(0, m.index),
     title = trimLeader(before);
+  if (
+    new RegExp(`^[${cn}]+$`).test(m[1]) &&
+    title.length > 5 &&
+    !/[\s.·…_—–]$/u.test(before)
+  )
+    return null;
   if (
     title.length < 2 ||
     title.length > 220 ||
@@ -68,7 +77,9 @@ export function splitTocText(raw, options = {}) {
     return null;
   if (
     /[\d][,.]\d+$/u.test(before) ||
-    (title.match(/\p{Nd}/gu) || []).length > title.length * 0.35
+    (title.replace(/^\d+(?:[.\-]\d+)*\s*/u, "").match(/\p{Nd}/gu) || [])
+      .length >
+      title.length * 0.35
   )
     return null;
   // Latin letters must be separated: don't interpret the end of ordinary words.
@@ -125,16 +136,14 @@ export function tocRows(fragments, { direction = "auto" } = {}) {
       })
       .sort((a, b) => a.v - b.v || a.u - b.u);
     const rows = [];
-    const isNumber = (f) => /^[\p{Nd}–—-]+$/u.test(f.text.trim());
+    const isNumber = (f) => /^[\p{Nd}*★–—-]+$/u.test(f.text.trim());
     for (const f of [
       ...projected.filter((f) => !isNumber(f)),
       ...projected.filter(isNumber),
     ]) {
       const row = rows
         .filter((r) => {
-          const superscript =
-            /^[\p{Nd}–—-]+$/u.test(f.text.trim()) ||
-            r.items.every((x) => /^[\p{Nd}–—-]+$/u.test(x.text.trim()));
+          const superscript = isNumber(f) || r.items.every(isNumber);
           if (Math.max(r.h, f.h) / Math.min(r.h, f.h) > 4) return false;
           if (!superscript && Math.max(r.h, f.h) / Math.min(r.h, f.h) > 1.5)
             return false;
@@ -185,6 +194,57 @@ export function tocRows(fragments, { direction = "auto" } = {}) {
 }
 
 export function recognizeTocPage(page, options = {}) {
+  // Verify each side has title/folio pairs before accepting a geometric gutter.
+  // This avoids confusing the gap before a single column's folios with columns.
+  if (!options.singleColumn && page.width && options.direction !== "vertical") {
+    const rects = page.fragments
+      .filter((f) => Math.abs(f.angle || 0) < 5)
+      .map((f) => {
+        const q = box(f);
+        return {
+          ...f,
+          left: Math.min(...q.map((p) => p[0])),
+          right: Math.max(...q.map((p) => p[0])),
+          top: Math.min(...q.map((p) => p[1])),
+          bottom: Math.max(...q.map((p) => p[1])),
+        };
+      });
+    for (const cut of columnCuts(rects, page.width)) {
+      const sides = [
+        page.fragments.filter(
+          (f) => Math.min(...box(f).map((p) => p[0])) < cut,
+        ),
+        page.fragments.filter(
+          (f) => Math.min(...box(f).map((p) => p[0])) >= cut,
+        ),
+      ];
+      const parts = sides.map((fragments) =>
+        recognizeTocPage(
+          { ...page, fragments },
+          { ...options, singleColumn: true },
+        ),
+      );
+      if (parts.every((p) => p.entries.filter((e) => !e.leading).length >= 4)) {
+        const entries = parts.flatMap((p, column) => {
+          const origin = Math.min(...p.entries.map((e) => e.bounds[0]));
+          return p.entries.map((e) => ({
+            ...e,
+            column,
+            indent: e.indent - origin,
+          }));
+        });
+        return {
+          ...parts[0],
+          entries,
+          score: Math.max(...parts.map((p) => p.score)),
+          selected: parts.some((p) => p.selected),
+          hasHeading: parts.some((p) => p.hasHeading),
+          rows: parts.reduce((n, p) => n + p.rows, 0),
+          columns: 2,
+        };
+      }
+    }
+  }
   const rows = tocRows(page.fragments, options).filter(
       (r) =>
         !page.height ||
@@ -193,11 +253,36 @@ export function recognizeTocPage(page, options = {}) {
     ),
     entries = [],
     used = new Set();
+  const trailing = rows
+    .map((r) => ({ r, v: splitTocText(r.text, options) }))
+    .filter((x) => x.v && !x.v.leading);
+  const folioRail =
+    trailing.length >= 3 ? median(trailing.map((x) => x.r.right)) : null;
   const add = (value, row, indices, extra = {}) => {
     if (!value) return;
+    if (value.label?.value >= 1900 && value.confidence < 75) return;
+    if (
+      value.leading &&
+      value.confidence === 45 &&
+      folioRail &&
+      row.right < folioRail - row.h * 3
+    )
+      return;
+    const last = row.items.at(-1),
+      beforeLast = row.items.at(-2);
+    if (
+      !value.leading &&
+      last &&
+      beforeLast &&
+      parsePageLabel(last.text.trim(), options) &&
+      last.u - beforeLast.end > row.h * 2
+    )
+      value = { ...value, confidence: Math.max(85, value.confidence) };
     if (
       value.label?.value >= 1900 &&
-      (row.top < page.height * 0.12 || row.bottom > page.height * 0.9)
+      (value.label.value > page.pageCount ||
+        row.top < page.height * 0.12 ||
+        row.bottom > page.height * 0.9)
     )
       return;
     // A running title followed by the current folio is not a contents entry.
@@ -241,6 +326,7 @@ export function recognizeTocPage(page, options = {}) {
       bounds: [row.left, row.top, row.right, row.bottom],
       angle: row.angle,
       fontHeight: row.h,
+      font: content?.font,
       indent: content ? Math.min(...box(content).map((p) => p[0])) : row.left,
       linkedTarget: targets.length === 1 ? targets[0] : null,
       level: 1,
@@ -342,23 +428,35 @@ export function recognizeTocPage(page, options = {}) {
   });
   // Continue an immediately preceding, unnumbered line into an entry.
   for (const e of entries) {
-    const previous = rows
-      .map((r, j) => ({ r, j }))
-      .filter(
-        ({ r, j }) =>
-          !used.has(j) &&
-          !heading.test(norm(r.text)) &&
-          !parsePageLabel(r.text.trim(), options) &&
-          r.bottom <= e.bounds[1] + 2 &&
-          e.bounds[1] - r.bottom < r.h * 1.5 &&
-          Math.abs(r.left - e.bounds[0]) < r.h * 1.5,
-      )
-      .at(-1);
-    if (previous && !e.leading) {
-      e.title = previous.r.text.trim() + " " + e.title;
-      e.bounds[1] = previous.r.top;
-      e.confidence = Math.min(e.confidence, 70);
-      used.add(previous.j);
+    for (let wrap = 0; wrap < 4; wrap++) {
+      const previous = rows
+        .map((r, j) => ({ r, j }))
+        .filter(
+          ({ r, j }) =>
+            !used.has(j) &&
+            !heading.test(norm(r.text)) &&
+            !/^\d+(?:[-–]\d+)+\s*\p{L}/u.test(r.text.trim()) &&
+            !(
+              /\p{Script=Han}/u.test(e.title) && !/\p{Script=Han}/u.test(r.text)
+            ) &&
+            !/^(第\s*\d+\s*篇|[一二三四五六七八九十]+[、.]|[（(][一二三四五六七八九十]+[）)])/u.test(
+              r.text.trim(),
+            ) &&
+            !/^[◎○]?\s*(习作例文|快乐读书吧|口语交际)[:：]?$/u.test(
+              r.text.trim(),
+            ) &&
+            !parsePageLabel(r.text.trim(), options) &&
+            r.bottom <= e.bounds[1] + 2 &&
+            e.bounds[1] - r.bottom < r.h * 1.5 &&
+            Math.abs(r.left - e.bounds[0]) < r.h * 2,
+        )
+        .at(-1);
+      if (previous && !e.leading) {
+        e.title = previous.r.text.trim() + " " + e.title;
+        e.bounds[1] = previous.r.top;
+        e.confidence = Math.min(e.confidence, 70);
+        used.add(previous.j);
+      } else break;
     }
     if (e.leading) {
       for (let count = 0; count < 5; count++) {
@@ -380,6 +478,52 @@ export function recognizeTocPage(page, options = {}) {
         used.add(next.j);
       }
     }
+  }
+  // Retain numbered scan entries with unread folios instead of silently losing
+  // them or merging them into the next row. A user must resolve their page.
+  for (const [i, row] of rows.entries()) {
+    if (used.has(i) || !/^\d+(?:[-–]\d+)+\s*\p{L}/u.test(row.text.trim()))
+      continue;
+    add(
+      {
+        title: trimLeader(row.text),
+        printedLabel: "",
+        label: null,
+        raw: row.text,
+        confidence: 40,
+      },
+      row,
+      [i],
+      { needsReview: true },
+    );
+  }
+  // Unnumbered category headings still carry hierarchy. Their destination is
+  // only a review candidate inherited from the next printed contents entry.
+  for (const [i, row] of rows.entries()) {
+    if (used.has(i)) continue;
+    const title = trimLeader(row.text);
+    if (
+      !/^(?:[◎○]\s*)?(?:习作例文|快乐读书吧|学习活动|口语交际)[:：]?$|^[\p{Script=Han}]{2,10}篇$|^(?:第\s*\d+\s*篇|[一二三四五六七八九十]+[、.]|[（(][一二三四五六七八九十]+[）)])/u.test(
+        title,
+      )
+    )
+      continue;
+    const child = entries
+      .filter((e) => e.bounds[1] >= row.bottom - 2)
+      .sort((a, b) => a.bounds[1] - b.bounds[1])[0];
+    if (child)
+      add(
+        {
+          title,
+          printedLabel: child.printedLabel,
+          label: child.label,
+          raw: row.text,
+          confidence: 65,
+        },
+        row,
+        [i],
+        { section: true, needsReview: true, inheritedLabel: true },
+      );
   }
   const unique = entries.filter(
     (e, i) =>
@@ -496,7 +640,9 @@ export function recognizeTocPages(pages, options = {}) {
     const values = group
       .flatMap((r) => r.entries)
       .filter((e) => Math.abs(e.angle) < 5);
-    const chapterRows = values.filter((e) => /^\d{1,3}\s+\p{L}/u.test(e.title));
+    const chapterRows = values.filter((e) =>
+      /^\d{1,3}[.]?\s+\p{L}/u.test(e.title),
+    );
     // A two-digit chapter number may share a PDF text fragment with its title,
     // unlike one-digit chapters. Align those fragments to the same heading tier.
     if (chapterRows.length >= 2) {
@@ -508,16 +654,83 @@ export function recognizeTocPages(pages, options = {}) {
     for (const x of values.map((e) => e.indent).sort((a, b) => a - b)) {
       if (!indents.length || x - indents.at(-1) > 7) indents.push(x);
     }
-    if (indents.length <= 6)
+    for (const e of values) {
+      const numbered = e.title.match(/^\d+(?:\.\d+)*(?=\.?\s)/);
+      e.level = numbered
+        ? Math.min(8, numbered[0].split(".").length)
+        : indents.length <= 6
+          ? 1 + indents.findIndex((x) => Math.abs(x - e.indent) <= 7)
+          : 1;
+    }
+    // Textbooks have explicit units and stable content tiers even when lesson
+    // numbers, bullets and mirrored columns shift the title's x coordinate.
+    if (values.some((e) => /^第[一二三四五六七八九十\d]+单元/u.test(e.title))) {
+      const lessons = values.filter((e) => /^\d+\s/u.test(e.title));
+      const lessonIndent = lessons.length
+        ? median(lessons.map((e) => e.indent))
+        : 0;
+      let lesson = false;
       for (const e of values) {
-        const numbered = e.title.match(/^\d+(?:\.\d+)+/);
-        e.level = numbered
-          ? Math.min(8, numbered[0].split(".").length)
-          : 1 + indents.findIndex((x) => Math.abs(x - e.indent) <= 7);
+        e.level =
+          /^第[一二三四五六七八九十\d]+单元|^(识字表|写字表|词语表|古诗词诵读)$/u.test(
+            e.title,
+          )
+            ? 1
+            : e.section ||
+                /^\d+\s|^[◎○]|^(单元学习任务|学习活动)/u.test(e.title)
+              ? 2
+              : lesson || e.indent > lessonIndent + 6
+                ? 3
+                : 2;
+        if (e.level === 1 || /^[◎○]|^单元学习任务/u.test(e.title))
+          lesson = false;
+        if (/^\d+\s/u.test(e.title) || e.section) lesson = true;
       }
+    }
+    if (
+      values.some(
+        (e) =>
+          e.section &&
+          /篇$|^第\s*\d+\s*篇|^[一二三四五六七八九十]+[、.]|^[（(][一二三四五六七八九十]+[）)]/u.test(
+            e.title,
+          ),
+      )
+    ) {
+      // Some unindented yearbooks distinguish major entries through font
+      // family rather than point size. Learn the family immediately after
+      // each part banner, and use it only when a second family is present.
+      let majorFont = null;
+      const families = new Set(
+        values.filter((e) => !e.section && e.font).map((e) => e.font),
+      );
+      for (const [i, e] of values.entries()) {
+        if (e.section) {
+          e.level = 1;
+          majorFont = values[i + 1]?.font || null;
+        } else
+          e.level =
+            majorFont && families.size > 1 && e.font && e.font !== majorFont
+              ? 3
+              : 2;
+      }
+    }
     group = [];
   };
   for (const r of results) {
+    // Continue dense unheaded TOC pages using an adjacent confirmed contents
+    // page; ordinary body pages must still contain several aligned folios.
+    if (
+      !r.selected &&
+      !r.auxiliary &&
+      group.length &&
+      r.page === group.at(-1).page + 1 &&
+      r.entries.length >= 3 &&
+      (r.entries.length / Math.max(1, r.rows) >= 0.45 ||
+        (r.entries.length / Math.max(1, r.rows) >= 0.25 &&
+          r.entries.filter((e) => /^\d+(?:[-–]\d+)+/u.test(e.title)).length >=
+            r.entries.length * 0.5))
+    )
+      r.selected = true;
     if (
       group.length &&
       (r.page !== group.at(-1).page + 1 ||
@@ -538,11 +751,19 @@ export function resolveTocEntries(
   pageLabels = [],
   excludedPages = [],
 ) {
-  const nodes = entries.map((e, i) => ({
-    ...makeNode(e.title.replace(/^\d+(?:\.\d+)*\s+/u, ""), 1),
-    id: String(i),
-    origin: { printedPageLabel: e.printedLabel },
-  }));
+  const nodes = entries.map((e, i) => {
+    const title = e.title.replace(/[◎○★*]/gu, "").trim();
+    const withoutAuthor = /\p{Script=Han}/u.test(title)
+      ? title.replace(/\s*[/／]\s*[^/／]+$/u, "")
+      : title;
+    const plain = withoutAuthor.replace(/^\d+(?:\.\d+)*[.]?\s+/u, "");
+    return {
+      ...makeNode(title, 1),
+      id: String(i),
+      searchTitles: [title, withoutAuthor, plain],
+      origin: { printedPageLabel: e.printedLabel },
+    };
+  });
   const results = calibratePages({
     nodes,
     pages,
@@ -645,14 +866,24 @@ export function resolveTocEntries(
 export function entriesToNodes(entries, pageCount) {
   const nodes = [],
     stack = [];
-  for (const e of entries.filter((e) => e.selected)) {
+  for (const e of entries) {
+    // Traverse unchecked ancestors too; skipping a chapter must never attach
+    // its selected children to the previous selected chapter.
+    const level = Math.min(e.level, stack.length + 1);
+    stack.length = Math.max(0, level - 1);
+    if (!e.selected) {
+      stack.push(null);
+      continue;
+    }
     if (!e.title?.trim() || !e.target)
       throw Error("请校准已选条目的标题和实际页码");
     if (!Number.isInteger(e.level) || e.level < 1 || e.level > 8)
       throw Error("层级应为 1–8");
-    const level = Math.min(e.level, stack.length + 1);
-    stack.length = level - 1;
-    const n = makeNode(e.title.trim(), e.target.page, stack.at(-1) || null);
+    const n = makeNode(
+      e.title.trim(),
+      e.target.page,
+      stack.findLast(Boolean) || null,
+    );
     n.target = structuredClone(e.target);
     n.origin = {
       type: "smart-toc",

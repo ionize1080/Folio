@@ -55,6 +55,7 @@ export async function extractTocPage(pdf, number, rotation, ocr = []) {
         end = vp.convertToViewportPoint(x + dx, y + dy);
       return {
         text: i.str,
+        font: content.styles[i.fontName]?.fontFamily || i.fontName,
         quad,
         angle:
           (Math.atan2(end[1] - origin[1], end[0] - origin[0]) * 180) / Math.PI,

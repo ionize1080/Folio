@@ -2233,5 +2233,10 @@
   "表格边框与其他图形共用路径，请使用单元格文字编辑": "Table borders share a path with other graphics. Use cell text editing.",
   "请选择有效表格": "Select a valid table.",
   "图像尺寸超过处理预算（1亿像素，边长32768）": "Image dimensions exceed the processing budget (100 million pixels; maximum side 32768).",
-  "保存文件大小无效": "Invalid file size for saving."
+  "保存文件大小无效": "Invalid file size for saving.",
+  "同时 OCR 正文扫描页（耗时较长）": "Also OCR scanned body pages (slower)",
+  "扫描件先识别目录；需要自动定位时再勾选正文 OCR，并在高级设置中缩小正文范围。可随时停止。": "For scans, recognize contents first. Enable body OCR for automatic destinations and narrow the body range in advanced settings. You can stop at any time.",
+  "检测到无文字页面。请开启离线 OCR，确认目录范围后重试。": "Image-only pages detected. Enable offline OCR, confirm the contents range, and retry.",
+  "分组标题，页码待复核": "Section heading; review destination",
+  "未识别页码": "Page number not recognized"
 }

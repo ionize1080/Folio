@@ -68,7 +68,7 @@ function candidateFor(
   headers,
   offset,
 ) {
-  const text = norm(l.text),
+  const text = l.normalizedText ?? norm(l.text),
     at = text.indexOf(title);
   let kind, score;
   if (text === title) {
@@ -87,7 +87,22 @@ function candidateFor(
   if (!finitePoint(point)) return null;
   const evidence = [kind],
     warnings = [];
-  if (title.length < 4) {
+  if (/^[（(].+[）)]$/u.test(l.text.trim()) && !/^[（(]/u.test(n.title)) {
+    score = Math.min(score, 60);
+    warnings.push("attribution");
+  }
+  if (l.tableLike) {
+    score = Math.min(score, 65);
+    warnings.push("table-cell");
+  }
+  if (
+    title.length < 4 &&
+    !(
+      text === title &&
+      /^\d/u.test(n.title) &&
+      /\p{Script=Han}.*\p{Script=Han}/u.test(n.title)
+    )
+  ) {
     score = Math.min(score, 64);
     warnings.push("short-title");
   }
@@ -95,7 +110,7 @@ function candidateFor(
     score = Math.min(score, 40);
     warnings.push("toc-like");
   }
-  if (margin(l)) {
+  if (margin(l) && !(l.displayHeading && (headers.get(text)?.size || 0) < 3)) {
     score -= 8;
     warnings.push("page-margin");
     if ((headers.get(text)?.size || 0) >= 3) {
@@ -180,13 +195,33 @@ export function calibratePages({
       page > pageCount
     )
       continue;
+    const sizes = items
+      .filter((l) => !l.joined)
+      .map((l) => l.bottom - l.top)
+      .filter((s) => s > 0)
+      .sort((a, b) => a - b);
+    const typical = sizes[Math.floor(sizes.length / 2)] || 12;
+    const original = items.filter((l) => !l.joined),
+      numeric = original.filter((l) =>
+        /^[\d\s,.%()\-—]+$/u.test(l.text.trim()),
+      ).length;
+    const tableLike =
+      (numeric >= 15 && numeric / original.length > 0.25) ||
+      (numeric >= 5 &&
+        original.some((l) => /^(序号|serialno|sno|no)$/iu.test(norm(l.text))));
     for (const l of items) {
       if (
         !l.text?.trim() ||
         ![l.top, l.bottom, l.height].every(Number.isFinite)
       )
         continue;
-      const item = { ...l, page };
+      const item = {
+        ...l,
+        page,
+        normalizedText: norm(l.text),
+        displayHeading: !l.joined && l.bottom - l.top >= typical * 1.35,
+        tableLike,
+      };
       lines.push(item);
       if (margin(item)) {
         const t = norm(l.text);
@@ -203,31 +238,47 @@ export function calibratePages({
   // incompatible lengths. Work runs in a cancellable Web Worker.
   const byLength = new Map();
   for (const l of lines) {
-    const len = norm(l.text).length;
+    const len = l.normalizedText.length;
     if (!byLength.has(len)) byLength.set(len, []);
     byLength.get(len).push(l);
   }
   const results = [];
   for (const n of nodes) {
     const title = norm(n.title),
+      titles = [
+        ...new Set((n.searchTitles || [n.title]).map(norm).filter(Boolean)),
+      ],
       label = n.origin?.printedPageLabel || "",
       candidates = [];
     if (title) {
       // Include longer lines to expose body mentions rather than treating them
       // as independent headings. The timeout is an explicit resource limit.
       for (const [len, bucket] of byLength) {
-        if (len < Math.floor(title.length * 0.8)) continue;
+        if (len < Math.floor(Math.min(...titles.map((t) => t.length)) * 0.8))
+          continue;
         for (const l of bucket) {
-          const c = candidateFor(
-            n,
-            l,
-            title,
-            label,
-            pageLabels,
-            footers,
-            headers,
-            offset,
-          );
+          let c = null;
+          for (const alternative of titles) {
+            const candidate = candidateFor(
+              n,
+              l,
+              alternative,
+              label,
+              pageLabels,
+              footers,
+              headers,
+              offset,
+            );
+            if (
+              candidate &&
+              candidate.kind === "exact" &&
+              alternative === title &&
+              titles.length > 1
+            )
+              candidate.rankScore += 14;
+            if (candidate && (!c || candidate.rankScore > c.rankScore))
+              c = candidate;
+          }
           if (c) candidates.push(c);
         }
       }
@@ -261,9 +312,14 @@ export function calibratePages({
       confidence >= 85 &&
       !ambiguous &&
       !best.warnings.some((w) =>
-        ["short-title", "toc-like", "repeated-header", "page-margin"].includes(
-          w,
-        ),
+        [
+          "short-title",
+          "toc-like",
+          "repeated-header",
+          "page-margin",
+          "attribution",
+          "table-cell",
+        ].includes(w),
       );
     results.push({
       id: n.id,

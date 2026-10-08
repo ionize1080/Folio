@@ -161,9 +161,10 @@ export function smartTocDialog({
     `
     <p>${esc(t("一键识别目录并定位正文，高置信度条目自动勾选；只需复核剩余条目，再生成书签。"))}</p>
     <div class="pc-toolbar"><button id="st-start" class="primary"><i data-icon="scan"></i>${esc(t("一键识别并定位"))}</button><button id="st-stop">${esc(t("停止"))}</button><span id="st-summary" role="status"></span></div>
+    <div class="pc-toolbar"><label class="check"><input id="st-ocr" type="checkbox">${esc(t("本地 AI 辅助识别无文字页（离线 OCR）"))}</label><label class="check"><input id="st-body-ocr" type="checkbox">${esc(t("同时 OCR 正文扫描页（耗时较长）"))}</label></div>
+    <p class="hint">${esc(t("扫描件先识别目录；需要自动定位时再勾选正文 OCR，并在高级设置中缩小正文范围。可随时停止。"))}</p>
     <details id="st-settings"><summary>${esc(t("目录范围与高级设置"))}</summary>
     <div class="form-grid three"><label>${esc(t("目录检测范围"))}<input id="st-range" value="1-${Math.min(50, S.info.pageCount)}"></label><label>${esc(t("阅读方向"))}<select id="st-direction"><option value="auto">${esc(t("自动方向"))}</option><option value="horizontal">${esc(t("横排"))}</option><option value="vertical">${esc(t("竖排（从上到下）"))}</option></select></label><label class="check"><input id="st-alpha" type="checkbox">${esc(t("字母页码（a、b、c；优先于罗马数字）"))}</label></div>
-    <label class="check"><input id="st-ocr" type="checkbox">${esc(t("本地 AI 辅助识别无文字页（离线 OCR）"))}</label>
     <p class="hint">${esc(t("默认检查前 50 页，可改为全书范围。复杂艺术字、低清扫描和混合方向需核对；OCR 语言能力取决于内置模型。"))}</p>
     <div class="menu-grid"><button id="st-detect">${esc(t("检测目录页"))}</button></div>
     <div id="st-pages" class="st-pages"></div>
@@ -203,7 +204,7 @@ export function smartTocDialog({
   $("#modal").classList.add("smart-toc-dialog");
   // Keep the append/replace choice beside Create, visible even on long lists.
   $("#modal-footer").prepend($("#st-merge").closest("label"));
-  async function read(p, r) {
+  async function read(p, r, contents = false) {
     if (cache.has(p)) return cache.get(p);
     status(
       t("正在分析 PDF 第 {0} 页（{1} / {2}）", {
@@ -243,6 +244,59 @@ export function smartTocDialog({
         ...ocr,
         ...extra,
       ]);
+      // Dense scans often lose tiny folios in full-page detection. Re-read
+      // just the right margin at higher resolution, retaining OCR evidence.
+      const incomplete =
+        recognizeTocPages([data], options())[0]?.entries.filter(
+          (e) => !e.printedLabel,
+        ).length || 0;
+      if (
+        contents &&
+        incomplete >= 2 &&
+        result.blocks.filter((b) => /[.…·]{2}/u.test(b.text)).length >= 4 &&
+        !surface.rotation(p)
+      ) {
+        nativeStarted = true;
+        let rail;
+        try {
+          rail = await nativeRequest({
+            command: "ocr",
+            bytes: sourceBytes,
+            page: p,
+            dpi: 300,
+            profile: "v6",
+            skipText: false,
+            threads: 2,
+            batch: 4,
+            region: [0.78, 0.08, 0.22, 0.87],
+          });
+        } finally {
+          if (r === rev) nativeStarted = false;
+        }
+        if (!alive(r)) return null;
+        const center = (b) => [
+          b.quad.reduce((n, q) => n + q[0], 0) / 4,
+          b.quad.reduce((n, q) => n + q[1], 0) / 4,
+        ];
+        const clean = (s) => s.replace(/^[\s.…·•]+/u, "").trim();
+        const rescued = rail.blocks.filter(
+          (b) =>
+            /^\d{1,5}$/.test(clean(b.text)) &&
+            !result.blocks.some(
+              (a) =>
+                parsePageLabel(clean(a.text)) &&
+                Math.hypot(
+                  center(a)[0] - center(b)[0],
+                  center(a)[1] - center(b)[1],
+                ) < 12,
+            ),
+        );
+        extra.push(...rescued.map((b) => ({ ...b, text: clean(b.text) })));
+        data = await extractTocPage(pdf, p, surface.rotation(p), [
+          ...ocr,
+          ...extra,
+        ]);
+      }
     }
     if (alive(r)) cache.set(p, data);
     return data;
@@ -254,7 +308,7 @@ export function smartTocDialog({
     const numbers = pageRange($("#st-range").value, S.info.pageCount),
       dataPages = [];
     for (const p of numbers) {
-      const data = await read(p, r);
+      const data = await read(p, r, true);
       if (!alive(r)) return;
       dataPages.push(data);
       await new Promise((x) => setTimeout(x, 0));
@@ -282,7 +336,7 @@ export function smartTocDialog({
     const numbers = pageRange($("#st-pages-input").value, S.info.pageCount);
     const next = [];
     for (const p of numbers) {
-      const data = await read(p, r);
+      const data = await read(p, r, true);
       if (!alive(r)) return;
       next.push(data);
     }
@@ -318,7 +372,7 @@ export function smartTocDialog({
           2: S.info.pageCount,
         }),
       );
-      if ($("#st-ocr").checked) await read(p, r);
+      if ($("#st-ocr").checked && $("#st-body-ocr").checked) await read(p, r);
       if (!alive(r)) return;
       pages[p] = calibrationLines(
         await extractLines(pdf, p, surface.rotation(p), {
@@ -375,7 +429,11 @@ export function smartTocDialog({
       if (!alive(r)) return;
       if (!$("#st-pages-input").value.trim()) {
         $("#st-settings").open = true;
-        throw Error(t("未找到可靠目录页，请填写目录页范围后重试。"));
+        throw Error(
+          found.some((p) => p.empty) && !$("#st-ocr").checked
+            ? t("检测到无文字页面。请开启离线 OCR，确认目录范围后重试。")
+            : t("未找到可靠目录页，请填写目录页范围后重试。"),
+        );
       }
       await extract(r);
       if (alive(r)) await resolve(r);
@@ -445,7 +503,7 @@ export function smartTocDialog({
           <input aria-label="${esc(t("层级"))}" data-field="level" type="number" min="1" max="8" value="${e.level}">
           <input aria-label="${esc(t("目录原始页码"))}" data-field="printedLabel" value="${esc(e.printedLabel)}" translate="no">
           <input aria-label="${esc(t("手动目标页"))}" data-field="page" type="number" min="1" max="${S.info.pageCount}" value="${e.target?.page || ""}">
-          <span class="st-state" data-status="${e.status}">${esc(label)}</span></div>
+          <span class="st-state" data-status="${e.status}">${esc(e.inheritedLabel ? t("分组标题，页码待复核") : !e.printedLabel ? t("未识别页码") : label)}</span></div>
           <details class="st-detail" ${e.expanded ? "open" : ""}><summary>${esc(t("校准与预览"))}</summary>
           <div class="st-detail-body"><label>${esc(t("匹配位置"))}<select data-field="candidate"><option value="">${esc(t("请选择候选或手动输入"))}</option>${(e.candidates || []).map((c, k) => `<option value="${k}" ${JSON.stringify(c.target) === JSON.stringify(e.target) ? "selected" : ""} translate="no">PDF ${c.page} · ${c.score}/100 · ${esc(c.text || t(c.reason === "verified-link" ? "目录链接与正文一致" : c.reason === "pdf-link" ? "目录原有链接（待核对）" : c.reason))}</option>`).join("")}</select></label>
           <div class="pc-toolbar"><button data-source="${i}">${esc(t("查看目录原文"))}</button><button data-target="${i}">${esc(t("查看候选位置"))}</button><button aria-label="${esc(t("上移"))}" data-up="${i}">↑</button><button aria-label="${esc(t("下移"))}" data-down="${i}">↓</button><button data-remove="${i}">${esc(t("删除"))}</button></div></div></details></article>`;
@@ -596,6 +654,7 @@ export function smartTocDialog({
     "st-direction",
     "st-alpha",
     "st-ocr",
+    "st-body-ocr",
   ])
     $("#" + id).onchange = () => {
       stop();

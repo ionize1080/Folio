@@ -75,6 +75,7 @@ let app, page;
   );
   await page.locator("#st-settings summary").click();
   await page.locator("#st-ocr").check();
+  await page.locator("#st-body-ocr").check();
   await page.locator("#st-range").fill("1");
   await page.locator("#st-range").blur();
   await page.locator("#st-detect").click();
