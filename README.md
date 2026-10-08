@@ -160,7 +160,7 @@ Document processing and translation stay local. There is no telemetry. Checking/
 **More tools → Smart table of contents** detects candidate pages, reconstructs entries from geometry, and searches each target independently. Review titles, hierarchy and candidate pages before applying. Optional bundled offline OCR supports image-only documents. [Workflow and limitations](docs/RELEASE-1.7.0.md) · [Corpus evidence](docs/SMART-TOC-VALIDATION.json) · [Online sample provenance](docs/SMART-TOC-SOURCES.json).
 
 
-Smart contents 1.7.3 adds a menu icon, one-click detection/matching, compact review and cross-page bulk selection. See [release notes](docs/RELEASE-1.7.3.md) for the Acrobat regression and validation limits.
+Smart contents 1.7.3 improves textbook columns, continuation pages, yearbook font hierarchy and independent heading matching. The toolbar exposes the tool directly, with separate contents/body OCR switches. See [release notes](docs/RELEASE-1.7.3.md) for corpus validation and remaining review requirements.
 
 ### Reliability acceptance
 

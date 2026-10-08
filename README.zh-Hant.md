@@ -2,8 +2,8 @@
 
 [English](README.md) · [简体中文](README.zh-Hans.md) · **繁體中文**
 
-> **1.7.3**：加強編輯、預覽與儲存的一致性，修復追加遺失內容、表格舊預覽、外部儲存衝突和圖像跨入口狀態；增加裁剪、解碼及畫布預算保護。
-> [下載 1.7.3](https://github.com/ionize1080/Folio/releases/tag/v1.7.3) · [釋出說明與限制](docs/RELEASE-1.7.3.zh-Hant.md) · [驗收入口](docs/VALIDATION.md)。釋出附件由同提交 Windows 驗收門控；以本版附件報告為準。
+> **1.7.3**：改善教材雙欄、跨頁層級、年鑑字型層級與正文定位，補救掃描目錄漏辨識頁碼；主工具列直達智慧目錄，目錄與正文 OCR 分開控制。
+> [下載 1.7.3](https://github.com/ionize1080/Folio/releases/tag/v1.7.3) · [釋出說明與限制](docs/RELEASE-1.7.3.zh-Hant.md) · [驗收入口](docs/VALIDATION.md)。本版在 Windows 本機驗收，附件報告記錄原始碼提交及實際發行套件雜湊。
 
 面向 Windows x64 的離線 PDF 工作臺，重點解決長文件的**書籤生成與整理、頁面內文字編輯、OCR 識別與校對**。閱讀、版面分析、字型匹配和 OCR 在本地執行；完整便攜包無需另裝 Python、Node.js 或模型。
 
