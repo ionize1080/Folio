@@ -29,7 +29,7 @@
 | --- | --- |
 | `Folio-PDF-Studio-1.7.3-portable-win-x64.zip` | 完整便攜包，解壓後執行 `Folio.exe` |
 | `Folio-PDF-Studio-1.7.3-source.zip` | 完整離線原始碼與隨包執行資源 |
-| `Folio-PDF-Studio-1.7.3-validation.json` | 同提交 Windows 迴歸及公開樣本結果 |
+| `Folio-PDF-Studio-1.7.3-validation.json` | 同提交 Windows 迴歸及本機樣本測試範圍 |
 | `Folio-PDF-Studio-1.7.3-SHA256.txt` | 附件校驗值 |
 
 請保留解壓後的完整目錄，包括 `resources`、`locales` 和 DLL。GitHub 自動生成的 **Source code (zip/tar.gz)** 是倉庫快照，與上述完整離線 `source.zip` 的資產範圍不同。
