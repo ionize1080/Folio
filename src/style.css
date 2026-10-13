@@ -4995,3 +4995,11 @@ body[data-right="narrow"] .inspector { overflow:clip; }
   .smart-toc-dialog .st-row-main [data-field=printedLabel] { grid-column:2; }
   .smart-toc-dialog .st-row-main .st-state { grid-column:2 / span 2; }
 }
+
+/* Shared brand asset: toolbar, welcome, taskbar and executable. */
+.logo { width: 30px; height: 30px; padding: 0; border-radius: 0; background: transparent; object-fit: contain; }
+.welcome-mark { width: 80px; height: 80px; padding: 0; border: 0; border-radius: 0; background: transparent; transform: none; object-fit: contain; }
+
+.st-page-choice { display: inline-flex; align-items: center; gap: 3px; padding: 3px 6px; border: 1px solid var(--line); border-radius: 8px; }
+.st-page-choice:has(input:checked) { background: var(--accent-soft); border-color: var(--accent); }
+.st-page-choice input { width: 16px; height: 16px; }

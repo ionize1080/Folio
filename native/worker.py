@@ -225,7 +225,7 @@ def render_fragment(pdf,r,edits,blocks):
    prev.close();objects.pop(last_ocr_page,None)
   last_ocr_page=b['page']
   if b.get('excluded'):continue
-  if b.get('needsReview') and not (b.get('corrected') or b.get('reviewAccepted')):raise ValueError('OCR 疑点尚未确认，请校对或排除后应用')
+  if b.get('needsReview') and not (b.get('corrected') or b.get('reviewAccepted') or b.get('reviewSkipped') is True):raise ValueError('OCR 疑点尚未确认，请校对、跳过全部待校对或排除后应用')
   if not b.get('text'):continue
   page=page_for(b['page'],inspect=False);quad=b['quad']
   if len(quad)!=4:raise ValueError('OCR 四角坐标无效')

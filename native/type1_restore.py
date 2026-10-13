@@ -4,7 +4,7 @@ No guessed coverage: only PDF ToUnicode -> encoding -> existing glyph mappings.
 import io, tempfile, os, sys
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).parent/'vendor'))
-def restore_type1(blob,unicode_map,name,segments=None):
+def restore_type1(blob,unicode_map,name,segments=None,pdf_encoding=None):
     from fontTools.t1Lib import T1Font
     from fontTools.fontBuilder import FontBuilder
     from fontTools.pens.t2CharStringPen import T2CharStringPen
@@ -35,12 +35,39 @@ def restore_type1(blob,unicode_map,name,segments=None):
     finally:os.unlink(path)
     matrix=font['FontMatrix']
     if any(abs(a-b)>1e-8 for a,b in zip(matrix,[.001,0,0,.001,0,0])):raise ValueError('Nonstandard Type1 matrix')
-    glyphs=font.getGlyphSet();order=['.notdef']+[g for g in glyphs if g!='.notdef'];encoding=font['Encoding'];cmap={}
+    glyphs=font.getGlyphSet();order=['.notdef']+[g for g in glyphs if g!='.notdef'];encoding=list(font['Encoding']);cmap={}
+    # PDF Differences override the font program's built-in encoding. TeX
+    # subsets commonly place ff at code 11 even when the program does not.
+    if pdf_encoding:
+        if hasattr(pdf_encoding,'get_object'):pdf_encoding=pdf_encoding.get_object()
+        base=pdf_encoding.get('/BaseEncoding') if isinstance(pdf_encoding,dict) else pdf_encoding
+        if base:
+            if str(base)=='/StandardEncoding':
+                from fontTools.encodings.StandardEncoding import StandardEncoding
+                encoding=list(StandardEncoding)
+            else:
+                from pypdf._codecs import charset_encoding
+                from fontTools.agl import UV2AGL
+                if str(base) not in charset_encoding:raise ValueError('Unsupported Type1 PDF encoding')
+                encoding=[UV2AGL.get(ord(c),'.notdef') if len(c)==1 else '.notdef' for c in charset_encoding[str(base)]]
+        if isinstance(pdf_encoding,dict):
+            index=0
+            for value in pdf_encoding.get('/Differences',[]):
+                if isinstance(value,int):index=value
+                else:
+                    if 0<=index<len(encoding):encoding[index]=str(value).removeprefix('/')
+                    index+=1
     if unicode_map is None:
         from fontTools.agl import toUnicode
         unicode_map={chr(i):toUnicode(g) for i,g in enumerate(encoding) if g in glyphs and g!='.notdef'}
     for code,char in unicode_map.items():
-        if not isinstance(code,str) or len(code)!=1 or not isinstance(char,str) or len(char)!=1:continue
+        if not isinstance(code,str) or len(code)!=1 or not isinstance(char,str):continue
+        # ToUnicode often expands Type1 ligatures to multiple logical scalars.
+        # Keep a verified Unicode ligature glyph so colocated scalars can be
+        # painted once with their original outline and ActualText (e.g. ff).
+        from ligatures import LIGATURES
+        char=LIGATURES.get(char,char)
+        if len(char)!=1:continue
         n=ord(code)
         if n<len(encoding) and encoding[n] in glyphs and encoding[n]!='.notdef':cmap[ord(char)]=encoding[n]
     if not cmap:raise ValueError('No verified Unicode mapping')

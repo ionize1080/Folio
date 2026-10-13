@@ -9,7 +9,12 @@ const norm = (s) =>
     .replace(/[\s\p{P}\p{Cf}]/gu, "")
     .toLowerCase();
 const heading =
-  /^(目录|目次|目錄|内容|contents|highlights|tableofcontents|sommaire|tabledesmatières|inhalt|inhaltsverzeichnis|índice|indice|contenido|содержание|المحتويات|الفهرس)$/iu;
+  /^(目录|目次|目錄|内容|contents|highlights|tableofcontents|sommaire|tabledesmatières|inhalt|inhaltsverzeichnis|índice(?:general)?|indice(?:general)?|contenido|содержание|المحتويات|الفهرس)$/iu;
+const leader = /(?:[.·…_—–]\s*){2,}/u;
+const numberedPrefix = (title) =>
+  title.match(/^(?:\d+|[A-Z])(?:\.\d+)*(?=\.?\s)/u);
+const auxiliaryHeading =
+  /^(list of (examples|figures|tables)|(?:function and variable |concept |subject )?index|índice de (figuras|cuadros|tablas)|liste des (figures|tableaux)|图表目录|插图目录|表格目录|源代码示例列表|索引)$/iu;
 const trimLeader = (s) =>
   s
     .replace(/[\s.·…_—–\-:：*★•⋅]+$/gu, "")
@@ -90,7 +95,7 @@ export function splitTocText(raw, options = {}) {
     printedLabel: m[1],
     label,
     raw: text,
-    confidence: /[.·…_—–]{2}|\s{2}/u.test(before) ? 90 : 65,
+    confidence: leader.test(before) || /\s{2}/u.test(before) ? 90 : 65,
   };
 }
 const dot = (p, d) => p[0] * d[0] + p[1] * d[1];
@@ -194,6 +199,28 @@ export function tocRows(fragments, { direction = "auto" } = {}) {
 }
 
 export function recognizeTocPage(page, options = {}) {
+  if (!options.trimmedAuxiliary) {
+    const rows = tocRows(page.fragments, options);
+    const auxiliary = rows.find((r) => auxiliaryHeading.test(r.text.trim()));
+    if (
+      auxiliary &&
+      rows.filter(
+        (r) => r.bottom < auxiliary.top && splitTocText(r.text, options),
+      ).length >= 2
+    )
+      return {
+        ...recognizeTocPage(
+          {
+            ...page,
+            fragments: page.fragments.filter(
+              (f) => Math.max(...box(f).map((p) => p[1])) < auxiliary.top,
+            ),
+          },
+          { ...options, trimmedAuxiliary: true },
+        ),
+        mainBeforeAuxiliary: true,
+      };
+  }
   // Verify each side has title/folio pairs before accepting a geometric gutter.
   // This avoids confusing the gap before a single column's folios with columns.
   if (!options.singleColumn && page.width && options.direction !== "vertical") {
@@ -209,10 +236,39 @@ export function recognizeTocPage(page, options = {}) {
           bottom: Math.max(...q.map((p) => p[1])),
         };
       });
-    for (const cut of columnCuts(rects, page.width)) {
+    // Fragment widths are unreliable for heavily kerned/fragmented text. The
+    // page centre is another hypothesis, accepted only with title/folio pairs
+    // on both sides and no significant content crossing the gutter.
+    const rails = new Map();
+    for (const f of rects) {
+      if (
+        f.right < page.width * 0.3 ||
+        f.right > page.width * 0.7 ||
+        !parsePageLabel(f.text.trim())
+      )
+        continue;
+      const k = Math.round(f.right / 4),
+        rail = rails.get(k) || [];
+      rail.push(f.right);
+      rails.set(k, rail);
+    }
+    const cuts = [
+      ...columnCuts(rects, page.width),
+      page.width / 2,
+      ...[...rails.values()]
+        .filter((a) => a.length >= 4)
+        .sort((a, b) => b.length - a.length)
+        .slice(0, 6)
+        .map((a) => Math.max(...a) + 1),
+    ];
+    let best = null;
+    for (const cut of cuts) {
       const sides = [
         page.fragments.filter(
-          (f) => Math.min(...box(f).map((p) => p[0])) < cut,
+          (f) =>
+            Math.min(...box(f).map((p) => p[0])) < cut &&
+            (Math.max(...box(f).map((p) => p[0])) <= cut + 2 ||
+              !/\p{L}/u.test(f.text)),
         ),
         page.fragments.filter(
           (f) => Math.min(...box(f).map((p) => p[0])) >= cut,
@@ -225,6 +281,23 @@ export function recognizeTocPage(page, options = {}) {
         ),
       );
       if (parts.every((p) => p.entries.filter((e) => !e.leading).length >= 4)) {
+        const start = Math.max(
+          ...parts.map((p) => Math.min(...p.entries.map((e) => e.bounds[1]))),
+        );
+        const end = Math.min(
+          ...parts.map((p) => Math.max(...p.entries.map((e) => e.bounds[3]))),
+        );
+        if (
+          rects.filter(
+            (f) =>
+              f.top >= start &&
+              f.bottom <= end &&
+              f.left < cut - 2 &&
+              f.right > cut + 2 &&
+              /\p{L}/u.test(f.text),
+          ).length > 1
+        )
+          continue;
         const entries = parts.flatMap((p, column) => {
           const origin = Math.min(...p.entries.map((e) => e.bounds[0]));
           return p.entries.map((e) => ({
@@ -233,7 +306,7 @@ export function recognizeTocPage(page, options = {}) {
             indent: e.indent - origin,
           }));
         });
-        return {
+        const candidate = {
           ...parts[0],
           entries,
           score: Math.max(...parts.map((p) => p.score)),
@@ -242,8 +315,12 @@ export function recognizeTocPage(page, options = {}) {
           rows: parts.reduce((n, p) => n + p.rows, 0),
           columns: 2,
         };
+        const quality = entries.filter((e) => e.confidence >= 75).length;
+        if (!best || quality > best.quality)
+          best = { quality, result: candidate };
       }
     }
+    if (best) return best.result;
   }
   const rows = tocRows(page.fragments, options).filter(
       (r) =>
@@ -537,14 +614,17 @@ export function recognizeTocPage(page, options = {}) {
     ...new Set(unique.map((e) => Math.round(e.bounds[0] / 12))),
   ].sort((a, b) => a - b);
   for (const e of unique) {
-    const numbered = e.title.match(/^\d+(?:\.\d+)+/);
+    const numbered = numberedPrefix(e.title);
     e.level = numbered
       ? Math.min(8, numbered[0].split(".").length)
       : Math.min(4, 1 + indents.indexOf(Math.round(e.bounds[0] / 12)));
     if (indents.length > 6)
       e.level = numbered ? Math.min(8, numbered[0].split(".").length) : 1;
   }
-  const hasHeading = rows.some((r) => heading.test(norm(r.text)));
+  // A sentence ending in “contents.” is not a TOC banner.
+  const hasHeading = rows.some(
+    (r) => heading.test(norm(r.text)) && !/[.!?。]$/u.test(r.text.trim()),
+  );
   const density = Math.min(1, unique.length / Math.max(1, rows.length));
   const score = Math.min(
     99,
@@ -560,7 +640,8 @@ export function recognizeTocPage(page, options = {}) {
       unique.length >=
         (rows.some((r) => norm(r.text) === "highlights") ? 4 : 2) &&
       score >= 60 &&
-      (hasHeading || strong >= unique.length * 0.4),
+      (hasHeading || strong >= unique.length * 0.4) &&
+      (density >= 0.18 || strong >= 3),
     hasHeading,
     entries: unique,
     rows: rows.length,
@@ -627,11 +708,9 @@ export function recognizeTocPages(pages, options = {}) {
       },
       options,
     );
-    result.auxiliary = rowsByPage[i].some((r) =>
-      /^(list of (examples|figures|tables)|图表目录|插图目录|表格目录)$/iu.test(
-        r.text.trim(),
-      ),
-    );
+    result.auxiliary =
+      !result.mainBeforeAuxiliary &&
+      rowsByPage[i].some((r) => auxiliaryHeading.test(r.text.trim()));
     if (result.auxiliary) result.selected = false;
     return result;
   });
@@ -655,12 +734,34 @@ export function recognizeTocPages(pages, options = {}) {
       if (!indents.length || x - indents.at(-1) > 7) indents.push(x);
     }
     for (const e of values) {
-      const numbered = e.title.match(/^\d+(?:\.\d+)*(?=\.?\s)/);
+      const numbered = numberedPrefix(e.title);
       e.level = numbered
         ? Math.min(8, numbered[0].split(".").length)
         : indents.length <= 6
           ? 1 + indents.findIndex((x) => Math.abs(x - e.indent) <= 7)
           : 1;
+    }
+    // Parts sit above numbered chapters, including across columns and pages.
+    // Require multiple banners and a larger type size or an explicit Roman
+    // part number so ordinary unnumbered end matter does not shift chapters.
+    const chapterHeight = median(chapterRows.map((e) => e.fontHeight));
+    const parts = values.filter(
+      (e) =>
+        /^[IVXLCDM]+\s+\p{L}/u.test(e.title) ||
+        (!numberedPrefix(e.title) &&
+          chapterHeight &&
+          e.fontHeight > chapterHeight * 1.14),
+    );
+    if (chapterRows.length >= 3 && parts.length >= 2) {
+      const banners = new Set(parts);
+      let inPart = false;
+      for (const e of values) {
+        if (banners.has(e)) {
+          e.level = 1;
+          inPart = true;
+        } else if (inPart && numberedPrefix(e.title))
+          e.level = Math.min(8, e.level + 1);
+      }
     }
     // Textbooks have explicit units and stable content tiers even when lesson
     // numbers, bullets and mirrored columns shift the title's x coordinate.
@@ -717,6 +818,17 @@ export function recognizeTocPages(pages, options = {}) {
     group = [];
   };
   for (const r of results) {
+    // Unheaded continuation pages of a figure/table/function index remain
+    // auxiliary; their dot leaders must not seed a second main contents group.
+    if (
+      group.at(-1)?.auxiliary &&
+      r.page === group.at(-1).page + 1 &&
+      !r.hasHeading &&
+      r.entries.length / Math.max(1, r.rows) >= 0.4
+    ) {
+      r.auxiliary = true;
+      r.selected = false;
+    }
     // Continue dense unheaded TOC pages using an adjacent confirmed contents
     // page; ordinary body pages must still contain several aligned folios.
     if (
@@ -724,12 +836,10 @@ export function recognizeTocPages(pages, options = {}) {
       !r.auxiliary &&
       group.length &&
       r.page === group.at(-1).page + 1 &&
-      r.entries.length >= 3 &&
+      r.entries.length >= 1 &&
       (r.entries.length / Math.max(1, r.rows) >= 0.45 ||
         (r.entries.length <= 10 &&
-          r.entries.every(
-            (e) => e.confidence >= 75 && /[.…·]{2}/u.test(e.raw),
-          )) ||
+          r.entries.every((e) => e.confidence >= 75 && leader.test(e.raw))) ||
         (r.entries.length / Math.max(1, r.rows) >= 0.25 &&
           r.entries.filter((e) => /^\d+(?:[-–]\d+)+/u.test(e.title)).length >=
             r.entries.length * 0.5))

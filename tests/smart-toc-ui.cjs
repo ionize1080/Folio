@@ -107,6 +107,15 @@ const errors = [],
     () => !document.querySelector("#st-start").disabled,
   );
   assert.equal(await page.locator("#st-pages-input").inputValue(), "1");
+  await page.locator("#st-settings summary").click();
+  await page.locator('[data-toc-page="1"]').uncheck();
+  assert.equal(await page.locator("#st-pages-input").inputValue(), "");
+  await page.locator('[data-toc-page="1"]').check();
+  assert.equal(await page.locator("#st-pages-input").inputValue(), "1");
+  await page.locator("#st-start").click();
+  await page.waitForFunction(() => !document.querySelector("#st-start").disabled);
+  checks.push("Contents-page checkboxes update the range and permit removing and restoring the last page");
+  await page.locator("#st-settings summary").click();
   assert.equal(await page.locator(".st-row").count(), 3);
   assert.deepEqual(
     await page

@@ -6,18 +6,19 @@ const fs = require("fs"),
   crypto = require("crypto");
 const samples = process.env.FOLIO_SAMPLES,
   out = path.resolve(process.argv[2] || "../corpus-ui");
-assert(samples && process.env.FOLIO_EXE, "Set FOLIO_SAMPLES and FOLIO_EXE");
+assert(samples && (process.env.FOLIO_EXE || process.env.FOLIO_SOURCE), "Set FOLIO_SAMPLES and FOLIO_EXE or FOLIO_SOURCE");
 fs.mkdirSync(out, { recursive: true });
 const files = fs
   .readdirSync(samples)
   .filter(
     (n) =>
-      /教科书|acrobat|PitStop|城市统计|能源统计|贸易外经/.test(n) &&
+      (process.env.FOLIO_ALL_SAMPLES || /教科书|acrobat|PitStop|城市统计|能源统计|贸易外经/.test(n)) &&
       n.endsWith(".pdf") &&
       !n.includes("-test"),
   );
 const checks = [],
   errors = [];
+const expected = process.env.FOLIO_EXPECTED ? JSON.parse(fs.readFileSync(process.env.FOLIO_EXPECTED)) : null;
 let app, page;
 const flat = (nodes) =>
   nodes.map((n) => [
@@ -28,7 +29,7 @@ const flat = (nodes) =>
 (async () => {
   app = await _electron.launch({
     executablePath: process.env.FOLIO_EXE,
-    args: ["--user-data-dir=" + path.join(out, "profile-" + Date.now())],
+    args: [...(process.env.FOLIO_SOURCE ? [path.resolve(__dirname,"..")] : []), "--user-data-dir=" + path.join(out, "profile-" + Date.now())],
     timeout: 60000,
   });
   page = await app.firstWindow();
@@ -106,6 +107,13 @@ const flat = (nodes) =>
         null,
         { timeout: 600000 },
       );
+    }
+    if (expected) {
+      assert.equal(await page.locator('#st-pages-input').inputValue(),expected[name].join(','),name+' contents coverage');
+      if (!expected[name].length) {
+        assert.equal(await page.locator('.st-row').count(),0);assert(await page.locator('#st-apply').isDisabled());
+        checks.push({name,noPrintedContents:true,entries:0});await page.locator('#modal-close').click();continue;
+      }
     }
     const entries = [];
     do {
@@ -187,10 +195,10 @@ const flat = (nodes) =>
       {
         checks,
         errors,
-        exe_sha256: hash(process.env.FOLIO_EXE),
-        asar_sha256: hash(
+        exe_sha256: process.env.FOLIO_EXE ? hash(process.env.FOLIO_EXE) : null,
+        asar_sha256: process.env.FOLIO_EXE ? hash(
           path.join(path.dirname(process.env.FOLIO_EXE), "resources/app.asar"),
-        ),
+        ) : null,
       },
       null,
       2,

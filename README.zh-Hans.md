@@ -2,8 +2,8 @@
 
 [English](README.md) · **简体中文** · [繁體中文](README.zh-Hant.md)
 
-> **1.7.3**：改进教材双栏、跨页层级、年鉴字体层级与正文定位，补救扫描目录漏识别页码；主工具栏直达智能目录，目录与正文 OCR 分开控制。
-> [下载 1.7.3](https://github.com/ionize1080/Folio/releases/tag/v1.7.3) · [发布说明与限制](docs/RELEASE-1.7.3.zh-Hans.md) · [验收入口](docs/VALIDATION.md)。本版在 Windows 本机验收，附件报告记录源码提交及实际发行包哈希。
+> **1.8.0**：改进教材双栏、跨页层级、年鉴字体层级与正文定位，补救扫描目录漏识别页码；主工具栏直达智能目录，目录与正文 OCR 分开控制。
+> [下载 1.8.0](https://github.com/ionize1080/Folio/releases/tag/v1.8.0) · [发布说明与限制](docs/RELEASE-1.8.0.zh-Hans.md) · [验收入口](docs/VALIDATION.md)。本版在 Windows 本机验收，附件报告记录源码提交及实际发行包哈希。
 
 面向 Windows x64 的离线 PDF 工作台，重点解决长文档的**书签生成与整理、页面内文字编辑、OCR 识别与校对**。阅读、版面分析、字体匹配和 OCR 在本地运行；完整便携包无需另装 Python、Node.js 或模型。
 
@@ -27,10 +27,10 @@
 
 | 文件 | 用途 |
 | --- | --- |
-| `Folio-PDF-Studio-1.7.3-portable-win-x64.zip` | 完整便携包，解压后运行 `Folio.exe` |
-| `Folio-PDF-Studio-1.7.3-source.zip` | 完整离线源码与随包运行资源 |
-| `Folio-PDF-Studio-1.7.3-validation.json` | 同提交 Windows 回归及本地样本测试范围 |
-| `Folio-PDF-Studio-1.7.3-SHA256.txt` | 附件校验值 |
+| `Folio-PDF-Studio-1.8.0-portable-win-x64.zip` | 完整便携包，解压后运行 `Folio.exe` |
+| `Folio-PDF-Studio-1.8.0-source.zip` | 完整离线源码与随包运行资源 |
+| `Folio-PDF-Studio-1.8.0-validation.json` | 同提交 Windows 回归及本地样本测试范围 |
+| `Folio-PDF-Studio-1.8.0-SHA256.txt` | 附件校验值 |
 
 请保留解压后的完整目录，包括 `resources`、`locales` 和 DLL。GitHub 自动生成的 **Source code (zip/tar.gz)** 是仓库快照，与上述完整离线 `source.zip` 的资产范围不同。
 

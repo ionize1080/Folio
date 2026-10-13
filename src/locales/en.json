@@ -2238,5 +2238,8 @@
   "扫描件先识别目录；需要自动定位时再勾选正文 OCR，并在高级设置中缩小正文范围。可随时停止。": "For scans, recognize contents first. Enable body OCR for automatic destinations and narrow the body range in advanced settings. You can stop at any time.",
   "检测到无文字页面。请开启离线 OCR，确认目录范围后重试。": "Image-only pages detected. Enable offline OCR, confirm the contents range, and retry.",
   "分组标题，页码待复核": "Section heading; review destination",
-  "未识别页码": "Page number not recognized"
+  "未识别页码": "Page number not recognized",
+  "跳过全部待校对并应用": "Skip all review suggestions and apply",
+  "目录页": "Contents page",
+  "（已跳过 {0} 条校对建议，保留识别文字）": "({0} review suggestions skipped; recognized text retained)"
 }

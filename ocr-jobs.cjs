@@ -525,6 +525,7 @@ class OCRJobs {
     base = [],
     preferences,
     excludeUnsupported = false,
+    skipReview = false,
     pages,
   }) {
     await this.prune();
@@ -551,10 +552,13 @@ class OCRJobs {
     const pending = blocks.filter(
       (b) => !b.excluded && b.needsReview && !b.corrected && !b.reviewAccepted,
     );
-    if (pending.length)
+    if (pending.length && skipReview !== true)
       throw Error(
-        `${pending.length} 条 OCR 疑点尚未确认，请在校对中确认或排除后应用`,
+        `${pending.length} 条 OCR 疑点尚未确认，可选择「跳过全部待校对并应用」保留识别结果，或逐条校对后应用`,
       );
+    // A deliberate bypass is not a claim of human verification. Keep the
+    // original text, confidence and needsReview evidence available for later.
+    for (const b of pending) b.reviewSkipped = true;
     const allowed = new Set([
       ...JSON.parse(
         await fs.readFile(
@@ -620,7 +624,7 @@ class OCRJobs {
       await h.close();
     }
     this.references.set(reference, file);
-    return { ok: true, reference, blocks, issues, count, cleaned };
+    return { ok: true, reference, blocks, issues, count, cleaned, skippedReview: pending.length };
   }
   resolveReference(id) {
     if (typeof id !== "string" || !this.references.has(id))

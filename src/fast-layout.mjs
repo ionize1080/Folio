@@ -1,5 +1,5 @@
 import { hardGapStarts } from "./hard-gaps.mjs";
-import { sourceLigature } from "./ligatures.mjs";
+import { sourceLigature, ligatureCoverage } from "./ligatures.mjs";
 import { preserveLine } from "./preserve-lines.mjs";
 // Deterministic browser layout. O(characters + runs); measuring is cached by face,
 // size and character. Hard source line breaks are retained in the text model.
@@ -84,13 +84,19 @@ export function fastLayout(m, measure) {
     if (dx || dy) {
       m = {
         ...m,
-        originalBaseline: m.originalBaseline == null ? m.originalBaseline : m.originalBaseline + dy,
+        originalBaseline:
+          m.originalBaseline == null
+            ? m.originalBaseline
+            : m.originalBaseline + dy,
         originalLayout: {
           ...original,
           frame: { ...original.frame, x: f.x, y: f.y },
           glyphs: original.glyphs.map((g) => ({
-            ...g, x: g.x + dx, y: g.y + dy,
-            originX: g.originX + dx, baseline: g.baseline + dy,
+            ...g,
+            x: g.x + dx,
+            y: g.y + dy,
+            originX: g.originX + dx,
+            baseline: g.baseline + dy,
           })),
         },
       };
@@ -182,6 +188,32 @@ export function fastLayout(m, measure) {
       (k) => Math.abs(f[k] - m.originalLayout.frame[k]) < 0.01,
     ) &&
     stylesKeepGeometry;
+  const ligatureMetrics = new Map();
+  if (geometrySame && m.layoutMode !== "reflow") {
+    const inherited = original.map((g) => ({ ...g, ...g.style }));
+    for (let i = 0; i < inherited.length; i++) {
+      const cluster = sourceLigature(inherited, i, ligatureCoverage);
+      if (cluster.count < 2) continue;
+      const group = inherited.slice(i, i + cluster.count);
+      if (group.some((g) => m.text.slice(g.start, g.end) !== g.text)) continue;
+      const styles = group.map((g) => ({
+        ...m,
+        ...runs.find((r) => r.start <= g.start && r.end > g.start),
+      }));
+      if (
+        styles.some((s) =>
+          ["fontKey", "latinFontKey", "size", "color", "bold", "italic"].some(
+            (k) => s[k] !== styles[0][k],
+          ),
+        )
+      )
+        continue;
+      const measured = measure(cluster.text, styles[0]);
+      if (measured.fallback || measured.fontKey !== group[0].fontKey) continue;
+      for (const g of group) ligatureMetrics.set(g.start, measured);
+      i += cluster.count - 1;
+    }
+  }
   let ri = 0,
     offset = 0,
     line = 0,
@@ -272,7 +304,7 @@ export function fastLayout(m, measure) {
           }
         : ch === "\t"
           ? { ...measure(" ", style), width: measure(" ", style).width * 4 }
-          : measure(ch, style);
+          : ligatureMetrics.get(offset) || measure(ch, style);
     const scale = (style.horizontalScale || 100) / 100,
       width = measured.width * scale;
     const advance =

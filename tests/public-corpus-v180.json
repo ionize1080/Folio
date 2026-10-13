@@ -1,0 +1,142 @@
+[
+  {
+    "name": "amsmath.pdf",
+    "url": "https://mirrors.ctan.org/macros/latex/required/amsmath/amsldoc.pdf",
+    "pages": 44,
+    "bytes": 497706,
+    "sha256": "374fcfb073739395a1a5a1eb9416bc9fcec5000255f52ad4acbe9b5e0227985e"
+  },
+  {
+    "name": "booktabs.pdf",
+    "url": "https://mirrors.ctan.org/macros/latex/contrib/booktabs/booktabs.pdf",
+    "pages": 18,
+    "bytes": 295596,
+    "sha256": "7052d0760750c97a9fa3ae6e00942768a809f84a05466d36dc9e38f906d98dfe"
+  },
+  {
+    "name": "geometry.pdf",
+    "url": "https://mirrors.ctan.org/macros/latex/contrib/geometry/geometry.pdf",
+    "pages": 42,
+    "bytes": 462701,
+    "sha256": "204c918f24f4772fc13ddd8cdd6c98975a74cc022cc08021554ebc99076faf4c"
+  },
+  {
+    "name": "hyperref.pdf",
+    "url": "https://mirrors.ctan.org/macros/latex/contrib/hyperref/doc/hyperref-doc.pdf",
+    "pages": 64,
+    "bytes": 321689,
+    "sha256": "7cc5dfd065b93428ef829739df9811da9b432e115226f994eb57a75c2136e3a8"
+  },
+  {
+    "name": "fancyhdr.pdf",
+    "url": "https://mirrors.ctan.org/macros/latex/contrib/fancyhdr/fancyhdr.pdf",
+    "pages": 137,
+    "bytes": 1344045,
+    "sha256": "bd06379354b8ff42eb97ac01f5db4705b233f6e9aae240f69760530577ba5199"
+  },
+  {
+    "name": "xcolor.pdf",
+    "url": "https://mirrors.ctan.org/macros/latex/contrib/xcolor/xcolor.pdf",
+    "pages": 66,
+    "bytes": 865002,
+    "sha256": "f095276516ac3ee29bce161cea7663e367f70f3b84368c68e2d5a0fcdb2fc77d"
+  },
+  {
+    "name": "longtable.pdf",
+    "url": "https://mirrors.ctan.org/macros/latex/required/tools/longtable.pdf",
+    "pages": 33,
+    "bytes": 399752,
+    "sha256": "938441abd4b6164ddabf30ce680e3ee7551345970e373138f0a2eaa117a46af1"
+  },
+  {
+    "name": "array.pdf",
+    "url": "https://mirrors.ctan.org/macros/latex/required/tools/array.pdf",
+    "pages": 54,
+    "bytes": 902714,
+    "sha256": "148ef0c667f890cc930c5f1241f2d01504cdf85886df1f1d6e25a5fb0dd2b426"
+  },
+  {
+    "name": "graphicx.pdf",
+    "url": "https://mirrors.ctan.org/macros/latex/required/graphics/grfguide.pdf",
+    "pages": 17,
+    "bytes": 330572,
+    "sha256": "46765880f4463de22090e54d0da472847eab2cd1238f03ef39e2a385dcf771b9"
+  },
+  {
+    "name": "listings.pdf",
+    "url": "https://mirrors.ctan.org/macros/latex/contrib/listings/listings.pdf",
+    "pages": 241,
+    "bytes": 1428517,
+    "sha256": "2f05fd401b9b31428eedf18252f4491f00dd9d301e3f0b2ba265c7ef2f76762d"
+  },
+  {
+    "name": "lshort-english.pdf",
+    "url": "https://mirrors.ctan.org/info/lshort/english/lshort.pdf",
+    "pages": 153,
+    "bytes": 641763,
+    "sha256": "ecef13f225de55549ee5214f70cca30998f3251dee65c6b00931aae18b7736c2"
+  },
+  {
+    "name": "lshort-chinese.pdf",
+    "url": "https://mirrors.ctan.org/info/lshort/chinese/lshort-zh-cn.pdf",
+    "pages": 139,
+    "bytes": 1472327,
+    "sha256": "d4ddfad4f296168c9ac18270afa2838bdde088fe04c7d2da35a97c77b529ca05"
+  },
+  {
+    "name": "lshort-french.pdf",
+    "url": "https://mirrors.ctan.org/info/lshort/french/lshort-fr.pdf",
+    "pages": 184,
+    "bytes": 2658351,
+    "sha256": "2ca1765dd9bc6f62af518632c6982f3e2cf693ec4eb41458a759386ee648f951"
+  },
+  {
+    "name": "lshort-spanish.pdf",
+    "url": "https://mirrors.ctan.org/info/lshort/spanish/lshort-a4.pdf",
+    "pages": 161,
+    "bytes": 1895935,
+    "sha256": "963de726180a5982be0935c1989e922814fbf6f31dcb6320400845748cbb99b6"
+  },
+  {
+    "name": "lshort-german.pdf",
+    "url": "https://mirrors.ctan.org/info/lshort/german/l2kurz.pdf",
+    "pages": 58,
+    "bytes": 844549,
+    "sha256": "c8ed9c266ccf728a9128d15fd348d383f5c47ed90f80b6c1dd97a47ce03654cc"
+  },
+  {
+    "name": "r-exts.pdf",
+    "url": "https://cran.r-project.org/doc/manuals/r-release/R-exts.pdf",
+    "pages": 246,
+    "bytes": 1084890,
+    "sha256": "8c141c3c2ab9f0e192a627ffe07b3123d9f5bf3d4e936942deec1c6a614e243a"
+  },
+  {
+    "name": "r-lang.pdf",
+    "url": "https://cran.r-project.org/doc/manuals/r-release/R-lang.pdf",
+    "pages": 60,
+    "bytes": 377927,
+    "sha256": "270142e7fbdd31f8c11b71433861cb48b7a85f37a012927c458a89f34c2e3672"
+  },
+  {
+    "name": "r-intro.pdf",
+    "url": "https://cran.r-project.org/doc/manuals/r-release/R-intro.pdf",
+    "pages": 103,
+    "bytes": 597923,
+    "sha256": "d6e7cea1ef4460eedcf88fe9ce1e9e05c5dea6decf118f257a39a18ed6d0ec6f"
+  },
+  {
+    "name": "r-data.pdf",
+    "url": "https://cran.r-project.org/doc/manuals/r-release/R-data.pdf",
+    "pages": 35,
+    "bytes": 296288,
+    "sha256": "1ad7f0e93d056cbe8f8cf5d680be197ef97228b3c478edf522deed76f13b7a67"
+  },
+  {
+    "name": "r-admin.pdf",
+    "url": "https://cran.r-project.org/doc/manuals/r-release/R-admin.pdf",
+    "pages": 81,
+    "bytes": 492354,
+    "sha256": "8707f1364aaa1246b423fe1766dcd4cb0ca4f3ca1ba1acb1d53b8aa7a1fbe4f6"
+  }
+]

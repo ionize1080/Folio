@@ -69,6 +69,21 @@ def render(m):
     matcher=difflib.SequenceMatcher(None,old,text,autojunk=False);mapping={}
     for a,b,n in matcher.get_matching_blocks():
         for j in range(n):mapping[b+j]=a+j
+    # A subset can contain only the ligature outline, without standalone f/i.
+    # Resolve unchanged source clusters before per-character fallback.
+    from ligatures import cluster
+    ligature_members=set()
+    inherited=[{**g,**g['style']} for g in gs]
+    for i in range(len(text)):
+        old_index=mapping.get(i)
+        if old_index is None:continue
+        key=gs[old_index]['style'].get('fontKey')
+        if key not in source_fonts:source_fonts[key]=load_font(key)
+        font=source_fonts[key]
+        if not font:continue
+        _,_,count=cluster(inherited,old_index,font['coverage'])
+        if count>1 and all(mapping.get(i+j)==old_index+j for j in range(count)):
+            ligature_members.update(range(i,i+count))
     for i,ch in enumerate(text):
         run=next((r for r in m.get('runs',[]) if r['start']<=offsets[i]<r['end']),m)
         source=gs[mapping[i]] if i in mapping else gs[min(i,len(gs)-1)]
@@ -80,7 +95,7 @@ def render(m):
         if any(bool(run.get(k,m.get(k)))!=bool(source['style'].get(k)) for k in ('bold','italic')):return None
         if source['style'].get('syntheticBold') or source['style'].get('syntheticItalic'):return None
         actual=font
-        if ord(ch) not in font['coverage']:
+        if ord(ch) not in font['coverage'] and not (i in ligature_members and key==source['style'].get('fontKey')):
             actual=fallback(key,ch)
             if not actual:return None
             details.append({'start':offsets[i],'end':offsets[i]+len(ch.encode('utf-16-le'))//2,'text':ch,'original':font['name'],'actual':actual['name'],'match':actual['match'],'confidence':actual['confidence']})

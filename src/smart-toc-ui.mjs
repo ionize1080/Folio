@@ -91,6 +91,8 @@ export function smartTocDialog({
     if (!closed) buttons();
   }
   function buttons() {
+    for (const box of document.querySelectorAll("[data-toc-page]"))
+      box.disabled = busy || stale();
     for (const id of [
       "st-start",
       "st-detect",
@@ -319,10 +321,10 @@ export function smartTocDialog({
       .map((f) => f.page)
       .join(",");
     $("#st-pages").innerHTML = found
-      .filter((f) => f.score >= 35)
+      .filter((f) => f.selected || f.score >= 35)
       .map(
         (f) =>
-          `<button data-page="${f.page}">${f.page} · ${f.entries.length} ${f.auxiliary ? esc(t("附加索引")) : ""}</button>`,
+          `<span class="st-page-choice"><input type="checkbox" data-toc-page="${f.page}" aria-label="${esc(t("目录页"))} ${f.page}" ${f.selected ? "checked" : ""}><button data-page="${f.page}">${f.page} · ${f.entries.length} ${f.auxiliary ? esc(t("附加索引")) : ""}</button></span>`,
       )
       .join("");
     status(
@@ -589,6 +591,21 @@ export function smartTocDialog({
     const p = +e.target.dataset.page;
     if (p) preview(p);
   };
+  $("#st-pages").onchange = (e) => {
+    if (!e.target.dataset.tocPage || busy || stale()) return;
+    const value = $("#st-pages-input").value.trim();
+    let selected;
+    try {
+      selected = new Set(value ? pageRange(value, S.info.pageCount) : []);
+    } catch {
+      selected = new Set(found.filter((f) => f.selected).map((f) => f.page));
+    }
+    const p = +e.target.dataset.tocPage;
+    if (e.target.checked) selected.add(p);
+    else selected.delete(p);
+    $("#st-pages-input").value = [...selected].sort((a, b) => a - b).join(",");
+    $("#st-pages-input").dispatchEvent(new Event("change"));
+  };
   $("#st-all").onchange = () => {
     if (busy || stale()) return;
     const checked = $("#st-all").checked;
@@ -662,6 +679,18 @@ export function smartTocDialog({
       group = 0;
       renderRows();
       if (id === "st-ocr") cache.clear();
+      if (id === "st-pages-input") {
+        try {
+          const value = $("#st-pages-input").value.trim();
+          const selected = new Set(
+            value ? pageRange(value, S.info.pageCount) : [],
+          );
+          for (const box of document.querySelectorAll("[data-toc-page]"))
+            box.checked = selected.has(+box.dataset.tocPage);
+        } catch {
+          /* Keep editing an incomplete range without losing the input. */
+        }
+      }
       status(t("设置已更改，请重新分析。"));
     };
   setCleanup(() => {

@@ -63,7 +63,9 @@ def render(m):
             font=load_font(key)
             if not font:raise ValueError('快速排版字体不可用')
             fonts[key]=font;names[key]='F'+str(len(names));page.insert_font(fontname=names[key],fontfile=font['path'])
-        if ord(ch) not in font['coverage']:raise ValueError('快速排版字体缺字：'+ch)
+        covered=any(start+cluster(gs,start,font['coverage'])[2]>index and cluster(gs,start,font['coverage'])[2]>1
+                    for start in range(max(0,index-2),index+1))
+        if ord(ch) not in font['coverage'] and not covered:raise ValueError('快速排版字体缺字：'+ch)
         color=g.get('color','#202020')
         if not re.fullmatch('#[0-9a-fA-F]{6}',color):raise ValueError('快速排版颜色无效')
         rgb=tuple(int(color[i:i+2],16)/255 for i in (1,3,5))

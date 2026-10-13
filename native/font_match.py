@@ -111,7 +111,7 @@ def inspect_fonts(data,page_number,objects,mapped,stream):
                         program=descriptor.get('/FontFile')
                         program=program.get_object() if program else {}
                         segments=tuple(int(program.get(k,-1)) for k in ('/Length1','/Length2','/Length3'))
-                        blob,coverage=restore_type1(blob,cmap,name,segments)
+                        blob,coverage=restore_type1(blob,cmap,name,segments,f.get('/Encoding'))
                     if not coverage:raise ValueError('原字体 Unicode 映射不完整，需要选择可用字体')
                 else:
                     if f.get('/Subtype')!='/Type0' or f.get('/Encoding') not in ('/Identity-H','/Identity-V'):raise ValueError(reason)

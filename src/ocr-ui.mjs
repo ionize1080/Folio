@@ -95,6 +95,11 @@ export async function ocrDialogV4(ctx) {
         },
       },
       {
+        text: "跳过全部待校对并应用",
+        id: "ocr-skip-review",
+        run: () => applyResults(false, true),
+      },
+      {
         text: "应用 OCR 文字层",
         id: "ocr-apply",
         primary: true,
@@ -194,7 +199,7 @@ export async function ocrDialogV4(ctx) {
     saveChain = saveChain.then(write, write);
     return saveChain;
   }
-  async function applyResults(excludeUnsupported) {
+  async function applyResults(excludeUnsupported, skipReview = false) {
     if (running || applying) return;
     applying = true;
     cancelApply = false;
@@ -226,6 +231,7 @@ export async function ocrDialogV4(ctx) {
         base,
         preferences: preferences(),
         excludeUnsupported,
+        skipReview,
       });
       if (cancelApply) throw Error("应用已取消，识别结果仍保留");
       if (r.ok === false || !r.reference) {
@@ -234,7 +240,7 @@ export async function ocrDialogV4(ctx) {
         host.innerHTML = `<strong>${r.count} 条文字含当前字体不支持的字符</strong><p>请先校对，或明确排除这些条目后应用其余结果。原 PDF 尚未改变。</p><div style="max-height:160px;overflow:auto">${r.issues.map((i) => `<p>第 ${i.page} 页 · ${esc(i.characters.join("、"))} · ${esc(i.text.slice(0, 80))}</p>`).join("")}</div><button id="ocr-exclude-unsupported">排除上述缺字条目并应用</button>`;
         host.scrollIntoView({ block: "nearest" });
         $("#ocr-exclude-unsupported").onclick = () =>
-          guarded(() => applyResults(true));
+          guarded(() => applyResults(true, skipReview));
         $("#ocr-status").textContent = "字体检查发现问题，请在右侧处理后重试。";
         return;
       }
@@ -246,7 +252,7 @@ export async function ocrDialogV4(ctx) {
       });
       closeModal();
       toast(
-        `已应用 ${r.blocks.filter((b) => !b.excluded).length} 条文字，可撤销；请保存 PDF${r.count ? `（已排除 ${r.count} 条缺字结果）` : ""}`,
+        `已应用 ${r.blocks.filter((b) => !b.excluded).length} 条文字，可撤销；请保存 PDF${r.skippedReview ? `（已跳过 ${r.skippedReview} 条校对建议，保留识别文字）` : ""}${r.count ? `（已排除 ${r.count} 条缺字结果）` : ""}`,
       );
     } finally {
       unsubscribe?.();
@@ -574,6 +580,7 @@ export async function ocrDialogV4(ctx) {
     $("#ocr-start").disabled = running;
     $("#ocr-stop").disabled = !running;
     $("#ocr-apply").disabled = running || applying;
+    $("#ocr-skip-review").disabled = running || applying;
     $("#ocr-status").title = info.failed
       .map((f) => `第 ${f.page} 页：${f.error}`)
       .join("\n");
@@ -616,6 +623,7 @@ export async function ocrDialogV4(ctx) {
       running = true;
       $("#ocr-start").disabled = true;
       $("#ocr-apply").disabled = true;
+      $("#ocr-skip-review").disabled = true;
       try {
         let reviewBase = structuredClone(S.ocr || []);
         for (const [p, bs] of localCorrections)
@@ -656,6 +664,7 @@ export async function ocrDialogV4(ctx) {
         running = false;
         $("#ocr-start").disabled = false;
         $("#ocr-apply").disabled = false;
+        $("#ocr-skip-review").disabled = false;
         throw e;
       }
     });

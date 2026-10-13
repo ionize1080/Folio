@@ -11,7 +11,7 @@ const files = fs
   .readdirSync(samples)
   .filter(
     (n) =>
-      /教科书|年鉴|acrobat|PitStop/.test(n) &&
+      (process.env.FOLIO_ALL_SAMPLES || /教科书|年鉴|acrobat|PitStop/.test(n)) &&
       n.endsWith(".pdf") &&
       !n.includes("-test"),
   );
