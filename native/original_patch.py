@@ -23,7 +23,8 @@ def correction(page, stream, mapped, description, flow):
         if len({round(g['baseline'],2) for g in glyphs})!=1:return None
         if any(ord(c)<32 or ord(c)>0xffff for c in new):return None
         for r in model.get('runs',[]):
-            if any(r.get(k,model.get(k))!=glyphs[0]['style'].get(k) for k in ('fontKey','size','color')) or r.get('bold') or r.get('italic'):return None
+            if any(r.get(k,model.get(k))!=glyphs[0]['style'].get(k) for k in ('fontKey','size','color')):return None
+            if any(bool(r.get(k,model.get(k)))!=bool(glyphs[0]['style'].get(k)) for k in ('bold','italic','syntheticBold','syntheticItalic')):return None
         state={'font':None,'size':0,'word':0};stack=[]
         at=mapped['at']
         for args,op in stream.operations[:at+1]:

@@ -1,11 +1,11 @@
 """Same-length native-font patches retain logical spaces and exact copy text."""
 from pathlib import Path
-import sys,json,io
+import sys,json,io,copy
 ROOT=Path(__file__).resolve().parents[1]
 sys.path[:0]=[str(ROOT/'tests'),str(ROOT/'native'),str(ROOT/'native/vendor')]
 import fitz,pypdfium2 as pdfium
 from pypdf import PdfReader,PdfWriter
-from p8_helpers import models,save,pixels,dump,OUT
+from p8_helpers import models,save,pixels,dump,inspect,OUT
 checks=[]
 def pdfium_pixels(data,n=0,left=0,top=0):
     with pdfium.PdfDocument(data)as pdf:
@@ -63,5 +63,27 @@ assert pixels(raw,clip=fitz.Rect(42,0,300,200))==pixels(saved,clip=fitz.Rect(42,
 assert pdfium_pixels(raw,left=42)==pdfium_pixels(saved,left=42)
 _,ms=models(saved);assert any(m['text']==model['text'] for m in ms)
 checks.append('CID font width copy preserves later glyph pixels and exact copy/reopen text; ActualText raises underdeclared PDF 1.3 to 1.4')
+from original_patch import correction
+from content import check_editable,map_objects
+for face in ['tibo','tiit','tibi']:
+    doc=fitz.open();page=doc.new_page(width=400,height=200)
+    page.insert_text((30,50),'USDA Livestock Market News',fontname=face,fontsize=12)
+    raw=doc.tobytes();doc.close();_,ms=models(raw);model=next(m for m in ms if m['text']=='USDA Livestock Market News')
+    model['text']='SSDA Livestock Market News';saved=save(raw,model)
+    with fitz.open(stream=saved,filetype='pdf')as pdf:assert pdf[0].get_text().strip()==model['text']
+    with pdfium.PdfDocument(saved)as pdf:
+        page=pdf[0];tp=page.get_textpage();assert tp.get_text_range().strip()==model['text'];tp.close();page.close()
+    reader=PdfReader(io.BytesIO(saved));assert any(str(name).startswith('/FolioPatch') for name in reader.pages[0]['/Resources']['/Font'])
+    assert pixels(raw,clip=fitz.Rect(40,0,400,200))==pixels(saved,clip=fitz.Rect(40,0,400,200))
+    assert pdfium_pixels(raw,left=40)==pdfium_pixels(saved,left=40)
+    _,ms=models(saved);assert any(m['text']==model['text'] for m in ms)
+    # A partial style change must not preserve the old style merely because
+    # the paragraph's overall bold/italic settings are unchanged.
+    for flag in ['bold','italic','syntheticBold','syntheticItalic']:
+        changed=copy.deepcopy(model);changed['runs'][0][flag]=not bool(changed['runs'][0].get(flag))
+        writer=PdfWriter();page=writer.add_page(PdfReader(io.BytesIO(raw)).pages[0]);desc=inspect(raw)['objects'];mapped=check_editable(page,desc);stream,_=map_objects(page)
+        source=model['sources'][0]['index']
+        assert correction(page,stream,mapped[source],desc[source],dict(model=changed,sources=model['sources'])) is None,(face,flag)
+checks.append('matching original bold, italic and bold-italic fonts retain exact words and dual-engine pixels; all four explicit run style changes still leave the original patch path')
 report={'checks':checks,'errors':[]};(OUT/'v190-patch-semantics-report.json').write_text(json.dumps(report,indent=2),encoding='utf8')
 print(json.dumps(report))
