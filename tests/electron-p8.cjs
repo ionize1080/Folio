@@ -67,12 +67,26 @@ const root = path.resolve(__dirname, ".."),
       assert(fs.statSync(file).size > 100);
       return file;
     }
-    const stable = () =>
-      page.waitForFunction(
-        () => /完成/.test(document.querySelector("#pe-status")?.textContent),
-        null,
-        { timeout: 60000 },
-      );
+    // Status text is localized. A fresh Windows profile can start in English;
+    // that must not turn a completed native layout into a test timeout.
+    // Let the ready status settle so the preceding debounced edit cannot be
+    // mistaken for the previous layout's success.
+    const stable = async () => {
+      await page.waitForFunction(() => {
+        const el = document.querySelector("#pe-status");
+        if (!el || el.classList.contains("error") || !/完成|\bready\b/i.test(el.textContent)) {
+          window.__p8ReadyStatus = null;
+          return false;
+        }
+        const previous = window.__p8ReadyStatus;
+        if (!previous || previous.text !== el.textContent) {
+          window.__p8ReadyStatus = { text: el.textContent, at: performance.now() };
+          return false;
+        }
+        return performance.now() - previous.at >= 350;
+      }, null, { timeout: 60000 });
+      await page.evaluate(() => { window.__p8ReadyStatus = null; });
+    };
     await open(path.join(out, "p7-shared.pdf"));
     await page.locator('[data-action="flow-edit"]').click();
     await page.locator(".page-edit-hit:not(.unavailable)").first().click();
@@ -157,7 +171,7 @@ const root = path.resolve(__dirname, ".."),
     await page.locator('[data-action="edit-content"]').click();
     await page.locator("#object-select").selectOption("0");
     await page.waitForFunction(() =>
-      /预览已更新/.test(document.querySelector("[data-status]")?.textContent),
+      /预览已更新|Preview updated/i.test(document.querySelector("[data-status]")?.textContent),
     );
     await page.locator("[data-preset]").selectOption("scan-color");
     await page.locator('[data-adjust="contrast"]').fill("22");
@@ -172,7 +186,7 @@ const root = path.resolve(__dirname, ".."),
     await page.locator("[data-curve-y]").press("Tab");
     await page.waitForTimeout(350);
     await page.waitForFunction(() =>
-      /预览已更新/.test(document.querySelector("[data-status]")?.textContent),
+      /预览已更新|Preview updated/i.test(document.querySelector("[data-status]")?.textContent),
     );
     await page.locator("[data-original]").check();
     assert(await page.locator("[data-original]").isChecked());
@@ -198,7 +212,7 @@ const root = path.resolve(__dirname, ".."),
     await page.locator('[data-action="edit-content"]').click();
     await page.locator("#object-select").selectOption("0");
     await page.waitForFunction(() =>
-      /预览已更新/.test(document.querySelector("[data-status]")?.textContent),
+      /预览已更新|Preview updated/i.test(document.querySelector("[data-status]")?.textContent),
     );
     await page.screenshot({ path: path.join(out, "p8-image-dark.png") });
     await page.locator("[data-reset]").click();
@@ -276,7 +290,7 @@ const root = path.resolve(__dirname, ".."),
     await page.locator('[data-action="edit-content"]').click();
     await page.locator("#object-select").selectOption("0");
     await page.waitForFunction(() =>
-      /预览已更新/.test(document.querySelector("[data-status]")?.textContent),
+      /预览已更新|Preview updated/i.test(document.querySelector("[data-status]")?.textContent),
     );
     assert(await page.locator("[data-curve]").isVisible());
     assert(await page.locator("#object-apply").isEnabled());

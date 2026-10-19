@@ -9,6 +9,16 @@ const names = {
   Fit: [],
   FitB: [],
 };
+const parameterKeys = {
+  XYZ: ["x", "y", "zoom"],
+  FitH: ["y"],
+  FitBH: ["y"],
+  FitV: ["x"],
+  FitBV: ["x"],
+  FitR: ["x", "bottom", "right", "y"],
+  Fit: [],
+  FitB: [],
+};
 export function describeChanges(before, after, rule = {}) {
   const old = new Map(before.map((n) => [n.id, n]));
   return after
@@ -39,23 +49,34 @@ export function describeChanges(before, after, rule = {}) {
       add("目标类型", b.target.kind, n.target.kind, "显式转换");
       add("物理页码", b.target.page, n.target.page);
       add("视图模式", b.target.mode, n.target.mode);
-      for (
-        let i = 0;
-        i < Math.max(b.target.args?.length || 0, n.target.args?.length || 0);
-        i++
-      ) {
-        const op = rule.edits?.[i];
+      // Parameter positions differ between modes: XYZ[1] and FitH[0] both
+      // mean top Y. Compare their meaning instead of mismatching array slots.
+      const previousKeys = parameterKeys[b.target.mode] || [],
+        nextKeys = parameterKeys[n.target.mode] || [];
+      for (const key of new Set([...previousKeys, ...nextKeys])) {
+        const beforeIndex = previousKeys.indexOf(key),
+          afterIndex = nextKeys.indexOf(key),
+          op = rule.edits?.[afterIndex],
+          beforeValue =
+            beforeIndex < 0 ? undefined : b.target.args?.[beforeIndex],
+          afterValue = afterIndex < 0 ? undefined : n.target.args?.[afterIndex];
         add(
-          names[n.target.mode]?.[i] || "参数 " + (i + 1),
-          b.target.args?.[i],
-          n.target.args?.[i],
-          op?.op === "relative"
-            ? `原值 ${Number(op.value) >= 0 ? "+" : "−"} ${Math.abs(Number(op.value))}`
-            : op?.op === "null"
-              ? "设为 null"
-              : rule.op === "whitespace"
-                ? rule.description
-                : "设为绝对值",
+          afterIndex < 0
+            ? names[b.target.mode][beforeIndex]
+            : names[n.target.mode][afterIndex],
+          beforeValue,
+          afterValue,
+          afterIndex < 0
+            ? "移除参数"
+            : beforeIndex < 0
+              ? "新增参数"
+              : op?.op === "relative"
+                ? `原值 ${Number(op.value) >= 0 ? "+" : "−"} ${Math.abs(Number(op.value))}`
+                : afterValue === null
+                  ? "设为 null"
+                  : rule.op === "whitespace"
+                    ? rule.description
+                    : "设为绝对值",
         );
       }
       return {

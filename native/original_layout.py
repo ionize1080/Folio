@@ -1,7 +1,27 @@
 """Capture PDFium character origins; preserve horizontal glyphs on local edits."""
 import ctypes as C
 
+def normalize_hyphens(r,page,tp,objects):
+    """Restore PDFium's proved line-end hyphen marker, keeping raw signatures.
+
+    FPDFTextObj_GetText can expose U+0002 for a painted hyphen at a wrap. Use
+    FPDFText_IsHyphen as evidence; arbitrary control characters stay protected.
+    Preview/apply must use the same interpretation as the editor's glyph scan.
+    """
+    candidates={C.cast(r.FPDFPage_GetObject(page,o['index']),C.c_void_p).value:o
+                for o in objects if o['type']=='text' and '\x02' in o.get('text','')}
+    if not candidates:return
+    counts={}
+    for i in range(r.FPDFText_CountChars(tp)):
+        if r.FPDFText_GetUnicode(tp,i)!=2 or r.FPDFText_IsHyphen(tp,i)!=1:continue
+        ptr=C.cast(r.FPDFText_GetTextObject(tp,i),C.c_void_p).value
+        if ptr in candidates:counts[ptr]=counts.get(ptr,0)+1
+    for ptr,count in counts.items():
+        o=candidates[ptr]
+        if o['text'].count('\x02')==count:o['text']=o['text'].replace('\x02','-')
+
 def inspect(r,page,tp,objects,height):
+    normalize_hyphens(r,page,tp,objects)
     byptr={C.cast(r.FPDFPage_GetObject(page,o['index']),C.c_void_p).value:o for o in objects if o['type']=='text'}
     for i in range(r.FPDFText_CountChars(tp)):
         obj=r.FPDFText_GetTextObject(tp,i)
@@ -10,17 +30,12 @@ def inspect(r,page,tp,objects,height):
         cp=r.FPDFText_GetUnicode(tp,i)
         if not cp or cp>0x10ffff:continue
         hyphen = cp == 2 and r.FPDFText_IsHyphen(tp,i) == 1
-        if hyphen:o['_hyphenCount']=o.get('_hyphenCount',0)+1;cp=45
+        if hyphen:cp=45
         x,y=C.c_double(),C.c_double();bounds=[C.c_double() for _ in range(4)]
         if not r.FPDFText_GetCharOrigin(tp,i,C.byref(x),C.byref(y)):continue
         if not r.FPDFText_GetCharBox(tp,i,*map(C.byref,bounds)):continue
         l,rr,b,t=[v.value for v in bounds]
         o.setdefault('glyphs',[]).append({'text':chr(cp),'originX':x.value,'baseline':height-y.value,'x':l,'y':height-t,'w':max(0,rr-l),'h':max(0,t-b)})
-
-    for o in byptr.values():
-        count=o.pop('_hyphenCount',0)
-        if count and o.get('text','').count('\x02')==count:
-            o['text']=o['text'].replace('\x02','-')
 
 def render(m):
     """Conservative incremental layout. Unsupported shaping returns to Story.

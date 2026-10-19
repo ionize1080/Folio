@@ -2271,5 +2271,19 @@
   " · 跳过 {0} 项外部或未解析目标": " · Skipped {0} external or unresolved destinations",
   "导出书签 HTML": "Export bookmarks as HTML",
   "将 HTML 与同名 PDF 放在同一文件夹。链接跳转到本地页码；外部和未解析动作仅显示标题。": "Place this HTML beside the named PDF. Links open local pages; external and unresolved actions are shown as titles.",
-  "范围 {0} 项 · 将修改 {1} 项 · 预览前 80 项 · 跳过 {2} 项外部或未解析目标": "Scope {0} items · {1} will change · Showing first 80 · Skipped {2} external or unresolved destinations"
+  "范围 {0} 项 · 将修改 {1} 项 · 预览前 80 项 · 跳过 {2} 项外部或未解析目标": "Scope {0} items · {1} will change · Showing first 80 · Skipped {2} external or unresolved destinations",
+  "输入完成后刷新预览": "Preview updates after you finish typing",
+  "正在更新预览…": "Updating preview…",
+  "剪切的书签已被删除，请撤销删除或重新复制": "The cut bookmarks were deleted. Undo the deletion or copy them again.",
+  "适合可见宽度": "Fit visible width",
+  "适合可见高度": "Fit visible height",
+  "参数 {0}": "Parameter {0}",
+  "移除参数": "Remove parameter",
+  "新增参数": "Add parameter",
+  "应用范围：当前整段": "Applies to: the entire paragraph",
+  "应用范围：已选择的 {0} 个字符": "Applies to: {0} selected characters",
+  "应用范围：后续输入；请先选中文字以修改原文": "Applies to: new typing; select text first to change existing text",
+  "文字已更新，请重新选择字体": "Text changed. Please select the font again.",
+  "未找到匹配字体，请尝试其他名称或清空搜索": "No matching fonts. Try another name or clear the search.",
+  "负字距超过当前字符宽度，请减小字距压缩；草稿已保留": "Negative letter spacing exceeds the current character width. Reduce the spacing compression; your draft has been kept."
 }

@@ -237,6 +237,7 @@ const info = {
   checked: "Resource metadata, runtime files, app.asar source hashes",
   windows_launch_tested: false,
 };
+await fs.mkdir(path.join(root, "tests/output"), { recursive: true });
 await fs.writeFile(
   path.join(root, "tests/output/package-report.json"),
   JSON.stringify(info, null, 2),

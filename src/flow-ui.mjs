@@ -293,6 +293,7 @@ export function installFlowUI(ctx) {
     });
     const status = (text, bad = false) => {
       bar.querySelector("#pe-status").textContent = text;
+      bar.querySelector("#pe-status").title = text;
       bar.querySelector("#pe-status").classList.toggle("error", bad);
     };
     const structure = document.createElement("details");
@@ -522,6 +523,7 @@ export function installFlowUI(ctx) {
     });
     observer.observe(surface.host, { childList: true, subtree: true });
     const resizeObserver = new ResizeObserver(() => {
+      fitPanels();
       positionLayer();
       positionFrame();
       if (fastReady && preview?.version === 1 && !showingPrecise)
@@ -538,6 +540,16 @@ export function installFlowUI(ctx) {
       backgroundTimer = setTimeout(() => guarded(paintBackground), 100);
     });
     resizeObserver.observe(surface.host);
+    resizeObserver.observe(bar);
+    function fitPanels() {
+      bar.style.setProperty(
+        "--pe-panel-height",
+        Math.max(
+          0,
+          window.innerHeight - bar.getBoundingClientRect().bottom - 26,
+        ) + "px",
+      );
+    }
     function positionFrame() {
       if (!model) return;
       const f = model.frame;
@@ -852,10 +864,18 @@ export function installFlowUI(ctx) {
       const intent = pendingActivation;
       pendingActivation = null;
       activationRunning = true;
+      const formatPanels = bar.querySelectorAll(
+        ".pe-primary, .pe-properties, .pe-font-panel",
+      );
+      for (const panel of formatPanels) panel.inert = true;
+      bar.querySelector("#pe-resolve-font").disabled = true;
       activateNow(intent.m, intent.flowId, intent.e)
         .then(intent.resolve, intent.reject)
         .finally(() => {
           activationRunning = false;
+          for (const panel of formatPanels) panel.inert = false;
+          bar.querySelector("#pe-resolve-font").disabled = false;
+          if (!closed) input.disabled = false;
           drainActivation();
         });
     }
@@ -905,6 +925,8 @@ export function installFlowUI(ctx) {
       candidateButtons();
       showFields();
       const activeId = id;
+      const activationRevision = revision;
+      const activationSelection = [input.selectionStart, input.selectionEnd];
       fastReady = false;
       precise = null;
       showingPrecise = false;
@@ -915,10 +937,11 @@ export function installFlowUI(ctx) {
           ? fastFonts
               .prepare(model)
               .then(() => {
-                if (id === activeId) fastReady = true;
+                if (id === activeId && revision === activationRevision)
+                  fastReady = true;
               })
               .catch((e) => {
-                if (id !== activeId) return;
+                if (id !== activeId || revision !== activationRevision) return;
                 fastReady = false;
                 const button = bar.querySelector("#pe-refine");
                 button.textContent = "快速字体不可用";
@@ -927,7 +950,13 @@ export function installFlowUI(ctx) {
               })
           : Promise.resolve(),
       ]);
-      if (closed || !model || id !== activeId) return false;
+      if (
+        closed ||
+        !model ||
+        id !== activeId ||
+        revision !== activationRevision
+      )
+        return false;
       if (fastReady) {
         renderFast();
         schedulePrecise();
@@ -958,13 +987,20 @@ export function installFlowUI(ctx) {
         status(`原始字位完成 · ${model.text.length} 字符`);
       } else await reflow();
       if (closed || !model || id !== activeId) return false;
-      input.focus({ preventScroll: true });
-      const r = layer.getBoundingClientRect(),
-        q = scale();
-      const offset = e
-        ? hitOffset(preview?.glyphs || [], e.pdfX, e.pdfY, preview?.anchors)
-        : 0;
-      input.setSelectionRange(offset, offset);
+      input.disabled = false;
+      // Font/background preparation can finish after the user has already
+      // opened the font picker or selected a range. Keep that newer intent.
+      if (
+        !bar.contains(document.activeElement) &&
+        input.selectionStart === activationSelection[0] &&
+        input.selectionEnd === activationSelection[1]
+      ) {
+        input.focus({ preventScroll: true });
+        const offset = e
+          ? hitOffset(preview?.glyphs || [], e.pdfX, e.pdfY, preview?.anchors)
+          : 0;
+        input.setSelectionRange(offset, offset);
+      }
       selection();
     }
     let blankFragmentPromise;
@@ -1043,7 +1079,7 @@ export function installFlowUI(ctx) {
       } finally {
         if (!quiet) {
           busy = false;
-          input.disabled = false;
+          input.disabled = activationRunning;
         }
       }
     }
@@ -2427,6 +2463,7 @@ export function installFlowUI(ctx) {
       guarded(() => activate(item.model, item.id));
     });
     const togglePanel = (selector, visible) => {
+      fitPanels();
       bar.querySelector(selector).hidden = !visible;
     };
     listen(bar.querySelector("#pe-more"), "click", () => {
@@ -2594,6 +2631,10 @@ export function installFlowUI(ctx) {
       input.focus({ preventScroll: true });
     });
     let fontRecommendations = [];
+    const fontScopeHint = document.createElement("p");
+    fontScopeHint.id = "pe-font-selection";
+    fontScopeHint.setAttribute("role", "status");
+    bar.querySelector("#pe-font-search").before(fontScopeHint);
     let fontObserver = null;
     let fontSearchTimer = null;
     signal.signal.addEventListener(
@@ -2619,7 +2660,13 @@ export function installFlowUI(ctx) {
         { root: bar.querySelector("#pe-font-list"), rootMargin: "36px" },
       );
       const list = bar.querySelector("#pe-font-list"),
-        query = bar.querySelector("#pe-font-search").value.toLowerCase();
+        query = bar.querySelector("#pe-font-search").value.trim().toLowerCase();
+      const selected = input.selectionEnd - input.selectionStart;
+      fontScopeHint.textContent = selected
+        ? selected === input.value.length
+          ? "应用范围：当前整段"
+          : `应用范围：已选择的 ${selected} 个字符`
+        : "应用范围：后续输入；请先选中文字以修改原文";
       list.replaceChildren();
       const documentFonts = Object.values(result.fonts || {}).map((f) => ({
         ...f,
@@ -2734,13 +2781,20 @@ export function installFlowUI(ctx) {
         b.onclick = () =>
           guarded(async () => {
             if (!model) return;
-            const target = id;
+            const target = id,
+              requestRevision = revision,
+              start = input.selectionStart,
+              end = input.selectionEnd,
+              scope = bar.querySelector("#pe-font-script").value;
             const chosen = f.id
               ? await call("font-select", { fontId: f.id })
               : f;
             if (closed || target !== id || !model) return;
+            if (requestRevision !== revision) {
+              status("文字已更新，请重新选择字体", true);
+              return;
+            }
             remember();
-            const scope = bar.querySelector("#pe-font-script").value;
             const patch =
               scope === "latin"
                 ? {
@@ -2757,7 +2811,7 @@ export function installFlowUI(ctx) {
                       cjkFontKey: null,
                       cjkFontName: null,
                     };
-            rangeStyle(model, input.selectionStart, input.selectionEnd, patch);
+            rangeStyle(model, start, end, patch);
             localStorage.setItem(
               "folio-recent-fonts",
               JSON.stringify(
@@ -2778,9 +2832,18 @@ export function installFlowUI(ctx) {
           });
         list.append(b);
       }
+      if (!seen.size) {
+        const empty = document.createElement("p");
+        empty.className = "pe-font-empty";
+        empty.textContent = fontCatalog
+          ? "未找到匹配字体，请尝试其他名称或清空搜索"
+          : "正在读取本机字体…";
+        list.append(empty);
+      }
     };
     listen(bar.querySelector("#pe-font"), "click", () =>
       guarded(async () => {
+        if (activationRunning) return;
         togglePanel(".pe-properties", false);
         togglePanel(".pe-font-panel", true);
         drawFonts();

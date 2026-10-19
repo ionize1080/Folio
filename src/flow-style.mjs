@@ -1,5 +1,28 @@
 // Keep UTF-16 style runs with the same text offsets used by the native input.
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+// A saved paragraph keeps its logical soft newlines while its PDF objects
+// contain physical spaces/wraps. Map only whitespace-equivalent text; every
+// non-whitespace scalar must still match in order, including supplementary text.
+function logicalOffsets(source, text, cursor) {
+  const offsets = new Map();
+  let sourceOffset = 0, start = cursor;
+  for (const ch of source) {
+    if (/\s/u.test(ch)) {
+      if (/\s/u.test(text[cursor] || "")) {
+        offsets.set(sourceOffset, { start: cursor, end: cursor + 1 });
+        cursor++;
+      }
+    } else {
+      while (cursor < text.length && /\s/u.test(text[cursor])) cursor++;
+      if (!text.startsWith(ch, cursor)) return null;
+      offsets.set(sourceOffset, { start: cursor, end: cursor + ch.length });
+      cursor += ch.length;
+    }
+    sourceOffset += ch.length;
+  }
+  start = offsets.values().next().value?.start ?? start;
+  return { start, end: cursor, offsets };
+}
 export function sourceStyles(model, objects) {
   const sources = new Set(model.sources.map((s) => s.index));
   let cursor = 0;
@@ -9,6 +32,9 @@ export function sourceStyles(model, objects) {
   const src = objects
     .filter((o) => sources.has(o.index))
     .sort((a, b) => order.get(a.index) - order.get(b.index));
+  const savedParagraph = src.length && src.every(
+    (o) => o.flowGroup != null && o.flowText === model.text,
+  );
   for (const o of src) {
     const text = o.text.replace(/[\r\n]+/g, "");
     if (!text || (o.textSpacingExplicit && !text.trim())) continue;
@@ -18,8 +44,9 @@ export function sourceStyles(model, objects) {
       !model.text.startsWith(text, cursor)
     )
       cursor++;
-    const start = cursor;
-    if (!model.text.startsWith(text, start)) {
+    const mapped = savedParagraph ? logicalOffsets(text, model.text, cursor) : null;
+    const start = mapped?.start ?? cursor;
+    if (savedParagraph ? !mapped : !model.text.startsWith(text, start)) {
       model.runs = [];
       delete model.fontKey;
       model.fontResolution = "unresolved";
@@ -75,17 +102,29 @@ export function sourceStyles(model, objects) {
         aligned = false;
         break;
       }
-      captured.push({
-        ...g,
-        start: start + objectOffset,
-        end: start + objectOffset + g.text.length,
-        style: { ...style },
-      });
+      const positions = [];
+      if (mapped)
+        for (let at = objectOffset; at < objectOffset + g.text.length; at++) {
+          const position = mapped.offsets.get(at);
+          if (position) positions.push(position);
+        }
+      if (!mapped || positions.length) {
+        const from = mapped ? positions[0].start : start + objectOffset;
+        const to = mapped ? positions.at(-1).end : start + objectOffset + g.text.length;
+        captured.push({
+          ...g,
+          text: mapped ? model.text.slice(from, to) : g.text,
+          start: from,
+          end: to,
+          style: { ...style },
+        });
+      }
       objectOffset += g.text.length;
     }
     if (aligned && !text.slice(objectOffset).trim()) glyphs.push(...captured);
-    runs.push({ start, end: start + text.length, ...style });
-    cursor = start + text.length;
+    const end = mapped?.end ?? start + text.length;
+    runs.push({ start, end, ...style });
+    cursor = end;
   }
   model.runs = runs;
   const weights = new Map();

@@ -1347,7 +1347,7 @@ function batchCompute(nodes, ids, rule) {
     w.postMessage({ nodes, ids: [...ids], rule, pageCount: S.info.pageCount });
   });
 }
-function batchDialog(operation = null) {
+function batchDialog(operation = null, requestedScope = null) {
   const memory = new RuleMemory(localStorage, S.fingerprint || S.name);
   const sourceNodes = S.nodes,
     sourceBytes = S.bytes;
@@ -1370,6 +1370,7 @@ function batchDialog(operation = null) {
   let preview = null,
     report = null,
     revision = 0,
+    requestedFields = null,
     timer;
   modal(
     "批量规则",
@@ -1378,6 +1379,7 @@ function batchDialog(operation = null) {
       { text: "取消", run: closeModal },
       {
         text: "导出完整修改报告",
+        id: "batch-export-report",
         run: () => {
           if (!preview || !report) throw Error("请先生成有效预览");
           return writeFile(
@@ -1408,11 +1410,12 @@ function batchDialog(operation = null) {
     ],
   );
   $("#batch-scope").value =
-    filterActive() && filterReady()
-      ? "filtered"
-      : S.selected.size
-        ? "selected"
-        : "all";
+    requestedScope ||
+    (S.selected.size
+      ? "selected"
+      : filterActive() && filterReady()
+        ? "filtered"
+        : "all");
   if (![...$("#batch-op").options].some((o) => o.value === activeOperation))
     activeOperation = "replace";
   $("#batch-op").value = activeOperation;
@@ -1427,6 +1430,10 @@ function batchDialog(operation = null) {
         .join("");
   };
   drawHistory();
+  const syncFields = () => {
+    if ($("#b-zoom-percent-label"))
+      $("#b-zoom-percent-label").hidden = $("#b-zoom-mode").value !== "fixed";
+  };
   const fields = () => {
     const op = $("#batch-op").value;
     $("#batch-fields").innerHTML = {
@@ -1435,7 +1442,7 @@ function batchDialog(operation = null) {
       number: `<div class="form-grid"><label>编号模板<input id="b-template" value="{n}. {title}"></label><label>起始编号<input id="b-start" type="number" value="1"></label></div><p class="hint">可用变量：{n}、{title}、{page}、{level}</p>`,
       trim: "<p>移除首尾空白，将连续空白压缩成一个空格。</p>",
       case: '<label>转换方式<select id="b-case-mode"><option value="upper">全部大写</option><option value="lower">全部小写</option><option value="title">每词首字母大写</option><option value="sentence">首字母大写</option></select></label><p>仅修改标题文字；中文、页码和跳转动作保持原样。请检查专有名词与缩写。</p>',
-      zoom: '<label>跳转缩放<select id="b-zoom-mode"><option value="inherit">继承当前缩放</option><option value="fixed">固定比例</option><option value="Fit">适合页面</option><option value="FitH">适合宽度</option><option value="FitV">适合高度</option><option value="FitB">适合可见内容</option></select></label><label id="b-zoom-percent-label" hidden>比例（%）<input id="b-zoom-percent" type="number" min="8.33" max="6400" value="100" step="any"></label><label class="check"><input id="b-convert" type="checkbox">允许将原始本地动作 / 命名目标转换为直接目标</label><p>保留页码与可复用的位置参数；外部动作跳过。转换原始目标会替换其动作链。</p>',
+      zoom: '<label>跳转缩放<select id="b-zoom-mode"><option value="inherit">继承当前缩放</option><option value="fixed">固定比例</option><option value="Fit">适合页面</option><option value="FitH">适合宽度</option><option value="FitV">适合高度</option><option value="FitB">适合可见内容</option><option value="FitBH">适合可见宽度</option><option value="FitBV">适合可见高度</option></select></label><label id="b-zoom-percent-label" hidden>比例（%）<input id="b-zoom-percent" type="number" min="8.33" max="6400" value="100" step="any"></label><label class="check"><input id="b-convert" type="checkbox">允许将原始本地动作 / 命名目标转换为直接目标</label><p>保留页码与可复用的位置参数；外部动作跳过。转换原始目标会替换其动作链。</p>',
       offset:
         '<label>偏移量（可为负数）<input id="b-amount" type="number" value="0"></label><p class="hint">仅修改已转换为自定义目标的书签。原始动作不会被隐式替换。</p>',
       coordinates: `<label>模式<select id="b-mode">${Object.keys(MODES)
@@ -1450,11 +1457,8 @@ function batchDialog(operation = null) {
     }[op];
     restoreFields($("#batch-fields"), memory.get(op));
     if (op === "zoom") {
-      const showPercent = () =>
-        ($("#b-zoom-percent-label").hidden =
-          $("#b-zoom-mode").value !== "fixed");
-      $("#b-zoom-mode").addEventListener("change", showPercent);
-      showPercent();
+      $("#b-zoom-mode").addEventListener("change", syncFields);
+      syncFields();
     }
     $("#b-mode")?.addEventListener("change", () => {
       $("#b-args").value = JSON.stringify(
@@ -1464,12 +1468,20 @@ function batchDialog(operation = null) {
       );
     });
   };
+  const fieldContext = () =>
+    JSON.stringify([
+      $("#batch-op").value,
+      $("#batch-scope").value,
+      captureFields($("#batch-fields")),
+    ]);
   const update = async () => {
     if (composing) return;
+    requestedFields = fieldContext();
     const rev = ++revision;
     const scopeContext = context();
     preview = null;
     $("#batch-apply").disabled = true;
+    $("#batch-export-report").disabled = true;
     const op = $("#batch-op").value,
       scope = $("#batch-scope").value,
       ids =
@@ -1535,6 +1547,7 @@ function batchDialog(operation = null) {
       preview = out;
       previewContext = scopeContext;
       $("#batch-apply").disabled = !changed.length;
+      $("#batch-export-report").disabled = false;
       $("#batch-summary").textContent =
         `范围 ${ids.size} 项 · 将修改 ${changed.length} 项 · 预览前 80 项`;
       if (op === "zoom") {
@@ -1556,10 +1569,26 @@ function batchDialog(operation = null) {
       }
     }
   };
-  const schedule = () => {
+  const schedule = (event) => {
+    const currentFields = fieldContext();
+    // Blurring a text input fires change after its input preview is ready.
+    // Do not disable the Apply button during the very click that applies it.
+    if (
+      event?.type === "change" &&
+      requestedFields === currentFields &&
+      !composing
+    )
+      return;
+    requestedFields = currentFields;
     remember();
     preview = null;
     $("#batch-apply").disabled = true;
+    $("#batch-export-report").disabled = true;
+    $("#batch-preview").replaceChildren();
+    $("#batch-summary").textContent = composing
+      ? "输入完成后刷新预览"
+      : "正在更新预览…";
+    $("#batch-summary").classList.remove("error");
     revision++;
     clearTimeout(timer);
     if (!composing) timer = setTimeout(update, 220);
@@ -1574,7 +1603,7 @@ function batchDialog(operation = null) {
   $("#batch-fields").addEventListener("change", schedule);
   $("#batch-fields").addEventListener("compositionstart", () => {
     composing = true;
-    clearTimeout(timer);
+    schedule();
   });
   $("#batch-fields").addEventListener("compositionend", () => {
     composing = false;
@@ -1589,6 +1618,7 @@ function batchDialog(operation = null) {
     $("#batch-op").value = activeOperation;
     fields();
     restoreFields($("#batch-fields"), item.values);
+    syncFields();
     schedule();
   };
   $("#batch-favorite").onclick = () => {
@@ -2653,6 +2683,7 @@ function removeSpecial(mode) {
   commit(out);
 }
 function copyTree(cut = false) {
+  if (!S.selected.size) return;
   const ids = descendants(S.nodes, S.selected);
   clipboardNodes = clone(S.nodes.filter((n) => ids.has(n.id)));
   clipboardCut = cut ? new Set(S.selected) : null;
@@ -2663,6 +2694,8 @@ function pasteTree(where = "child") {
   const ref = selectedNode();
   if (clipboardCut) {
     const ids = new Set(clipboardCut);
+    if ([...ids].some((id) => !S.index.has(id)))
+      throw Error("剪切的书签已被删除，请撤销删除或重新复制");
     commit(
       move(S.nodes, ids, ref?.id || null, where === "child" ? "inside" : where),
     );
@@ -2679,9 +2712,10 @@ function pasteTree(where = "child") {
     n.id = map.get(n.id);
     n.parent = map.get(n.parent) || null;
   }
+  const nodes = insertGenerated(S.nodes, chunk, where, ref?.id);
   S.selected = new Set(chunk.filter((n) => !n.parent).map((n) => n.id));
   if (ref) S.collapsed.delete(ref.id);
-  commit(insertGenerated(S.nodes, chunk, where, ref?.id));
+  commit(nodes);
   reveal([...S.selected][0]);
 }
 function expandSubtree(open) {
@@ -2766,7 +2800,7 @@ function contextMenu(e, items) {
     if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(e.key)) return;
     e.preventDefault();
     e.stopPropagation();
-    const buttons = [...box.querySelectorAll("button")],
+    const buttons = [...box.querySelectorAll("button:not(:disabled)")],
       at = buttons.indexOf(document.activeElement);
     const next =
       e.key === "Home"
@@ -2777,10 +2811,18 @@ function contextMenu(e, items) {
             buttons.length;
     buttons[next]?.focus();
   };
-  for (const [label, fn] of items) {
+  for (const item of items) {
+    if (!item) {
+      const separator = document.createElement("div");
+      separator.role = "separator";
+      box.append(separator);
+      continue;
+    }
+    const [label, fn, disabled = false] = item;
     const b = document.createElement("button");
     b.textContent = label;
     b.role = "menuitem";
+    b.disabled = disabled;
     b.onclick = () => {
       dismiss();
       guarded(fn);
@@ -2788,10 +2830,11 @@ function contextMenu(e, items) {
     box.append(b);
   }
   document.body.append(box);
-  box.querySelector("button")?.focus();
-  box.style.left = Math.min(e.clientX, innerWidth - box.offsetWidth - 8) + "px";
+  box.querySelector("button:not(:disabled)")?.focus();
+  box.style.left =
+    Math.max(8, Math.min(e.clientX, innerWidth - box.offsetWidth - 8)) + "px";
   box.style.top =
-    Math.min(e.clientY, innerHeight - box.offsetHeight - 8) + "px";
+    Math.max(8, Math.min(e.clientY, innerHeight - box.offsetHeight - 8)) + "px";
   setTimeout(
     () =>
       document.addEventListener(
@@ -3773,7 +3816,7 @@ $("#filter-select").onclick = () => {
   rebuild();
 };
 $("#filter-batch").onclick = () => {
-  if (filterReady()) batchDialog();
+  if (filterReady()) batchDialog(null, "filtered");
 };
 $("#tree").addEventListener("scroll", () => {
   if (treeFrame) return;
@@ -4248,27 +4291,38 @@ $("#tree").addEventListener("contextmenu", (e) => {
   const row = e.target.closest(".tree-row");
   if (row && !S.selected.has(row.dataset.id)) selectNode(row.dataset.id);
   $("#tree").focus({ preventScroll: true });
+  const empty = !S.selected.size,
+    noClipboard = !clipboardNodes?.length,
+    invalidCut =
+      clipboardCut &&
+      (descendants(S.nodes, clipboardCut).has(selectedNode()?.id) ||
+        [...clipboardCut].some((id) => !S.index.has(id))),
+    cannotPaste = noClipboard || !!invalidCut;
   contextMenu(e, [
-    ["调整跳转留白…", nativeUI.whitespaceDialog],
-    ["按标题校准目标…", bookmarkUI.calibrateDialog],
-    ["查找重复书签…", bookmarkUI.dedupeDialog],
-    ["更改书签缩放…", actions["bookmark-zoom"]],
-    ["切换标题大小写…", actions["bookmark-case"]],
-    ["正则拆分书签…", actions["split-bookmark"]],
-    ["编辑标题 · F2", renameInline],
+    ["编辑标题 · F2", renameInline, empty],
     ["新增同级书签", () => createBookmark()],
-    ["新增子书签", () => createBookmark("child")],
-    ["剪切", () => copyTree(true)],
-    ["复制", () => copyTree()],
-    ["粘贴为子书签", pasteTree],
-    ["粘贴到前面", () => pasteTree("before")],
-    ["粘贴到后面", () => pasteTree("after")],
-    ["展开所选子树", () => expandSubtree(true)],
-    ["折叠所选子树", () => expandSubtree(false)],
-    ["删除所选与子项", deleteNodes],
-    ["仅删除所选，保留子项", () => removeSpecial("retain")],
-    ["仅删除子书签", () => removeSpecial("children")],
-    ["设置当前视图为目标", () => setCurrentTarget()],
+    ["新增子书签", () => createBookmark("child"), empty],
+    null,
+    ["剪切", () => copyTree(true), empty],
+    ["复制", () => copyTree(), empty],
+    ["粘贴为子书签", pasteTree, cannotPaste],
+    ["粘贴到前面", () => pasteTree("before"), cannotPaste || empty],
+    ["粘贴到后面", () => pasteTree("after"), cannotPaste || empty],
+    null,
+    ["更改书签缩放…", actions["bookmark-zoom"], empty],
+    ["切换标题大小写…", actions["bookmark-case"], empty],
+    ["设置当前视图为目标", () => setCurrentTarget(), empty],
+    ["展开所选子树", () => expandSubtree(true), empty],
+    ["折叠所选子树", () => expandSubtree(false), empty],
+    null,
+    ["删除所选与子项", deleteNodes, empty],
+    ["仅删除所选，保留子项", () => removeSpecial("retain"), empty],
+    ["仅删除子书签", () => removeSpecial("children"), empty],
+    null,
+    ["调整跳转留白…", nativeUI.whitespaceDialog, empty],
+    ["按标题校准目标…", bookmarkUI.calibrateDialog, empty],
+    ["查找重复书签…", bookmarkUI.dedupeDialog],
+    ["正则拆分书签…", actions["split-bookmark"], empty],
     [
       "属性",
       () => {
@@ -4276,8 +4330,9 @@ $("#tree").addEventListener("contextmenu", (e) => {
         applySettings(false);
         $("#prop-title").focus();
       },
+      empty,
     ],
-    ["底层字典", actions.raw],
+    ["底层字典", actions.raw, empty],
   ]);
 });
 $("#tree").addEventListener("dblclick", (e) => {

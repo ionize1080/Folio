@@ -184,8 +184,24 @@ export function connectedParagraphs(objects, h, barriers = objects) {
           0,
         ) >
         letters * 0.8;
+      // LaTeX section titles often use small capitals at the body font size.
+      // Their size, weight and baseline gap alone look like an ordinary line.
+      // Keep the title separate so editing it cannot reflow the following body.
+      row.smallCaps =
+        row.parts.reduce(
+          (n, p) =>
+            n +
+            (/SmallCaps?|Caps(?:\d|[-_\s]|$)/i.test(p.o.fontName || "")
+              ? p.o.text.trim().length
+              : 0),
+          0,
+        ) >
+        letters * 0.8;
+      row.heading =
+        heading.test(row.text) ||
+        (row.smallCaps && row.text.length <= 120 && !/[.!?。！？]$/.test(row.text));
       let parent = null;
-      if (!item.test(row.text) && !heading.test(row.text) && d.supported) {
+      if (!item.test(row.text) && (!row.heading || row.smallCaps) && d.supported) {
         for (const p of paragraphs.slice(-32).reverse()) {
           const last = p.rows.at(-1),
             gap = row.base - last.base,
@@ -196,7 +212,11 @@ export function connectedParagraphs(objects, h, barriers = objects) {
             Math.abs(row.size - last.size) > s * 0.25
           )
             continue;
-          if (item.test(last.text) || heading.test(last.text)) continue;
+          if (
+            item.test(last.text) ||
+            ((row.heading || last.heading) && !(row.smallCaps && last.smallCaps))
+          )
+            continue;
           if (row.code !== last.code || row.heavy !== last.heavy) continue;
           // After a flush-left continuation, a fresh 1–3 em indent is strong
           // paragraph evidence. Do not join it merely because baselines match.

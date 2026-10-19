@@ -15,7 +15,7 @@ for (const stage of stages) {
         : process.env.FOLIO_PYTHON ||
           process.env.CODEX_PRIMARY_RUNTIME_PYTHON ||
           (process.platform === "win32" ? "python" : "python3");
-    const args = [
+    let args = [
       ...item.args,
       ...(item.unitGlob
         ? readdirSync("tests")
@@ -23,6 +23,15 @@ for (const stage of stages) {
             .map((n) => "tests/" + n)
         : []),
     ];
+    if (item.runtime === "python" && args[0]?.endsWith(".py")) {
+      // Embedded Python uses isolated paths; make sibling test helpers
+      // available just as they are with a regular Python script invocation.
+      args = [
+        "-c",
+        "import os,sys,runpy;sys.argv=sys.argv[1:];sys.path.insert(0,os.path.dirname(os.path.abspath(sys.argv[0])));runpy.run_path(sys.argv[0],run_name='__main__')",
+        ...args,
+      ];
+    }
     const p = spawnSync(command, args, { stdio: "inherit" });
     if (p.error) throw p.error;
     if (p.status !== 0) process.exit(p.status || 1);

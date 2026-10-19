@@ -129,7 +129,15 @@ m=dict(text='New text',pageWidth=550,pageHeight=400,frame=dict(x=30,y=30,width=2
 changed=save(raw,m);assert PdfReader(io.BytesIO(changed)).trailer['/Root']['/Version']=='/1.4'
 w=PdfWriter();w.pdf_header='%PDF-1.3';w.add_blank_page(width=550,height=400);from pdf_features import ensure_version
 ensure_version(w);assert '/Version' not in w._root_object
-changed=save(dump(w),m);assert PdfReader(io.BytesIO(changed)).trailer['/Root']['/Version']=='/1.4'
+changed=save(dump(w),m);assert '/Version' not in PdfReader(io.BytesIO(changed)).trailer['/Root']
+# Plain Story text no longer receives redundant ActualText. A real retained
+# semantic scope still requires PDF 1.4, like the transparency tested above.
+w=PdfWriter();w.pdf_header='%PDF-1.3';pg=w.add_page(source('OLD'))
+st=ContentStream(pg.get('/Contents'),w)
+st.operations=[([N('/Span'),D({N('/ActualText'):TextStringObject('OLD')})],b'BDC')]+st.operations+[([],b'EMC')]
+pg[N('/Contents')]=w._add_object(st)
+changed=save(dump(w),{**m,'pageWidth':220,'pageHeight':150})
+assert PdfReader(io.BytesIO(changed)).trailer['/Root']['/Version']=='/1.4'
 checks.append('Retained transparency raises underdeclared PDF 1.3 to effective 1.4; ActualText is declared as 1.4 and plain documents keep their version')
 
 # Cycle/depth checks terminate without modifying the cyclic definition.

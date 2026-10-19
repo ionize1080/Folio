@@ -3,104 +3,107 @@
     {
       "capability": "all unit contracts",
       "runtime": "node",
-      "args": [
-        "--test"
-      ],
+      "args": ["--test"],
       "unitGlob": true
     },
     {
       "capability": "source archive and release transport",
       "runtime": "python",
-      "args": [
-        "-m",
-        "unittest",
-        "discover",
-        "-s",
-        "tests",
-        "-p",
-        "*_test.py"
-      ]
+      "args": ["-m", "unittest", "discover", "-s", "tests", "-p", "*_test.py"]
     }
   ],
   "native": [
     {
+      "capability": "CFF, ligatures, rotations, UTF-16 and real font cache",
+      "runtime": "python",
+      "args": ["tests/editor-p6.py"]
+    },
+    {
+      "capability": "ligature save and reopen",
+      "runtime": "python",
+      "args": ["tests/editor-ligature-v180.py"]
+    },
+    {
+      "capability": "CJK punctuation spacing and negative advance boundaries",
+      "runtime": "python",
+      "args": ["tests/editor-spacing-v190.py"]
+    },
+    {
+      "capability": "reopened paragraph growth preserves original clipping",
+      "runtime": "python",
+      "args": ["tests/editor-clip-reopen-v190.py"]
+    },
+    {
+      "capability": "soft and hard wrapping through a second edit and save",
+      "runtime": "python",
+      "args": ["tests/reopen-editing-v190.py"]
+    },
+    {
+      "capability": "CJK reflow extraction without repeated text",
+      "runtime": "python",
+      "args": ["tests/editor-semantics-v190.py"]
+    },
+    {
       "capability": "clipping, replacement roundtrip and decode budgets",
       "runtime": "python",
-      "args": [
-        "tests/reliability-v172.py"
-      ]
+      "args": ["tests/reliability-v172.py"]
     },
     {
       "capability": "shared forms, fonts, semantics and crop origins",
       "runtime": "python",
-      "args": [
-        "tests/editor-p7.py"
-      ]
+      "args": ["tests/editor-p7.py"]
     },
     {
       "capability": "images, alpha and page isolation",
       "runtime": "python",
-      "args": [
-        "tests/editor-p8.py"
-      ]
+      "args": ["tests/editor-p8.py"]
     },
     {
       "capability": "text semantics and inline-image reopen",
       "runtime": "python",
-      "args": [
-        "tests/editor-v190.py"
-      ]
+      "args": ["tests/editor-v190.py"]
     }
   ],
   "browser": [
     {
       "capability": "table and OCR fixture",
       "runtime": "python",
-      "args": [
-        "tests/fixture-v9.py"
-      ]
+      "args": ["tests/fixture-v9.py"]
     },
     {
       "capability": "multipage fixture",
       "runtime": "python",
-      "args": [
-        "tests/fixture-v10.py"
-      ]
+      "args": ["tests/fixture-v10.py"]
     },
     {
       "capability": "transaction failures, export roundtrip, keyboard and locales",
       "runtime": "node",
-      "args": [
-        "tests/reliability-v172-ui.cjs"
-      ]
+      "args": ["tests/reliability-v172-ui.cjs"]
     },
     {
       "capability": "smart TOC extraction and save/reopen",
       "runtime": "node",
-      "args": [
-        "tests/smart-toc-ui.cjs"
-      ]
+      "args": ["tests/smart-toc-ui.cjs"]
     },
     {
       "capability": "independent page calibration",
       "runtime": "node",
-      "args": [
-        "tests/page-calibration-ui.cjs"
-      ]
+      "args": ["tests/page-calibration-ui.cjs"]
     },
     {
       "capability": "editing and bookmark fixtures",
       "runtime": "python",
-      "args": [
-        "tests/editor-v190.py"
-      ]
+      "args": ["tests/editor-v190.py"]
     },
     {
       "capability": "visual caret, composition, bookmark zoom and HTML export",
       "runtime": "node",
-      "args": [
-        "tests/ui-v190.cjs"
-      ]
+      "args": ["tests/ui-v190.cjs"]
+    },
+    {
+      "capability": "bookmark scope, IME, eight zoom modes and saved hierarchy",
+      "runtime": "node",
+      "args": ["tests/bookmarks-v190-ui.cjs"]
     }
   ]
 }

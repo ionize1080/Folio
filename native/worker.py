@@ -415,7 +415,10 @@ def run(args):
    if report['count'] or editreport['count']:
     bad=(report['issues']+editreport['issues'])[0];raise ValueError(f"第 {bad['page']} 页有字体未覆盖字符："+' '.join(c['code'] for c in bad['characters'])+'；请在 OCR 问题列表校对或排除此条')
    def inspect(number):
-    page=pdf[number-1];page.set_rotation(0);tp=page.get_textpage();des=[describe(p.raw,p.raw.FPDFPage_GetObject(page,i),i,tp) for i in range(p.raw.FPDFPage_CountObjects(page))];tp.close();page.close();return des
+    page=pdf[number-1];page.set_rotation(0);tp=page.get_textpage();des=[describe(p.raw,p.raw.FPDFPage_GetObject(page,i),i,tp) for i in range(p.raw.FPDFPage_CountObjects(page))]
+    from original_layout import normalize_hyphens
+    normalize_hyphens(p.raw,page,tp,des)
+    tp.close();page.close();return des
    def fragment(width,height,edits,bs):
     d=p.PdfDocument.new();pg=d.new_page(width,height);pg.close()
     try:return render_fragment(d,p.raw,[{**e,'page':1} for e in edits],bs)

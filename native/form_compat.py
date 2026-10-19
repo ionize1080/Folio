@@ -129,9 +129,15 @@ def expand_page(page, *, foreign=True):
                 rewritten.append((values, operator))
             out.extend([([], b'q'), ([FloatObject(v) for v in matrix], b'cm'),
                 ([FloatObject(box[0]), FloatObject(box[1]), FloatObject(box[2]-box[0]), FloatObject(box[3]-box[1])], b're'), ([], b'W'), ([], b'n')])
+            # Preserve verified generated-Form provenance across the expanded
+            # stream. A FolioText property alone does not authorize escaping a
+            # paragraph's internal layout clip on the next edit.
+            reflowable = owned and form.get('/FolioLayerKind') == '/Content'
+            if reflowable: out.append(([NameObject('/FolioOwnedContent')], b'BMC'))
             # The renamed scope resolves calls deterministically; all resource
             # dictionaries are local copies, including repeated same-page calls.
             out.extend(emit(rewritten, destination, ancestors + (identity,), depth + 1, nested))
+            if reflowable: out.append(([], b'EMC'))
             out.append(([], b'Q'))
         return out
 

@@ -80,7 +80,7 @@ def styled_html(m):
     if not isinstance(runs,list) or len(runs)>100000:raise ValueError('字体样式数量无效')
     runs=sorted(runs,key=lambda r:r.get('start',0))
     defaults={k:m.get(k) for k in ('fontKey','fontName','fontResolution','fontOriginalName','size','color','charSpacing','wordSpacing','bold','italic','latinFontKey','cjkFontKey','latinFontName','cjkFontName')}
-    definitions={};fonts={};css=[];fallback=0;fallback_details=[];spacing_limited=False;ri=0;offset=0;paragraphs=[];parts=[];segment='';last=None
+    definitions={};fonts={};metric_fonts={};css=[];fallback=0;fallback_details=[];spacing_limited=False;ri=0;offset=0;paragraphs=[];parts=[];segment='';last=None
     soft=set(m.get('softBreaks') or [])
     def flush():
         nonlocal segment
@@ -104,7 +104,7 @@ def styled_html(m):
             raise ValueError('原字体 '+str(style.get('fontOriginalName') or style.get('fontName') or '')+' 未解析，草稿已保留；请明确选择此范围的替代字体后应用')
         covered=font and ord(ch) in font['coverage']
         size=number(style.get('size') or m['size'],4,150)
-        spacing=number(style.get('charSpacing') or 0,-5,30);word=number(style.get('wordSpacing') or 0,-5,50)
+        spacing=number(style.get('charSpacing') or 0,min(-5,-size),30);word=number(style.get('wordSpacing') or 0,-5,50)
         color=style.get('color') or m['color']
         if not re.fullmatch('#[0-9a-fA-F]{6}',color):raise ValueError('文字颜色无效')
         if not covered and font and not ch.isspace():
@@ -121,6 +121,15 @@ def styled_html(m):
             path=str(ROOT/'fonts'/builtin_name(ord(ch)))
             if not ch.isspace() and ord(ch) not in fallback_coverage(path):raise ValueError('所选字体和内置替代字体均未覆盖字符：'+ch)
         else:path=font['path']
+        if spacing<0 or (ch==' ' and word<0):
+            if path not in metric_fonts:metric_fonts[path]=fitz.Font(fontfile=path)
+            advance=metric_fonts[path].glyph_advance(ord(ch))*size
+            # PDF CJK punctuation commonly uses -0.5 em tracking. Permit it
+            # across font sizes, but do not silently clamp a used glyph's
+            # negative resulting advance in the generated spacing font.
+            # Combining marks already have zero advance and retain it.
+            if advance>0 and advance+spacing+(word if ch==' ' else 0)<-.01:
+                raise ValueError('负字距超过当前字符宽度，请减小字距压缩；草稿已保留')
         spec=(path,round(spacing,4),round(word,4),size,color,bool(style.get('bold')),bool(style.get('italic')))
         if spec not in definitions:
             name='s'+str(len(definitions));definitions[spec]=name

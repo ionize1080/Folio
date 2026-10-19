@@ -35,12 +35,20 @@ def map_objects(page):
             if isinstance(value,ByteStringObject):
                 try:value=bytes(value).decode('utf-16')
                 except UnicodeError:value=None
-            marks.append({'flowText':properties.get('/FolioText') if isinstance(properties,dict) and args[0]=='/FolioParagraph' else None,'text':value,'mcid':properties.get('/MCID') if isinstance(properties,dict) else None,'objects':[],'at':i})
+            flow_text=properties.get('/FolioText') if isinstance(properties,dict) and args[0]=='/FolioParagraph' else None
+            from text_semantics import soft_break_offsets
+            flow_soft=soft_break_offsets(flow_text,properties.get('/FolioSoftBreaks')) if isinstance(properties,dict) else None
+            marks.append({'flowText':flow_text,'flowSoftBreaks':flow_soft,'text':value,'mcid':properties.get('/MCID') if isinstance(properties,dict) else None,'owned':bool(args and args[0]=='/FolioOwnedContent'),'insideOwned':any(m.get('owned') for m in marks),'objects':[],'at':i})
         elif op==b'EMC' and marks:
             mark=marks.pop()
             if isinstance(mark.get('flowText'),str):
+                from form_compat import balanced
+                scope={'at':mark['at'],'end':i,'count':len(mark['objects']),'clips':clipping.get(mark['at'],())}
+                reflowable=mark['insideOwned'] and balanced(stream.operations[mark['at']+1:i]) and clipping.get(i,())==scope['clips']
                 for obj in mark['objects']:
                     obj.setdefault('flowGroup',mark['at']);obj.setdefault('flowText',mark['flowText'])
+                    if mark.get('flowSoftBreaks') is not None:obj.setdefault('flowSoftBreaks',mark['flowSoftBreaks'])
+                    if reflowable:obj.setdefault('flowScope',scope)
             if mark['mcid'] is not None:
                 for obj in mark['objects']:obj.setdefault('structureScopes',[]).append({'at':mark['at'],'end':i,'count':len(mark['objects']),'mcid':int(mark['mcid'])})
             if isinstance(mark['text'],str):
@@ -168,7 +176,9 @@ def check_editable(page,descriptions):
                             if not isinstance(value,str) or not value.isspace():break
                             b['text']+=value
                     b['textSpacingExplicit']=True
-                if 'flowGroup' in a:b.update(flowGroup=a['flowGroup'],flowText=a['flowText'])
+                if 'flowGroup' in a:
+                    b.update(flowGroup=a['flowGroup'],flowText=a['flowText'])
+                    if 'flowSoftBreaks' in a:b['flowSoftBreaks']=a['flowSoftBreaks']
                 b['textGroup']=a.get('begin')
                 b['independentFlow']=bool(a.get('single') or safe.get(a['at']) is not None)
                 b['flowEditable']=b['flowEditable'] and b['independentFlow']
@@ -305,7 +315,7 @@ def compose(data,edits,blocks,inspect,fragment,progress=None):
                 lp=layout.pages[0]
                 if abs(float(lp.mediabox.width)-float(page.cropbox.width))>2.5 or abs(float(lp.mediabox.height)-float(page.cropbox.height))>2.5:raise ValueError('排版页面尺寸与原件不一致')
                 from text_semantics import mark_paragraph
-                blob=mark_paragraph(blob,(flow.get('model') or {}).get('text',''))
+                blob=mark_paragraph(blob,(flow.get('model') or {}).get('text',''),(flow.get('model') or {}).get('softBreaks',[]))
                 structured=[scope for source in sources for scope in mapped[source['index']].get('structureScopes',[])]
                 preserve_site=bool(sources) and not (flow.get('model') or {}).get('behindPage') and (flow.get('model') or {}).get('layerOrder') is None
                 relocated_scope=None
@@ -327,6 +337,16 @@ def compose(data,edits,blocks,inspect,fragment,progress=None):
                     if any(end is None for end in ends):raise ValueError('原文绘制范围不完整，草稿已保留')
                     position=max(ends);original_stream,_=map_objects(page)
                     first=min(mapped[source['index']]['at'] for source in sources)
+                    # Story's own rectangular layout clip belongs to the old
+                    # paragraph frame. Once the entire verified generated
+                    # paragraph is replaced, place the new Form after its
+                    # balanced graphics scope. Retain every inherited source
+                    # clip at that boundary, including external Form BBoxes.
+                    owned_scopes=[mapped[source['index']].get('flowScope') for source in sources]
+                    owned_scope=owned_scopes[0] if owned_scopes else None
+                    if owned_scope is None or owned_scope['count']!=len(sources) or any(s!=owned_scope for s in owned_scopes):owned_scope=None
+                    if owned_scope and not structured:position=owned_scope['end']
+                    else:owned_scope=None
                     # A paragraph cannot jump across an overlapping foreign paint.
                     # Disjoint paints have identical pixels at either ordering.
                     # Use painted ink, not the padded editing frame. A frame
@@ -341,9 +361,9 @@ def compose(data,edits,blocks,inspect,fragment,progress=None):
                         left=float(page.cropbox.left);bottom=float(page.cropbox.bottom)
                         ink_boxes=[[left+x0,bottom+y0,left+x1,bottom+y1] for obj in fragment_page.get_objects(max_depth=1) for x0,y0,x1,y1 in [obj.get_bounds()] if x1>x0 and y1>y0]
                         fragment_page.close()
-                    clips=[clip for source in sources for clip in desc[source['index']].get('clipBounds',[])]
-                    if any(box[0]<clip[0]-.01 or box[1]<clip[1]-.01 or box[2]>clip[2]+.01 or box[3]>clip[3]+.01 for box in ink_boxes for clip in clips):
-                        raise ValueError('新文字超出原 PDF 裁剪边界，请缩小文字或调整位置；草稿已保留')
+                    clips=owned_scope['clips'] if owned_scope else [clip for source in sources for clip in desc[source['index']].get('clipBounds',[])]
+                    from clip_contract import validate_ink
+                    validate_ink(ink_boxes,clips)
                     for j,item in enumerate(mapped):
                         if j in indices or j in deleted_indices or item.get('at') is None or not first<=item['at']<=position:continue
                         other=desc[j].get('bounds')

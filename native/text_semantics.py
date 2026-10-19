@@ -13,9 +13,11 @@ def mark_text(page,text):
 def mark_shows(blob,text):
     """Give each generated show its own semantics, so reopening remains editable.
 
-    The source and decoded non-whitespace scalars must match exactly. Whitespace
-    belongs to the adjacent show; no whole-paragraph shared ActualText scope is
-    created. Foreign shared semantic scopes retain their existing protection.
+    The source and decoded non-whitespace scalars must match exactly. Keep the
+    generated show's own whitespace: an old source newline may now lie inside
+    one newly wrapped line, and placing that newline in ActualText makes some
+    readers repeat the replacement text. FolioParagraph stores source breaks.
+    Only shows with an actual scalar correction need a semantic replacement.
     """
     import io
     from pypdf import PdfReader,PdfWriter
@@ -33,14 +35,18 @@ def mark_shows(blob,text):
         return blob
     cursor=0;actual={}
     for at,value in decoded.items():
-        start=cursor
+        replacement=[]
         for ch in value:
-            if ch.isspace():continue
+            if ch.isspace():
+                replacement.append(ch)
+                continue
             while cursor<len(text) and text[cursor].isspace():cursor+=1
             if cursor>=len(text) or canonical(text[cursor])!=canonical(ch):return blob
+            replacement.append(text[cursor])
             cursor+=1
-        while cursor<len(text) and text[cursor].isspace():cursor+=1
-        actual[at]=text[start:cursor]
+        corrected=''.join(replacement)
+        if corrected!=value:actual[at]=corrected
+    if not actual:return blob
     operations=[]
     for at,(args,op) in enumerate(stream.operations):
         if actual.get(at):operations.append(([NameObject('/Span'),DictionaryObject({NameObject('/ActualText'):TextStringObject(actual[at])})],b'BDC'))
@@ -70,11 +76,29 @@ def expand_preview(page):
     return original,{'x':left,'y':top,'width':width,'height':height}
 
 
-def mark_paragraph(blob,text):
+def soft_break_offsets(text,values):
+    """Read bounded UTF-16 newline offsets; invalid foreign metadata is ignored."""
+    if not isinstance(text,str) or len(text)>100000 or not isinstance(values,(list,tuple)) or len(values)>len(text):return None
+    positions=set();offset=0
+    for ch in text:
+        cp=ord(ch)
+        if 0xd800<=cp<=0xdfff:return None
+        if ch=='\n':positions.add(offset)
+        offset+=2 if cp>0xffff else 1
+    if any(isinstance(n,bool) or not isinstance(n,int) or n not in positions for n in values):return None
+    return sorted(set(int(n)for n in values))
+
+
+def mark_paragraph(blob,text,soft_breaks=None):
     import io
     from pypdf import PdfReader,PdfWriter
-    from pypdf.generic import ContentStream,NameObject,DictionaryObject,TextStringObject
+    from pypdf.generic import ContentStream,NameObject,DictionaryObject,TextStringObject,ArrayObject,NumberObject
     reader=PdfReader(io.BytesIO(blob));writer=PdfWriter();page=writer.add_page(reader.pages[0])
     stream=ContentStream(page.get('/Contents'),writer)
-    stream.operations=[([NameObject('/FolioParagraph'),DictionaryObject({NameObject('/FolioText'):TextStringObject(text)})],b'BDC')]+stream.operations+[([],b'EMC')]
+    properties=DictionaryObject({NameObject('/FolioText'):TextStringObject(text)})
+    if soft_breaks is not None:
+        validated=soft_break_offsets(text,soft_breaks)
+        if validated is None:raise ValueError('软换行位置无效')
+        properties[NameObject('/FolioSoftBreaks')]=ArrayObject([NumberObject(n)for n in validated])
+    stream.operations=[([NameObject('/FolioParagraph'),properties],b'BDC')]+stream.operations+[([],b'EMC')]
     page[NameObject('/Contents')]=writer._add_object(stream);out=io.BytesIO();writer.write(out);return out.getvalue()

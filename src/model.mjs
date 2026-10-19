@@ -138,6 +138,27 @@ export function applyBatch(nodes, ids, rule, pageCount) {
   let re;
   if (rule.op === "replace")
     re = new RegExp(rule.find, rule.caseSensitive ? "gu" : "giu");
+  if (rule.op === "zoom") {
+    if (
+      ![
+        "inherit",
+        "fixed",
+        "Fit",
+        "FitH",
+        "FitV",
+        "FitB",
+        "FitBH",
+        "FitBV",
+      ].includes(rule.zoomMode)
+    )
+      throw Error("缩放模式无效");
+    const percent = Number(rule.zoomPercent);
+    if (
+      rule.zoomMode === "fixed" &&
+      (!Number.isFinite(percent) || percent < 8.33 || percent > 6400)
+    )
+      throw Error("缩放比例应为 8.33%–6400%");
+  }
   const d = depths(out);
   let serial = Number(rule.start) || 1;
   for (const n of out) {
@@ -159,9 +180,8 @@ export function applyBatch(nodes, ids, rule, pageCount) {
           title: (s) =>
             s
               .toLowerCase()
-              .replace(
-                /\p{L}[\p{L}\p{M}\p{N}'’]*/gu,
-                (word) => word[0].toUpperCase() + word.slice(1),
+              .replace(/\p{L}[\p{L}\p{M}\p{N}'’]*/gu, (word) =>
+                word.replace(/^\p{L}/u, (c) => c.toUpperCase()),
               ),
           sentence: (s) =>
             s.toLowerCase().replace(/\p{L}/u, (c) => c.toUpperCase()),
@@ -176,12 +196,6 @@ export function applyBatch(nodes, ids, rule, pageCount) {
         if (!t.page || t.external) break;
         if (t.kind === "preserve" && !rule.convert)
           throw Error("原始目标需要勾选「转换原始本地目标」");
-        if (
-          !["inherit", "fixed", "Fit", "FitH", "FitV", "FitB"].includes(
-            rule.zoomMode,
-          )
-        )
-          throw Error("缩放模式无效");
         const x = ["XYZ", "FitR", "FitV", "FitBV"].includes(t.mode)
           ? (t.args?.[0] ?? null)
           : null;
@@ -196,14 +210,14 @@ export function applyBatch(nodes, ids, rule, pageCount) {
           args;
         if (["inherit", "fixed"].includes(mode)) {
           const percent = Number(rule.zoomPercent);
-          if (
-            mode === "fixed" &&
-            (!Number.isFinite(percent) || percent < 8.33 || percent > 6400)
-          )
-            throw Error("缩放比例应为 8.33%–6400%");
           args = [x, y, mode === "inherit" ? null : percent / 100];
           mode = "XYZ";
-        } else args = mode === "FitH" ? [y] : mode === "FitV" ? [x] : [];
+        } else
+          args = ["FitH", "FitBH"].includes(mode)
+            ? [y]
+            : ["FitV", "FitBV"].includes(mode)
+              ? [x]
+              : [];
         n.target = { kind: "dest", page: t.page, mode, args };
         break;
       }
@@ -212,7 +226,7 @@ export function applyBatch(nodes, ids, rule, pageCount) {
           .replaceAll("{n}", String(serial++))
           .replaceAll("{level}", String(d.get(n.id) + 1))
           .replaceAll("{page}", String(n.target.page || ""))
-          .replaceAll("{title}", n.title);
+          .replaceAll("{title}", () => n.title);
         break;
       case "offset":
         if (n.target.kind === "dest") n.target.page += Number(rule.amount);
@@ -225,7 +239,8 @@ export function applyBatch(nodes, ids, rule, pageCount) {
         break;
       case "parameters": {
         const original = n.target;
-        if (!original.page) throw Error(`「${n.title}」不是本地页目标`);
+        if (!original.page || original.external)
+          throw Error(`「${n.title}」不是本地页目标`);
         const edits = rule.edits || {};
         if (!Object.values(edits).some((e) => e.op !== "keep")) break;
         if (original.kind === "preserve" && !rule.convert)

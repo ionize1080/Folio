@@ -1164,8 +1164,18 @@ body[data-right="hidden"] .inspector {
   border-radius: 10px;
   padding: 6px;
   min-width: 220px;
-  max-height: 95vh;
+  max-width: calc(100vw - 16px);
+  max-height: calc(100vh - 16px);
   overflow: auto;
+}
+#context-menu [role="separator"] {
+  height: 1px;
+  background: var(--line);
+  margin: 5px 4px;
+}
+#context-menu button:disabled {
+  opacity: 0.45;
+  cursor: default;
 }
 #context-menu button {
   display: block;
@@ -2384,6 +2394,7 @@ body.dark #pe-status {
 .pe-status-row {
   flex: 1 0 100%;
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   align-items: center;
   min-width: 0;
@@ -2392,7 +2403,7 @@ body.dark #pe-status {
 }
 #pe-status {
   position: static;
-  flex: 1;
+  flex: 1 1 180px;
   min-width: 0;
   max-width: none;
   min-height: 20px;
@@ -2424,7 +2435,8 @@ body.dark #pe-status {
   right: 10px;
   top: calc(100% + 6px);
   width: min(320px, calc(100% - 20px));
-  max-height: min(560px, 65vh);
+  max-height: min(560px, var(--pe-panel-height, 65vh));
+  box-sizing: border-box;
   overflow: auto;
   padding: 16px;
   background: var(--panel);
@@ -2506,6 +2518,19 @@ body.dark #pe-status {
   font-size: 11px;
   color: var(--muted);
   margin: 12px 0 4px;
+}
+#pe-font-selection {
+  padding: 6px 9px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--text);
+}
+.pe-font-empty {
+  padding: 16px 8px;
+  text-align: center;
+}
+#pe-resolve-font {
+  color: var(--accent);
 }
 #pe-font-list button,
 #pe-fallback-panel > button {
@@ -3439,8 +3464,14 @@ textarea:focus-visible {
 .pe-font-panel:not(#pe-fallback-panel):not([hidden]) {
   display: flex;
   flex-direction: column;
-  max-height: min(520px, calc(100vh - 240px));
-  overflow: hidden;
+  max-height: min(520px, var(--pe-panel-height, calc(100vh - 240px)));
+  overflow: auto;
+}
+.pe-font-panel > .pe-panel-heading {
+  position: sticky;
+  top: -16px;
+  z-index: 1;
+  background: var(--panel);
 }
 .pe-font-panel > .pe-panel-heading,
 .pe-font-panel > input,
@@ -3450,7 +3481,8 @@ textarea:focus-visible {
 }
 #pe-font-list {
   min-height: 60px;
-  max-height: 360px;
+  max-height: min(280px, 30vh);
+  flex-shrink: 0;
   overflow: auto;
   overscroll-behavior: contain;
 }
@@ -4147,6 +4179,9 @@ body:not(.has-document) .viewer-toolbar {
   font-size: 12px;
   color: #70551c;
   margin-right: 8px;
+}
+body.dark #pe-font-source {
+  color: #e8bd74;
 }
 #ocr-evidence {
   white-space: pre-wrap;

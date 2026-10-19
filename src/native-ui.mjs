@@ -37,7 +37,7 @@ export function installNativeUI(ctx) {
     changes
       .map(
         (c) =>
-          `<details class="change-card" open><summary>${esc(c.title)} <small>${c.fields.length} 个字段变化</small></summary><table class="diff-table"><thead><tr><th>字段</th><th>原值</th><th>操作 / 换算</th><th>结果</th></tr></thead><tbody>${c.fields.map((f) => `<tr><td>${esc(f.name)}</td><td translate="no">${esc(JSON.stringify(f.before))}</td><td>${esc(f.operation)}</td><td translate="no">${esc(JSON.stringify(f.after))}</td></tr>`).join("")}</tbody></table><details><summary>完整跳转目标</summary><pre translate="no">${esc(JSON.stringify({ before: c.before, after: c.after }, null, 2))}</pre></details></details>`,
+          `<details class="change-card" open><summary><span translate="no">${esc(c.title)}</span> <small>${c.fields.length} 个字段变化</small></summary><table class="diff-table"><thead><tr><th>字段</th><th>原值</th><th>操作 / 换算</th><th>结果</th></tr></thead><tbody>${c.fields.map((f) => `<tr><td>${esc(f.name)}</td><td translate="no">${esc(JSON.stringify(f.before))}</td><td>${esc(f.operation)}</td><td translate="no">${esc(JSON.stringify(f.after))}</td></tr>`).join("")}</tbody></table><details><summary>完整跳转目标</summary><pre translate="no">${esc(JSON.stringify({ before: c.before, after: c.after }, null, 2))}</pre></details></details>`,
       )
       .join("");
   function whitespaceDialog() {

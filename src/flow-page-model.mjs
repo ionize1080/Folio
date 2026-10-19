@@ -13,6 +13,21 @@ export const topBounds = (o, h) => [
 ];
 export const frameBounds = (f) => [f.x, f.y, f.x + f.width, f.y + f.height];
 
+function savedParagraph(src) {
+  const first = src[0], text = first?.flowText;
+  const compact = (s) => s.replace(/\s/g, "");
+  if (
+    first?.flowGroup == null || typeof text !== "string" ||
+    !src.every((o) => o.flowGroup === first.flowGroup && o.flowText === text) ||
+    compact(src.map((o) => o.text).join("")) !== compact(text)
+  ) return null;
+  const breaks = first.flowSoftBreaks;
+  const valid = Array.isArray(breaks) && breaks.every(
+    (n) => Number.isInteger(n) && n >= 0 && text[n] === "\n",
+  ) && new Set(breaks).size === breaks.length;
+  return { text, softBreaks: valid ? [...breaks] : [] };
+}
+
 export function pageCandidates(objects, w, h, regions = [], tables = []) {
   // PDF font size is in text space; Office PDFs often use 280pt with a 0.05 CTM.
   // Baseline / grouping thresholds must use its effective page-space size.
@@ -60,20 +75,31 @@ export function pageCandidates(objects, w, h, regions = [], tables = []) {
     .filter((l) => l.left.length >= 3)
     .sort((a, b) => a.x - b.x);
   const cuts = strong.slice(1).flatMap((right, i) => {
-    const left = strong[i];
-    const x = (median(left.right) + median(right.left)) / 2;
-    if (median(left.right) >= median(right.left)) return [];
     // Evidence is local to simultaneous body rows. Three spanning title lines
     // above a two-column article cannot erase its gutter.
-    const paired = left.rows.filter((a) =>
-      right.rows.some(
-        (b) =>
-          Math.abs(a.base - b.base) <=
-            Math.max(1, Math.min(a.size, b.size) * 0.3) &&
-          b.u - a.end >= Math.max(3, Math.min(a.size, b.size) * 0.8),
-      ),
-    );
-    if (paired.length < 3) return [];
+    // Inline formula/style fragments can create several nested lanes inside
+    // the left column. They must not hide the real body lane merely because
+    // the closest fragment has fewer simultaneous rows than the whole column.
+    const possible = strong.slice(0, i + 1).flatMap((left) => {
+      const edge = median(left.right);
+      if (edge >= median(right.left)) return [];
+      const paired = left.rows.filter((a) =>
+        right.rows.some(
+          (b) =>
+            Math.abs(a.base - b.base) <=
+              Math.max(1, Math.min(a.size, b.size) * 0.3) &&
+            b.u - a.end >= Math.max(3, Math.min(a.size, b.size) * 0.8),
+        ),
+      );
+      return paired.length >= 3 ? [{ edge, paired }] : [];
+    });
+    if (!possible.length) return [];
+    const nearestEdge = Math.max(...possible.map((p) => p.edge));
+    const tolerance = Math.max(3, median(right.rows.map((r) => r.size)) * 0.8);
+    const { edge, paired } = possible
+      .filter((p) => nearestEdge - p.edge <= tolerance)
+      .sort((a, b) => b.paired.length - a.paired.length || b.edge - a.edge)[0];
+    const x = (edge + median(right.left)) / 2;
     return [
       {
         x,
@@ -197,21 +223,17 @@ export function pageCandidates(objects, w, h, regions = [], tables = []) {
     const cs = paragraphCandidates(g, h, barriers);
     if (!cs.length || g[0].flowGroup == null) return cs;
     const src = [...g].sort((a, b) => a.index - b.index);
-    const text = src[0].flowText;
-    const compact = (s) => s.replace(/\s/g, "");
-    if (
-      typeof text !== "string" ||
-      compact(src.map((o) => o.text).join("")) !== compact(text)
-    )
-      return cs;
+    const saved = savedParagraph(src);
+    if (!saved) return cs;
     const merged = mergeCandidates(cs, w, h);
     return [
       {
         ...cs[0],
         ...merged,
-        text,
+        text: saved.text,
         hardLineBreaks: true,
         lineStarts: [0],
+        savedSoftBreaks: saved.softBreaks,
         sources: src.map((o) => ({ index: o.index, signature: o.signature })),
       },
     ];
@@ -220,6 +242,9 @@ export function pageCandidates(objects, w, h, regions = [], tables = []) {
   candidates = candidates.map((c, i) => {
     const cs = [c];
     const m = mergeCandidates(cs, w, h);
+    // Geometry supplies physical wraps; only persisted logical metadata proves
+    // which newlines were soft before saving. Legacy files stay conservative.
+    if (Array.isArray(c.savedSoftBreaks)) m.softBreaks = [...c.savedSoftBreaks];
     const selectedIndices = new Set(m.sources.map((s) => s.index));
     const src = m.sources
       .map((s) => objectByIndex.get(s.index))
@@ -316,7 +341,7 @@ export function pageCandidates(objects, w, h, regions = [], tables = []) {
     return { id: "page-paragraph-" + i, model: m, original, reason };
   });
   for (const cell of cellList) {
-    const src = cellObjects.get(cell.id) || [];
+    const src = [...(cellObjects.get(cell.id) || [])].sort((a, b) => a.index - b.index);
     if (
       src.length === 0 &&
       objects.some(
@@ -341,6 +366,13 @@ export function pageCandidates(objects, w, h, regions = [], tables = []) {
           color: "#202020",
           font: "sans",
         };
+    const saved = savedParagraph(src);
+    if (saved) {
+      m.text = saved.text;
+      m.softBreaks = saved.softBreaks;
+      m.lineStarts = [0];
+      m.sources = src.map((o) => ({ index: o.index, signature: o.signature }));
+    }
     const [x, y, r, b] = cell.bounds,
       pad = Math.min(2, (r - x) / 10, (b - y) / 10);
     m.frame = {

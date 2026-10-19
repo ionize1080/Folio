@@ -8,7 +8,7 @@ const { NativeBridge } = require("../native-bridge.cjs");
 const { FlowLayout } = require("../flow-layout.cjs");
 const fs = require("fs"),
   path = require("path"),
-  http = require("http"),
+  { spawnSync } = require("child_process"),
   assert = require("assert/strict");
 const root = path.resolve(__dirname, ".."),
   out = path.join(root, "tests/output");
@@ -20,9 +20,13 @@ const layout = new FlowLayout(
   path.join(root, "native"),
   process.env.FOLIO_PYTHON || "python",
 );
-let browser, server, activePage;
+let browser, activePage;
 const errors = [],
   checks = [];
+checks.push = (...items) => {
+  console.log(...items);
+  return Array.prototype.push.apply(checks, items);
+};
 (async () => {
   browser = await chromium.launch({
     headless: true,
@@ -151,8 +155,12 @@ const errors = [],
   };
   const load = async (file) =>
     page.evaluate(
-      (b) => window.__qa.loadPDF(new Uint8Array(b), "sample.pdf"),
-      Array.from(fs.readFileSync(file)),
+      (b) =>
+        window.__qa.loadPDF(
+          Uint8Array.from(atob(b), (c) => c.charCodeAt(0)),
+          "sample.pdf",
+        ),
+      fs.readFileSync(file).toString("base64"),
     );
   const save = async (name) => {
     await page.evaluate(async () => {
@@ -234,7 +242,14 @@ const errors = [],
   );
 
   const corpus = process.env.FOLIO_CORPUS;
-  await load(corpus ? path.join(corpus, "08_Navigation_Attachments/pdf.js__nested_outline__8e7862.pdf") : path.join(out,"v190-outline.pdf"));
+  await load(
+    corpus
+      ? path.join(
+          corpus,
+          "08_Navigation_Attachments/pdf.js__nested_outline__8e7862.pdf",
+        )
+      : path.join(out, "v190-outline.pdf"),
+  );
   const original = await page.evaluate(() =>
     structuredClone(window.__qa.S.nodes),
   );
@@ -326,19 +341,82 @@ const errors = [],
     "HTML export renders the complete nested outline with safe relative page links",
   );
   if (corpus) {
-    await page.evaluate(()=>window.__qa.closeModal());
-    const dir=path.join(corpus,'14_Papers');const rel=fs.readdirSync(dir,{recursive:true}).find(n=>path.basename(n).startsWith('Self-Building Labs')&&n.endsWith('.pdf'));
-    await load(path.join(out,'v190-mixed-font.pdf'));
-    await action('flow-edit');
+    await page.evaluate(() => window.__qa.closeModal());
+    const fixture = path.join(out, "v190-mixed-font.pdf");
+    const paper = fs
+      .readdirSync(path.join(corpus, "14_Papers"), { recursive: true })
+      .find(
+        (n) =>
+          path.basename(n).startsWith("Self-Building Labs") &&
+          n.endsWith(".pdf"),
+      );
+    assert(paper, "Self-Building Labs corpus sample must exist");
+    const extraction = spawnSync(
+      process.env.FOLIO_PYTHON || "python",
+      [
+        "-c",
+        "import fitz,sys; source=fitz.open(sys.argv[1]); target=fitz.open(); target.insert_pdf(source,from_page=1,to_page=1); target.save(sys.argv[2])",
+        path.join(corpus, "14_Papers", paper),
+        fixture,
+      ],
+      { encoding: "utf8" },
+    );
+    assert.equal(extraction.status, 0, extraction.stderr);
+    await load(fixture);
+    await action("flow-edit");
     await page.locator('.page-edit-hit[title^="Figure 1"]').first().click();
-    await page.locator('#pe-resolve-font').waitFor({state:'visible'});await page.locator('#pe-resolve-font').click();
-    assert.deepEqual(await input.evaluate(e=>[e.selectionStart,e.selectionEnd]),[0,(await input.inputValue()).length]);
-    assert.equal(await page.locator('#pe-font-script').inputValue(),'all');
-    await page.locator('#pe-font-search').fill('微软雅黑');
-    const font=page.locator('#pe-font-list button[title="微软雅黑"]').first();await font.waitFor();await font.click();
-    await page.waitForFunction(()=>window.__qa.S.flowEdit.qaState().model.runs.every(r=>r.fontKey&&r.fontResolution==='user-selected'));
-    await page.locator('#pe-cancel').click();await page.locator('#pe-done').click();
-    checks.push('Real mixed-font paper: replacement action selects the whole paragraph and applies an explicitly chosen system font');
+    await page.locator("#pe-resolve-font").waitFor({ state: "visible" });
+    await page.locator("#pe-resolve-font").click();
+    assert.deepEqual(
+      await input.evaluate((e) => [e.selectionStart, e.selectionEnd]),
+      [0, (await input.inputValue()).length],
+    );
+    assert.equal(await page.locator("#pe-font-script").inputValue(), "all");
+    assert.equal(
+      await page.locator("#pe-font-selection").innerText(),
+      "应用范围：当前整段",
+    );
+    await page.locator("#pe-font-search").fill("no-such-font-9c1e");
+    await page.locator(".pe-font-empty").waitFor();
+    assert.equal(await page.locator("#pe-font-list button").count(), 0);
+    await page.locator("#pe-font-search").fill("微软雅黑");
+    const font = page
+      .locator('#pe-font-list button[data-font-family="微软雅黑"]')
+      .first();
+    await font.waitFor();
+    await page.setViewportSize({ width: 1024, height: 700 });
+    await page.evaluate(() => document.body.classList.add("dark"));
+    await page.screenshot({ path: path.join(out, "v190-font-panel-dark.png") });
+    const panelBounds = await page
+      .locator(".pe-font-panel:not([hidden])")
+      .first()
+      .boundingBox();
+    assert(
+      panelBounds.x >= 0 && panelBounds.x + panelBounds.width <= 1024,
+      "Font panel fits the window width",
+    );
+    assert(
+      panelBounds.y + panelBounds.height <= 700,
+      "Font panel fits the window height",
+    );
+    await font.click();
+    await page
+      .waitForFunction(() =>
+        window.__qa.S.flowEdit
+          .qaState()
+          .model.runs.every(
+            (r) => r.fontKey && r.fontResolution === "user-selected",
+          ),
+      )
+      .catch(async (e) => {
+        console.error("Font model", JSON.stringify((await state()).model));
+        throw e;
+      });
+    await page.locator("#pe-cancel").click();
+    await page.locator("#pe-done").click();
+    checks.push(
+      "Real mixed-font paper: replacement action selects the whole paragraph and applies an explicitly chosen system font",
+    );
   }
   assert.deepEqual(errors, []);
   fs.writeFileSync(
@@ -366,4 +444,3 @@ const errors = [],
     bridge.cancel();
     layout.close();
   });
-
