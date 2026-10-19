@@ -14,6 +14,11 @@
   ],
   "native": [
     {
+      "capability": "native-font corrections preserve exact word boundaries",
+      "runtime": "python",
+      "args": ["tests/editor-patch-semantics-v190.py"]
+    },
+    {
       "capability": "CFF, ligatures, rotations, UTF-16 and real font cache",
       "runtime": "python",
       "args": ["tests/editor-p6.py"]

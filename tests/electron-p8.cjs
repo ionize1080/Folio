@@ -323,6 +323,10 @@ const root = path.resolve(__dirname, ".."),
     const exe = await app.evaluate(() => process.execPath),
       hash = (p) =>
         crypto.createHash("sha256").update(fs.readFileSync(p)).digest("hex");
+    const nativeDirectory = path.join(path.dirname(exe), "resources/native");
+    const nativeCodeHash = crypto.createHash("sha256");
+    for (const name of fs.readdirSync(nativeDirectory).filter(n => n.endsWith(".py")).sort())
+      nativeCodeHash.update(name + "\n" + hash(path.join(nativeDirectory, name)) + "\n");
     fs.writeFileSync(
       path.join(out, "p8-electron-report.json"),
       JSON.stringify(
@@ -331,6 +335,7 @@ const root = path.resolve(__dirname, ".."),
           checks,
           errors,
           exe_sha256: hash(exe),
+          native_code_sha256: nativeCodeHash.digest("hex"),
           asar_sha256: hash(path.join(path.dirname(exe), "resources/app.asar")),
         },
         null,

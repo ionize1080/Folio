@@ -186,6 +186,12 @@ async function compareNative(dir, rel = "") {
   }
 }
 await compareNative(path.join(root, "native"));
+const nativeCodeHash = createHash("sha256");
+const nativeDirectory = path.join(out, "resources/native");
+for (const name of (await fs.readdir(nativeDirectory)).filter((n) => n.endsWith(".py")).sort()) {
+  const hash = createHash("sha256").update(await fs.readFile(path.join(nativeDirectory, name))).digest("hex");
+  nativeCodeHash.update(name + "\n" + hash + "\n");
+}
 for (const f of [
   "python.exe",
   "python312.dll",
@@ -224,6 +230,7 @@ for (const f of [
   await fs.access(path.join(out, "resources/native", f));
 const info = {
   native_compared_files: nativeFiles,
+  native_code_sha256: nativeCodeHash.digest("hex"),
   pe_machine: "AMD64",
   format: "PE32+",
   product: strings.ProductName,

@@ -218,6 +218,14 @@ for number,(prefix,page,kind) in enumerate(SPECS):
                         with fitz.open(stream=changed,filetype='pdf') as doc:
                             actual_text=doc[0].get_text()
                             assert compact(actual_text).count(expected)==1,'saved exact semantic text missing or duplicated'
+                            if m['text'].isascii() and '\n' not in m['text'] and '\r' not in m['text']:
+                                # A single-line Latin replacement must not gain a
+                                # new word boundary when a narrower glyph retains
+                                # the old advance. Folio-only metadata is not enough.
+                                start=compact(actual_text).index(expected)
+                                offsets=[i for i,c in enumerate(actual_text)if not c.isspace()]
+                                segment=actual_text[offsets[start]:offsets[start+len(expected)-1]+1]
+                                assert ' '.join(segment.split())==' '.join(m['text'].split()),'standard PDF extraction changed single-line word boundaries'
                             expected_page=semantic_characters(original_text)
                             expected_page.subtract(semantic_characters(candidate['text']))
                             expected_page.update(semantic_characters(m['text']))

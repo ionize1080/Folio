@@ -89,16 +89,22 @@ def soft_break_offsets(text,values):
     return sorted(set(int(n)for n in values))
 
 
-def mark_paragraph(blob,text,soft_breaks=None):
-    import io
-    from pypdf import PdfReader,PdfWriter
-    from pypdf.generic import ContentStream,NameObject,DictionaryObject,TextStringObject,ArrayObject,NumberObject
-    reader=PdfReader(io.BytesIO(blob));writer=PdfWriter();page=writer.add_page(reader.pages[0])
-    stream=ContentStream(page.get('/Contents'),writer)
+def paragraph_operations(operations,text,soft_breaks=None,actual_text=False):
+    from pypdf.generic import NameObject,DictionaryObject,TextStringObject,ArrayObject,NumberObject
     properties=DictionaryObject({NameObject('/FolioText'):TextStringObject(text)})
     if soft_breaks is not None:
         validated=soft_break_offsets(text,soft_breaks)
         if validated is None:raise ValueError('软换行位置无效')
         properties[NameObject('/FolioSoftBreaks')]=ArrayObject([NumberObject(n)for n in validated])
-    stream.operations=[([NameObject('/FolioParagraph'),properties],b'BDC')]+stream.operations+[([],b'EMC')]
+    if actual_text:properties[NameObject('/ActualText')]=TextStringObject(text)
+    return [([NameObject('/FolioParagraph'),properties],b'BDC')]+operations+[([],b'EMC')]
+
+
+def mark_paragraph(blob,text,soft_breaks=None):
+    import io
+    from pypdf import PdfReader,PdfWriter
+    from pypdf.generic import ContentStream,NameObject
+    reader=PdfReader(io.BytesIO(blob));writer=PdfWriter();page=writer.add_page(reader.pages[0])
+    stream=ContentStream(page.get('/Contents'),writer)
+    stream.operations=paragraph_operations(stream.operations,text,soft_breaks)
     page[NameObject('/Contents')]=writer._add_object(stream);out=io.BytesIO();writer.write(out);return out.getvalue()

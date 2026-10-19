@@ -10,6 +10,7 @@
 - CJK reflow no longer duplicates copied text; saved hyphens and owned paragraph clips allow reliable subsequent edits.
 - The font picker shows selection scope and empty search results, scrolls within small windows, and improves dark-theme readability. Late initialization cannot overwrite a chosen font.
 - Table cells retain logical wrapping across repeated saves and edits. CJK punctuation tracking supports half-em compression while rejecting negative glyph advances.
+- Native-font corrections no longer introduce word-internal spaces during standard PDF extraction or reopened editing, while preserving other glyph positions.
 - Saved paragraphs retain exact hyphen and newline semantics. Reopening pages containing inline images no longer damages image operands.
 - Bookmark zoom has inherit, fixed percentage, page, width, height and visible-content modes; scopes, preview, undo/redo and saved targets are supported. Converting original local/named targets is explicit; external and unresolved targets are skipped.
 - Unicode title case conversion, paste before/after, and selected-subtree expansion/collapse.

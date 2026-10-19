@@ -15,6 +15,10 @@ const python = path.join(path.dirname(exe), 'resources/native/runtime/python.exe
 const corpus = process.env.FOLIO_CORPUS || 'D:/APP/PDF Samples/Online Samples';
 const background = process.env.FOLIO_BACKGROUND === '1';
 const hash = file => crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+const nativeDirectory = path.join(path.dirname(exe), 'resources/native');
+const nativeCodeHash = crypto.createHash('sha256');
+for (const name of fs.readdirSync(nativeDirectory).filter(n => n.endsWith('.py')).sort())
+  nativeCodeHash.update(name + '\n' + hash(path.join(nativeDirectory, name)) + '\n');
 const specs = [
   {id:'chinese-body',folder:'15_Chinese_Documents',prefix:'成都华微_',page:12,starts:'报告期内',language:'zh-Hans'},
   {id:'paper-body',folder:'14_Papers',prefix:'Beyond SAEs_',page:2,starts:'that coefficients',language:'en'},
@@ -34,6 +38,7 @@ for item in specs:
 print(json.dumps(specs,ensure_ascii=False))
 `, corpus, out, JSON.stringify(specs)], {encoding:'utf8',env:{...process.env,PYTHONIOENCODING:'utf-8'}}));
 const report = {checks:[], errors:[], cases:[], exe_sha256:hash(exe),
+  native_code_sha256:nativeCodeHash.digest('hex'),
   asar_sha256:hash(path.join(path.dirname(exe),'resources/app.asar')),
   python_sha256:hash(python)};
 let app, page;
