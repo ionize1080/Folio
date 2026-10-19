@@ -33,4 +33,3 @@ print(json.dumps({'checks':checks,'errors':[]}))
 # Deterministic browser fixtures; corpus tests can replace the outline fixture.
 d=fitz.open();p=d.new_page();p.insert_text((50,80),'Original paragraph with enough width for navigation',fontsize=12);d.new_page();d.save(OUT/'v190-editor.pdf');d.close()
 d=fitz.open();[d.new_page() for _ in range(4)];d.set_toc([[1,'Chapter one',1],[2,'Child section',2],[1,'Chapter two',3],[2,'Another child',4]]);d.save(OUT/'v190-outline.pdf');d.close()
-
