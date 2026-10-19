@@ -152,6 +152,61 @@ export function applyBatch(nodes, ids, rule, pageCount) {
       case "trim":
         n.title = n.title.trim().replace(/\s+/g, " ");
         break;
+      case "case": {
+        const modes = {
+          upper: (s) => s.toUpperCase(),
+          lower: (s) => s.toLowerCase(),
+          title: (s) =>
+            s
+              .toLowerCase()
+              .replace(
+                /\p{L}[\p{L}\p{M}\p{N}'’]*/gu,
+                (word) => word[0].toUpperCase() + word.slice(1),
+              ),
+          sentence: (s) =>
+            s.toLowerCase().replace(/\p{L}/u, (c) => c.toUpperCase()),
+        };
+        if (!Object.hasOwn(modes, rule.caseMode)) throw Error("大小写模式无效");
+        n.title = modes[rule.caseMode](n.title);
+        break;
+      }
+      case "zoom": {
+        const t = n.target;
+        // External actions are never converted into local destinations.
+        if (!t.page || t.external) break;
+        if (t.kind === "preserve" && !rule.convert)
+          throw Error("原始目标需要勾选「转换原始本地目标」");
+        if (
+          !["inherit", "fixed", "Fit", "FitH", "FitV", "FitB"].includes(
+            rule.zoomMode,
+          )
+        )
+          throw Error("缩放模式无效");
+        const x = ["XYZ", "FitR", "FitV", "FitBV"].includes(t.mode)
+          ? (t.args?.[0] ?? null)
+          : null;
+        const y = ["XYZ"].includes(t.mode)
+          ? (t.args?.[1] ?? null)
+          : ["FitH", "FitBH"].includes(t.mode)
+            ? (t.args?.[0] ?? null)
+            : t.mode === "FitR"
+              ? (t.args?.[3] ?? null)
+              : null;
+        let mode = rule.zoomMode,
+          args;
+        if (["inherit", "fixed"].includes(mode)) {
+          const percent = Number(rule.zoomPercent);
+          if (
+            mode === "fixed" &&
+            (!Number.isFinite(percent) || percent < 8.33 || percent > 6400)
+          )
+            throw Error("缩放比例应为 8.33%–6400%");
+          args = [x, y, mode === "inherit" ? null : percent / 100];
+          mode = "XYZ";
+        } else args = mode === "FitH" ? [y] : mode === "FitV" ? [x] : [];
+        n.target = { kind: "dest", page: t.page, mode, args };
+        break;
+      }
       case "number":
         n.title = (rule.template || "{n}. {title}")
           .replaceAll("{n}", String(serial++))

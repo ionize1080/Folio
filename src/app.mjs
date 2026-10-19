@@ -1,5 +1,11 @@
+import { bookmarkHTML } from "./bookmark-html.mjs";
 import { buildExportSnapshot } from "./export-snapshot.mjs";
-import { installLocalization, languagePicker, t } from "./i18n.mjs";
+import {
+  installLocalization,
+  languagePicker,
+  t,
+  getLanguage,
+} from "./i18n.mjs";
 import { installObjectSelection } from "./object-selection-ui.mjs";
 import { installPageImages } from "./image-page-ui.mjs";
 import { updateDialog } from "./update-ui.mjs";
@@ -1341,11 +1347,11 @@ function batchCompute(nodes, ids, rule) {
     w.postMessage({ nodes, ids: [...ids], rule, pageCount: S.info.pageCount });
   });
 }
-function batchDialog() {
+function batchDialog(operation = null) {
   const memory = new RuleMemory(localStorage, S.fingerprint || S.name);
   const sourceNodes = S.nodes,
     sourceBytes = S.bytes;
-  let activeOperation = memory.lastOperation(),
+  let activeOperation = operation || memory.lastOperation(),
     previewContext = null,
     composing = false;
   const context = () =>
@@ -1367,7 +1373,7 @@ function batchDialog() {
     timer;
   modal(
     "批量规则",
-    `<p>先查看差异，再一次应用。越界页码会阻止整个操作，所有更改支持撤销。</p><div class="form-grid"><label>处理范围<select id="batch-scope"><option value="selected">所选书签</option><option value="descendants">所选书签及子项</option><option value="all">全部书签</option><option value="filtered">当前筛选匹配项</option></select></label><label>操作<select id="batch-op"><option value="replace">正则查找替换</option><option value="prefix">添加前缀 / 后缀</option><option value="number">模板编号</option><option value="trim">清理空格</option><option value="offset">统一页码偏移</option><option value="coordinates">统一跳转模式 / 坐标</option><option value="parameters">逐参数：保持 / 绝对 / 相对 / null</option><option value="style">统一颜色和字形</option><option value="open">默认展开 / 折叠</option></select></label></div><div class="rule-memory-toolbar"><select id="batch-history" aria-label="最近规则与收藏"></select><input id="batch-name" placeholder="收藏名称（可选）" maxlength="80"><button id="batch-favorite">收藏当前规则</button><button id="batch-clear-history">清空历史</button></div><div id="batch-fields"></div><div id="batch-summary" class="callout">修改参数后自动刷新预览</div><div id="batch-preview" class="preview-list"></div>`,
+    `<p>先查看差异，再一次应用。越界页码会阻止整个操作，所有更改支持撤销。</p><div class="form-grid"><label>处理范围<select id="batch-scope"><option value="selected">所选书签</option><option value="descendants">所选书签及子项</option><option value="all">全部书签</option><option value="filtered">当前筛选匹配项</option></select></label><label>操作<select id="batch-op"><option value="replace">正则查找替换</option><option value="prefix">添加前缀 / 后缀</option><option value="number">模板编号</option><option value="trim">清理空格</option><option value="case">切换标题大小写</option><option value="zoom">更改书签缩放</option><option value="offset">统一页码偏移</option><option value="coordinates">统一跳转模式 / 坐标</option><option value="parameters">逐参数：保持 / 绝对 / 相对 / null</option><option value="style">统一颜色和字形</option><option value="open">默认展开 / 折叠</option></select></label></div><div class="rule-memory-toolbar"><select id="batch-history" aria-label="最近规则与收藏"></select><input id="batch-name" placeholder="收藏名称（可选）" maxlength="80"><button id="batch-favorite">收藏当前规则</button><button id="batch-clear-history">清空历史</button></div><div id="batch-fields"></div><div id="batch-summary" class="callout">修改参数后自动刷新预览</div><div id="batch-preview" class="preview-list"></div>`,
     [
       { text: "取消", run: closeModal },
       {
@@ -1428,6 +1434,8 @@ function batchDialog() {
       prefix: `<div class="form-grid"><label>前缀<input id="b-prefix"></label><label>后缀<input id="b-suffix"></label></div>`,
       number: `<div class="form-grid"><label>编号模板<input id="b-template" value="{n}. {title}"></label><label>起始编号<input id="b-start" type="number" value="1"></label></div><p class="hint">可用变量：{n}、{title}、{page}、{level}</p>`,
       trim: "<p>移除首尾空白，将连续空白压缩成一个空格。</p>",
+      case: '<label>转换方式<select id="b-case-mode"><option value="upper">全部大写</option><option value="lower">全部小写</option><option value="title">每词首字母大写</option><option value="sentence">首字母大写</option></select></label><p>仅修改标题文字；中文、页码和跳转动作保持原样。请检查专有名词与缩写。</p>',
+      zoom: '<label>跳转缩放<select id="b-zoom-mode"><option value="inherit">继承当前缩放</option><option value="fixed">固定比例</option><option value="Fit">适合页面</option><option value="FitH">适合宽度</option><option value="FitV">适合高度</option><option value="FitB">适合可见内容</option></select></label><label id="b-zoom-percent-label" hidden>比例（%）<input id="b-zoom-percent" type="number" min="8.33" max="6400" value="100" step="any"></label><label class="check"><input id="b-convert" type="checkbox">允许将原始本地动作 / 命名目标转换为直接目标</label><p>保留页码与可复用的位置参数；外部动作跳过。转换原始目标会替换其动作链。</p>',
       offset:
         '<label>偏移量（可为负数）<input id="b-amount" type="number" value="0"></label><p class="hint">仅修改已转换为自定义目标的书签。原始动作不会被隐式替换。</p>',
       coordinates: `<label>模式<select id="b-mode">${Object.keys(MODES)
@@ -1441,6 +1449,13 @@ function batchDialog() {
       open: '<label class="check"><input id="b-open" type="checkbox" checked>在 PDF 阅读器中展开</label>',
     }[op];
     restoreFields($("#batch-fields"), memory.get(op));
+    if (op === "zoom") {
+      const showPercent = () =>
+        ($("#b-zoom-percent-label").hidden =
+          $("#b-zoom-mode").value !== "fixed");
+      $("#b-zoom-mode").addEventListener("change", showPercent);
+      showPercent();
+    }
     $("#b-mode")?.addEventListener("change", () => {
       $("#b-args").value = JSON.stringify(
         $("#b-mode").value === "FitR"
@@ -1489,6 +1504,9 @@ function batchDialog() {
         find: val("b-find"),
         replacement: val("b-replacement"),
         caseSensitive: checked("b-case"),
+        caseMode: val("b-case-mode"),
+        zoomMode: val("b-zoom-mode"),
+        zoomPercent: val("b-zoom-percent"),
         prefix: val("b-prefix"),
         suffix: val("b-suffix"),
         template: val("b-template"),
@@ -1519,6 +1537,14 @@ function batchDialog() {
       $("#batch-apply").disabled = !changed.length;
       $("#batch-summary").textContent =
         `范围 ${ids.size} 项 · 将修改 ${changed.length} 项 · 预览前 80 项`;
+      if (op === "zoom") {
+        const skipped = S.nodes.filter(
+          (n) => ids.has(n.id) && (!n.target.page || n.target.external),
+        ).length;
+        if (skipped)
+          $("#batch-summary").textContent +=
+            ` · 跳过 ${skipped} 项外部或未解析目标`;
+      }
       $("#batch-summary").classList.remove("error");
       $("#batch-preview").innerHTML =
         `<details><summary>完整规则参数</summary><pre translate="no">${esc(JSON.stringify(rule, null, 2))}</pre></details>` +
@@ -1836,7 +1862,7 @@ function generateDialog() {
 function exchangeDialog() {
   modal(
     "导入 / 导出与工作工程",
-    `<p>JSON 包含层级、颜色、字形和跳转参数。TXT 适合在 Excel 或文本编辑器中整理。</p><div class="callout">跨文件导入时，原始动作字典不会复制。可解析的本地目标会转为显式目标；不可解析的动作会提示并定位第 1 页。PDF-XChange 专用书签交换格式暂未实现。</div><div class="menu-grid"><button id="export-json">导出 Folio JSON</button><button id="export-txt">导出目录 TXT</button><button id="import-json">导入 Folio JSON</button><button id="import-txt">导入目录 TXT</button><button id="export-project">保存工作工程 .folio</button></div><p class="hint">工作工程包含原 PDF、已应用修改、OCR 校对与流式段落结构，可通过“打开”继续编辑。PDF 用于交付，工程用于续编；工程保留原始内容与修改记录。</p>`,
+    `<p>JSON 包含层级、颜色、字形和跳转参数。TXT 适合在 Excel 或文本编辑器中整理。</p><div class="callout">跨文件导入时，原始动作字典不会复制。可解析的本地目标会转为显式目标；不可解析的动作会提示并定位第 1 页。PDF-XChange 专用书签交换格式暂未实现。</div><div class="menu-grid"><button id="export-json">导出 Folio JSON</button><button id="export-txt">导出目录 TXT</button><button id="export-html">导出书签 HTML</button><button id="import-json">导入 Folio JSON</button><button id="import-txt">导入目录 TXT</button><button id="export-project">保存工作工程 .folio</button></div><p class="hint">工作工程包含原 PDF、已应用修改、OCR 校对与流式段落结构，可通过“打开”继续编辑。PDF 用于交付，工程用于续编；工程保留原始内容与修改记录。</p>`,
     [{ text: "完成", run: closeModal }],
   );
   $("#export-project").onclick = () =>
@@ -1866,6 +1892,22 @@ function exchangeDialog() {
           ),
         ),
         "json",
+      );
+    });
+  $("#export-html").onclick = () =>
+    guarded(async () => {
+      await writeFile(
+        "bookmarks.html",
+        new TextEncoder().encode(
+          bookmarkHTML(S.nodes, S.name, {
+            lang: getLanguage(),
+            page: t("页码"),
+            help: t(
+              "将 HTML 与同名 PDF 放在同一文件夹。链接跳转到本地页码；外部和未解析动作仅显示标题。",
+            ),
+          }),
+        ),
+        "html",
       );
     });
   $("#export-txt").onclick = () =>
@@ -1925,7 +1967,7 @@ function exchangeDialog() {
 function treeMenu() {
   modal(
     "整理书签",
-    `<div class="menu-grid"><button data-action="split-bookmark">正则拆分书签…</button><button id="sort-page">按页码排序（保留层级）</button><button id="sort-title">按标题自然排序</button><button id="dedupe">查找重复书签…</button><button id="calibrate">按标题校准目标…</button><button id="convert-dest">原始本地目标 → 可编辑目标</button><button id="select-all">全选书签</button><button id="validate-tree">校验跳转目标</button></div><p class="hint">转换目标会替换所选书签的原始动作链或命名目标，保留其解析出的页码和视图参数。外部动作保持原样；未选择时作用于全部。</p>`,
+    `<div class="menu-grid"><button data-action="split-bookmark">正则拆分书签…</button><button data-action="bookmark-zoom">更改书签缩放…</button><button data-action="bookmark-case">切换标题大小写…</button><button id="sort-page">按页码排序（保留层级）</button><button id="sort-title">按标题自然排序</button><button id="dedupe">查找重复书签…</button><button id="calibrate">按标题校准目标…</button><button id="convert-dest">原始本地目标 → 可编辑目标</button><button id="select-all">全选书签</button><button id="validate-tree">校验跳转目标</button></div><p class="hint">转换目标会替换所选书签的原始动作链或命名目标，保留其解析出的页码和视图参数。外部动作保持原样；未选择时作用于全部。</p>`,
     [{ text: "完成", run: closeModal }],
   );
   $("#sort-page").onclick = () => {
@@ -2616,12 +2658,19 @@ function copyTree(cut = false) {
   clipboardCut = cut ? new Set(S.selected) : null;
   toast(`${cut ? "剪切" : "复制"} ${clipboardNodes.length} 个书签`);
 }
-function pasteTree() {
+function pasteTree(where = "child") {
   if (!clipboardNodes?.length) return;
   const ref = selectedNode();
   if (clipboardCut) {
-    commit(move(S.nodes, clipboardCut, ref?.id || null, "inside"));
+    const ids = new Set(clipboardCut);
+    commit(
+      move(S.nodes, ids, ref?.id || null, where === "child" ? "inside" : where),
+    );
+    S.selected = ids;
     clipboardCut = null;
+    if (ref) S.collapsed.delete(ref.id);
+    rebuild();
+    reveal([...ids][0]);
     return;
   }
   const map = new Map(clipboardNodes.map((n) => [n.id, uid()])),
@@ -2630,7 +2679,15 @@ function pasteTree() {
     n.id = map.get(n.id);
     n.parent = map.get(n.parent) || null;
   }
-  commit(insertGenerated(S.nodes, chunk, "child", ref?.id));
+  S.selected = new Set(chunk.filter((n) => !n.parent).map((n) => n.id));
+  if (ref) S.collapsed.delete(ref.id);
+  commit(insertGenerated(S.nodes, chunk, where, ref?.id));
+  reveal([...S.selected][0]);
+}
+function expandSubtree(open) {
+  for (const id of descendants(S.nodes, S.selected))
+    open ? S.collapsed.delete(id) : S.collapsed.add(id);
+  rebuild();
 }
 function moveSibling(dir) {
   const n = selectedNode();
@@ -3561,6 +3618,8 @@ const actions = {
   "generate-classic": generateDialog,
   exchange: exchangeDialog,
   "tree-menu": treeMenu,
+  "bookmark-zoom": () => batchDialog("zoom"),
+  "bookmark-case": () => batchDialog("case"),
   expand: () => {
     S.collapsed.clear();
     rebuild();
@@ -4193,6 +4252,8 @@ $("#tree").addEventListener("contextmenu", (e) => {
     ["调整跳转留白…", nativeUI.whitespaceDialog],
     ["按标题校准目标…", bookmarkUI.calibrateDialog],
     ["查找重复书签…", bookmarkUI.dedupeDialog],
+    ["更改书签缩放…", actions["bookmark-zoom"]],
+    ["切换标题大小写…", actions["bookmark-case"]],
     ["正则拆分书签…", actions["split-bookmark"]],
     ["编辑标题 · F2", renameInline],
     ["新增同级书签", () => createBookmark()],
@@ -4200,6 +4261,10 @@ $("#tree").addEventListener("contextmenu", (e) => {
     ["剪切", () => copyTree(true)],
     ["复制", () => copyTree()],
     ["粘贴为子书签", pasteTree],
+    ["粘贴到前面", () => pasteTree("before")],
+    ["粘贴到后面", () => pasteTree("after")],
+    ["展开所选子树", () => expandSubtree(true)],
+    ["折叠所选子树", () => expandSubtree(false)],
     ["删除所选与子项", deleteNodes],
     ["仅删除所选，保留子项", () => removeSpecial("retain")],
     ["仅删除子书签", () => removeSpecial("children")],

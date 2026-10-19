@@ -82,6 +82,7 @@ export function installShortcuts({
   isModal,
 }) {
   document.addEventListener("keydown", (e) => {
+    if (e.isComposing || e.keyCode === 229) return;
     const editable = e.target.closest(
       "input,textarea,select,[contenteditable=true]",
     );

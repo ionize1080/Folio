@@ -23,7 +23,10 @@ def mark_shows(blob,text):
     from content import decoded_texts,raw_strings,TEXT
     reader=PdfReader(io.BytesIO(blob));writer=PdfWriter();page=writer.add_page(reader.pages[0])
     stream=ContentStream(page.get('/Contents'),writer);decoded=decoded_texts(page,stream)
-    compact=lambda s:''.join(c for c in s if not c.isspace())
+    # MuPDF Story may encode a visible ASCII hyphen as U+00AD. Restore the
+    # submitted scalar through ActualText, without changing its painted glyph.
+    canonical=lambda c:'-' if c=='\u00ad' else c
+    compact=lambda s:''.join(canonical(c) for c in s if not c.isspace())
     if compact(''.join(decoded.values()))!=compact(text):
         # Shaped ligatures already have the repaired ToUnicode map. Do not
         # invent per-show ownership when the scalar alignment is ambiguous.
@@ -34,7 +37,7 @@ def mark_shows(blob,text):
         for ch in value:
             if ch.isspace():continue
             while cursor<len(text) and text[cursor].isspace():cursor+=1
-            if cursor>=len(text) or text[cursor]!=ch:return blob
+            if cursor>=len(text) or canonical(text[cursor])!=canonical(ch):return blob
             cursor+=1
         while cursor<len(text) and text[cursor].isspace():cursor+=1
         actual[at]=text[start:cursor]

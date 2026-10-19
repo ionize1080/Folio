@@ -117,6 +117,8 @@ def expand_page(page, *, foreign=True):
             nested = external and all(o in WRAPPER_OPS for _,o in content.operations)
             rewritten = []
             for values, operator in content.operations:
+                if operator == b'INLINE IMAGE':
+                    rewritten.append((values, operator)); continue
                 values = list(values)
                 if orphan_mcids and operator == b'BDC' and len(values) > 1 and isinstance(values[1], dict) and '/MCID' in values[1]:
                     values[1] = DictionaryObject({k:v for k,v in values[1].items() if k != '/MCID'})
@@ -135,7 +137,8 @@ def expand_page(page, *, foreign=True):
 
     output = emit(original.operations, resources, (), 0, wrappers)
     if not serial: return False
-    original.operations = [([raw_strings(v) for v in values], op) for values,op in output]
+    # Inline image operands are a {settings, data} mapping, not an array.
+    original.operations = [(values if op == b'INLINE IMAGE' else [raw_strings(v) for v in values], op) for values,op in output]
     page[NameObject('/Resources')] = destination
     page[NameObject('/Contents')] = page.pdf._add_object(original)
     return True

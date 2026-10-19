@@ -198,6 +198,19 @@ export function connectedParagraphs(objects, h, barriers = objects) {
             continue;
           if (item.test(last.text) || heading.test(last.text)) continue;
           if (row.code !== last.code || row.heavy !== last.heavy) continue;
+          // After a flush-left continuation, a fresh 1–3 em indent is strong
+          // paragraph evidence. Do not join it merely because baselines match.
+          // The first indented line followed by a flush-left row still joins.
+          if (
+            !row.code &&
+            p.rows.length >= 2 &&
+            Math.abs(last.u - p.u) < s * 0.4 &&
+            row.u - p.u >= s * 1.2 &&
+            row.u - p.u <= s * 3 &&
+            /[\u3400-\u9fff]/u.test(row.text) &&
+            /[。！？.!?][”’」』）)]?$/.test(last.text)
+          )
+            continue;
           if (
             !row.code &&
             (/[:：]$/.test(last.text) ||
@@ -238,11 +251,14 @@ export function connectedParagraphs(objects, h, barriers = objects) {
           const prev = row.parts[i - 1];
           if (
             prev &&
-            !(prev.o.textSpacingExplicit && p.o.textSpacingExplicit &&
-              p.o.index === prev.o.index + 1) &&
+            !(
+              prev.o.textSpacingExplicit &&
+              p.o.textSpacingExplicit &&
+              p.o.index === prev.o.index + 1
+            ) &&
             p.u - prev.end > p.o.size * 0.2 &&
-            /[A-Za-z0-9]$/.test(text) &&
-            /^[A-Za-z0-9]/.test(p.o.text)
+            /[\p{Script=Latin}\p{N})\],;:]$/u.test(text) &&
+            /^[\p{Script=Latin}\p{N}(]/u.test(p.o.text)
           )
             text += " ";
           text += p.o.text.replace(/[\r\n]+/g, "");

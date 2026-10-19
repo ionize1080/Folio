@@ -4,6 +4,7 @@ import { editWarnings } from "./edit-warnings.mjs";
 import { FastFonts, fastLayout, canFast } from "./fast-layout.mjs";
 import { nativeRequest, releaseSource } from "./native-source.mjs";
 import { fontLabel } from "./font-label.mjs";
+import { visualCaretMove } from "./text-navigation.mjs";
 import { displayToPage, pageTransform, turn } from "./page-coordinates.mjs";
 import { joinModels, splitModel, unionFrames } from "./flow-structure.mjs";
 import { editStyles, editSoftBreaks, rangeStyle } from "./flow-style.mjs";
@@ -108,6 +109,7 @@ export function installFlowUI(ctx) {
       backgroundSerial = 0,
       backgroundTimer = null,
       pointerAnchor = 0;
+    let preferredCaretX = null;
     let pendingHistory = false,
       history = [],
       future = [],
@@ -122,7 +124,7 @@ export function installFlowUI(ctx) {
       linkMode = false;
     const bar = document.createElement("div");
     bar.className = "page-edit-bar";
-    bar.innerHTML = `<div class="pe-primary"><strong>页面编辑</strong><button id="pe-font" title="选择字体">原文样式</button><label>字号 <input id="pe-size" type="number" min="4" max="150" step="0.5" value="12"></label><button id="pe-bold" title="粗体">B</button><button id="pe-italic" title="斜体"><i>I</i></button><input id="pe-color" type="color" value="#202020" aria-label="文字颜色"><select id="pe-align" aria-label="对齐"><option value="left">左对齐</option><option value="justify">两端对齐</option><option value="center">居中</option><option value="right">右对齐</option></select><button id="pe-more" aria-expanded="false"><i data-icon="sliders"></i>格式</button></div><div class="pe-actions"><button id="pe-cancel">取消本段</button><button id="pe-done" class="primary">完成编辑</button></div><aside class="pe-properties" hidden><div class="pe-panel-heading"><strong>文字与布局</strong><button id="pe-close-properties" aria-label="关闭格式面板">×</button></div><div class="pe-properties-grid"><label>排版方式<select id="pe-layout-mode"><option value="preserve">优先保留原字位</option><option value="reflow">重新排版整段</option></select></label><label>字距（pt）<input id="pe-spacing" type="number" min="-2" max="10" step="0.1" value="0"></label><label>行距（倍）<input id="pe-leading" type="number" min="1" max="3" step="0.1" value="1.4"></label><label>分栏<select id="pe-columns"><option value="1">单栏</option><option value="2">双栏续排</option><option value="3">三栏续排</option></select></label><label>首行缩进（pt）<input id="pe-indent" type="number" min="0" step="0.5" value="0"></label><label>段前距（pt）<input id="pe-before" type="number" min="0" max="100" value="0"></label><label>段后距（pt）<input id="pe-after" type="number" min="0" max="100" value="0"></label><label>扩展方向<select id="pe-growth"><option value="auto">自动预选</option><option value="down">向下</option><option value="right">向右</option><option value="fixed">固定文本框</option></select></label></div><p id="pe-growth-reason"></p><details class="pe-position"><summary>位置与尺寸</summary><div class="pe-properties-grid"><label>X（pt）<input data-frame="x" type="number" step="1"></label><label>Y（pt）<input data-frame="y" type="number" step="1"></label><label>宽度（pt）<input data-frame="width" type="number" min="1"></label><label>高度（pt）<input data-frame="height" type="number" min="1"></label></div></details><button id="pe-recommend">重新评估方向</button><div class="pe-object-tools"><button id="pe-tables"><i data-icon="table"></i>表格单元格</button><button id="pe-link">接续段落</button><button id="pe-new">添加文字</button><button id="pe-compare">本段原文对照</button><button id="pe-full-diff">全页输出对照</button><label>格式刷范围<select id="pe-style-scope"><option value="all">字符与段落</option><option value="character">仅字符</option><option value="paragraph">仅段落</option></select></label><button id="pe-copy-style">吸取样式</button><button id="pe-paste-style" disabled>应用样式</button><button id="pe-problems">查看遮挡</button><button id="pe-default-style">设为新增默认</button><label>新增样式<select id="pe-new-style"><option value="nearby">沿用附近文字</option><option value="default">使用默认样式</option></select></label></div><details class="pe-layers"><summary>叠放与选择</summary><label>相对原页面<select id="pe-page-layer"><option value="above">位于原页面上方</option><option value="below">位于原页面下方</option></select></label><div class="pe-object-tools"><button data-order="up">上移一层</button><button data-order="down">下移一层</button><button data-order="top">置于顶层</button><button data-order="bottom">置于底层</button></div><select id="pe-overlap-select" aria-label="选择重叠段落"><option value="">选择重叠段落…</option></select></details><p class="pe-scope">修改范围：当前段落。接续后仅影响所选段落。</p></aside><aside class="pe-font-panel" hidden><div class="pe-panel-heading"><strong>选择字体</strong><button id="pe-close-font" aria-label="关闭字体选择">×</button></div><button id="pe-font-match">按原文字形推荐</button><p id="pe-font-evidence">缺字自动优先匹配原字体轮廓与字宽。</p><input id="pe-font-search" type="search" placeholder="搜索字体名称…" aria-label="搜索字体"><label>应用于<select id="pe-font-script"><option value="all">全部文字</option><option value="latin">英文字母与数字</option><option value="cjk">中文等非拉丁文字</option></select></label><div id="pe-font-list"></div><p>有选区时应用于选区；没有选区时用于后续输入。换行效果直接显示在原页。</p></aside><div class="pe-notice" hidden><span id="pe-warning"></span><button id="pe-accept">保留重叠</button><button id="pe-overflow">显示溢出并保留</button><label class="pe-session-warning"><input id="pe-warning-only" type="checkbox">本次仅标记</label></div><div class="pe-status-row"><span id="pe-font-source" title="当前字符的字体解析来源"></span><span id="pe-status" role="status" aria-live="polite"></span><button id="pe-fallback" hidden>字体替代详情</button></div><aside id="pe-fallback-panel" class="pe-font-panel" hidden></aside>`;
+    bar.innerHTML = `<div class="pe-primary"><strong>页面编辑</strong><button id="pe-font" title="选择字体">原文样式</button><label>字号 <input id="pe-size" type="number" min="4" max="150" step="0.5" value="12"></label><button id="pe-bold" title="粗体">B</button><button id="pe-italic" title="斜体"><i>I</i></button><input id="pe-color" type="color" value="#202020" aria-label="文字颜色"><select id="pe-align" aria-label="对齐"><option value="left">左对齐</option><option value="justify">两端对齐</option><option value="center">居中</option><option value="right">右对齐</option></select><button id="pe-more" aria-expanded="false"><i data-icon="sliders"></i>格式</button></div><div class="pe-actions"><button id="pe-cancel">取消本段</button><button id="pe-done" class="primary">完成编辑</button></div><aside class="pe-properties" hidden><div class="pe-panel-heading"><strong>文字与布局</strong><button id="pe-close-properties" aria-label="关闭格式面板">×</button></div><div class="pe-properties-grid"><label>排版方式<select id="pe-layout-mode"><option value="preserve">优先保留原字位</option><option value="reflow">重新排版整段</option></select></label><label>字距（pt）<input id="pe-spacing" type="number" min="-2" max="10" step="0.1" value="0"></label><label>行距（倍）<input id="pe-leading" type="number" min="1" max="3" step="0.1" value="1.4"></label><label>分栏<select id="pe-columns"><option value="1">单栏</option><option value="2">双栏续排</option><option value="3">三栏续排</option></select></label><label>首行缩进（pt）<input id="pe-indent" type="number" min="0" step="0.5" value="0"></label><label>段前距（pt）<input id="pe-before" type="number" min="0" max="100" value="0"></label><label>段后距（pt）<input id="pe-after" type="number" min="0" max="100" value="0"></label><label>扩展方向<select id="pe-growth"><option value="auto">自动预选</option><option value="down">向下</option><option value="right">向右</option><option value="fixed">固定文本框</option></select></label></div><p id="pe-growth-reason"></p><details class="pe-position"><summary>位置与尺寸</summary><div class="pe-properties-grid"><label>X（pt）<input data-frame="x" type="number" step="1"></label><label>Y（pt）<input data-frame="y" type="number" step="1"></label><label>宽度（pt）<input data-frame="width" type="number" min="1"></label><label>高度（pt）<input data-frame="height" type="number" min="1"></label></div></details><button id="pe-recommend">重新评估方向</button><div class="pe-object-tools"><button id="pe-tables"><i data-icon="table"></i>表格单元格</button><button id="pe-link">接续段落</button><button id="pe-new">添加文字</button><button id="pe-compare">本段原文对照</button><button id="pe-full-diff">全页输出对照</button><label>格式刷范围<select id="pe-style-scope"><option value="all">字符与段落</option><option value="character">仅字符</option><option value="paragraph">仅段落</option></select></label><button id="pe-copy-style">吸取样式</button><button id="pe-paste-style" disabled>应用样式</button><button id="pe-problems">查看遮挡</button><button id="pe-default-style">设为新增默认</button><label>新增样式<select id="pe-new-style"><option value="nearby">沿用附近文字</option><option value="default">使用默认样式</option></select></label></div><details class="pe-layers"><summary>叠放与选择</summary><label>相对原页面<select id="pe-page-layer"><option value="above">位于原页面上方</option><option value="below">位于原页面下方</option></select></label><div class="pe-object-tools"><button data-order="up">上移一层</button><button data-order="down">下移一层</button><button data-order="top">置于顶层</button><button data-order="bottom">置于底层</button></div><select id="pe-overlap-select" aria-label="选择重叠段落"><option value="">选择重叠段落…</option></select></details><p class="pe-scope">修改范围：当前段落。接续后仅影响所选段落。</p></aside><aside class="pe-font-panel" hidden><div class="pe-panel-heading"><strong>选择字体</strong><button id="pe-close-font" aria-label="关闭字体选择">×</button></div><button id="pe-font-match">按原文字形推荐</button><p id="pe-font-evidence">缺字自动优先匹配原字体轮廓与字宽。</p><input id="pe-font-search" type="search" placeholder="搜索字体名称…" aria-label="搜索字体"><label>应用于<select id="pe-font-script"><option value="all">全部文字</option><option value="latin">英文字母与数字</option><option value="cjk">中文等非拉丁文字</option></select></label><div id="pe-font-list"></div><p>有选区时应用于选区；没有选区时用于后续输入。换行效果直接显示在原页。</p></aside><div class="pe-notice" hidden><span id="pe-warning"></span><button id="pe-accept">保留重叠</button><button id="pe-overflow">显示溢出并保留</button><label class="pe-session-warning"><input id="pe-warning-only" type="checkbox">本次仅标记</label></div><div class="pe-status-row"><span id="pe-font-source" title="当前字符的字体解析来源"></span><span id="pe-status" role="status" aria-live="polite"></span><button id="pe-resolve-font" hidden>选择整段替代字体</button><button id="pe-fallback" hidden>字体替代详情</button></div><aside id="pe-fallback-panel" class="pe-font-panel" hidden></aside>`;
     let fontCatalog = null,
       styleClipboard = null,
       lastConflicts = [],
@@ -283,6 +285,12 @@ export function installFlowUI(ctx) {
           { signal: signal.signal },
         ),
       );
+    listen(bar.querySelector("#pe-resolve-font"), "click", () => {
+      if (!model) return;
+      input.setSelectionRange(0, input.value.length);
+      bar.querySelector("#pe-font-script").value = "all";
+      bar.querySelector("#pe-font").click();
+    });
     const status = (text, bad = false) => {
       bar.querySelector("#pe-status").textContent = text;
       bar.querySelector("#pe-status").classList.toggle("error", bad);
@@ -767,10 +775,15 @@ export function installFlowUI(ctx) {
         bar.querySelector("#pe-" + k).setAttribute("aria-pressed", !!model[k]);
       bar.querySelector("#pe-font").textContent =
         fontLabel(model.fontName) || "内置替代字体";
+      bar.querySelector("#pe-resolve-font").hidden = !(model.runs?.length
+        ? model.runs.some(
+            (r) => r.fontResolution === "unresolved" && !r.fontKey,
+          )
+        : model.fontResolution === "unresolved" && !model.fontKey);
       bar.querySelector("#pe-font").title =
         (model.fontKey
           ? "已匹配原文嵌入字体："
-          : "原字体不可复用，替代为内置字体：") +
+          : "原字体不可复用，请选择替代字体：") +
         (model.fontName || "Noto Sans SC");
       bar.querySelector("strong").textContent = model.cell
         ? "表格编辑"
@@ -1766,6 +1779,13 @@ export function installFlowUI(ctx) {
     });
     listen(input, "input", () => {
       if (!model) return;
+      preferredCaretX = null;
+      // Chromium may send a final input after compositionend. It must not add
+      // an identical undo entry or perform the same style splice twice.
+      if (input.value === model.text) {
+        pendingHistory = false;
+        return;
+      }
       if (!pendingHistory && !composing) remember();
       pendingHistory = false;
       const old = model.text;
@@ -1835,6 +1855,9 @@ export function installFlowUI(ctx) {
         model.runs = draft.runs;
       }
       model.text = input.value;
+      S.flowDraftDirty =
+        JSON.stringify({ ...model, fastLayout: undefined }) !== initial;
+      window.desktop?.setDirty?.(S.dirty || S.flowDraftDirty);
       queue();
     });
     function restoreDraftHistory(redo) {
@@ -1861,6 +1884,7 @@ export function installFlowUI(ctx) {
     }
     listen(input, "keydown", (e) => {
       if (e.isComposing || composing || e.keyCode === 229) return;
+      if (!["ArrowUp", "ArrowDown"].includes(e.key)) preferredCaretX = null;
       if (e.key === "Escape") {
         e.preventDefault();
         e.stopPropagation();
@@ -1953,33 +1977,19 @@ export function installFlowUI(ctx) {
       }
       if (!ctrl && ["ArrowUp", "ArrowDown", "Home", "End"].includes(e.key)) {
         e.preventDefault();
-        const gs = preview?.glyphs || [],
-          offset =
-            input.selectionDirection === "backward"
-              ? input.selectionStart
-              : input.selectionEnd;
-        const c = caretRect(gs, offset, model),
-          line = gs.filter((g) => g.line === c.line);
-        let n = offset;
-        if (e.key === "Home") n = line[0]?.start ?? 0;
-        else if (e.key === "End") n = line.at(-1)?.end ?? model.text.length;
-        else {
-          const next = gs.filter(
-            (g) => g.line === c.line + (e.key === "ArrowDown" ? 1 : -1),
-          );
-          if (next.length) n = hitOffset(next, c.x, next[0].y + next[0].h / 2);
-        }
-        if (e.shiftKey) {
-          const anchor =
-            input.selectionDirection === "backward"
-              ? input.selectionEnd
-              : input.selectionStart;
-          input.setSelectionRange(
-            Math.min(anchor, n),
-            Math.max(anchor, n),
-            n < anchor ? "backward" : "forward",
-          );
-        } else input.setSelectionRange(n, n);
+        const moved = visualCaretMove({
+          glyphs: preview?.glyphs || [],
+          anchors: preview?.anchors || [],
+          model,
+          start: input.selectionStart,
+          end: input.selectionEnd,
+          direction: input.selectionDirection,
+          key: e.key,
+          shift: e.shiftKey,
+          preferredX: preferredCaretX,
+        });
+        preferredCaretX = moved.preferredX;
+        input.setSelectionRange(moved.start, moved.end, moved.direction);
         selection();
       }
       // Prevent page navigation / hand scrolling while the text input owns focus.
@@ -2007,6 +2017,7 @@ export function installFlowUI(ctx) {
       await activate(existing?.model || next.model, existing?.id || null);
     }
     listen(layer, "pointerdown", (e) => {
+      preferredCaretX = null;
       if (e.target === resize || e.target.closest("button")) return;
       if (newMode && !busy) {
         const p = point(e),

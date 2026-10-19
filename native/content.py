@@ -146,9 +146,12 @@ def check_editable(page,descriptions):
                 # in a wider original slot. A one-character ActualText scope
                 # proves the intended text without changing raw signatures.
                 actual=a.get('actualText')
-                if actual is not None and b.get('text','').strip()!=actual.strip():
+                # PDFium flattens ActualText newlines to spaces. Whitespace
+                # shape does not change ownership when all scalars agree.
+                semantic_text=lambda value:''.join(value.split())
+                if actual is not None and semantic_text(b.get('text',''))!=semantic_text(actual):
                     b['editable']=False;b['flowEditable']=False;b['reason']='替代文字与可见字形不一致，保留原语义';continue
-                if actual is not None and b.get('text','').strip()==actual.strip():
+                if actual is not None and semantic_text(b.get('text',''))==semantic_text(actual):
                     b['text']=actual
                     # PDFium distributes ActualText boxes but can report one
                     # shared origin for every scalar. These are semantic boxes,

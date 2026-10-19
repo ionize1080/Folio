@@ -13,7 +13,7 @@ const root = path.resolve(__dirname, ".."),
   assert(process.env.FOLIO_EXE);
   const app = await _electron.launch({
     executablePath: process.env.FOLIO_EXE,
-    args: [],
+    args: ["--user-data-dir=" + fs.mkdtempSync(path.join(require("node:os").tmpdir(), "folio-p8-"))],
     timeout: 60000,
   });
   let page;
