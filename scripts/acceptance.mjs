@@ -28,7 +28,7 @@ for (const stage of stages) {
       // available just as they are with a regular Python script invocation.
       args = [
         "-c",
-        "import os,sys,runpy;sys.argv=sys.argv[1:];sys.path.insert(0,os.path.dirname(os.path.abspath(sys.argv[0])));runpy.run_path(sys.argv[0],run_name='__main__')",
+        "import os,sys,runpy;sys.argv=sys.argv[1:];sys.path.insert(0,os.path.join(os.getcwd(),'native','vendor'));sys.path.insert(0,os.path.dirname(os.path.abspath(sys.argv[0])));runpy.run_path(sys.argv[0],run_name='__main__')",
         ...args,
       ];
     }
