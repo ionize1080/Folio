@@ -12,7 +12,7 @@ base = root / 'dist/Folio-PDF-Studio-win-x64'
 with zipfile.ZipFile(files[0], 'w', zipfile.ZIP_DEFLATED, compresslevel=6) as z:
     for f in sorted(base.rglob('*')):
         rel = f.relative_to(base)
-        if f.is_file() and not any(p.startswith('.') for p in rel.parts) and f.name not in ['electron.exe', 'default_app.asar']:
+        if f.is_file() and not any(p.startswith('.') or p == '__pycache__' for p in rel.parts) and f.name not in ['electron.exe', 'default_app.asar']:
             z.write(f, Path('Folio-PDF-Studio') / rel)
 with zipfile.ZipFile(files[1], 'w', zipfile.ZIP_DEFLATED, compresslevel=6) as z:
     manifest = []
