@@ -10,8 +10,12 @@ class SourceStore {
     this.root = null;
     this.rootPromise = null;
     this.registering = 0;
+    this.generation = 0;
+    this.pendingRegistrations = new Set();
+    this.closed = false;
   }
   async register(bytes) {
+    if (this.closed) throw Error("原文缓存已关闭");
     if (
       !bytes ||
       !Number.isSafeInteger(bytes.length) ||
@@ -21,6 +25,10 @@ class SourceStore {
       throw Error("原文大小无效");
     if (this.entries.size + this.registering >= 16)
       throw Error("打开的原文过多，请关闭文档后重试");
+    const generation = this.generation;
+    let finish, file;
+    const pending = new Promise((resolve) => (finish = resolve));
+    this.pendingRegistrations.add(pending);
     this.registering++;
     try {
       const data = Buffer.from(bytes),
@@ -30,9 +38,13 @@ class SourceStore {
         this.rootPromise = makeTemp("folio-source-").then(
           (p) => (this.root = p),
         );
-      const root = await this.rootPromise,
-        file = path.join(root, handle + ".pdf");
+      const root = await this.rootPromise;
+      if (generation !== this.generation)
+        throw Error("页面已重新加载，请重新打开文档");
+      file = path.join(root, handle + ".pdf");
       await fs.writeFile(file, data, { mode: 0o600 });
+      if (generation !== this.generation)
+        throw Error("页面已重新加载，请重新打开文档");
       this.entries.set(handle, {
         file,
         hash,
@@ -41,8 +53,13 @@ class SourceStore {
         released: false,
       });
       return { handle, sha256: hash, size: data.length };
+    } catch (error) {
+      if (file) await fs.rm(file, { force: true }).catch(() => {});
+      throw error;
     } finally {
       this.registering--;
+      this.pendingRegistrations.delete(pending);
+      finish();
     }
   }
   acquire(handle) {
@@ -72,8 +89,18 @@ class SourceStore {
       await fs.rm(e.file, { force: true }).catch(() => {});
     }
   }
+  async clear() {
+    // A committed renderer navigation loses every JS-side handle. Invalidate
+    // pending writes too, while keeping the directory reusable by the new page.
+    this.generation++;
+    const handles = [...this.entries.keys()];
+    await Promise.all(handles.map((id) => this.release(id)));
+  }
   async close() {
-    for (const id of [...this.entries.keys()]) await this.release(id);
+    // Terminal shutdown only; renderer reloads use clear().
+    this.closed = true;
+    await this.clear();
+    await Promise.all([...this.pendingRegistrations]);
     if (!this.entries.size && this.root)
       await fs.rm(this.root, { recursive: true, force: true });
   }

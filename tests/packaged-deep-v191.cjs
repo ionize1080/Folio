@@ -353,6 +353,12 @@ with fitz.open(sys.argv[1]) as a,fitz.open(sys.argv[2]) as b:
 async function activate(title, toggle = true) {
   if (toggle) await page.locator('[data-action="flow-edit"]').click();
   const hit = page.locator(".page-edit-hit:not(.unavailable)");
+  await page.waitForFunction(() =>
+    document.querySelector(".page-edit-hit:not(.unavailable)") ||
+    document.querySelector("#status")?.textContent === "操作未完成",
+  );
+  if ((await page.locator("#status").textContent()) === "操作未完成")
+    throw Error("Entering page editing failed: " + (await page.locator("body").innerText()).slice(-500));
   await hit.first().waitFor();
   const titles = await hit.evaluateAll((es) => es.map((e) => e.title));
   const index = titles.findIndex((t) => compact(t) === compact(title));

@@ -128,6 +128,14 @@ app.whenReady().then(async () => {
   });
   win.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
   win.webContents.on("will-navigate", (e) => e.preventDefault());
+  // Clear only after a full main-frame navigation commits. A cancelled
+  // navigation or same-document hash change still owns its current handles.
+  const clearRendererSources = () => {
+    void sourceStore.clear().catch(() => {});
+  };
+  win.webContents.on("did-navigate", clearRendererSources);
+  win.webContents.on("render-process-gone", clearRendererSources);
+  win.webContents.on("destroyed", clearRendererSources);
   Menu.setApplicationMenu(null);
   win.on("close", (e) => {
     if (dirty && !allowClose) {
