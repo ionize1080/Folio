@@ -594,6 +594,21 @@ export function checkFlowConflicts(...args) {
   const c = flowConflicts(...args);
   if (c.length) throw Error(c[0].message);
 }
+function emptyTextInk(object) {
+  // Word PDFs retain positioned space-only text objects with zero ink bounds.
+  // They are semantic content, but cannot obstruct expansion into blank space.
+  // Unknown text and custom space glyphs with painted bounds remain obstacles.
+  const b = object.bounds;
+  return (
+    object.type === "text" &&
+    typeof object.text === "string" &&
+    /^\s+$/u.test(object.text) &&
+    b?.length === 4 &&
+    b.every(Number.isFinite) &&
+    (Math.abs(b[2] - b[0]) <= 0.01 || Math.abs(b[3] - b[1]) <= 0.01) &&
+    (object.glyphs || []).every((g) => !(g.w > 0.01 && g.h > 0.01))
+  );
+}
 export function growthLimit(model, objects, edits, page, ownId) {
   const f = model.frame;
   if (model.cell) return Math.max(f.height, model.cell.bounds[3] - 2 - f.y);
@@ -616,6 +631,7 @@ export function growthLimit(model, objects, edits, page, ownId) {
     if (
       !ids.has(o.index) &&
       !removed.has(o.index) &&
+      !emptyTextInk(o) &&
       (["text", "image", "form"].includes(o.type) ||
         (o.type === "path" &&
           Math.min(o.bounds[2] - o.bounds[0], o.bounds[3] - o.bounds[1]) < 3))
@@ -697,7 +713,7 @@ export function horizontalLimit(model, objects, edits, page, ownId) {
       right = Math.min(right, b[0] - 2);
   };
   for (const o of objects)
-    if (!ids.has(o.index) && !removed.has(o.index))
+    if (!ids.has(o.index) && !removed.has(o.index) && !emptyTextInk(o))
       consider(topBounds(o, model.pageHeight));
   for (const e of edits)
     if (e.page === page && e.id !== ownId && e.model)

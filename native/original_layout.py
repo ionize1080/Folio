@@ -201,6 +201,12 @@ def render(m):
         a=min(op[1] for op in changes);b=max(op[2] for op in changes)
         first=next((j for j,l in enumerate(lines) if l[-1]>=a),len(lines)-1)
         last=next((j for j,l in enumerate(lines) if l[-1]>=max(a,b-1)),len(lines)-1)
+        # Deleting the first characters of a physical line can expose closing
+        # punctuation without creating a new wrap inside that line. Include the
+        # preceding line so the punctuation can keep its preceding character.
+        while first>0 and lines[first][0]<len(text) and text[lines[first][0]] in _NO_LINE_START:
+            if lines[first][0] in boundaries:raise ValueError('原文含固定列间距；本次修改无法保留各列位置，请缩短修改或明确选择段落重排')
+            first-=1
         delta=len(text)-len(old);begin=lines[first][0];fit=False
         # Keep untouched suffix lines verbatim if the changed line can absorb the edit.
         while last<len(lines):

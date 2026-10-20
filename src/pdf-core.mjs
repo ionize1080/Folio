@@ -259,6 +259,29 @@ export class PdfEngine {
         throw Error("原始书签包含失效引用，无法安全核对来源");
       return value?.toString() ?? null;
     };
+    const outlineValue = (key, object) => {
+      const value = this.lookup(object);
+      // The editor writes 8-bit RGB components as byte / 255. Native PDF
+      // writers may round those fractions to eight decimal places on a later
+      // save. Recognize only that tiny serialization error for outline colors;
+      // destinations, actions, arbitrary numbers and non-8-bit colors stay exact.
+      if (
+        key.decodeText() === "C" &&
+        value instanceof PDFArray &&
+        value.size() === 3
+      )
+        return value.asArray().map((component) => {
+          const number = this.lookup(component);
+          if (number instanceof PDFNumber) {
+            const v = number.asNumber(),
+              byte = Math.round(v * 255);
+            if (v >= 0 && v <= 1 && Math.abs(v - byte / 255) <= 5e-9)
+              return ["rgb-byte", byte];
+          }
+          return visit(component);
+        });
+      return visit(object);
+    };
     return JSON.stringify(
       dict
         .entries()
@@ -269,7 +292,7 @@ export class PdfEngine {
             ),
         )
         .sort(([a], [b]) => a.toString().localeCompare(b.toString()))
-        .map(([k, v]) => [k.toString(), visit(v)]),
+        .map(([k, v]) => [k.toString(), outlineValue(k, v)]),
     );
   }
   writeOutlines(nodes) {

@@ -67,17 +67,19 @@ checks.append('BMP-to-supplementary replacement before a hard newline safely fal
 # so these cases exercise local line layout rather than overflow protection.
 doc=fitz.open();p=doc.new_page(width=400,height=400)
 p.insert_font(fontname='test',fontfile=str(ROOT/'native/fonts/NotoSansSC.ttf'))
-for i,line in enumerate(['春天的山野充满希望，','清晨阳光照亮了村庄，','孩子们走在田间小路，','真美好。']):
+for i,line in enumerate(['春天的山野充满希望，','清晨，阳光照亮村庄。','孩子们走在田间小路，','真美好。']):
     p.insert_text((40,60+i*26),line,fontsize=14,fontname='test')
 doc.new_page(width=400,height=400).insert_text((20,40),'Untouched sibling')
 doc.subset_fonts();punct_raw=repair(doc.tobytes(),generated=True);doc.close()
 _,punct_models=models(punct_raw);punct=next(m for m in punct_models if len(m.get('softBreaks',[]))==3)
 from original_layout import _NO_LINE_START, _NO_LINE_END
-for inserted in ['春','春天','（春天）']:
-    new=punct['text'][:3]+inserted+punct['text'][5 if inserted.startswith('（') else 3:]
+cases=[(inserted,punct['text'][:3]+inserted+punct['text'][5 if inserted.startswith('（') else 3:]) for inserted in ['春','春天','（春天）']]
+line_start=punct['text'].index('\n')+1
+cases.append(('delete-line-prefix',punct['text'][:line_start]+punct['text'][line_start+2:]))
+for label,new in cases:
     m=json.loads(subprocess.check_output(['node','--input-type=module','-e',code],cwd=ROOT,input=json.dumps({'m':punct,'text':new}).encode()))
     r=layout(m)
-    assert r['engine']=='Folio anchored layout / MuPDF' and not r['overflow'],(inserted,{k:r.get(k) for k in ('engine','overflow','mappingComplete')},m['text'],m['frame'])
+    assert r['engine']=='Folio anchored layout / MuPDF' and not r['overflow'],(label,{k:r.get(k) for k in ('engine','overflow','mappingComplete')},m['text'],m['frame'])
     rows={}
     for g in r['glyphs']:
         ch=new[g['start']:g['end']]
@@ -90,7 +92,7 @@ for inserted in ['春','春天','（春天）']:
     _,reopened=models(changed)
     assert any(x['text']==new for x in reopened)
 checks.append('Chinese commas, full stops and brackets obey local-wrap boundaries while preserving baselines, exact saved text and sibling pixels')
-style=dict(fontKey='builtin-cjk',size=14,color='#000000',bold=False,italic=False,charSpacing=0,wordSpacing=0,horizontalScale=100)
+style=dict(fontKey=punct['fontKey'],size=14,color='#000000',bold=False,italic=False,charSpacing=0,wordSpacing=0,horizontalScale=100)
 settings=dict(size=14,align='left',lineHeight=1.2,charSpacing=0,wordSpacing=0,bold=False,italic=False,firstIndent=0,paragraphBefore=0,paragraphGap=0)
 frame=dict(x=40,y=40,width=120,height=100)
 m={**style,**settings,'text':'春'+('，'*8)+'秋','frame':frame,'pageWidth':400,'pageHeight':300,'columns':1,

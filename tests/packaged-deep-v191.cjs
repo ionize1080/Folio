@@ -81,6 +81,8 @@ const report = {
   startedAt: new Date().toISOString(),
   methodology:
     "Each target opens a complete copy of the original document, retaining its structure tree, and starts from a fresh renderer with cold browser font caches. The first target on each page also measures warm re-entry without reloading. Input timings begin at the real input event; undo/redo begin at keyboard dispatch. Fast preview and background precise readiness are measured separately. Saved text and adjacent page pixels are verified.",
+  timingEnvironment:
+    "Ordinary Windows desktop with other regression suites running concurrently; timings describe observed interaction latency and are not an isolated competitor speed benchmark.",
   pages: [],
   errors: [],
 };

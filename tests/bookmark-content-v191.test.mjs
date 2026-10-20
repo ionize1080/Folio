@@ -6,6 +6,7 @@ import {
   PDFNumber,
   PDFHexString,
   PDFRawStream,
+  PDFArray,
 } from "../src/vendor/pdf-lib.js";
 import { PdfEngine } from "../src/pdf-core.mjs";
 const N = PDFName.of;
@@ -65,22 +66,35 @@ function metadata(doc) {
     .lookup(N("Metadata"));
 }
 
-test("131-page textbook outline identity survives native stream dictionary reordering and two saves", async () => {
-  const original = await fixture(),
-    engine = new PdfEngine(),
-    info = await engine.open(original);
-  const changed = await PDFDocument.load(original),
-    stream = metadata(changed);
-  const length = stream.dict.get(N("Length"));
-  stream.dict.delete(N("Length"));
-  stream.dict.set(N("Length"), length);
-  changed.getPage(11).drawText("Edited paragraph");
-  const contentBytes = await changed.save();
-  const nodes = info.nodes.map((n, i) => ({
-    ...n,
-    title: i === 1 ? "Latest bookmark title" : n.title,
-  }));
+test("131-page textbook outline identity survives native metadata and RGB serialization across two reopen/edit/save cycles", async () => {
+  let source = await fixture();
   for (let i = 0; i < 2; i++) {
+    const engine = new PdfEngine(),
+      info = await engine.open(source);
+    const changed = await PDFDocument.load(source),
+      stream = metadata(changed);
+    const length = stream.dict.get(N("Length"));
+    stream.dict.delete(N("Length"));
+    stream.dict.set(N("Length"), length);
+    // Match pypdf's normal serialization of the RGB fractions emitted by the
+    // first editor save. The second cycle starts with that newly saved PDF.
+    let item = changed.catalog.lookup(N("Outlines")).lookup(N("First"));
+    while (item) {
+      const color = item.lookupMaybe(N("C"), PDFArray);
+      if (color)
+        for (let c = 0; c < color.size(); c++)
+          color.set(
+            c,
+            PDFNumber.of(Number(color.lookup(c).asNumber().toFixed(8))),
+          );
+      item = item.lookup(N("Next"));
+    }
+    changed.getPage(11).drawText(`Native edit cycle ${i + 1}`);
+    const contentBytes = await changed.save();
+    const nodes = info.nodes.map((n, index) => ({
+      ...n,
+      title: index === 1 ? "Latest bookmark title" : n.title,
+    }));
     const saved = await engine.save({ nodes, contentBytes }),
       reopened = new PdfEngine(),
       result = await reopened.open(saved);
@@ -94,6 +108,29 @@ test("131-page textbook outline identity survives native stream dictionary reord
       stream.getContents(),
     );
     assert(result.nodes.every((n) => n.raw.includes("/SE")));
+    assert(result.nodes.every((n) => n.color === "#263449"));
+    source = saved;
+  }
+});
+
+test("outline RGB normalization still rejects real color and tiny destination changes", async () => {
+  const first = new PdfEngine(),
+    initial = await first.open(await fixture());
+  const source = await first.save({ nodes: initial.nodes });
+  const engine = new PdfEngine(),
+    info = await engine.open(source);
+  for (const mutate of [
+    (item) => item.lookup(N("C")).set(0, PDFNumber.of(39 / 255)),
+    (item) =>
+      item.lookup(N("A")).lookup(N("D")).set(2, PDFNumber.of(737.000000001)),
+    (item) => item.lookup(N("C")).set(0, PDFNumber.of(38 / 255 + 1e-7)),
+  ]) {
+    const changed = await PDFDocument.load(source);
+    mutate(changed.catalog.lookup(N("Outlines")).lookup(N("First")));
+    await assert.rejects(
+      engine.save({ nodes: info.nodes, contentBytes: await changed.save() }),
+      /来源发生变化/,
+    );
   }
 });
 
