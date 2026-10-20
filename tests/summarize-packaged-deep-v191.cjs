@@ -43,7 +43,7 @@ const summary = {
   firstSave:{verified:targets.filter(t=>verified(t.verification)).length,ms:summarize(targets.map(t=>t.saveMs)),styleAudit:styleSummary(targets.map(t=>t.verification))},
   reopenDeleteSave:{verified:targets.filter(t=>verified(t.secondVerification)).length,ms:summarize(targets.map(t=>t.secondSaveMs)),styleAudit:styleSummary(targets.map(t=>t.secondVerification))},
   rendererErrors:report.errors,
-  timingScope:"preciseMs measures time until the precision-preview control returns a status, including failure or other non-ready states; it is not a success-only latency. Missing measurements are counted separately and are not replaced with zero. Entry is cold per renderer; native-worker caches may be reused across targets.",
+  timingScope:"preciseMs measures time until the first observed return of a precision-preview status, including failure or other non-ready states; it is not a success-only or final-settled latency. The control can queue another preview before the subsequent status snapshot. Missing measurements are counted separately and are not replaced with zero. Entry is cold per renderer; native-worker caches may be reused across targets.",
   saveScope:"Long insertions are tested as previews and then deleted. First saves contain the net short insertion and short deletion; second saves contain one further deletion after reopening. This suite does not claim that long-insertion states were saved.",
 };
 const output=path.join(path.dirname(source),"ui-summary.json");

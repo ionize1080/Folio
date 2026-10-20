@@ -61,14 +61,13 @@ def resolve_name(name):
             continue
         import fitz
         from font_match import CACHE
-        import hashlib, json
+        import hashlib
+        from font_cache import publish_font
         alias = faces[int(style[0]) + 2 * int(style[1])]
         font = fitz.Font(alias)
         blob = font.buffer
         key = hashlib.sha256(blob).hexdigest()[:32]
-        CACHE.mkdir(parents=True, exist_ok=True)
-        (CACHE / (key + '.ttf')).write_bytes(blob)
-        (CACHE / (key + '.json')).write_text(json.dumps({'name': font.name, 'coverage': font.valid_codepoints()}))
+        publish_font(CACHE, key, blob, {'name': font.name, 'coverage': font.valid_codepoints()})
         return {'fontKey': key, 'fontName': font.name, 'fontOriginalName': name,
                 'fontResolution': 'metric-substitute',
                 'fontFallback': '原字体未嵌入且本机未命中，使用明确的度量近似字体：' + family}

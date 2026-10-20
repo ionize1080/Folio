@@ -129,6 +129,11 @@
       "args": ["tests/font-style-v191.py"]
     },
     {
+      "capability": "shared font caches publish complete files across concurrent workers",
+      "runtime": "python",
+      "args": ["tests/font-cache-atomic-v191.py"]
+    },
+    {
       "capability": "independent engines detect collapsed Chinese glyph positions",
       "runtime": "python",
       "args": ["tests/ui-glyph-verification-v191.py"]

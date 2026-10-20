@@ -70,10 +70,18 @@ def cff_cids(blob, generated_identity=False):
 
 def load_font(key):
     if not isinstance(key,str) or not re.fullmatch('[0-9a-f]{32}',key):return None
-    try:
-        path=CACHE/(key+'.json')
-        return _load_font(key,path.stat().st_mtime_ns)
-    except (OSError,ValueError):return None
+    from font_cache import sharing_violation
+    for attempt in range(7):
+        try:
+            path=CACHE/(key+'.json')
+            return _load_font(key,path.stat().st_mtime_ns)
+        except OSError as error:
+            # Atomic replacement on Windows can briefly deny read-open. Only
+            # that sharing condition is retried; absent files stay unavailable.
+            if not sharing_violation(error) or attempt==6:return None
+            import time
+            time.sleep(.002*2**attempt)
+        except ValueError:return None
 
 @lru_cache(maxsize=96)
 def _load_font(key,stamp):
@@ -169,27 +177,9 @@ def inspect_fonts(data,page_number,objects,mapped,stream):
                 coverage=populated_coverage(blob,{cp for cp in coverage if face.has_glyph(cp)})
                 if not coverage:raise ValueError('原字体 Unicode 映射不完整')
                 key=hashlib.sha256(blob).hexdigest()[:32]
-                if not (CACHE/(key+'.ttf')).exists():
-                    import os
-                    fd,tmp=tempfile.mkstemp(dir=CACHE,suffix='.font.tmp')
-                    try:
-                        with os.fdopen(fd,'wb') as out:out.write(blob)
-                        os.replace(tmp,CACHE/(key+'.ttf'))
-                    finally:
-                        if os.path.exists(tmp):os.unlink(tmp)
                 info={'name':name,'coverage':sorted(coverage),'coverageVersion':2}
-                # Stable files let the metadata/coverage cache survive repeated
-                # inspections. An atomic replace prevents parallel reads of a
-                # partially written JSON document in the layout worker.
-                path=CACHE/(key+'.json')
-                if not path.exists():
-                    import os
-                    fd,tmp=tempfile.mkstemp(dir=CACHE,suffix='.json.tmp')
-                    try:
-                        with os.fdopen(fd,'w') as out:json.dump(info,out)
-                        os.replace(tmp,path)
-                    finally:
-                        if os.path.exists(tmp):os.unlink(tmp)
+                from font_cache import publish_font
+                publish_font(CACHE,key,blob,info)
                 reason=''
             except Exception as e:
                 # Recovery is per font. A malformed Type1/CFF must not hide every

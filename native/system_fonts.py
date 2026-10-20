@@ -1,5 +1,5 @@
 """Localized, per-face system font catalog with opaque content selection IDs."""
-import hashlib,json,os,io,sys
+import hashlib,os,io,sys
 from functools import lru_cache
 from pathlib import Path
 from font_match import CACHE
@@ -54,6 +54,7 @@ def select_font(ident):
     item=catalog().get(ident)
     if not item:raise ValueError('字体不可用，请刷新字体列表')
     f=TTFont(item['path'],fontNumber=item['face']);buf=io.BytesIO();f.save(buf);f.close();blob=buf.getvalue();font=fitz.Font(fontbuffer=blob)
-    key=hashlib.sha256(blob).hexdigest()[:32];CACHE.mkdir(parents=True,exist_ok=True)
-    (CACHE/(key+'.ttf')).write_bytes(blob);(CACHE/(key+'.json')).write_text(json.dumps({'name':item['name'],'coverage':font.valid_codepoints()}))
+    from font_cache import publish_font
+    key=hashlib.sha256(blob).hexdigest()[:32]
+    publish_font(CACHE,key,blob,{'name':item['name'],'coverage':font.valid_codepoints()})
     return {'fontKey':key,'fontName':item['name'],'source':item['source'],'family':item['family'],'face':item['face']}

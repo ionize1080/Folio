@@ -1,7 +1,7 @@
 """Bounded fast-layout export: the canvas and PDF consume identical glyph anchors.
 No files, CSS, HTML or font paths are accepted from the renderer.
 """
-import base64,hashlib,json,math,re
+import base64,hashlib,math,re
 from pathlib import Path
 from functools import lru_cache
 
@@ -9,13 +9,12 @@ from functools import lru_cache
 def font_data(key):
     import fitz
     from font_match import load_font,CACHE
+    from font_cache import publish_font
     if key in ('builtin-cjk','builtin-latin'):
         path=Path(__file__).parent/'fonts'/('NotoSansSC.ttf' if key=='builtin-cjk' else 'DejaVuSans.ttf')
         blob=path.read_bytes();actual=hashlib.sha256(blob).hexdigest()[:32]
         font=fitz.Font(fontbuffer=blob);coverage=font.valid_codepoints();name=font.name
-        CACHE.mkdir(exist_ok=True,parents=True)
-        if not (CACHE/(actual+'.ttf')).exists():(CACHE/(actual+'.ttf')).write_bytes(blob)
-        if not (CACHE/(actual+'.json')).exists():(CACHE/(actual+'.json')).write_text(json.dumps({'name':name,'coverage':coverage}))
+        publish_font(CACHE,actual,blob,{'name':name,'coverage':coverage})
     else:
         f=load_font(key)
         if not f:raise ValueError('字体不可用')
@@ -24,8 +23,7 @@ def font_data(key):
     wrapped=opentype(blob)
     if wrapped!=blob:
         blob=wrapped;actual=hashlib.sha256(blob).hexdigest()[:32]
-        (CACHE/(actual+'.ttf')).write_bytes(blob)
-        (CACHE/(actual+'.json')).write_text(json.dumps({'name':name,'coverage':coverage}))
+        publish_font(CACHE,actual,blob,{'name':name,'coverage':coverage})
     system_key=None
     if key not in ('builtin-cjk','builtin-latin'):
         from font_resolver import resolve_name

@@ -93,6 +93,10 @@ report.nativeSha256 = Object.fromEntries(
     "worker.py",
     "font_match.py",
     "font_metrics.py",
+    "font_cache.py",
+    "fast_layout.py",
+    "font_resolver.py",
+    "system_fonts.py",
     "font_similarity.py",
     "story.py",
     "structure_scope.py",
@@ -394,11 +398,29 @@ async function activate(title, toggle = true) {
       await page.locator("#modal-close").click();
     },
   );
-  await app.evaluate(({ BrowserWindow }) => {
+  await app.evaluate(({ BrowserWindow, ipcMain }) => {
     for (const w of BrowserWindow.getAllWindows()) {
       w.webContents.setBackgroundThrottling(false);
       w.hide();
     }
+    // Observe failed native requests without changing their payload or result.
+    // This preserves the exact font keys if a sporadic export failure recurs.
+    const original = ipcMain._invokeHandlers.get("flow-layout");
+    if (!original) throw Error("Missing flow-layout handler");
+    globalThis.__folioTestLayoutFailures = [];
+    ipcMain.removeHandler("flow-layout");
+    ipcMain.handle("flow-layout", async (event, ...args) => {
+      try {
+        return await original(event, ...args);
+      } catch (error) {
+        globalThis.__folioTestLayoutFailures.push({
+          time: new Date().toISOString(),
+          args,
+          error: error.stack || error.message,
+        });
+        throw error;
+      }
+    });
   });
   page.on("pageerror", (e) => report.errors.push(e.message));
   await page.waitForSelector('[data-action="open"]');
@@ -565,6 +587,16 @@ async function activate(title, toggle = true) {
   })
   .finally(async () => {
     report.finishedAt = new Date().toISOString();
+    if (app) {
+      const failures = await app
+        .evaluate(() => globalThis.__folioTestLayoutFailures || [])
+        .catch(() => []);
+      report.flowLayoutFailureCount = failures.length;
+      fs.writeFileSync(
+        path.join(out, "flow-layout-failures.json"),
+        JSON.stringify(failures, null, 2),
+      );
+    }
     saveReport();
     await page?.evaluate(() => window.desktop?.setDirty(false)).catch(() => {});
     await app?.close();
