@@ -27,10 +27,11 @@
 
 | 文件 | 用途 |
 | --- | --- |
-| `Folio-PDF-Studio-1.8.0-portable-win-x64.zip` | 完整便携包，解压后运行 `Folio.exe` |
-| `Folio-PDF-Studio-1.8.0-source.zip` | 完整离线源码与随包运行资源 |
-| `Folio-PDF-Studio-1.8.0-validation.json` | 同提交 Windows 回归及本地样本测试范围 |
-| `Folio-PDF-Studio-1.8.0-SHA256.txt` | 附件校验值 |
+| `Folio-PDF-Studio-1.9.1-portable-win-x64.zip` | 完整便携包，解压后运行 `Folio.exe` |
+| `Folio-PDF-Studio-1.9.1-source.zip` | 完整离线源码与随包运行资源 |
+| `Folio-PDF-Studio-1.9.1-update-repair.zip` | 旧版本更新故障的一次性修复工具 |
+| `Folio-PDF-Studio-1.9.1-validation.json` | Windows 回归、本地样本范围及对应源码和程序哈希 |
+| `Folio-PDF-Studio-1.9.1-SHA256.txt` | 附件校验值 |
 
 请保留解压后的完整目录，包括 `resources`、`locales` 和 DLL。GitHub 自动生成的 **Source code (zip/tar.gz)** 是仓库快照，与上述完整离线 `source.zip` 的资产范围不同。
 
@@ -55,7 +56,7 @@
 
 ## 已实现功能
 
-以下基础功能沿用 P6/P7；本版新增及修复见 [1.6.2 发布说明](docs/RELEASE-1.6.2.zh-Hans.md)。功能存在并不表示任意 PDF 都能无损处理；复杂结构和已知缺陷单独列在后文。
+以下基础功能沿用 P6/P7；本版新增及修复见 [1.9.1 发布说明](docs/RELEASE-1.9.1.zh-Hans.md)。功能存在并不表示任意 PDF 都能无损处理；复杂结构和已知缺陷单独列在后文。
 
 ### 1. 阅读、定位与日常文档操作
 
@@ -288,7 +289,7 @@ Windows 完整打包还需随包运行时、字体和原生组件。以 [.github
 
 可配置 `FOLIO_PYTHON` 指定解释器、`FOLIO_CHROMIUM` 指定测试浏览器、`FOLIO_FIXTURES` 指定真实文档目录。复用离线 Windows 便携基线时，设置 `FOLIO_RUNTIME_BASE` 为解压目录、`FOLIO_RUNTIME_BASE_ZIP` 为对应 ZIP；打包脚本校验运行时并重新装入业务源码及引擎。
 
-本版 Windows 工作流为 `folio-v16.yml`，触发分支为 `codex/folio-v16-i18n`，同时提供手动触发。P6 等历史工作流保留供追溯。`npm test` 包含旧版回归，但不会单独运行全部 P6 专项、公开语料和打包 EXE 检查；本版验收以 v16 工作流为准。任意主线文档提交不等于重新跑过全部 Windows 验收。
+1.9.1 的验收以本机 Windows 的 `scripts/acceptance.mjs`、实际打包 EXE 测试及发布的 `validation.json` 为准；报告绑定源码、程序和原生模块哈希，范围见[深度编辑报告](docs/DEEP-EDIT-1.9.1.zh-Hans.md)。`folio-v16.yml` 和 P6 等历史工作流保留供构建参考与追溯。`npm test` 是历史标准入口，不会单独运行所有版本专项、公开语料和打包 EXE 检查；当前通用检查使用 `npm run test:quick` / `npm run test:full`，发布专项另外执行。任意主线文档提交不等于重新跑过全部 Windows 验收。
 
 ### 历史验证与版本追踪
 

@@ -8,7 +8,8 @@ const summarize = values => {
   const sorted = values.filter(Number.isFinite).sort((a,b) => a-b), n = sorted.length;
   if (!n) return {n:0};
   const percentile = p => sorted[Math.max(0,Math.ceil(n*p)-1)];
-  return {n,min:sorted[0],median:percentile(.5),p95:percentile(.95),max:sorted[n-1]};
+  const median = n % 2 ? sorted[(n-1)/2] : (sorted[n/2-1]+sorted[n/2])/2;
+  return {n,min:sorted[0],median,p95:percentile(.95),max:sorted[n-1]};
 };
 const latency = entries => ({
   fastMs:summarize(entries.map(o=>o.inputToFastMs)),
@@ -43,7 +44,8 @@ const summary = {
   firstSave:{verified:targets.filter(t=>verified(t.verification)).length,ms:summarize(targets.map(t=>t.saveMs)),styleAudit:styleSummary(targets.map(t=>t.verification))},
   reopenDeleteSave:{verified:targets.filter(t=>verified(t.secondVerification)).length,ms:summarize(targets.map(t=>t.secondSaveMs)),styleAudit:styleSummary(targets.map(t=>t.secondVerification))},
   rendererErrors:report.errors,
-  timingScope:"preciseMs measures time until the first observed return of a precision-preview status, including failure or other non-ready states; it is not a success-only or final-settled latency. The control can queue another preview before the subsequent status snapshot. Missing measurements are counted separately and are not replaced with zero. Entry is cold per renderer; native-worker caches may be reused across targets.",
+  timingValidity:{fastPreview:false,precisePreview:false,reason:"Status observations are not bound to the current edit revision. A separate foreground spot-check demonstrated capture of a stale pre-input completion state. This full run lacks status history needed to correct those measurements. Preview values are retained for audit only, not valid current-edit layout or presentation latencies."},
+  timingScope:"fastMs and preciseMs are unvalidated first DOM-status observations, not current-edit layout completion or screen-pixel presentation times. The observer can capture a stale state; precision can return a failure or another non-ready state before a later preview. Missing measurements are counted separately and not replaced with zero. Entry is cold per renderer; native-worker caches may be reused across targets. Click and save intervals include automation action waits and scheduling; the window was hidden with background throttling disabled.",
   saveScope:"Long insertions are tested as previews and then deleted. First saves contain the net short insertion and short deletion; second saves contain one further deletion after reopening. This suite does not claim that long-insertion states were saved.",
 };
 const output=path.join(path.dirname(source),"ui-summary.json");

@@ -80,9 +80,9 @@ const report = {
   exeSha256: hash(exe),
   startedAt: new Date().toISOString(),
   methodology:
-    "Each target opens a complete copy of the original document, retaining its structure tree, and starts from a fresh renderer with cold browser font caches. The first target on each page also measures warm re-entry without reloading. Input timings begin at the real input event; undo/redo begin at keyboard dispatch. Fast preview and background precise readiness are measured separately. Both saves verify exact page text, adjacent page pixels and independent MuPDF/PDFium Han glyph geometry.",
+    "Each target opens a complete original-document copy with its structure tree and a fresh renderer. The first target on each page also measures warm re-entry. Typed edits are timed from the input event to DOM status changes, not screen presentation. Paragraph entry starts just before the automated paragraph click, after page candidates are prepared. Undo/redo starts before keyboard dispatch. Status observations are not bound to an edit revision and can capture stale completion states; preview times are audit-only observations, not validated current-edit layout latencies. Precision timing records the first returned status, not final settled readiness. Save timing includes finishing the edit and the subsequent Save action. Both saves check page character-multiset deltas, adjacent-page pixels, independent MuPDF/PDFium Han glyph geometry and comparable retained styles. Long insertions are deleted before saving.",
   timingEnvironment:
-    "Ordinary Windows desktop with other regression suites running concurrently; timings describe observed interaction latency and are not an isolated competitor speed benchmark.",
+    "Windows desktop with other regression suites running concurrently. The packaged window is hidden with background throttling disabled. Click-based intervals include automation action waits and scheduling; these are not foreground human-click latencies, pure computation timings or an isolated competitor speed benchmark.",
   pages: [],
   errors: [],
 };

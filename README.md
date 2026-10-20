@@ -18,6 +18,7 @@ Display language is independent of PDF text, bookmark titles, fonts, OCR setting
 | --- | --- |
 | `Folio-PDF-Studio-1.9.1-portable-win-x64.zip` | Complete portable application; extract everything and run `Folio.exe` |
 | `Folio-PDF-Studio-1.9.1-source.zip` | Complete offline source and bundled resources |
+| `Folio-PDF-Studio-1.9.1-update-repair.zip` | One-time repair for update failures in older releases |
 | `Folio-PDF-Studio-1.9.1-validation.json` | Acceptance results tied to source and binary hashes |
 | `Folio-PDF-Studio-1.9.1-SHA256.txt` | Attachment checksums |
 
@@ -143,7 +144,7 @@ npm run build:win
 npm run test:package
 ```
 
-See [.github/workflows/folio-v16.yml](.github/workflows/folio-v16.yml) for full packaging and Windows acceptance, including fontTools licensing. `npm start` launches development mode. `npm test` is the historical standard suite; release-specific checks run separately. Set `FOLIO_EXE` for `node tests/i18n-v16.cjs`. Other options include `FOLIO_PYTHON`, `FOLIO_CHROMIUM` and `FOLIO_FIXTURES`.
+Version 1.9.1 uses local Windows acceptance and packaged EXE tests, with source and binary hashes recorded in its release validation attachment; see the [deep-edit report](docs/DEEP-EDIT-1.9.1.zh-Hans.md). [.github/workflows/folio-v16.yml](.github/workflows/folio-v16.yml) remains a historical packaging and Windows acceptance reference, including fontTools licensing. `npm start` launches development mode. `npm test` is the historical standard suite; release-specific checks run separately. Set `FOLIO_EXE` for `node tests/i18n-v16.cjs`. Other options include `FOLIO_PYTHON`, `FOLIO_CHROMIUM` and `FOLIO_FIXTURES`.
 
 Edit translation JSON, run `node scripts/build-locales.mjs`, then unit/UI acceptance. Preserve placeholders and technical tokens. List new languages only after complete translation and validation. See [localization guidance](docs/LOCALIZATION.md).
 
@@ -164,4 +165,4 @@ Smart contents 1.8.0 improves textbook columns, continuation pages, yearbook fon
 
 ### Reliability acceptance
 
-`npm run test:quick` runs all unit contracts and archive/release transport tests. `npm run test:full` also runs native preservation and browser transaction tests; install the test dependencies and Playwright browser first. The machine-readable capability list is `scripts/acceptance.json`. Native Windows package, updater and offline OCR checks remain part of the release workflow. See [review decisions](docs/REVIEW-2026-10-07-response.md).
+`npm run test:quick` runs all unit contracts and archive/release transport tests. `npm run test:full` also runs native preservation and browser transaction tests; install the test dependencies and Playwright browser first. The machine-readable capability list is `scripts/acceptance.json`. Windows package and release-specific checks run separately; the release validation attachment states which checks ran. See [review decisions](docs/REVIEW-2026-10-07-response.md).

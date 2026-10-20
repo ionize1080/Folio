@@ -1,0 +1,3179 @@
+{
+  "date": "2026-10-20",
+  "validationStatus": {
+    "publication": "complete-corpus-report",
+    "newGlyphSecondSave": "passed",
+    "retainedStyleSecondSave": "passed",
+    "packagedFullSaveReopen": "passed",
+    "knownVisualLimitationsRemain": true,
+    "newGlyphSecondSaveEvidence": "12 packaged targets completed save/reopen/edit/save with page character-multiset deltas, unchanged adjacent-page pixels and independent MuPDF/PDFium Han glyph geometry. Raw first-save embedded TTF advances were also inspected before Folio reopening.",
+    "retainedStyleSecondSaveEvidence": "Both saves independently compare retained-character bold/italic flags, size and uniquely mapped raw embedded glyph outlines against the original PDF. Unavailable outlines are reported separately."
+  },
+  "benchmarkScope": "120 fixed-position native/editor-model operations, each batch starting from the complete original PDF. Automatic integrity checks are separate from visual quality; packaged UI new-glyph save/reopen/save cycles are reported independently.",
+  "baselineLabel": "baseline-original",
+  "finalLabel": "final-release6-v191",
+  "engines": {
+    "MuPDF": "1.26.6",
+    "PDFium": "153.0.7999.0",
+    "pypdfium2": "5.13.0",
+    "fontTools": "4.61.1"
+  },
+  "baselineOriginalCounts": {
+    "blocked": 108,
+    "passed": 11,
+    "failed": 1
+  },
+  "baselineRetrospectivePhoneticAdjustments": [
+    {
+      "id": "textbook-25",
+      "operation": "short-delete",
+      "lostAssociations": 1
+    },
+    {
+      "id": "textbook-25",
+      "operation": "body-long-delete",
+      "lostAssociations": 3
+    }
+  ],
+  "baseline": {
+    "operations": {
+      "blocked": 108,
+      "passed": 9,
+      "failed": 3
+    },
+    "byOperation": {
+      "short-insert": {
+        "blocked": 18,
+        "passed": 2
+      },
+      "long-insert": {
+        "blocked": 20
+      },
+      "short-delete": {
+        "blocked": 16,
+        "failed": 2,
+        "passed": 2
+      },
+      "long-delete": {
+        "blocked": 18,
+        "passed": 2
+      },
+      "body-long-insert": {
+        "blocked": 20
+      },
+      "body-long-delete": {
+        "passed": 3,
+        "blocked": 16,
+        "failed": 1
+      }
+    },
+    "pages": {
+      "partial": 4,
+      "blocked": 14,
+      "failed": 2
+    },
+    "blockingReasons": {
+      "neighbour-conflict": 38,
+      "layout-overflow": 39,
+      "font-unavailable": 1,
+      "save-tagged-boundary": 30
+    },
+    "timing": {
+      "inspect": {
+        "n": 20,
+        "medianMs": 1182.3,
+        "p95Ms": 1735.83,
+        "maxMs": 2711.72
+      },
+      "paragraphModel": {
+        "n": 20,
+        "medianMs": 93.95,
+        "p95Ms": 125.2,
+        "maxMs": 132.88
+      },
+      "layout": {
+        "n": 120,
+        "medianMs": 380.42,
+        "p95Ms": 3115.89,
+        "maxMs": 27614.86
+      },
+      "save": {
+        "n": 9,
+        "medianMs": 2541.42,
+        "p95Ms": 3436.04,
+        "maxMs": 3436.04
+      },
+      "reopen": {
+        "n": 9,
+        "medianMs": 2823.52,
+        "p95Ms": 3877.6,
+        "maxMs": 3877.6
+      }
+    },
+    "fontAudit": {
+      "checkedCharacters": 393,
+      "unavailableCharacters": 0,
+      "outlineDifferences": 0,
+      "sizeDifferences": 0,
+      "positiveAdvancesChecked": 0,
+      "invalidAdvances": 0,
+      "advanceAuditAvailable": false
+    },
+    "phoneticAudit": {
+      "annotationsChecked": 0,
+      "lostAssociations": 0
+    },
+    "layoutModes": {
+      "段落重排": 9
+    },
+    "fallbackCharacters": 0,
+    "frameGrowthOperations": 0,
+    "unchangedPrefix": {
+      "comparedGlyphs": 167,
+      "within01Point": 27,
+      "maxDriftPoints": 186.8639
+    },
+    "outsideChangedPixels": 0,
+    "adjacentPageDifferences": 0,
+    "resegmentedTargets": 0
+  },
+  "final": {
+    "operations": {
+      "passed": 59,
+      "blocked": 61
+    },
+    "byOperation": {
+      "short-insert": {
+        "passed": 14,
+        "blocked": 6
+      },
+      "long-insert": {
+        "blocked": 20
+      },
+      "short-delete": {
+        "blocked": 4,
+        "passed": 16
+      },
+      "long-delete": {
+        "blocked": 7,
+        "passed": 13
+      },
+      "body-long-insert": {
+        "blocked": 19,
+        "passed": 1
+      },
+      "body-long-delete": {
+        "passed": 15,
+        "blocked": 5
+      }
+    },
+    "pages": {
+      "partial": 20
+    },
+    "blockingReasons": {
+      "neighbour-conflict": 10,
+      "phonetic-attachment": 8,
+      "layout-overflow": 39,
+      "target-merged-with-previous-edit": 2,
+      "save-language-boundary": 1,
+      "save-tagged-boundary": 1
+    },
+    "timing": {
+      "inspect": {
+        "n": 20,
+        "medianMs": 1125.1,
+        "p95Ms": 1938.69,
+        "maxMs": 3088.43
+      },
+      "paragraphModel": {
+        "n": 20,
+        "medianMs": 91.74,
+        "p95Ms": 111.43,
+        "maxMs": 128.71
+      },
+      "layout": {
+        "n": 118,
+        "medianMs": 481.43,
+        "p95Ms": 7303.11,
+        "maxMs": 27351.44
+      },
+      "save": {
+        "n": 37,
+        "medianMs": 1732.14,
+        "p95Ms": 3939.12,
+        "maxMs": 4128.95
+      },
+      "reopen": {
+        "n": 37,
+        "medianMs": 2589.88,
+        "p95Ms": 4731.31,
+        "maxMs": 4989.04
+      }
+    },
+    "fontAudit": {
+      "checkedCharacters": 3344,
+      "unavailableCharacters": 5,
+      "outlineDifferences": 0,
+      "sizeDifferences": 0,
+      "positiveAdvancesChecked": 3344,
+      "invalidAdvances": 0,
+      "advanceAuditAvailable": true
+    },
+    "phoneticAudit": {
+      "annotationsChecked": 5,
+      "lostAssociations": 0
+    },
+    "layoutModes": {
+      "局部行重排": 39,
+      "段落重排": 20
+    },
+    "fallbackCharacters": 5,
+    "frameGrowthOperations": 12,
+    "unchangedPrefix": {
+      "comparedGlyphs": 1399,
+      "within01Point": 757,
+      "maxDriftPoints": 428.4823
+    },
+    "outsideChangedPixels": 0,
+    "adjacentPageDifferences": 0,
+    "resegmentedTargets": 48
+  },
+  "finalCodeHashes": {
+    "native\\browser_fonts.py": "193abb162c2b775161c100d9aff72c2bb868c3aa6e183bf6d559367435733416",
+    "native\\clip_contract.py": "937eb8c01cd50a51e109e31ce5dd675d335ea9b7cb07aac0adb0a9cd9abe6738",
+    "native\\content.py": "1dae1292b1e43f6c4ddf7b8a5bb99a154a1cd2834115a94560912f322b267c46",
+    "native\\content_layers.py": "a29d346277153e3b6b6edece5888e132d272032706f639219f85e5599be3b2a9",
+    "native\\fast_layout.py": "4df0b0b72f95a770a0a0167b1da9290e86f72385a832d262e66f123d7ed27a2a",
+    "native\\font_cache.py": "5ff3f4fd3007f155c4bf808c8e25210ef2e792c01c6038a10410aa1cd195c98d",
+    "native\\font_match.py": "d0642d30fb929e057ffdfe64a7a6ae6b34259fb92d67c3a1b14b6a98a38207ae",
+    "native\\font_metrics.py": "d085256a55cb17d581a1c50a0efc1687957b83b5377b8f5fd70f37cdb8e3a6af",
+    "native\\font_preview.py": "362fa88ab3bea589c8ffb811f216b345a6c59e36683fdaee1617080ae9435089",
+    "native\\font_resolver.py": "235238402bb48facea0a2ba4eef4b4ffa6df8e4850133fe4ae97f82ee54ff547",
+    "native\\font_sfnt.py": "8a69042c81da388a40a261b8397557c38b0d074657cb5da9a58cb23f6e6fc22c",
+    "native\\font_similarity.py": "7b71f8e2439106751662323013af9d73c8ae53a6b5c4f281775c3b94e2b492e4",
+    "native\\form_compat.py": "1be1313d98b3016b811922c3f0f01304e2387ab6d1b9e6e4c5615d5f5d92d85f",
+    "native\\form_diagnostics.py": "d494e5c0821230e1f03972e96eb350fc4f23e736f8fd5ca4c22acfb4dc679e25",
+    "native\\generated_cmaps.py": "4c0c90851f7082b3074a911992377755a9910d90a9961100ca789b44e239d245",
+    "native\\image_adjustments.py": "4d4a0a383f570394293a309c5fbceb8717a9ecbeac96cbf3f12a55ef83d6817a",
+    "native\\image_color.py": "8e8f92b7e92a5141296e727f08c1ac29f01f0f06fd3fc21db30911c3f4572d38",
+    "native\\image_edit.py": "8bdc37658540e55ece43206ce7212658b84854ccf2b72f3efc0688e5bf3d1289",
+    "native\\image_geometry.py": "7a5685109557d99055f26a890db505918be75d851fedad8ca3308c4c2d0384c2",
+    "native\\justify.py": "2d467b2cdbdf989ff81d80a82a51367060ff96234c333532fe1a24c4b125d16b",
+    "native\\large_pdf.py": "505693297a0c0e6b572725bd8355addfa836280cefc6e41beda0c2ebcf6dfc75",
+    "native\\ligatures.py": "c8ecc01dbcb9a1db635dc7bb073fbf80a177d8c03dea1aa53d7ad083e7a31cae",
+    "native\\memory.py": "dd760a194155482b596cf5345c454d7a5cf438c5379643e652647a459ea66dac",
+    "native\\object_style.py": "6e672d75abafbc4da63e5fc33c8e1976b899d99c258bd53c1e8878f427b7b53b",
+    "native\\ocr_diagnostics.py": "cd06707efc400cec6e1558e5bd0873599943abee8d168ac03657664e48a590b6",
+    "native\\ocr_reading_order.py": "27c3ebb9a0767326d22b9bac0b6d979f9119f1ee7d256f3edce76a8240d00a46",
+    "native\\original_layout.py": "75e66f37d7996ed42a79eab7c08c20a3f6dc86c5377e7c9d8d5a5572261e36ae",
+    "native\\original_patch.py": "f13f7e1f5c263cd2480cc4c4318105acadc6473cfd7497b276384e6b607601fc",
+    "native\\pdf_features.py": "599228147d2d2d6f86bd6d3ef0426d0fc406d5599f096df6e2096e4b504edc11",
+    "native\\pdf_writer.py": "08436f51a793c401f445cb43fc6269b0b01f4cb24b748ffcd6825a3c1d3dd873",
+    "native\\preview_page.py": "13328a29927de9be6abd8bac0bae9689d0ae5fc518a25fb41a28cefdc94d007a",
+    "native\\qpdf_tools.py": "04ef7d2f15880e51f1ae23d54bcbad294ca2e0303c6d4d0f255609378b62c26e",
+    "native\\ruby_anchors.py": "8e579d409c9cbdf495f4506f97d7c1b4eed22b39fae10495f29dc0c7e29d24f0",
+    "native\\sparse_tables.py": "a74bd5d632c8ac2c6862db5eaa1bd668e8b18a789b7323b5898709204100bf5d",
+    "native\\story.py": "0117ff23342cd7f40d62907c29c62e89dbf86b83dabae3de42eaf3d0c86c2733",
+    "native\\structure_scope.py": "d18c4b284d5b5c77c71eaba53fce6f24c7c10f6e895e32d29a4d533783cd2f89",
+    "native\\system_fonts.py": "89d5b918a02fa386304051222e061884a570c9f0377c943eee1d9848fde09278",
+    "native\\table_export.py": "aec8aedde18ec16b356e4761f7a4f970fda1a0e205a0be150f65657e4cd22b4e",
+    "native\\table_geometry.py": "8e353f98067fb07bdd0703175a6b257cbc146ed52c0118b8450d43538cf6f83b",
+    "native\\table_render.py": "9f1c753272420a03f91d744a0da41d75231857ea4fa41864025796b1043ede7c",
+    "native\\table_resize.py": "964d2782893104cd7fc26f1fa9a799dc5219271c9e29bd3458235d0e5429f34a",
+    "native\\text_advance.py": "4fe9fa924dab4e40863fd2e5e97176b01cb2737827cc89c810a3c6d280e9b6de",
+    "native\\text_semantics.py": "a80bf08ad054b4040d2e96ebc87c00a687f499ae88805ddec79723d641da3d44",
+    "native\\type1_restore.py": "203245cd961fd023003c75362a021bfc4eae29806bb5c10efe71f81323881c19",
+    "native\\worker.py": "de559b408afce8fdb7cb243fdf5a4509299b0f7336ac9dc9ff8f1e92a15f153f",
+    "src\\flow-page-model.mjs": "d00e5d30d42bbd639582ff0143203c8a628ef383d00c2f471a4911ede893df0b",
+    "src\\flow-model.mjs": "db8f34f6115d25215dec01f4b7a4ab02bed555d726c485c24b207ed60f781b22",
+    "src\\flow-style.mjs": "ebc829f3806e6eb8a299ab1c0cdb86643b8d88b7f0ca88bf82d5ad37994f8b1b",
+    "src\\flow-regions.mjs": "d2f948544aaa0bc81943f69b9fd5259ef7e8b2ef5f007c69db698a89eca7326c",
+    "src\\ruby-anchors.mjs": "8f2ab1d56ff9f865ed3a5b1f4d8d9d18ae96c54bd36d79b9f68740fadeb4a368",
+    "tests\\structure_checks_v191.py": "038888a29505141b7421d8466f68a7fdec32b230723f982a89c235e5134a8099",
+    "tests\\annotation_checks_v191.py": "41016f42c2cdcf5f5f28cd7c03f714a2ab20ded395acbafd19dd84ffdb047039"
+  },
+  "pages": [
+    {
+      "id": "textbook-7",
+      "sample": "义务教育教科书·语文五年级下册.pdf",
+      "physicalPage": 7,
+      "baseline": {
+        "blocked": 5,
+        "passed": 1
+      },
+      "final": {
+        "passed": 2,
+        "blocked": 4
+      },
+      "baselineParagraphs": 25,
+      "finalParagraphs": 25,
+      "resegmentedTargets": 0,
+      "operations": [
+        {
+          "operation": "short-insert",
+          "status": "passed",
+          "reason": null,
+          "insertedCharacters": 2,
+          "deletedCharacters": 0,
+          "sourceCharacters": 12,
+          "frameGrowth": {
+            "direction": "right",
+            "before": 203.8139877319336,
+            "after": 247.44493675231934
+          },
+          "fontAudit": {
+            "checkedCharacters": 14,
+            "unavailableCharacters": 0,
+            "outlineDifferences": 0,
+            "sizeDifferences": 0,
+            "positiveAdvancesChecked": 14,
+            "invalidAdvances": 0
+          }
+        },
+        {
+          "operation": "long-insert",
+          "status": "blocked",
+          "reason": "neighbour-conflict",
+          "insertedCharacters": 32,
+          "deletedCharacters": 0,
+          "sourceCharacters": 17,
+          "frameGrowth": {
+            "direction": "down",
+            "before": 42.49798583984375,
+            "after": 108.60969129562375
+          },
+          "fontAudit": {}
+        },
+        {
+          "operation": "short-delete",
+          "status": "blocked",
+          "reason": "phonetic-attachment",
+          "insertedCharacters": 0,
+          "deletedCharacters": 2,
+          "sourceCharacters": 35,
+          "frameGrowth": null,
+          "fontAudit": {}
+        },
+        {
+          "operation": "long-delete",
+          "status": "blocked",
+          "reason": "neighbour-conflict",
+          "insertedCharacters": 0,
+          "deletedCharacters": 12,
+          "sourceCharacters": 15,
+          "frameGrowth": null,
+          "fontAudit": {}
+        },
+        {
+          "operation": "body-long-insert",
+          "status": "blocked",
+          "reason": "neighbour-conflict",
+          "insertedCharacters": 32,
+          "deletedCharacters": 0,
+          "sourceCharacters": 60,
+          "frameGrowth": {
+            "direction": "down",
+            "before": 85.16650085449214,
+            "after": 124.26451041698452
+          },
+          "fontAudit": {}
+        },
+        {
+          "operation": "body-long-delete",
+          "status": "passed",
+          "reason": null,
+          "insertedCharacters": 0,
+          "deletedCharacters": 15,
+          "sourceCharacters": 46,
+          "frameGrowth": null,
+          "fontAudit": {
+            "checkedCharacters": 26,
+            "unavailableCharacters": 0,
+            "outlineDifferences": 0,
+            "sizeDifferences": 0,
+            "positiveAdvancesChecked": 26,
+            "invalidAdvances": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "textbook-9",
+      "sample": "义务教育教科书·语文五年级下册.pdf",
+      "physicalPage": 9,
+      "baseline": {
+        "blocked": 6
+      },
+      "final": {
+        "passed": 3,
+        "blocked": 3
+      },
+      "baselineParagraphs": 11,
+      "finalParagraphs": 12,
+      "resegmentedTargets": 2,
+      "operations": [
+        {
+          "operation": "short-insert",
+          "status": "passed",
+          "reason": null,
+          "insertedCharacters": 2,
+          "deletedCharacters": 0,
+          "sourceCharacters": 126,
+          "frameGrowth": null,
+          "fontAudit": {
+            "checkedCharacters": 124,
+            "unavailableCharacters": 0,
+            "outlineDifferences": 0,
+            "sizeDifferences": 0,
+            "positiveAdvancesChecked": 124,
+            "invalidAdvances": 0
+          }
+        },
+        {
+          "operation": "long-insert",
+          "status": "blocked",
+          "reason": "layout-overflow",
+          "insertedCharacters": 72,
+          "deletedCharacters": 0,
+          "sourceCharacters": 178,
+          "frameGrowth": null,
+          "fontAudit": {}
+        },
+        {
+          "operation": "short-delete",
+          "status": "blocked",
+          "reason": "neighbour-conflict",
+          "insertedCharacters": 0,
+          "deletedCharacters": 2,
+          "sourceCharacters": 136,
+          "frameGrowth": null,
+          "fontAudit": {}
+        },
+        {
+          "operation": "long-delete",
+          "status": "passed",
+          "reason": null,
+          "insertedCharacters": 0,
+          "deletedCharacters": 12,
+          "sourceCharacters": 25,
+          "frameGrowth": null,
+          "fontAudit": {
+            "checkedCharacters": 13,
+            "unavailableCharacters": 0,
+            "outlineDifferences": 0,
+            "sizeDifferences": 0,
+            "positiveAdvancesChecked": 13,
+            "invalidAdvances": 0
+          }
+        },
+        {
+          "operation": "body-long-insert",
+          "status": "blocked",
+          "reason": "layout-overflow",
+          "insertedCharacters": 72,
+          "deletedCharacters": 0,
+          "sourceCharacters": 178,
+          "frameGrowth": null,
+          "fontAudit": {}
+        },
+        {
+          "operation": "body-long-delete",
+          "status": "passed",
+          "reason": null,
+          "insertedCharacters": 0,
+          "deletedCharacters": 45,
+          "sourceCharacters": 136,
+          "frameGrowth": null,
+          "fontAudit": {
+            "checkedCharacters": 88,
+            "unavailableCharacters": 0,
+            "outlineDifferences": 0,
+            "sizeDifferences": 0,
+            "positiveAdvancesChecked": 88,
+            "invalidAdvances": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "textbook-10",
+      "sample": "义务教育教科书·语文五年级下册.pdf",
+      "physicalPage": 10,
+      "baseline": {
+        "blocked": 6
+      },
+      "final": {
+        "blocked": 4,
+        "passed": 2
+      },
+      "baselineParagraphs": 14,
+      "finalParagraphs": 17,
+      "resegmentedTargets": 1,
+      "operations": [
+        {
+          "operation": "short-insert",
+          "status": "blocked",
+          "reason": "phonetic-attachment",
+          "insertedCharacters": 2,
+          "deletedCharacters": 0,
+          "sourceCharacters": 54,
+          "frameGrowth": null,
+          "fontAudit": {}
+        },
+        {
+          "operation": "long-insert",
+          "status": "blocked",
+          "reason": "layout-overflow",
+          "insertedCharacters": 32,
+          "deletedCharacters": 0,
+          "sourceCharacters": 33,
+          "frameGrowth": null,
+          "fontAudit": {}
+        },
+        {
+          "operation": "short-delete",
+          "status": "passed",
+          "reason": null,
+          "insertedCharacters": 0,
+          "deletedCharacters": 2,
+          "sourceCharacters": 184,
+          "frameGrowth": null,
+          "fontAudit": {
+            "checkedCharacters": 176,
+            "unavailableCharacters": 0,
+            "outlineDifferences": 0,
+            "sizeDifferences": 0,
+            "positiveAdvancesChecked": 176,
+            "invalidAdvances": 0
+          }
+        },
+        {
+          "operation": "long-delete",
+          "status": "passed",
+          "reason": null,
+          "insertedCharacters": 0,
+          "deletedCharacters": 12,
+          "sourceCharacters": 27,
+          "frameGrowth": null,
+          "fontAudit": {
+            "checkedCharacters": 15,
+            "unavailableCharacters": 0,
+            "outlineDifferences": 0,
+            "sizeDifferences": 0,
+            "positiveAdvancesChecked": 15,
+            "invalidAdvances": 0
+          }
+        },
+        {
+          "operation": "body-long-insert",
+          "status": "blocked",
+          "reason": "layout-overflow",
+          "insertedCharacters": 72,
+          "deletedCharacters": 0,
+          "sourceCharacters": 184,
+          "frameGrowth": null,
+          "fontAudit": {}
+        },
+        {
+          "operation": "body-long-delete",
+          "status": "blocked",
+          "reason": "phonetic-attachment",
+          "insertedCharacters": 0,
+          "deletedCharacters": 24,
+          "sourceCharacters": 73,
+          "frameGrowth": null,
+          "fontAudit": {}
+        }
+      ]
+    },
+    {
+      "id": "textbook-12",
+      "sample": "义务教育教科书·语文五年级下册.pdf",
+      "physicalPage": 12,
+      "baseline": {
+        "blocked": 6
+      },
+      "final": {
+        "blocked": 3,
+        "passed": 3
+      },
+      "baselineParagraphs": 13,
+      "finalParagraphs": 16,
+      "resegmentedTargets": 3,
+      "operations": [
+        {
+          "operation": "short-insert",
+          "status": "blocked",
+          "reason": "layout-overflow",
+          "insertedCharacters": 2,
+          "deletedCharacters": 0,
+          "sourceCharacters": 66,
+          "frameGrowth": null,
+          "fontAudit": {}
+        },
+        {
+          "operation": "long-insert",
+          "status": "blocked",
+          "reason": "layout-overflow",
+          "insertedCharacters": 32,
+          "deletedCharacters": 0,
+          "sourceCharacters": 36,
+          "frameGrowth": null,
+          "fontAudit": {}
+        },
+        {
+          "operation": "short-delete",
+          "status": "passed",
+          "reason": null,
+          "insertedCharacters": 0,
+          "deletedCharacters": 2,
+          "sourceCharacters": 28,
+          "frameGrowth": null,
+          "fontAudit": {
+            "checkedCharacters": 26,
+            "unavailableCharacters": 0,
+            "outlineDifferences": 0,
+            "sizeDifferences": 0,
+            "positiveAdvancesChecked": 26,
+            "invalidAdvances": 0
+          }
+        },
+        {
+          "operation": "long-delete",
+          "status": "passed",
+          "reason": null,
+          "insertedCharacters": 0,
+          "deletedCharacters": 12,
+          "sourceCharacters": 17,
+          "frameGrowth": null,
+          "fontAudit": {
+            "checkedCharacters": 5,
+            "unavailableCharacters": 0,
+            "outlineDifferences": 0,
+            "sizeDifferences": 0,
+            "positiveAdvancesChecked": 5,
+            "invalidAdvances": 0
+          }
+        },
+        {
+          "operation": "body-long-insert",
+          "status": "blocked",
+          "reason": "layout-overflow",
+          "insertedCharacters": 32,
+          "deletedCharacters": 0,
+          "sourceCharacters": 28,
+          "frameGrowth": null,
+          "fontAudit": {}
+        },
+        {
+          "operation": "body-long-delete",
+          "status": "passed",
+          "reason": null,
+          "insertedCharacters": 0,
+          "deletedCharacters": 21,
+          "sourceCharacters": 64,
+          "frameGrowth": null,
+          "fontAudit": {
+            "checkedCharacters": 43,
+            "unavailableCharacters": 0,
+            "outlineDifferences": 0,
+            "sizeDifferences": 0,
+            "positiveAdvancesChecked": 43,
+            "invalidAdvances": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "textbook-14",
+      "sample": "义务教育教科书·语文五年级下册.pdf",
+      "physicalPage": 14,
+      "baseline": {
+        "blocked": 6
+      },
+      "final": {
+        "blocked": 4,
+        "passed": 2
+      },
+      "baselineParagraphs": 16,
+      "finalParagraphs": 16,
+      "resegmentedTargets": 0,
+      "operations": [
+        {
+          "operation": "short-insert",
+          "status": "blocked",
+          "reason": "phonetic-attachment",
+          "insertedCharacters": 2,
+          "deletedCharacters": 0,
+          "sourceCharacters": 88,
+          "frameGrowth": {
+            "direction": "down",
+            "before": 85.76401367187499,
+            "after": 98.084013671875
+          },
+          "fontAudit": {}
+        },
+        {
+          "operation": "long-insert",
+          "status": "blocked",
+          "reason": "layout-overflow",
+          "insertedCharacters": 72,
+          "deletedCharacters": 0,
+          "sourceCharacters": 293,
+          "frameGrowth": null,
+          "fontAudit": {}
+        },
+        {
+          "operation": "short-delete",
+          "status": "passed",
+          "reason": null,
+          "insertedCharacters": 0,
+          "deletedCharacters": 2,
+          "sourceCharacters": 166,
+          "frameGrowth": null,
+          "fontAudit": {
+            "checkedCharacters": 159,
+            "unavailableCharacters": 0,
+            "outlineDifferences": 0,
+            "sizeDifferences": 0,
+            "positiveAdvancesChecked": 159,
+            "invalidAdvances": 0
+          }
+        },
+        {
+          "operation": "long-delete",
+          "status": "passed",
+          "reason": null,
+          "insertedCharacters": 0,
+          "deletedCharacters": 12,
+          "sourceCharacters": 17,
+          "frameGrowth": null,
+          "fontAudit": {
+            "checkedCharacters": 5,
+            "unavailableCharacters": 0,
+            "outlineDifferences": 0,
+            "sizeDifferences": 0,
+            "positiveAdvancesChecked": 5,
+            "invalidAdvances": 0
+          }
+        },
+        {
+          "operation": "body-long-insert",
+          "status": "blocked",
+          "reason": "layout-overflow",
+          "insertedCharacters": 72,
+          "deletedCharacters": 0,
+          "sourceCharacters": 293,
+          "frameGrowth": null,
+          "fontAudit": {}
+        },
+        {
+          "operation": "body-long-delete",
+          "status": "blocked",
+          "reason": "phonetic-attachment",
+          "insertedCharacters": 0,
+          "deletedCharacters": 55,
+          "sourceCharacters": 166,
+          "frameGrowth": null,
+          "fontAudit": {}
+        }
+      ]
+    },
+    {
+      "id": "textbook-25",
+      "sample": "义务教育教科书·语文五年级下册.pdf",
+      "physicalPage": 25,
+      "baseline": {
+        "blocked": 3,
+        "failed": 2,
+        "passed": 1
+      },
+      "final": {
+        "blocked": 5,
+        "passed": 1
+      },
+      "baselineParagraphs": 23,
+      "finalParagraphs": 23,
+      "resegmentedTargets": 0,
+      "operations": [
+        {
+          "operation": "short-insert",
+          "status": "blocked",
+          "reason": "phonetic-attachment",
+          "insertedCharacters": 2,
+          "deletedCharacters": 0,
+          "sourceCharacters": 140,
+          "frameGrowth": null,
+          "fontAudit": {}
+        },
+        {
+          "operation": "long-insert",
+          "status": "blocked",
+          "reason": "layout-overflow",
+          "insertedCharacters": 72,
+          "deletedCharacters": 0,
+          "sourceCharacters": 158,
+          "frameGrowth": null,
+          "fontAudit": {}
+        },
+        {
+          "operation": "short-delete",
+          "status": "blocked",
+          "reason": "phonetic-attachment",
+          "insertedCharacters": 0,
+          "deletedCharacters": 2,
+          "sourceCharacters": 88,
+          "frameGrowth": null,
+          "fontAudit": {}
+        },
+        {
+          "operation": "long-delete",
+          "status": "passed",
+          "reason": null,
+          "insertedCharacters": 0,
+          "deletedCharacters": 33,
+          "sourceCharacters": 99,
+          "frameGrowth": null,
+          "fontAudit": {
+            "checkedCharacters": 64,
+            "unavailableCharacters": 0,
+            "outlineDifferences": 0,
+            "sizeDifferences": 0,
+            "positiveAdvancesChecked": 64,
+            "invalidAdvances": 0
+          }
+        },
+        {
+          "operation": "body-long-insert",
+          "status": "blocked",
+          "reason": "layout-overflow",
+          "insertedCharacters": 72,
+          "deletedCharacters": 0,
+          "sourceCharacters": 158,
+          "frameGrowth": null,
+          "fontAudit": {}
+        },
+        {
+          "operation": "body-long-delete",
+          "status": "blocked",
+          "reason": "phonetic-attachment",
+          "insertedCharacters": 0,
+          "deletedCharacters": 46,
+          "sourceCharacters": 140,
+          "frameGrowth": null,
+          "fontAudit": {}
+        }
+      ]
+    },
+    {
+      "id": "textbook-40",
+      "sample": "义务教育教科书·语文五年级下册.pdf",
+      "physicalPage": 40,
+      "baseline": {
+        "passed": 3,
+        "blocked": 3
+      },
+      "final": {
+        "passed": 3,
+        "blocked": 3
+      },
+      "baselineParagraphs": 29,
+      "finalParagraphs": 18,
+      "resegmentedTargets": 0,
+      "operations": [
+        {
+          "operation": "short-insert",
+          "status": "passed",
+          "reason": null,
+          "insertedCharacters": 2,
+          "deletedCharacters": 0,
+          "sourceCharacters": 71,
+          "frameGrowth": null,
+          "fontAudit": {
+            "checkedCharacters": 71,
+            "unavailableCharacters": 0,
+            "outlineDifferences": 0,
+            "sizeDifferences": 0,
+            "positiveAdvancesChecked": 71,
+            "invalidAdvances": 0
+          }
+        },
+        {
+          "operation": "long-insert",
+          "status": "blocked",
+          "reason": "layout-overflow",
+          "insertedCharacters": 32,
+          "deletedCharacters": 0,
+          "sourceCharacters": 21,
+          "frameGrowth": null,
+          "fontAudit": {}
+        },
+        {
+          "operation": "short-delete",
+          "status": "passed",
+          "reason": null,
+          "insertedCharacters": 0,
+          "deletedCharacters": 2,
+          "sourceCharacters": 63,
+          "frameGrowth": null,
+          "fontAudit": {
+            "checkedCharacters": 60,
+            "unavailableCharacters": 0,
+            "outlineDifferences": 0,
+            "sizeDifferences": 0,
+            "positiveAdvancesChecked": 60,
+            "invalidAdvances": 0
+          }
+        },
+        {
+          "operation": "long-delete",
+          "status": "blocked",
+          "reason": "neighbour-conflict",
+          "insertedCharacters": 0,
+          "deletedCharacters": 12,
+          "sourceCharacters": 30,
+          "frameGrowth": null,
+          "fontAudit": {}
+        },
+        {
+          "operation": "body-long-insert",
+          "status": "blocked",
+          "reason": "layout-overflow",
+          "insertedCharacters": 49,
+          "deletedCharacters": 0,
+          "sourceCharacters": 98,
+          "frameGrowth": null,
+          "fontAudit": {}
+        },
+        {
+          "operation": "body-long-delete",
+          "status": "passed",
+          "reason": null,
+          "insertedCharacters": 0,
+          "deletedCharacters": 23,
+          "sourceCharacters": 71,
+          "frameGrowth": null,
+          "fontAudit": {
+            "checkedCharacters": 47,
+            "unavailableCharacters": 0,
+            "outlineDifferences": 0,
+            "sizeDifferences": 0,
+            "positiveAdvancesChecked": 47,
+            "invalidAdvances": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "textbook-60",
+      "sample": "义务教育教科书·语文五年级下册.pdf",
+      "physicalPage": 60,
+      "baseline": {
+        "blocked": 5,
+        "passed": 1
+      },
+      "final": {
+        "blocked": 4,
+        "passed": 2
+      },
+      "baselineParagraphs": 24,
+      "finalParagraphs": 23,
+      "resegmentedTargets": 2,
+      "operations": [
+        {
+          "operation": "short-insert",
+          "status": "blocked",
+          "reason": "layout-overflow",
+          "insertedCharacters": 2,
+          "deletedCharacters": 0,
+          "sourceCharacters": 71,
+          "frameGrowth": null,
+          "fontAudit": {}
+        },
+        {
+          "operation": "long-insert",
+          "status": "blocked",
+          "reason": "layout-overflow",
+          "insertedCharacters": 32,
+          "deletedCharacters": 0,
+          "sourceCharacters": 34,
+          "frameGrowth": null,
+          "fontAudit": {}
+        },
+        {
+          "operation": "short-delete",
+          "status": "blocked",
+          "reason": "neighbour-conflict",
+          "insertedCharacters": 0,
+          "deletedCharacters": 2,
+          "sourceCharacters": 36,
+          "frameGrowth": null,
+          "fontAudit": {}
+        },
+        {
+          "operation": "long-delete",
+          "status": "passed",
+          "reason": null,
+          "insertedCharacters": 0,
+          "deletedCharacters": 12,
+          "sourceCharacters": 19,
+          "frameGrowth": null,
+          "fontAudit": {
+            "checkedCharacters": 5,
+            "unavailableCharacters": 0,
+            "outlineDifferences": 0,
+            "sizeDifferences": 0,
+            "positiveAdvancesChecked": 5,
+            "invalidAdvances": 0
+          }
+        },
+        {
+          "operation": "body-long-insert",
+          "status": "blocked",
+          "reason": "layout-overflow",
+          "insertedCharacters": 35,
+          "deletedCharacters": 0,
+          "sourceCharacters": 71,
+          "frameGrowth": null,
+          "fontAudit": {}
+        },
+        {
+          "operation": "body-long-delete",
+          "status": "passed",
+          "reason": null,
+          "insertedCharacters": 0,
+          "deletedCharacters": 12,
+          "sourceCharacters": 19,
+          "frameGrowth": null,
+          "fontAudit": {
+            "checkedCharacters": 5,
+            "unavailableCharacters": 0,
+            "outlineDifferences": 0,
+            "sizeDifferences": 0,
+            "positiveAdvancesChecked": 5,
+            "invalidAdvances": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "textbook-100",
+      "sample": "义务教育教科书·语文五年级下册.pdf",
+      "physicalPage": 100,
+      "baseline": {
+        "blocked": 6
+      },
+      "final": {
+        "blocked": 5,
+        "passed": 1
+      },
+      "baselineParagraphs": 36,
+      "finalParagraphs": 36,
+      "resegmentedTargets": 0,
+      "operations": [
+        {
+          "operation": "short-insert",
+          "status": "blocked",
+          "reason": "neighbour-conflict",
+          "insertedCharacters": 2,
+          "deletedCharacters": 0,
+          "sourceCharacters": 59,
+          "frameGrowth": null,
+          "fontAudit": {}
+        },
+        {
+          "operation": "long-insert",
+          "status": "blocked",
+          "reason": "layout-overflow",
+          "insertedCharacters": 72,
+          "deletedCharacters": 0,
+          "sourceCharacters": 157,
+          "frameGrowth": null,
+          "fontAudit": {}
+        },
+        {
+          "operation": "short-delete",
+          "status": "passed",
+          "reason": null,
+          "insertedCharacters": 0,
+          "deletedCharacters": 2,
+          "sourceCharacters": 50,
+          "frameGrowth": null,
+          "fontAudit": {
+            "checkedCharacters": 46,
+            "unavailableCharacters": 0,
+            "outlineDifferences": 0,
+            "sizeDifferences": 0,
+            "positiveAdvancesChecked": 46,
+            "invalidAdvances": 0
+          }
+        },
+        {
+          "operation": "long-delete",
+          "status": "blocked",
+          "reason": "neighbour-conflict",
+          "insertedCharacters": 0,
+          "deletedCharacters": 13,
+          "sourceCharacters": 39,
+          "frameGrowth": null,
+          "fontAudit": {}
+        },
+        {
+          "operation": "body-long-insert",
+          "status": "blocked",
+          "reason": "layout-overflow",
+          "insertedCharacters": 72,
+          "deletedCharacters": 0,
+          "sourceCharacters": 157,
+          "frameGrowth": null,
+          "fontAudit": {}
+        },
+        {
+          "operation": "body-long-delete",
+          "status": "blocked",
+          "reason": "neighbour-conflict",
+          "insertedCharacters": 0,
+          "deletedCharacters": 21,
+          "sourceCharacters": 63,
+          "frameGrowth": null,
+          "fontAudit": {}
+        }
+      ]
+    },
+    {
+      "id": "textbook-110",
+      "sample": "义务教育教科书·语文五年级下册.pdf",
+      "physicalPage": 110,
+      "baseline": {
+        "passed": 3,
+        "blocked": 3
+      },
+      "final": {
+        "passed": 3,
+        "blocked": 3
+      },
+      "baselineParagraphs": 13,
+      "finalParagraphs": 14,
+      "resegmentedTargets": 2,
+      "operations": [
+        {
+          "operation": "short-insert",
+          "status": "passed",
+          "reason": null,
+          "insertedCharacters": 2,
+          "deletedCharacters": 0,
+          "sourceCharacters": 36,
+          "frameGrowth": null,
+          "fontAudit": {
+            "checkedCharacters": 37,
+            "unavailableCharacters": 0,
+            "outlineDifferences": 0,
+            "sizeDifferences": 0,
+            "positiveAdvancesChecked": 37,
+            "invalidAdvances": 0
+          }
+        },
+        {
+          "operation": "long-insert",
+          "status": "blocked",
+          "reason": "layout-overflow",
+          "insertedCharacters": 32,
+          "deletedCharacters": 0,
+          "sourceCharacters": 61,
+          "frameGrowth": null,
+          "fontAudit": {}
+        },
+        {
+          "operation": "short-delete",
+          "status": "passed",
+          "reason": null,
+          "insertedCharacters": 0,
+          "deletedCharacters": 2,
+          "sourceCharacters": 28,
+          "frameGrowth": null,
+          "fontAudit": {
+            "checkedCharacters": 25,
+            "unavailableCharacters": 0,
+            "outlineDifferences": 0,
+            "sizeDifferences": 0,
+            "positiveAdvancesChecked": 25,
+            "invalidAdvances": 0
+          }
+        },
+        {
+          "operation": "long-delete",
+          "status": "blocked",
+          "reason": "neighbour-conflict",
+          "insertedCharacters": 0,
+          "deletedCharacters": 24,
+          "sourceCharacters": 72,
+          "frameGrowth": null,
+          "fontAudit": {}
+        },
+        {
+          "operation": "body-long-insert",
+          "status": "blocked",
+          "reason": "layout-overflow",
+          "insertedCharacters": 36,
+          "deletedCharacters": 0,
+          "sourceCharacters": 72,
+          "frameGrowth": null,
+          "fontAudit": {}
+        },
+        {
+          "operation": "body-long-delete",
+          "status": "passed",
+          "reason": null,
+          "insertedCharacters": 0,
+          "deletedCharacters": 21,
+          "sourceCharacters": 64,
+          "frameGrowth": null,
+          "fontAudit": {
+            "checkedCharacters": 42,
+            "unavailableCharacters": 0,
+            "outlineDifferences": 0,
+            "sizeDifferences": 0,
+            "positiveAdvancesChecked": 42,
+            "invalidAdvances": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "strategy-2",
+      "sample": "十五五规划投资全景_跨市场五年配置策略.pdf",
+      "physicalPage": 2,
+      "baseline": {
+        "blocked": 6
+      },
+      "final": {
+        "passed": 3,
+        "blocked": 3
+      },
+      "baselineParagraphs": 102,
+      "finalParagraphs": 33,
+      "resegmentedTargets": 5,
+      "operations": [
+        {
+          "operation": "short-insert",
+          "status": "passed",
+          "reason": null,
+          "insertedCharacters": 2,
+          "deletedCharacters": 0,
+          "sourceCharacters": 22,
+          "frameGrowth": {
+            "direction": "right",
+            "before": 166.9457550048828,
+            "after": 183.2746729850769
+          },
+          "fontAudit": {
+            "checkedCharacters": 23,
+            "unavailableCharacters": 0,
+            "outlineDifferences": 0,
+            "sizeDifferences": 0,
+            "positiveAdvancesChecked": 23,
+            "invalidAdvances": 0
+          }
+        },
+        {
+          "operation": "long-insert",
+          "status": "blocked",
+          "reason": "layout-overflow",
+          "insertedCharacters": 56,
+          "deletedCharacters": 0,
+          "sourceCharacters": 112,
+          "frameGrowth": null,
+          "fontAudit": {}
+        },
+        {
+          "operation": "short-delete",
+          "status": "passed",
+          "reason": null,
+          "insertedCharacters": 0,
+          "deletedCharacters": 2,
+          "sourceCharacters": 176,
+          "frameGrowth": null,
+          "fontAudit": {
+            "checkedCharacters": 170,
+            "unavailableCharacters": 0,
+            "outlineDifferences": 0,
+            "sizeDifferences": 0,
+            "positiveAdvancesChecked": 170,
+            "invalidAdvances": 0
+          }
+        },
+        {
+          "operation": "long-delete",
+          "status": "blocked",
+          "reason": "target-merged-with-previous-edit",
+          "insertedCharacters": null,
+          "deletedCharacters": null,
+          "sourceCharacters": null,
+          "frameGrowth": null,
+          "fontAudit": {}
+        },
+        {
+          "operation": "body-long-insert",
+          "status": "blocked",
+          "reason": "layout-overflow",
+          "insertedCharacters": 72,
+          "deletedCharacters": 0,
+          "sourceCharacters": 176,
+          "frameGrowth": null,
+          "fontAudit": {}
+        },
+        {
+          "operation": "body-long-delete",
+          "status": "passed",
+          "reason": null,
+          "insertedCharacters": 0,
+          "deletedCharacters": 58,
+          "sourceCharacters": 176,
+          "frameGrowth": null,
+          "fontAudit": {
+            "checkedCharacters": 116,
+            "unavailableCharacters": 0,
+            "outlineDifferences": 0,
+            "sizeDifferences": 0,
+            "positiveAdvancesChecked": 116,
+            "invalidAdvances": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "strategy-3",
+      "sample": "十五五规划投资全景_跨市场五年配置策略.pdf",
+      "physicalPage": 3,
+      "baseline": {
+        "blocked": 6
+      },
+      "final": {
+        "passed": 4,
+        "blocked": 2
+      },
+      "baselineParagraphs": 24,
+      "finalParagraphs": 14,
+      "resegmentedTargets": 3,
+      "operations": [
+        {
+          "operation": "short-insert",
+          "status": "passed",
+          "reason": null,
+          "insertedCharacters": 2,
+          "deletedCharacters": 0,
+          "sourceCharacters": 22,
+          "frameGrowth": {
+            "direction": "right",
+            "before": 166.9457550048828,
+            "after": 183.2746729850769
+          },
+          "fontAudit": {
+            "checkedCharacters": 23,
+            "unavailableCharacters": 0,
+            "outlineDifferences": 0,
+            "sizeDifferences": 0,
+            "positiveAdvancesChecked": 23,
+            "invalidAdvances": 0
+          }
+        },
+        {
+          "operation": "long-insert",
+          "status": "blocked",
+          "reason": "layout-overflow",
+          "insertedCharacters": 34,
+          "deletedCharacters": 0,
+          "sourceCharacters": 69,
+          "frameGrowth": null,
+          "fontAudit": {}
+        },
+        {
+          "operation": "short-delete",
+          "status": "passed",
+          "reason": null,
+          "insertedCharacters": 0,
+          "deletedCharacters": 2,
+          "sourceCharacters": 15,
+          "frameGrowth": null,
+          "fontAudit": {
+            "checkedCharacters": 12,
+            "unavailableCharacters": 0,
+            "outlineDifferences": 0,
+            "sizeDifferences": 0,
+            "positiveAdvancesChecked": 12,
+            "invalidAdvances": 0
+          }
+        },
+        {
+          "operation": "long-delete",
+          "status": "passed",
+          "reason": null,
+          "insertedCharacters": 0,
+          "deletedCharacters": 14,
+          "sourceCharacters": 43,
+          "frameGrowth": null,
+          "fontAudit": {
+            "checkedCharacters": 29,
+            "unavailableCharacters": 0,
+            "outlineDifferences": 0,
+            "sizeDifferences": 0,
+            "positiveAdvancesChecked": 29,
+            "invalidAdvances": 0
+          }
+        },
+        {
+          "operation": "body-long-insert",
+          "status": "blocked",
+          "reason": "layout-overflow",
+          "insertedCharacters": 56,
+          "deletedCharacters": 0,
+          "sourceCharacters": 112,
+          "frameGrowth": null,
+          "fontAudit": {}
+        },
+        {
+          "operation": "body-long-delete",
+          "status": "passed",
+          "reason": null,
+          "insertedCharacters": 0,
+          "deletedCharacters": 37,
+          "sourceCharacters": 112,
+          "frameGrowth": null,
+          "fontAudit": {
+            "checkedCharacters": 74,
+            "unavailableCharacters": 0,
+            "outlineDifferences": 0,
+            "sizeDifferences": 0,
+            "positiveAdvancesChecked": 74,
+            "invalidAdvances": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "strategy-4",
+      "sample": "十五五规划投资全景_跨市场五年配置策略.pdf",
+      "physicalPage": 4,
+      "baseline": {
+        "blocked": 6
+      },
+      "final": {
+        "passed": 3,
+        "blocked": 3
+      },
+      "baselineParagraphs": 9,
+      "finalParagraphs": 4,
+      "resegmentedTargets": 5,
+      "operations": [
+        {
+          "operation": "short-insert",
+          "status": "passed",
+          "reason": null,
+          "insertedCharacters": 2,
+          "deletedCharacters": 0,
+          "sourceCharacters": 22,
+          "frameGrowth": {
+            "direction": "right",
+            "before": 166.9457550048828,
+            "after": 183.2746729850769
+          },
+          "fontAudit": {
+            "checkedCharacters": 23,
+            "unavailableCharacters": 0,
+            "outlineDifferences": 0,
+            "sizeDifferences": 0,
+            "positiveAdvancesChecked": 23,
+            "invalidAdvances": 0
+          }
+        },
+        {
+          "operation": "long-insert",
+          "status": "blocked",
+          "reason": "layout-overflow",
+          "insertedCharacters": 50,
+          "deletedCharacters": 0,
+          "sourceCharacters": 100,
+          "frameGrowth": null,
+          "fontAudit": {}
+        },
+        {
+          "operation": "short-delete",
+          "status": "passed",
+          "reason": null,
+          "insertedCharacters": 0,
+          "deletedCharacters": 2,
+          "sourceCharacters": 157,
+          "frameGrowth": null,
+          "fontAudit": {
+            "checkedCharacters": 152,
+            "unavailableCharacters": 0,
+            "outlineDifferences": 0,
+            "sizeDifferences": 0,
+            "positiveAdvancesChecked": 152,
+            "invalidAdvances": 0
+          }
+        },
+        {
+          "operation": "long-delete",
+          "status": "blocked",
+          "reason": "target-merged-with-previous-edit",
+          "insertedCharacters": null,
+          "deletedCharacters": null,
+          "sourceCharacters": null,
+          "frameGrowth": null,
+          "fontAudit": {}
+        },
+        {
+          "operation": "body-long-insert",
+          "status": "passed",
+          "reason": null,
+          "insertedCharacters": 72,
+          "deletedCharacters": 0,
+          "sourceCharacters": 157,
+          "frameGrowth": {
+            "direction": "down",
+            "before": 119.67999553680423,
+            "after": 168.32769706308844
+          },
+          "fontAudit": {
+            "checkedCharacters": 221,
+            "unavailableCharacters": 5,
+            "outlineDifferences": 0,
+            "sizeDifferences": 0,
+            "positiveAdvancesChecked": 221,
+            "invalidAdvances": 0
+          }
+        },
+        {
+          "operation": "body-long-delete",
+          "status": "blocked",
+          "reason": "save-language-boundary",
+          "insertedCharacters": 0,
+          "deletedCharacters": 33,
+          "sourceCharacters": 100,
+          "frameGrowth": null,
+          "fontAudit": {}
+        }
+      ]
+    },
+    {
+      "id": "strategy-5",
+      "sample": "十五五规划投资全景_跨市场五年配置策略.pdf",
+      "physicalPage": 5,
+      "baseline": {
+        "blocked": 6
+      },
+      "final": {
+        "passed": 4,
+        "blocked": 2
+      },
+      "baselineParagraphs": 25,
+      "finalParagraphs": 14,
+      "resegmentedTargets": 5,
+      "operations": [
+        {
+          "operation": "short-insert",
+          "status": "passed",
+          "reason": null,
+          "insertedCharacters": 2,
+          "deletedCharacters": 0,
+          "sourceCharacters": 22,
+          "frameGrowth": {
+            "direction": "right",
+            "before": 166.9457550048828,
+            "after": 183.2746729850769
+          },
+          "fontAudit": {
+            "checkedCharacters": 23,
+            "unavailableCharacters": 0,
+            "outlineDifferences": 0,
+            "sizeDifferences": 0,
+            "positiveAdvancesChecked": 23,
+            "invalidAdvances": 0
+          }
+        },
+        {
+          "operation": "long-insert",
+          "status": "blocked",
+          "reason": "layout-overflow",
+          "insertedCharacters": 53,
+          "deletedCharacters": 0,
+          "sourceCharacters": 107,
+          "frameGrowth": null,
+          "fontAudit": {}
+        },
+        {
+          "operation": "short-delete",
+          "status": "passed",
+          "reason": null,
+          "insertedCharacters": 0,
+          "deletedCharacters": 2,
+          "sourceCharacters": 114,
+          "frameGrowth": null,
+          "fontAudit": {
+            "checkedCharacters": 110,
+            "unavailableCharacters": 0,
+            "outlineDifferences": 0,
+            "sizeDifferences": 0,
+            "positiveAdvancesChecked": 110,
+            "invalidAdvances": 0
+          }
+        },
+        {
+          "operation": "long-delete",
+          "status": "passed",
+          "reason": null,
+          "insertedCharacters": 0,
+          "deletedCharacters": 30,
+          "sourceCharacters": 91,
+          "frameGrowth": null,
+          "fontAudit": {
+            "checkedCharacters": 60,
+            "unavailableCharacters": 0,
+            "outlineDifferences": 0,
+            "sizeDifferences": 0,
+            "positiveAdvancesChecked": 60,
+            "invalidAdvances": 0
+          }
+        },
+        {
+          "operation": "body-long-insert",
+          "status": "blocked",
+          "reason": "layout-overflow",
+          "insertedCharacters": 53,
+          "deletedCharacters": 0,
+          "sourceCharacters": 107,
+          "frameGrowth": null,
+          "fontAudit": {}
+        },
+        {
+          "operation": "body-long-delete",
+          "status": "passed",
+          "reason": null,
+          "insertedCharacters": 0,
+          "deletedCharacters": 38,
+          "sourceCharacters": 115,
+          "frameGrowth": null,
+          "fontAudit": {
+            "checkedCharacters": 76,
+            "unavailableCharacters": 0,
+            "outlineDifferences": 0,
+            "sizeDifferences": 0,
+            "positiveAdvancesChecked": 76,
+            "invalidAdvances": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "strategy-6",
+      "sample": "十五五规划投资全景_跨市场五年配置策略.pdf",
+      "physicalPage": 6,
+      "baseline": {
+        "blocked": 5,
+        "failed": 1
+      },
+      "final": {
+        "passed": 3,
+        "blocked": 3
+      },
+      "baselineParagraphs": 39,
+      "finalParagraphs": 15,
+      "resegmentedTargets": 4,
+      "operations": [
+        {
+          "operation": "short-insert",
+          "status": "passed",
+          "reason": null,
+          "insertedCharacters": 2,
+          "deletedCharacters": 0,
+          "sourceCharacters": 22,
+          "frameGrowth": {
+            "direction": "right",
+            "before": 166.9457550048828,
+            "after": 183.2746729850769
+          },
+          "fontAudit": {
+            "checkedCharacters": 23,
+            "unavailableCharacters": 0,
+            "outlineDifferences": 0,
+            "sizeDifferences": 0,
+            "positiveAdvancesChecked": 23,
+            "invalidAdvances": 0
+          }
+        },
+        {
+          "operation": "long-insert",
+          "status": "blocked",
+          "reason": "layout-overflow",
+          "insertedCharacters": 53,
+          "deletedCharacters": 0,
+          "sourceCharacters": 107,
+          "frameGrowth": null,
+          "fontAudit": {}
+        },
+        {
+          "operation": "short-delete",
+          "status": "passed",
+          "reason": null,
+          "insertedCharacters": 0,
+          "deletedCharacters": 2,
+          "sourceCharacters": 42,
+          "frameGrowth": null,
+          "fontAudit": {
+            "checkedCharacters": 39,
+            "unavailableCharacters": 0,
+            "outlineDifferences": 0,
+            "sizeDifferences": 0,
+            "positiveAdvancesChecked": 39,
+            "invalidAdvances": 0
+          }
+        },
+        {
+          "operation": "long-delete",
+          "status": "blocked",
+          "reason": "save-tagged-boundary",
+          "insertedCharacters": 0,
+          "deletedCharacters": 12,
+          "sourceCharacters": 34,
+          "frameGrowth": null,
+          "fontAudit": {}
+        },
+        {
+          "operation": "body-long-insert",
+          "status": "blocked",
+          "reason": "layout-overflow",
+          "insertedCharacters": 53,
+          "deletedCharacters": 0,
+          "sourceCharacters": 107,
+          "frameGrowth": null,
+          "fontAudit": {}
+        },
+        {
+          "operation": "body-long-delete",
+          "status": "passed",
+          "reason": null,
+          "insertedCharacters": 0,
+          "deletedCharacters": 35,
+          "sourceCharacters": 107,
+          "frameGrowth": null,
+          "fontAudit": {
+            "checkedCharacters": 71,
+            "unavailableCharacters": 0,
+            "outlineDifferences": 0,
+            "sizeDifferences": 0,
+            "positiveAdvancesChecked": 71,
+            "invalidAdvances": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "strategy-7",
+      "sample": "十五五规划投资全景_跨市场五年配置策略.pdf",
+      "physicalPage": 7,
+      "baseline": {
+        "blocked": 6
+      },
+      "final": {
+        "passed": 4,
+        "blocked": 2
+      },
+      "baselineParagraphs": 72,
+      "finalParagraphs": 30,
+      "resegmentedTargets": 4,
+      "operations": [
+        {
+          "operation": "short-insert",
+          "status": "passed",
+          "reason": null,
+          "insertedCharacters": 2,
+          "deletedCharacters": 0,
+          "sourceCharacters": 22,
+          "frameGrowth": {
+            "direction": "right",
+            "before": 166.9457550048828,
+            "after": 183.2746729850769
+          },
+          "fontAudit": {
+            "checkedCharacters": 23,
+            "unavailableCharacters": 0,
+            "outlineDifferences": 0,
+            "sizeDifferences": 0,
+            "positiveAdvancesChecked": 23,
+            "invalidAdvances": 0
+          }
+        },
+        {
+          "operation": "long-insert",
+          "status": "blocked",
+          "reason": "layout-overflow",
+          "insertedCharacters": 32,
+          "deletedCharacters": 0,
+          "sourceCharacters": 19,
+          "frameGrowth": null,
+          "fontAudit": {}
+        },
+        {
+          "operation": "short-delete",
+          "status": "passed",
+          "reason": null,
+          "insertedCharacters": 0,
+          "deletedCharacters": 2,
+          "sourceCharacters": 53,
+          "frameGrowth": null,
+          "fontAudit": {
+            "checkedCharacters": 50,
+            "unavailableCharacters": 0,
+            "outlineDifferences": 0,
+            "sizeDifferences": 0,
+            "positiveAdvancesChecked": 50,
+            "invalidAdvances": 0
+          }
+        },
+        {
+          "operation": "long-delete",
+          "status": "passed",
+          "reason": null,
+          "insertedCharacters": 0,
+          "deletedCharacters": 56,
+          "sourceCharacters": 170,
+          "frameGrowth": null,
+          "fontAudit": {
+            "checkedCharacters": 111,
+            "unavailableCharacters": 0,
+            "outlineDifferences": 0,
+            "sizeDifferences": 0,
+            "positiveAdvancesChecked": 111,
+            "invalidAdvances": 0
+          }
+        },
+        {
+          "operation": "body-long-insert",
+          "status": "blocked",
+          "reason": "layout-overflow",
+          "insertedCharacters": 72,
+          "deletedCharacters": 0,
+          "sourceCharacters": 165,
+          "frameGrowth": null,
+          "fontAudit": {}
+        },
+        {
+          "operation": "body-long-delete",
+          "status": "passed",
+          "reason": null,
+          "insertedCharacters": 0,
+          "deletedCharacters": 55,
+          "sourceCharacters": 165,
+          "frameGrowth": null,
+          "fontAudit": {
+            "checkedCharacters": 108,
+            "unavailableCharacters": 0,
+            "outlineDifferences": 0,
+            "sizeDifferences": 0,
+            "positiveAdvancesChecked": 108,
+            "invalidAdvances": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "strategy-8",
+      "sample": "十五五规划投资全景_跨市场五年配置策略.pdf",
+      "physicalPage": 8,
+      "baseline": {
+        "blocked": 6
+      },
+      "final": {
+        "passed": 4,
+        "blocked": 2
+      },
+      "baselineParagraphs": 19,
+      "finalParagraphs": 9,
+      "resegmentedTargets": 5,
+      "operations": [
+        {
+          "operation": "short-insert",
+          "status": "passed",
+          "reason": null,
+          "insertedCharacters": 2,
+          "deletedCharacters": 0,
+          "sourceCharacters": 22,
+          "frameGrowth": {
+            "direction": "right",
+            "before": 166.9457550048828,
+            "after": 183.2746729850769
+          },
+          "fontAudit": {
+            "checkedCharacters": 23,
+            "unavailableCharacters": 0,
+            "outlineDifferences": 0,
+            "sizeDifferences": 0,
+            "positiveAdvancesChecked": 23,
+            "invalidAdvances": 0
+          }
+        },
+        {
+          "operation": "long-insert",
+          "status": "blocked",
+          "reason": "layout-overflow",
+          "insertedCharacters": 39,
+          "deletedCharacters": 0,
+          "sourceCharacters": 78,
+          "frameGrowth": null,
+          "fontAudit": {}
+        },
+        {
+          "operation": "short-delete",
+          "status": "passed",
+          "reason": null,
+          "insertedCharacters": 0,
+          "deletedCharacters": 2,
+          "sourceCharacters": 113,
+          "frameGrowth": null,
+          "fontAudit": {
+            "checkedCharacters": 108,
+            "unavailableCharacters": 0,
+            "outlineDifferences": 0,
+            "sizeDifferences": 0,
+            "positiveAdvancesChecked": 108,
+            "invalidAdvances": 0
+          }
+        },
+        {
+          "operation": "long-delete",
+          "status": "passed",
+          "reason": null,
+          "insertedCharacters": 0,
+          "deletedCharacters": 53,
+          "sourceCharacters": 160,
+          "frameGrowth": null,
+          "fontAudit": {
+            "checkedCharacters": 104,
+            "unavailableCharacters": 0,
+            "outlineDifferences": 0,
+            "sizeDifferences": 0,
+            "positiveAdvancesChecked": 104,
+            "invalidAdvances": 0
+          }
+        },
+        {
+          "operation": "body-long-insert",
+          "status": "blocked",
+          "reason": "layout-overflow",
+          "insertedCharacters": 39,
+          "deletedCharacters": 0,
+          "sourceCharacters": 78,
+          "frameGrowth": null,
+          "fontAudit": {}
+        },
+        {
+          "operation": "body-long-delete",
+          "status": "passed",
+          "reason": null,
+          "insertedCharacters": 0,
+          "deletedCharacters": 53,
+          "sourceCharacters": 160,
+          "frameGrowth": null,
+          "fontAudit": {
+            "checkedCharacters": 105,
+            "unavailableCharacters": 0,
+            "outlineDifferences": 0,
+            "sizeDifferences": 0,
+            "positiveAdvancesChecked": 105,
+            "invalidAdvances": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "strategy-9",
+      "sample": "十五五规划投资全景_跨市场五年配置策略.pdf",
+      "physicalPage": 9,
+      "baseline": {
+        "blocked": 6
+      },
+      "final": {
+        "passed": 4,
+        "blocked": 2
+      },
+      "baselineParagraphs": 62,
+      "finalParagraphs": 26,
+      "resegmentedTargets": 1,
+      "operations": [
+        {
+          "operation": "short-insert",
+          "status": "passed",
+          "reason": null,
+          "insertedCharacters": 2,
+          "deletedCharacters": 0,
+          "sourceCharacters": 22,
+          "frameGrowth": {
+            "direction": "right",
+            "before": 166.9457550048828,
+            "after": 183.2746729850769
+          },
+          "fontAudit": {
+            "checkedCharacters": 23,
+            "unavailableCharacters": 0,
+            "outlineDifferences": 0,
+            "sizeDifferences": 0,
+            "positiveAdvancesChecked": 23,
+            "invalidAdvances": 0
+          }
+        },
+        {
+          "operation": "long-insert",
+          "status": "blocked",
+          "reason": "layout-overflow",
+          "insertedCharacters": 32,
+          "deletedCharacters": 0,
+          "sourceCharacters": 13,
+          "frameGrowth": null,
+          "fontAudit": {}
+        },
+        {
+          "operation": "short-delete",
+          "status": "passed",
+          "reason": null,
+          "insertedCharacters": 0,
+          "deletedCharacters": 2,
+          "sourceCharacters": 15,
+          "frameGrowth": null,
+          "fontAudit": {
+            "checkedCharacters": 13,
+            "unavailableCharacters": 0,
+            "outlineDifferences": 0,
+            "sizeDifferences": 0,
+            "positiveAdvancesChecked": 13,
+            "invalidAdvances": 0
+          }
+        },
+        {
+          "operation": "long-delete",
+          "status": "passed",
+          "reason": null,
+          "insertedCharacters": 0,
+          "deletedCharacters": 15,
+          "sourceCharacters": 47,
+          "frameGrowth": null,
+          "fontAudit": {
+            "checkedCharacters": 32,
+            "unavailableCharacters": 0,
+            "outlineDifferences": 0,
+            "sizeDifferences": 0,
+            "positiveAdvancesChecked": 32,
+            "invalidAdvances": 0
+          }
+        },
+        {
+          "operation": "body-long-insert",
+          "status": "blocked",
+          "reason": "layout-overflow",
+          "insertedCharacters": 72,
+          "deletedCharacters": 0,
+          "sourceCharacters": 180,
+          "frameGrowth": null,
+          "fontAudit": {}
+        },
+        {
+          "operation": "body-long-delete",
+          "status": "passed",
+          "reason": null,
+          "insertedCharacters": 0,
+          "deletedCharacters": 15,
+          "sourceCharacters": 47,
+          "frameGrowth": null,
+          "fontAudit": {
+            "checkedCharacters": 32,
+            "unavailableCharacters": 0,
+            "outlineDifferences": 0,
+            "sizeDifferences": 0,
+            "positiveAdvancesChecked": 32,
+            "invalidAdvances": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "strategy-11",
+      "sample": "十五五规划投资全景_跨市场五年配置策略.pdf",
+      "physicalPage": 11,
+      "baseline": {
+        "blocked": 6
+      },
+      "final": {
+        "passed": 4,
+        "blocked": 2
+      },
+      "baselineParagraphs": 119,
+      "finalParagraphs": 49,
+      "resegmentedTargets": 2,
+      "operations": [
+        {
+          "operation": "short-insert",
+          "status": "passed",
+          "reason": null,
+          "insertedCharacters": 2,
+          "deletedCharacters": 0,
+          "sourceCharacters": 22,
+          "frameGrowth": {
+            "direction": "right",
+            "before": 166.9457550048828,
+            "after": 183.2746729850769
+          },
+          "fontAudit": {
+            "checkedCharacters": 23,
+            "unavailableCharacters": 0,
+            "outlineDifferences": 0,
+            "sizeDifferences": 0,
+            "positiveAdvancesChecked": 23,
+            "invalidAdvances": 0
+          }
+        },
+        {
+          "operation": "long-insert",
+          "status": "blocked",
+          "reason": "layout-overflow",
+          "insertedCharacters": 72,
+          "deletedCharacters": 0,
+          "sourceCharacters": 166,
+          "frameGrowth": null,
+          "fontAudit": {}
+        },
+        {
+          "operation": "short-delete",
+          "status": "passed",
+          "reason": null,
+          "insertedCharacters": 0,
+          "deletedCharacters": 2,
+          "sourceCharacters": 16,
+          "frameGrowth": null,
+          "fontAudit": {
+            "checkedCharacters": 12,
+            "unavailableCharacters": 0,
+            "outlineDifferences": 0,
+            "sizeDifferences": 0,
+            "positiveAdvancesChecked": 12,
+            "invalidAdvances": 0
+          }
+        },
+        {
+          "operation": "long-delete",
+          "status": "passed",
+          "reason": null,
+          "insertedCharacters": 0,
+          "deletedCharacters": 12,
+          "sourceCharacters": 14,
+          "frameGrowth": null,
+          "fontAudit": {
+            "checkedCharacters": 2,
+            "unavailableCharacters": 0,
+            "outlineDifferences": 0,
+            "sizeDifferences": 0,
+            "positiveAdvancesChecked": 2,
+            "invalidAdvances": 0
+          }
+        },
+        {
+          "operation": "body-long-insert",
+          "status": "blocked",
+          "reason": "layout-overflow",
+          "insertedCharacters": 72,
+          "deletedCharacters": 0,
+          "sourceCharacters": 166,
+          "frameGrowth": null,
+          "fontAudit": {}
+        },
+        {
+          "operation": "body-long-delete",
+          "status": "passed",
+          "reason": null,
+          "insertedCharacters": 0,
+          "deletedCharacters": 15,
+          "sourceCharacters": 46,
+          "frameGrowth": null,
+          "fontAudit": {
+            "checkedCharacters": 31,
+            "unavailableCharacters": 0,
+            "outlineDifferences": 0,
+            "sizeDifferences": 0,
+            "positiveAdvancesChecked": 31,
+            "invalidAdvances": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "strategy-12",
+      "sample": "十五五规划投资全景_跨市场五年配置策略.pdf",
+      "physicalPage": 12,
+      "baseline": {
+        "blocked": 6
+      },
+      "final": {
+        "passed": 4,
+        "blocked": 2
+      },
+      "baselineParagraphs": 22,
+      "finalParagraphs": 12,
+      "resegmentedTargets": 4,
+      "operations": [
+        {
+          "operation": "short-insert",
+          "status": "passed",
+          "reason": null,
+          "insertedCharacters": 2,
+          "deletedCharacters": 0,
+          "sourceCharacters": 22,
+          "frameGrowth": {
+            "direction": "right",
+            "before": 166.9457550048828,
+            "after": 183.2746729850769
+          },
+          "fontAudit": {
+            "checkedCharacters": 23,
+            "unavailableCharacters": 0,
+            "outlineDifferences": 0,
+            "sizeDifferences": 0,
+            "positiveAdvancesChecked": 23,
+            "invalidAdvances": 0
+          }
+        },
+        {
+          "operation": "long-insert",
+          "status": "blocked",
+          "reason": "layout-overflow",
+          "insertedCharacters": 57,
+          "deletedCharacters": 0,
+          "sourceCharacters": 115,
+          "frameGrowth": null,
+          "fontAudit": {}
+        },
+        {
+          "operation": "short-delete",
+          "status": "passed",
+          "reason": null,
+          "insertedCharacters": 0,
+          "deletedCharacters": 2,
+          "sourceCharacters": 41,
+          "frameGrowth": null,
+          "fontAudit": {
+            "checkedCharacters": 39,
+            "unavailableCharacters": 0,
+            "outlineDifferences": 0,
+            "sizeDifferences": 0,
+            "positiveAdvancesChecked": 39,
+            "invalidAdvances": 0
+          }
+        },
+        {
+          "operation": "long-delete",
+          "status": "passed",
+          "reason": null,
+          "insertedCharacters": 0,
+          "deletedCharacters": 32,
+          "sourceCharacters": 98,
+          "frameGrowth": null,
+          "fontAudit": {
+            "checkedCharacters": 65,
+            "unavailableCharacters": 0,
+            "outlineDifferences": 0,
+            "sizeDifferences": 0,
+            "positiveAdvancesChecked": 65,
+            "invalidAdvances": 0
+          }
+        },
+        {
+          "operation": "body-long-insert",
+          "status": "blocked",
+          "reason": "layout-overflow",
+          "insertedCharacters": 57,
+          "deletedCharacters": 0,
+          "sourceCharacters": 115,
+          "frameGrowth": null,
+          "fontAudit": {}
+        },
+        {
+          "operation": "body-long-delete",
+          "status": "passed",
+          "reason": null,
+          "insertedCharacters": 0,
+          "deletedCharacters": 38,
+          "sourceCharacters": 115,
+          "frameGrowth": null,
+          "fontAudit": {
+            "checkedCharacters": 76,
+            "unavailableCharacters": 0,
+            "outlineDifferences": 0,
+            "sizeDifferences": 0,
+            "positiveAdvancesChecked": 76,
+            "invalidAdvances": 0
+          }
+        }
+      ]
+    }
+  ],
+  "wholeDocuments": [
+    {
+      "sample": "义务教育教科书·语文五年级下册.pdf",
+      "page": 25,
+      "operation": "long-delete",
+      "inspectMs": 1427.0,
+      "layoutMs": 99.85,
+      "saveMs": 3053.34,
+      "originalBytes": 16735209,
+      "savedBytes": 17225848,
+      "tagStructure": {
+        "tagged": true,
+        "structureFingerprint": "6bca2f713f94534a1d13a438a9d2a0dd7ae81905a700fa1802f74b245a045d9e",
+        "pageMCIDsPreserved": true
+      },
+      "reopenInspectMs": 2295.85,
+      "pages": 131,
+      "untouchedPagesChecked": 130,
+      "changedUntouchedPages": [],
+      "errors": [],
+      "sourceUnchanged": true,
+      "status": "passed"
+    },
+    {
+      "sample": "十五五规划投资全景_跨市场五年配置策略.pdf",
+      "page": 6,
+      "operation": "short-insert",
+      "inspectMs": 823.87,
+      "frameGrowth": {
+        "direction": "right",
+        "before": 166.9457550048828,
+        "after": 183.2746729850769
+      },
+      "layoutMs": 2240.59,
+      "saveMs": 1578.36,
+      "originalBytes": 573872,
+      "savedBytes": 760056,
+      "tagStructure": {
+        "tagged": true,
+        "structureFingerprint": "64dacabd2a783d789b4c323446e94e8b1eb88ab74ba740895d76868438ff7973",
+        "pageMCIDsPreserved": true
+      },
+      "reopenInspectMs": 1109.43,
+      "pages": 13,
+      "untouchedPagesChecked": 12,
+      "changedUntouchedPages": [],
+      "errors": [],
+      "sourceUnchanged": true,
+      "status": "passed"
+    }
+  ],
+  "visualQualityAudit": {
+    "scope": "Independent screenshot and model audit. Automatic integrity pass does not imply flawless typography or paragraph segmentation. This corpus starts each batch from the complete original document and does not cover the separate new-glyph second-save UI defect.",
+    "findings": [
+      {
+        "id": "textbook-9",
+        "operation": "short-insert",
+        "type": "new-line-leading-Chinese-comma",
+        "description": "局部增字导致行首逗号",
+        "status": "已修复并复核保存截图",
+        "evidence": "textbook-9-batch0-after.png"
+      },
+      {
+        "id": "textbook-14",
+        "operation": "short-delete",
+        "type": "new-line-leading-Chinese-period",
+        "description": "删除原行开头两字后句号仍留在行首",
+        "status": "已修复并复核保存截图，句号与前字共同换行",
+        "evidence": "textbook-14-batch0-after.png"
+      },
+      {
+        "id": "textbook-60",
+        "operation": "long-delete",
+        "type": "distinct-list-items-merged-and-bullet-moves-inline",
+        "description": "两条独立菱形列表合并后标记挪到行内",
+        "status": "已修复分段并复核保存截图",
+        "evidence": "textbook-60-batch0-after.png"
+      },
+      {
+        "id": "textbook-100",
+        "operation": "short-delete",
+        "type": "independent-exercise-left-fragments-grouped-into-one-candidate",
+        "description": "不同练习的左侧片段被组成同一候选；本次已保存短删只改变第2题，第1和第3题共23字最大漂移0.0pt，未发生跨题串行",
+        "status": "候选边界仍不准确，本次保存未造成未改题目移位",
+        "evidence": "textbook-100-models.json / textbook-100-batch0-after.png; identical PNG SHA256 0ad0f1b9b1173368e50239e17c93485b83f5723351d547648beb376ec912051f to final-release2-v191 row audit"
+      },
+      {
+        "id": "strategy-4",
+        "operation": "body-long-insert",
+        "type": "inkless-space-blocks-frame-growth",
+        "description": "无墨迹纯空格被当成正文，误挡下方大块空白的扩框",
+        "status": "已修复；72字长插完整保存和双引擎区域/邻页校验通过",
+        "evidence": "strategy-4-batch1-0-after.png / report.json"
+      }
+    ],
+    "finalScreenshotChecks": [
+      {
+        "file": "textbook-9-batch0-after.png",
+        "identicalToReviewedRelease5": true,
+        "sha256": "a7b6b3bb108ca0b04fbb9b9a9cbd8b5942ec1f415776cc375ac442f6f5e1ccc7"
+      },
+      {
+        "file": "textbook-14-batch0-after.png",
+        "identicalToReviewedRelease5": true,
+        "sha256": "093a76642b800138c576e149fd406c683cacda7dfc35f1cfa19bbe4acd9d2f1a"
+      },
+      {
+        "file": "textbook-60-batch0-after.png",
+        "identicalToReviewedRelease5": true,
+        "sha256": "c2e738d2ff91e0580c7d921ade7f7ac0e32c5c49e3d697f4615b6c25154db82f"
+      },
+      {
+        "file": "textbook-100-batch0-after.png",
+        "identicalToReviewedRelease5": true,
+        "sha256": "0ad0f1b9b1173368e50239e17c93485b83f5723351d547648beb376ec912051f"
+      },
+      {
+        "file": "strategy-4-batch1-0-after.png",
+        "identicalToReviewedRelease5": true,
+        "sha256": "1803f1f5163ecdf64bbb0279c1268a0cb58978c892083ed82c048a683569b058"
+      }
+    ],
+    "sourceCommit": "d318689597d6e6ab5f3c061673f790d55709b237"
+  },
+  "packagedUI": {
+    "startedAt": "2026-10-20T05:31:37.516Z",
+    "finishedAt": "2026-10-20T05:52:45.507Z",
+    "productionSourceCommit": "d318689597d6e6ab5f3c061673f790d55709b237",
+    "exeSha256": "aee2bf81deb75ab2e67622ac7ff5550c4c0c5a421abae8ba7c766e61bc29ac30",
+    "asarSha256": "8ce463c89fca75f07c7d94f6af86855632a7711a2fedb47d20f24de8229b1508",
+    "nativeCodeSha256": "1f9468957686f9ca6b4a862138c78177aba492985be638681f6ddd134975114e",
+    "nativeSha256": {
+      "worker.py": "de559b408afce8fdb7cb243fdf5a4509299b0f7336ac9dc9ff8f1e92a15f153f",
+      "font_match.py": "d0642d30fb929e057ffdfe64a7a6ae6b34259fb92d67c3a1b14b6a98a38207ae",
+      "font_metrics.py": "c554e0c0638e7c968af641ba5c3b757f3a7c5cc668071241020f3d7c87cb3cff",
+      "font_cache.py": "9a84d2a74279f46a0b6bda65f903a3fa0abb48474d71fa6181b49d9d4b2ecf21",
+      "fast_layout.py": "4df0b0b72f95a770a0a0167b1da9290e86f72385a832d262e66f123d7ed27a2a",
+      "font_resolver.py": "235238402bb48facea0a2ba4eef4b4ffa6df8e4850133fe4ae97f82ee54ff547",
+      "system_fonts.py": "89d5b918a02fa386304051222e061884a570c9f0377c943eee1d9848fde09278",
+      "font_similarity.py": "7b71f8e2439106751662323013af9d73c8ae53a6b5c4f281775c3b94e2b492e4",
+      "story.py": "0117ff23342cd7f40d62907c29c62e89dbf86b83dabae3de42eaf3d0c86c2733",
+      "structure_scope.py": "99a4bb601b955f9c2df92d68dc37bb0abb47ed9ebf046b9257356b25bd3e25aa"
+    },
+    "completeOriginalPDFs": true,
+    "originalSourcesUnchanged": true,
+    "savedArtifactHashesVerified": 24,
+    "flowLayoutFailuresObserved": 0,
+    "rendererApplicationFontCacheResetPerTarget": true,
+    "concurrentValidationTasks": true,
+    "targets": 12,
+    "firstSavesPassed": 12,
+    "secondSavesPassed": 12,
+    "typingOperations": 48,
+    "undoRedoOperations": 24,
+    "reopenedDeleteOperations": 12,
+    "longInsertSavedInThisUITest": false,
+    "targetPassScope": "Both net-short-edit save sequences completed with page character-multiset, adjacent-page pixel, independent Han glyph geometry and retained-style checks. This does not establish complete typographic quality or preservation of visual containers.",
+    "byOperation": {
+      "delete-long": {
+        "attempts": 12,
+        "statusErrors": 0,
+        "preciseFailures": 0,
+        "otherNonReady": 0,
+        "warnings": 9,
+        "missingFast": 0,
+        "missingPrecise": 0
+      },
+      "delete-short": {
+        "attempts": 12,
+        "statusErrors": 0,
+        "preciseFailures": 0,
+        "otherNonReady": 0,
+        "warnings": 8,
+        "missingFast": 0,
+        "missingPrecise": 0
+      },
+      "insert-long": {
+        "attempts": 12,
+        "statusErrors": 0,
+        "preciseFailures": 0,
+        "otherNonReady": 0,
+        "warnings": 12,
+        "missingFast": 0,
+        "missingPrecise": 0
+      },
+      "insert-short": {
+        "attempts": 12,
+        "statusErrors": 0,
+        "preciseFailures": 0,
+        "otherNonReady": 0,
+        "warnings": 9,
+        "missingFast": 0,
+        "missingPrecise": 0
+      },
+      "redo": {
+        "attempts": 12,
+        "statusErrors": 0,
+        "preciseFailures": 0,
+        "otherNonReady": 0,
+        "warnings": 9,
+        "missingFast": 0,
+        "missingPrecise": 0
+      },
+      "reopened-delete": {
+        "attempts": 12,
+        "statusErrors": 0,
+        "preciseFailures": 0,
+        "otherNonReady": 0,
+        "warnings": 3,
+        "missingFast": 0,
+        "missingPrecise": 0
+      },
+      "undo": {
+        "attempts": 12,
+        "statusErrors": 0,
+        "preciseFailures": 0,
+        "otherNonReady": 0,
+        "warnings": 2,
+        "missingFast": 0,
+        "missingPrecise": 0
+      }
+    },
+    "byTarget": [
+      {
+        "id": "textbook-12",
+        "physicalPage": 12,
+        "position": 1,
+        "sourceCharacters": 54,
+        "coldActivationFastMs": 14088,
+        "coldActivationPreciseMs": 16337.4,
+        "firstSaveMs": 23078,
+        "secondSaveMs": 19083
+      },
+      {
+        "id": "textbook-12",
+        "physicalPage": 12,
+        "position": 2,
+        "sourceCharacters": 27,
+        "coldActivationFastMs": 9059.3,
+        "coldActivationPreciseMs": 10038.4,
+        "firstSaveMs": 13041,
+        "secondSaveMs": 16075
+      },
+      {
+        "id": "textbook-12",
+        "physicalPage": 12,
+        "position": 3,
+        "sourceCharacters": 47,
+        "coldActivationFastMs": 10091.9,
+        "coldActivationPreciseMs": 11109.8,
+        "firstSaveMs": 18084,
+        "secondSaveMs": 20078
+      },
+      {
+        "id": "textbook-20",
+        "physicalPage": 20,
+        "position": 1,
+        "sourceCharacters": 4,
+        "coldActivationFastMs": 7017.8,
+        "coldActivationPreciseMs": 7862.9,
+        "firstSaveMs": 18095,
+        "secondSaveMs": 16055
+      },
+      {
+        "id": "textbook-20",
+        "physicalPage": 20,
+        "position": 2,
+        "sourceCharacters": 50,
+        "coldActivationFastMs": 9047.8,
+        "coldActivationPreciseMs": 10186.2,
+        "firstSaveMs": 13050,
+        "secondSaveMs": 15067
+      },
+      {
+        "id": "textbook-20",
+        "physicalPage": 20,
+        "position": 3,
+        "sourceCharacters": 40,
+        "coldActivationFastMs": 6022.6,
+        "coldActivationPreciseMs": 6984.5,
+        "firstSaveMs": 12016,
+        "secondSaveMs": 14102
+      },
+      {
+        "id": "strategy-3",
+        "physicalPage": 3,
+        "position": 1,
+        "sourceCharacters": 128,
+        "coldActivationFastMs": 6036.2,
+        "coldActivationPreciseMs": 7051.7,
+        "firstSaveMs": 16070,
+        "secondSaveMs": 15089
+      },
+      {
+        "id": "strategy-3",
+        "physicalPage": 3,
+        "position": 2,
+        "sourceCharacters": 55,
+        "coldActivationFastMs": 6037.9,
+        "coldActivationPreciseMs": 14416.7,
+        "firstSaveMs": 12034,
+        "secondSaveMs": 13065
+      },
+      {
+        "id": "strategy-3",
+        "physicalPage": 3,
+        "position": 3,
+        "sourceCharacters": 43,
+        "coldActivationFastMs": 7020.2,
+        "coldActivationPreciseMs": 7960.9,
+        "firstSaveMs": 13060,
+        "secondSaveMs": 14086
+      },
+      {
+        "id": "strategy-8",
+        "physicalPage": 8,
+        "position": 1,
+        "sourceCharacters": 113,
+        "coldActivationFastMs": 7005.3,
+        "coldActivationPreciseMs": 8224.7,
+        "firstSaveMs": 13057,
+        "secondSaveMs": 14075
+      },
+      {
+        "id": "strategy-8",
+        "physicalPage": 8,
+        "position": 2,
+        "sourceCharacters": 90,
+        "coldActivationFastMs": 6976.6,
+        "coldActivationPreciseMs": 8033.4,
+        "firstSaveMs": 13056,
+        "secondSaveMs": 14079
+      },
+      {
+        "id": "strategy-8",
+        "physicalPage": 8,
+        "position": 3,
+        "sourceCharacters": 156,
+        "coldActivationFastMs": 7024.2,
+        "coldActivationPreciseMs": 8335.4,
+        "firstSaveMs": 12048,
+        "secondSaveMs": 14057
+      }
+    ],
+    "warningCountsByOperation": {
+      "delete-long": 9,
+      "delete-short": 8,
+      "insert-long": 12,
+      "insert-short": 9,
+      "redo": 9,
+      "reopened-delete": 3,
+      "undo": 2
+    },
+    "timingMs": {
+      "coldActivationFast": {
+        "n": 12,
+        "unavailable": 0,
+        "min": 6022.6,
+        "median": 7019.0,
+        "p95": 14088,
+        "max": 14088
+      },
+      "coldActivationPrecise": {
+        "n": 12,
+        "unavailable": 0,
+        "min": 6984.5,
+        "median": 8280.05,
+        "p95": 16337.4,
+        "max": 16337.4
+      },
+      "warmActivationFast": {
+        "n": 4,
+        "unavailable": 0,
+        "min": 3977.7,
+        "median": 5017.4,
+        "p95": 9020.4,
+        "max": 9020.4
+      },
+      "warmActivationPrecise": {
+        "n": 4,
+        "unavailable": 0,
+        "min": 5001.9,
+        "median": 5936.45,
+        "p95": 10872.2,
+        "max": 10872.2
+      },
+      "typingFast": {
+        "n": 48,
+        "unavailable": 0,
+        "min": 2.1,
+        "median": 3.75,
+        "p95": 11.3,
+        "max": 14.5
+      },
+      "typingPrecise": {
+        "n": 48,
+        "unavailable": 0,
+        "min": 854.6,
+        "median": 2704.4,
+        "p95": 11606.2,
+        "max": 25227.1
+      },
+      "undoRedoFast": {
+        "n": 24,
+        "unavailable": 0,
+        "min": 2005,
+        "median": 2030.55,
+        "p95": 3030.2,
+        "max": 3042.1
+      },
+      "undoRedoPrecise": {
+        "n": 24,
+        "unavailable": 0,
+        "min": 2846.1,
+        "median": 3671.1,
+        "p95": 5538.5,
+        "max": 6965.4
+      },
+      "reopenedDeleteFast": {
+        "n": 12,
+        "unavailable": 0,
+        "min": 2.3,
+        "median": 3.45,
+        "p95": 966.5,
+        "max": 966.5
+      },
+      "reopenedDeletePrecise": {
+        "n": 12,
+        "unavailable": 0,
+        "min": 889,
+        "median": 1021.85,
+        "p95": 3043.8,
+        "max": 3043.8
+      },
+      "reopenActivationFast": {
+        "n": 12,
+        "unavailable": 0,
+        "min": 5017.4,
+        "median": 7059.45,
+        "p95": 11062,
+        "max": 11062
+      },
+      "reopenActivationPrecise": {
+        "n": 12,
+        "unavailable": 0,
+        "min": 6025.9,
+        "median": 8410.55,
+        "p95": 11917.5,
+        "max": 11917.5
+      },
+      "firstSave": {
+        "n": 12,
+        "unavailable": 0,
+        "min": 12016,
+        "median": 13056.5,
+        "p95": 23078,
+        "max": 23078
+      },
+      "secondSave": {
+        "n": 12,
+        "unavailable": 0,
+        "min": 13065,
+        "median": 14584.5,
+        "p95": 20078,
+        "max": 20078
+      },
+      "reopenDocument": {
+        "n": 12,
+        "unavailable": 0,
+        "min": 3080,
+        "median": 3092.5,
+        "p95": 5103,
+        "max": 5103
+      }
+    },
+    "preciseTimeSemantics": "Raw first observed returned refinement state, not matched to the current edit revision. May be stale, failed or unavailable; cannot establish current-edit completion or latency. Kept for audit only; final status snapshots and saved-artifact checks are separate.",
+    "styleAudit": {
+      "firstSave": {
+        "retainedCharacters": 783,
+        "boldCharacters": 12,
+        "italicCharacters": 0,
+        "boldDifferences": 0,
+        "italicDifferences": 0,
+        "sizeDifferences": 0,
+        "outlineCharacters": 25,
+        "outlineUnavailableCharacters": 758,
+        "outlineDifferences": 0
+      },
+      "secondSave": {
+        "retainedCharacters": 771,
+        "boldCharacters": 11,
+        "italicCharacters": 0,
+        "boldDifferences": 0,
+        "italicDifferences": 0,
+        "sizeDifferences": 0,
+        "outlineCharacters": 0,
+        "outlineUnavailableCharacters": 771,
+        "outlineDifferences": 0
+      }
+    },
+    "pages": [
+      {
+        "id": "textbook-12",
+        "physicalPage": 12,
+        "passedTargets": 3
+      },
+      {
+        "id": "textbook-20",
+        "physicalPage": 20,
+        "passedTargets": 3
+      },
+      {
+        "id": "strategy-3",
+        "physicalPage": 3,
+        "passedTargets": 3
+      },
+      {
+        "id": "strategy-8",
+        "physicalPage": 8,
+        "passedTargets": 3
+      }
+    ],
+    "outputFontMetrics": {
+      "inspectedBeforeFolioReopen": true,
+      "metrics": [
+        {
+          "font": "KaiTi Regular",
+          "unitsPerEm": 256,
+          "rawEmbeddedGidAdvances": {
+            "1915": 256,
+            "16027": 256
+          }
+        }
+      ]
+    },
+    "nativeToCorpusComparison": {
+      "byteIdenticalCount": 41,
+      "CRLFOnlyDifferenceCount": 4,
+      "CRLFOnlyFiles": [
+        "font_cache.py",
+        "font_metrics.py",
+        "ruby_anchors.py",
+        "structure_scope.py"
+      ],
+      "allEqualAfterCRLFNormalization": true
+    },
+    "measurementMethodology": {
+      "windowHidden": true,
+      "backgroundThrottlingDisabled": true,
+      "previewObservation": "DOM MutationObserver status update, not screen pixel presentation.",
+      "entryStart": "Candidates have already been generated and selected; timing begins immediately before the paragraph-hit click.",
+      "entryExcludes": [
+        "document opening",
+        "page-level inspection and candidate generation"
+      ],
+      "typingStart": "DOM input event",
+      "saveStart": "Before clicking Finish Editing; includes edit submission, background preview, waiting for edit mode to close, save-dialog setup, clicking Save and awaiting completion. This is not isolated disk-write time.",
+      "actionTimingIncludes": [
+        "Playwright action waiting",
+        "automation scheduling"
+      ],
+      "latencyInterpretation": "Observed automated phase timings, not foreground human click latency, visible screen response or pure computation. No estimated automation overhead is subtracted. Each target reloads the renderer page; native-worker and operating-system caches may remain warm."
+    },
+    "timingValidity": {
+      "fastPreview": false,
+      "precisePreview": false,
+      "reason": "Preview status observations were not matched to the current edit revision. A later foreground spot check caught stale pre-input completion. The complete run did not preserve status history and cannot be corrected retrospectively; all preview timing fields are retained for audit only, not as current-edit layout or visible-response latency.",
+      "saveWorkflow": true,
+      "saveWorkflowScope": "Finish Editing through completed whole-document save, including automation waits and dialog setup."
+    },
+    "knownVisualLimitations": [
+      {
+        "id": "textbook-20",
+        "physicalPage": 20,
+        "position": 2,
+        "kind": "cross-line-edit-loses-original-TJ-spacing-and-decorative-container-boundary",
+        "status": "observed-unresolved",
+        "originalLines": 2,
+        "savedLines": 3,
+        "firstSaveOverflowWarning": true,
+        "secondSaveOverflowWarning": false,
+        "userResizePerformed": false,
+        "originalTextFrameBottom": 214.508,
+        "savedInkBottom": 218.566,
+        "decorativeBackgroundBottom": 201.968,
+        "reopenedInferredFrameBottom": 230.355,
+        "originalFirstLineGlyphs": 25,
+        "originalInterGlyphAdvanceRange": [
+          8.724,
+          12.628
+        ],
+        "originalFirstToLastOriginDistance": 274.474,
+        "reflowNominal25GlyphWidth": 309.6,
+        "originalFirstLineAvailableWidth": 280.474,
+        "description": "The original paragraph uses per-glyph TJ spacing. This combined edit spans original physical lines and falls back from local placement preservation to whole-paragraph reflow; nominal spacing cannot reproduce the original first line and yields three lines. The UI uses allowOverflow with fixed growth. The test continued after an overflow warning and completed the edit without invoking resize. The resulting third line exceeds the original text frame by 4.058 pt and extends below the pale dialogue background by 16.598 pt. Reopening infers a new text range from the saved three lines and does not repeat the warning. Character, style and Han-glyph geometry checks do not establish preservation of the original visual container. The current and preceding production outputs are pixel-identical at 2x for each save, so this is not a regression from the weight repair."
+      }
+    ]
+  },
+  "sourceLifecycle": {
+    "runtime": "packaged",
+    "methodology": "Synthetic one-page PDF registered through the real preload API and inspected by the native worker. This checks renderer lifecycle and handle ownership, not keyboard editing.",
+    "checks": [
+      "20 same-renderer register/inspect/release cycles succeed without raising the 16-source limit",
+      "20 committed reloads reclaim old handles and preserve new-document registration started before app initialization",
+      "Same-document hash navigation preserves the current source",
+      "A cancelled top-level navigation preserves the current source",
+      "Renderer termination reclaims its source before any subsequent navigation",
+      "A new renderer can register and inspect immediately after crash recovery"
+    ],
+    "errors": [],
+    "exe_sha256": "aee2bf81deb75ab2e67622ac7ff5550c4c0c5a421abae8ba7c766e61bc29ac30",
+    "asar_sha256": "8ce463c89fca75f07c7d94f6af86855632a7711a2fedb47d20f24de8229b1508",
+    "native_code_sha256": "1f9468957686f9ca6b4a862138c78177aba492985be638681f6ddd134975114e",
+    "finishedAt": "2026-10-20T05:31:59.253Z"
+  },
+  "fontCacheAtomicRegression": {
+    "checks": {
+      "atomic": {
+        "completeOldReadsBeforeReplace": 20,
+        "completeNewReadsAfterReplace": 20
+      },
+      "concurrent": {
+        "writers": 3,
+        "writes": 240,
+        "independentReads": 200,
+        "unavailableReads": 0,
+        "recoveredSharingErrors": 18
+      },
+      "legacy": {
+        "unavailableWhileTruncated": 20,
+        "readableAfterCompletion": 20
+      },
+      "retryBoundary": {
+        "permanentSharingAttempts": 7,
+        "maximumRetryDelayMs": 126,
+        "missingCorruptAndOtherIoRetries": 0
+      }
+    },
+    "testsRun": 7,
+    "errors": [],
+    "historicalUIFailureRootCause": "Not confirmed: the original intermittent UI failure did not capture the exact unavailable font key. These tests independently reproduce and verify repairs for cache truncation and transient Windows sharing races."
+  },
+  "foregroundSpotCheck": {
+    "startedAt": "2026-10-20T06:01:04.296Z",
+    "finishedAt": "2026-10-20T06:02:22.112Z",
+    "sourceCommit": "d318689597d6e6ab5f3c061673f790d55709b237",
+    "exeSha256": "aee2bf81deb75ab2e67622ac7ff5550c4c0c5a421abae8ba7c766e61bc29ac30",
+    "asarSha256": "8ce463c89fca75f07c7d94f6af86855632a7711a2fedb47d20f24de8229b1508",
+    "nativeCodeAggregateSha256": "1f9468957686f9ca6b4a862138c78177aba492985be638681f6ddd134975114e",
+    "capturedReportSha256": "0000c79adb05932dcababd1c522628bc120453b6a548f888b8055ed995211f72",
+    "annotatedReportSha256": "f914c72cc68b2e90d8d6f84ae6e2ce3c0df3c9545d62d73d0c4c6c0958580feb",
+    "metadataAnnotation": "Environment description inherited from hidden harness was corrected after the run. Original captured report is preserved byte-for-byte in report-captured.json. No timing, operation, verification or product fingerprint data changed.",
+    "scope": "Activation starts after editable candidates exist; DOM click timestamps separate automation waiting from click-to-state intervals. Input uses the input event; undo/redo additionally capture actual shortcut keydown. Save totals include Done/final reflow/native export/redraw and subsequent whole-document save, not pure disk I/O. Native dialogs are programmatically answered as in the full harness. DOM state observations do not prove screen paint or final-settled precise rendering.",
+    "environment": "Foreground one-target spot check with a fresh application/profile and pre-existing shared disk font cache. Every captured activation, input and save reports document visibility=visible and focus=true. System load and caches differ from the hidden full run; this is not a controlled A/B experiment.",
+    "activations": [
+      {
+        "kind": "cold-per-renderer",
+        "armedToFirstCompleteMs": 3897.8,
+        "domClickToFirstCompleteMs": 3872.5,
+        "domClickToPreciseReturnMs": 5321.3,
+        "beforeClickMs": 25.3,
+        "visible": true,
+        "focused": true
+      },
+      {
+        "kind": "warm-reentry",
+        "armedToFirstCompleteMs": 1721.2,
+        "domClickToFirstCompleteMs": 1691.3,
+        "domClickToPreciseReturnMs": 3022.9,
+        "beforeClickMs": 29.9,
+        "visible": true,
+        "focused": true
+      },
+      {
+        "kind": "after-reopen",
+        "armedToFirstCompleteMs": 3671.8,
+        "domClickToFirstCompleteMs": 3644.1,
+        "domClickToPreciseReturnMs": 5033.8,
+        "beforeClickMs": 27.7,
+        "visible": true,
+        "focused": true
+      }
+    ],
+    "operations": [
+      {
+        "label": "insert-short",
+        "rawLegacyFastMs": -3,
+        "rawLegacyFastValid": false,
+        "firstMatchingPostEventCompleteStateMs": 5.8,
+        "firstPreciseReturnedStateMs": 14711.7,
+        "postEventPendingObserved": true,
+        "returnAfterMatchingNewCharacterCount": true,
+        "warning": false,
+        "statusError": false,
+        "visible": true,
+        "focused": true
+      },
+      {
+        "label": "undo",
+        "rawLegacyFastMs": 417.7,
+        "rawLegacyFastValid": true,
+        "firstMatchingPostEventCompleteStateMs": 415.4,
+        "firstPreciseReturnedStateMs": 1844,
+        "postEventPendingObserved": true,
+        "returnAfterMatchingNewCharacterCount": true,
+        "warning": false,
+        "statusError": false,
+        "visible": true,
+        "focused": true
+      },
+      {
+        "label": "redo",
+        "rawLegacyFastMs": 394,
+        "rawLegacyFastValid": true,
+        "firstMatchingPostEventCompleteStateMs": 392.5,
+        "firstPreciseReturnedStateMs": 2642.3,
+        "postEventPendingObserved": true,
+        "returnAfterMatchingNewCharacterCount": true,
+        "warning": false,
+        "statusError": false,
+        "visible": true,
+        "focused": true
+      },
+      {
+        "label": "insert-long",
+        "rawLegacyFastMs": 4.1,
+        "rawLegacyFastValid": true,
+        "firstMatchingPostEventCompleteStateMs": 4.1,
+        "firstPreciseReturnedStateMs": 2259.6,
+        "postEventPendingObserved": true,
+        "returnAfterMatchingNewCharacterCount": true,
+        "warning": true,
+        "statusError": false,
+        "visible": true,
+        "focused": true
+      },
+      {
+        "label": "delete-long",
+        "rawLegacyFastMs": 5.2,
+        "rawLegacyFastValid": true,
+        "firstMatchingPostEventCompleteStateMs": 5.2,
+        "firstPreciseReturnedStateMs": 2238.5,
+        "postEventPendingObserved": true,
+        "returnAfterMatchingNewCharacterCount": true,
+        "warning": false,
+        "statusError": false,
+        "visible": true,
+        "focused": true
+      },
+      {
+        "label": "delete-short",
+        "rawLegacyFastMs": 3.6,
+        "rawLegacyFastValid": true,
+        "firstMatchingPostEventCompleteStateMs": 3.6,
+        "firstPreciseReturnedStateMs": 2260.0,
+        "postEventPendingObserved": true,
+        "returnAfterMatchingNewCharacterCount": true,
+        "warning": false,
+        "statusError": false,
+        "visible": true,
+        "focused": true
+      },
+      {
+        "label": "reopened-delete",
+        "rawLegacyFastMs": 2.2,
+        "rawLegacyFastValid": true,
+        "firstMatchingPostEventCompleteStateMs": 2.2,
+        "firstPreciseReturnedStateMs": 1382.7,
+        "postEventPendingObserved": true,
+        "returnAfterMatchingNewCharacterCount": true,
+        "warning": false,
+        "statusError": false,
+        "visible": true,
+        "focused": true
+      }
+    ],
+    "saves": [
+      {
+        "file": "textbook-12-0-saved.pdf",
+        "doneAndSaveWorkflowMs": 12029,
+        "doneDomClickToEditModeExitMs": 8359.9,
+        "saveDomClickToSavedUiStateMs": 3493.1,
+        "betweenExitAndSaveClickMs": 134.3,
+        "beforeDoneClickMs": 39,
+        "sha256": "37eaf9799027df392109cc17954a876a7709ff27ea09a5d9d47366384a96fdcd"
+      },
+      {
+        "file": "textbook-12-0-resaved.pdf",
+        "doneAndSaveWorkflowMs": 9436,
+        "doneDomClickToEditModeExitMs": 4264.7,
+        "saveDomClickToSavedUiStateMs": 4997.0,
+        "betweenExitAndSaveClickMs": 127.4,
+        "beforeDoneClickMs": 34,
+        "sha256": "a0acb37187c0673ab5df1bd79fa2b1ed0440c697069363e942815668ed524a53"
+      }
+    ],
+    "verification": {
+      "targets": 1,
+      "saves": 2,
+      "bothPassed": true,
+      "interfaceErrors": 0,
+      "first": {
+        "exactPageCharacters": true,
+        "adjacentPagePixelsUnchanged": true,
+        "glyphGeometry": {
+          "MuPDF": {
+            "checkedHanGlyphs": 481,
+            "collapsedPairCount": 0
+          },
+          "PDFium": {
+            "checkedHanGlyphs": 481,
+            "collapsedPairCount": 0
+          }
+        },
+        "styleAudit": {
+          "retainedCharacters": 52,
+          "boldCharacters": 0,
+          "italicCharacters": 0,
+          "boldDifferences": 0,
+          "italicDifferences": 0,
+          "sizeDifferences": 0,
+          "outlineCharacters": 0,
+          "outlineUnavailableCharacters": 52,
+          "outlineDifferences": 0
+        }
+      },
+      "second": {
+        "exactPageCharacters": true,
+        "adjacentPagePixelsUnchanged": true,
+        "glyphGeometry": {
+          "MuPDF": {
+            "checkedHanGlyphs": 480,
+            "collapsedPairCount": 0
+          },
+          "PDFium": {
+            "checkedHanGlyphs": 480,
+            "collapsedPairCount": 0
+          }
+        },
+        "styleAudit": {
+          "retainedCharacters": 51,
+          "boldCharacters": 0,
+          "italicCharacters": 0,
+          "boldDifferences": 0,
+          "italicDifferences": 0,
+          "sizeDifferences": 0,
+          "outlineCharacters": 0,
+          "outlineUnavailableCharacters": 51,
+          "outlineDifferences": 0
+        }
+      },
+      "originalSourceUnchanged": true
+    },
+    "observerLimitations": [
+      "The old observer captured an old completion before short-insert input: raw -3 ms is invalid and retained. The raw DOM history shows a new 59-character completion at input+5.8 ms.",
+      "Spot post-event intervals are derived from DOM history filtered by event time and new character count; they do not measure screen paint.",
+      "Precise detection requires pending then returned status, but has no request ID or text-version binding. All seven spot operation returns follow post-event pending and the new matching character-count status. A previously pending request or a later requeued preview can still make this generic observer unsuitable for measuring final-settled layout.",
+      "The complete hidden run lacks retained status histories, so its first-completion timings cannot be certified free of old-state contamination or retrospectively corrected; they must not be presented as new-layout or paint performance.",
+      "This spot and the complete hidden run differ in window visibility, load and cache state, and are not a controlled A/B comparison."
+    ],
+    "separateFromFullRunCounts": true
+  }
+}
