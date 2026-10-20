@@ -132,6 +132,11 @@
       "capability": "independent engines detect collapsed Chinese glyph positions",
       "runtime": "python",
       "args": ["tests/ui-glyph-verification-v191.py"]
+    },
+    {
+      "capability": "independent saved-font audit detects retained glyph style changes",
+      "runtime": "python",
+      "args": ["tests/ui-style-verification-v191.py"]
     }
   ],
   "browser": [

@@ -321,6 +321,7 @@ import sys,fitz,json
 from pathlib import Path
 sys.path.insert(0,str(Path(sys.argv[6])))
 from ui_glyph_verification_v191 import assert_cjk_glyph_geometry
+from ui_style_verification_v191 import assert_retained_styles
 from collections import Counter
 def compact(s):return ''.join(s.split())
 with fitz.open(sys.argv[1]) as a,fitz.open(sys.argv[2]) as b:
@@ -331,7 +332,8 @@ with fitz.open(sys.argv[1]) as a,fitz.open(sys.argv[2]) as b:
  assert a[adjacent].get_pixmap().samples==b[adjacent].get_pixmap().samples,'changed adjacent page'
  b[p].get_pixmap(matrix=fitz.Matrix(1.25,1.25)).save(sys.argv[2]+'.png')
  geometry=assert_cjk_glyph_geometry(Path(sys.argv[2]).read_bytes(),p+1)
- print(json.dumps({'exactPageCharacters':True,'adjacentPagePixelsUnchanged':True,'glyphGeometry':geometry}))
+ styles=assert_retained_styles(sys.argv[1],sys.argv[2],p+1,sys.argv[3],sys.argv[4])
+ print(json.dumps({'exactPageCharacters':True,'adjacentPagePixelsUnchanged':True,'glyphGeometry':geometry,'styleAudit':styles}))
 `,
         spec.fixture,
         file,
