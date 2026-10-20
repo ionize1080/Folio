@@ -124,6 +124,11 @@
       "args": ["tests/font-metrics-v191.py"]
     },
     {
+      "capability": "intrinsic embedded font styles survive missing PDF hints and repeated saves",
+      "runtime": "python",
+      "args": ["tests/font-style-v191.py"]
+    },
+    {
       "capability": "independent engines detect collapsed Chinese glyph positions",
       "runtime": "python",
       "args": ["tests/ui-glyph-verification-v191.py"]

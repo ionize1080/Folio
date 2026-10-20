@@ -101,7 +101,7 @@ def inspect_fonts(data,page_number,objects,mapped,stream):
         refs={f[4]:f[0] for f in doc[page_number-1].get_fonts()}
         for resource,ref in fonts.items():
             f=ref.get_object();name=str(f.get('/BaseFont','/Unknown')).removeprefix('/');key=None;reason='原字体未嵌入；可选择本机或替代字体'
-            embedded=None
+            embedded=None;intrinsic_style=None
             try:_,ext,_,embedded=doc.extract_font(ref.idnum)
             except (ValueError,RuntimeError,AttributeError):pass
             if embedded:reason='原字体已嵌入，但此字体格式或字符映射暂不支持'
@@ -165,6 +165,7 @@ def inspect_fonts(data,page_number,objects,mapped,stream):
                 # Coverage must agree with the normalized font, not merely the
                 # original PDF decoder. Never advertise a .notdef as a glyph.
                 face=fitz.Font(fontbuffer=blob)
+                intrinsic_style=face.flags
                 coverage=populated_coverage(blob,{cp for cp in coverage if face.has_glyph(cp)})
                 if not coverage:raise ValueError('原字体 Unicode 映射不完整')
                 key=hashlib.sha256(blob).hexdigest()[:32]
@@ -216,6 +217,14 @@ def inspect_fonts(data,page_number,objects,mapped,stream):
             descriptor=descriptor.get_object() if hasattr(descriptor,'get_object') else descriptor
             weight=descriptor.get('/FontWeight')
             if isinstance(weight,(int,float)) and 1<=weight<=1000:meta['fontBold']=weight>=600
+            elif key and intrinsic_style is not None:
+                # MuPDF-generated subsets omit FontWeight and use a generic
+                # StemV. PDFium then reports even a real bold face as regular.
+                # Keep explicit PDF weights authoritative; otherwise use the
+                # successfully decoded font program, never its display name.
+                meta['fontBold']=bool(intrinsic_style.get('bold'))
+            if key and intrinsic_style is not None and intrinsic_style.get('italic'):
+                meta['fontItalic']=True
             available[str(resource)]=meta
     state={'font':None,'charSpacing':0,'wordSpacing':0,'horizontalScale':100};stack=[];states={}
     for i,(args,op) in enumerate(stream.operations):
@@ -234,6 +243,7 @@ def inspect_fonts(data,page_number,objects,mapped,stream):
         factor=math.hypot(o['matrix'][0],o['matrix'][1])
         o.update(meta)
         if 'fontBold' in meta:o['bold']=meta['fontBold'] or o.get('renderMode')==2
+        if 'fontItalic' in meta:o['italic']=meta['fontItalic'] or o.get('syntheticItalic',False)
         o['charSpacing']=st.get('charSpacing',0)*factor;o['wordSpacing']=st.get('wordSpacing',0)*factor
         o['horizontalScale']=st.get('horizontalScale',100)
     return available
