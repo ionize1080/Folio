@@ -80,7 +80,7 @@ const report = {
   exeSha256: hash(exe),
   startedAt: new Date().toISOString(),
   methodology:
-    "Each target opens a complete copy of the original document, retaining its structure tree, and starts from a fresh renderer with cold browser font caches. The first target on each page also measures warm re-entry without reloading. Input timings begin at the real input event; undo/redo begin at keyboard dispatch. Fast preview and background precise readiness are measured separately. Saved text and adjacent page pixels are verified.",
+    "Each target opens a complete copy of the original document, retaining its structure tree, and starts from a fresh renderer with cold browser font caches. The first target on each page also measures warm re-entry without reloading. Input timings begin at the real input event; undo/redo begin at keyboard dispatch. Fast preview and background precise readiness are measured separately. Both saves verify exact page text, adjacent page pixels and independent MuPDF/PDFium Han glyph geometry.",
   timingEnvironment:
     "Ordinary Windows desktop with other regression suites running concurrently; timings describe observed interaction latency and are not an isolated competitor speed benchmark.",
   pages: [],
@@ -92,6 +92,7 @@ report.nativeSha256 = Object.fromEntries(
   [
     "worker.py",
     "font_match.py",
+    "font_metrics.py",
     "font_similarity.py",
     "story.py",
     "structure_scope.py",
@@ -317,6 +318,9 @@ function verify(spec, file, old, edited) {
         "-c",
         String.raw`
 import sys,fitz,json
+from pathlib import Path
+sys.path.insert(0,str(Path(sys.argv[6])))
+from ui_glyph_verification_v191 import assert_cjk_glyph_geometry
 from collections import Counter
 def compact(s):return ''.join(s.split())
 with fitz.open(sys.argv[1]) as a,fitz.open(sys.argv[2]) as b:
@@ -326,13 +330,15 @@ with fitz.open(sys.argv[1]) as a,fitz.open(sys.argv[2]) as b:
  assert Counter(compact(b[p].get_text()))==+expected,'changed unrelated page text or duplicated input'
  assert a[adjacent].get_pixmap().samples==b[adjacent].get_pixmap().samples,'changed adjacent page'
  b[p].get_pixmap(matrix=fitz.Matrix(1.25,1.25)).save(sys.argv[2]+'.png')
- print(json.dumps({'exactPageCharacters':True,'adjacentPagePixelsUnchanged':True}))
+ geometry=assert_cjk_glyph_geometry(Path(sys.argv[2]).read_bytes(),p+1)
+ print(json.dumps({'exactPageCharacters':True,'adjacentPagePixelsUnchanged':True,'glyphGeometry':geometry}))
 `,
         spec.fixture,
         file,
         old,
         edited,
         String(spec.page),
+        path.join(root, "tests"),
       ],
       { encoding: "utf8", env: { ...process.env, PYTHONIOENCODING: "utf-8" } },
     ),
@@ -430,6 +436,7 @@ async function activate(title, toggle = true) {
           await open(spec.fixture, spec.page);
           let { text: original, timing } = await activate(titles[position]);
           target.activate = timing;
+          console.log("ACTIVE", spec.id, position);
           if (position === 0) {
             await page.locator("#pe-cancel").click();
             const warm = await activate(titles[position], false);
@@ -491,6 +498,8 @@ async function activate(title, toggle = true) {
           const saved = path.join(out, `${spec.id}-${position}-saved.pdf`);
           target.saveMs = await finishAndSave(saved);
           target.verification = verify(spec, saved, original, current);
+          console.log("SAVED", spec.id, position);
+          saveReport();
           target.reopenMs = await open(saved, spec.page);
           const again = await activate(current);
           target.reopenActivation = again.timing;
@@ -508,6 +517,7 @@ async function activate(title, toggle = true) {
           const resaved = path.join(out, `${spec.id}-${position}-resaved.pdf`);
           target.secondSaveMs = await finishAndSave(resaved);
           target.secondVerification = verify(spec, resaved, original, second);
+          console.log("RESAVED", spec.id, position);
           target.status = "passed";
         } catch (error) {
           target.status = "failed";

@@ -19,7 +19,7 @@ def populated_coverage(blob, coverage):
         cmap=font.getBestCmap() or {};glyf=font['glyf'];metrics=font['hmtx'].metrics
         return {cp for cp in coverage if cp in cmap and (
             unicodedata.category(chr(cp))[0] in ('M','Z','C') or
-            metrics.get(cmap[cp],(0,0))[0] != 0 or
+            metrics.get(cmap[cp],(0,0))[0] != 0 and
             glyf[cmap[cp]].numberOfContours != 0)}
     finally:font.close()
 
@@ -79,6 +79,11 @@ def load_font(key):
 def _load_font(key,stamp):
     info=json.loads((CACHE/(key+'.json')).read_text())
     info['path']=str(CACHE/(key+'.ttf'));info['coverage']=frozenset(info['coverage'])
+    # A previous release may already have cached visible zero-advance glyphs.
+    # Revalidate old metadata on first use, including old keys retained by a
+    # draft. Re-inspection repairs trustworthy PDF metrics to a new content key.
+    if info.get('coverageVersion')!=2:
+        info['coverage']=frozenset(populated_coverage(Path(info['path']).read_bytes(),info['coverage']))
     return info
 
 def inspect_fonts(data,page_number,objects,mapped,stream):
@@ -148,6 +153,9 @@ def inspect_fonts(data,page_number,objects,mapped,stream):
                         else:g=int.from_bytes(raw[2*n:2*n+2],'big') if raw is not None else n
                         if g:mapping[ord(char)]=g
                     if not mapping:raise ValueError(reason)
+                    if cid.get('/Subtype')=='/CIDFontType2':
+                        from font_metrics import restore_cid_advances
+                        blob=restore_cid_advances(blob,cid,mapping,raw)
                     if blob[:1]==b'\x01':
                         from browser_fonts import opentype
                         blob=opentype(blob,mapping)
@@ -168,7 +176,7 @@ def inspect_fonts(data,page_number,objects,mapped,stream):
                         os.replace(tmp,CACHE/(key+'.ttf'))
                     finally:
                         if os.path.exists(tmp):os.unlink(tmp)
-                info={'name':name,'coverage':sorted(coverage)}
+                info={'name':name,'coverage':sorted(coverage),'coverageVersion':2}
                 # Stable files let the metadata/coverage cache survive repeated
                 # inspections. An atomic replace prevents parallel reads of a
                 # partially written JSON document in the layout worker.

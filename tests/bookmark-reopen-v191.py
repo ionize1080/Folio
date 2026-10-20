@@ -14,6 +14,7 @@ import fitz, pypdfium2 as pdfium
 from p8_helpers import models, save
 from fast_layout import font_data, render
 from structure_checks_v191 import assert_tag_structure_preserved
+from ui_glyph_verification_v191 import assert_cjk_glyph_geometry
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--source', type=Path, required=True)
@@ -65,6 +66,7 @@ console.log(JSON.stringify(m));
     result = render(m)
     assert result['mappingComplete'] and not result['overflow']
     native = save(raw, m, 12, result)
+    assert_cjk_glyph_geometry(native, 12)
     assert_tag_structure_preserved(raw, native)
     native_path = OUT / f'bookmark-reopen-{cycle}-native.pdf'
     final_path = OUT / f'bookmark-reopen-{cycle}-saved.pdf'
@@ -85,6 +87,7 @@ assert(after.nodes.every(n=>n.raw.includes('/SE')));
 console.log(JSON.stringify({pages:after.pageCount,bookmarks:after.nodes.length}));
 """, dict(source=str(source), native=str(native_path), saved=str(final_path)))
     final = final_path.read_bytes()
+    assert_cjk_glyph_geometry(final, 12)
     assert_tag_structure_preserved(native, final)
     with fitz.open(stream=raw, filetype='pdf') as before, fitz.open(stream=native, filetype='pdf') as content, fitz.open(stream=final, filetype='pdf') as after:
         compact = lambda text: ''.join(text.split())

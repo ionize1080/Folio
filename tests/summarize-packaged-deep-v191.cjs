@@ -11,6 +11,8 @@ const summarize = values => {
   return {n,min:sorted[0],median:percentile(.5),p95:percentile(.95),max:sorted[n-1]};
 };
 const latency = entries => ({fastMs:summarize(entries.map(o=>o.inputToFastMs)),preciseMs:summarize(entries.map(o=>o.inputToPreciseMs))});
+const verified = entry => entry?.exactPageCharacters && entry?.adjacentPagePixelsUnchanged &&
+  ["MuPDF", "PDFium"].every(engine => entry.glyphGeometry?.[engine]?.checkedHanGlyphs > 0 && entry.glyphGeometry[engine].collapsedPairCount === 0);
 const labels = ["insert-short","insert-long","delete-long","delete-short","undo","redo","reopened-delete"];
 const byOperation = Object.fromEntries(labels.map(label => {
   const entries=operations.filter(o=>o.label===label);
@@ -25,8 +27,8 @@ const summary = {
   targets:{count:targets.length,passed:targets.filter(t=>t.status==="passed").length,failed:targets.filter(t=>t.status==="failed").map(t=>({page:t.page,position:t.position,error:t.error}))},
   typedOperations:latency(operations.filter(o=>labels.slice(0,4).includes(o.label))),
   byOperation, coldEntry:latency(targets.map(t=>t.activate||{})),warmEntry:latency(targets.map(t=>t.warmActivation||{})),
-  firstSave:{verified:targets.filter(t=>t.verification?.exactPageCharacters&&t.verification?.adjacentPagePixelsUnchanged).length,ms:summarize(targets.map(t=>t.saveMs))},
-  reopenDeleteSave:{verified:targets.filter(t=>t.secondVerification?.exactPageCharacters&&t.secondVerification?.adjacentPagePixelsUnchanged).length,ms:summarize(targets.map(t=>t.secondSaveMs))},
+  firstSave:{verified:targets.filter(t=>verified(t.verification)).length,ms:summarize(targets.map(t=>t.saveMs))},
+  reopenDeleteSave:{verified:targets.filter(t=>verified(t.secondVerification)).length,ms:summarize(targets.map(t=>t.secondSaveMs))},
   rendererErrors:report.errors,
   saveScope:"Long insertions are tested as previews and then deleted. First saves contain the net short insertion and short deletion; second saves contain one further deletion after reopening. This suite does not claim that long-insertion states were saved.",
 };

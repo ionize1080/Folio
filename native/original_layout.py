@@ -273,7 +273,8 @@ def render(m):
     from text_semantics import expand_preview
     original_box,preview_bounds=expand_preview(page)
     svg=page.get_svg_image(text_as_path=True);page.set_mediabox(original_box)
-    doc.subset_fonts();blob=doc.tobytes(garbage=3,deflate=True);doc.close()
+    from font_metrics import subset_fonts
+    subset_fonts(doc);blob=doc.tobytes(garbage=3,deflate=True);doc.close()
     from generated_cmaps import repair
     blob=repair(blob,generated=True)
     f=m['frame'];overflow=any(g['x']+g['w']>f['x']+f['width']+.5 or g['y']+g['h']>f['y']+f['height']+.5 for g in mapped)

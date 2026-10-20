@@ -54,7 +54,7 @@ def inspect(raw):
  start=time.perf_counter();ms=js("import{pageCandidates}from'./src/flow-page-model.mjs';console.log(JSON.stringify(pageCandidates(v.objects,...v.size,[],v.tables).map(c=>c.model)));",data)
  return data,ms,{'inspectMs':native_ms,'paragraphModelMs':milliseconds(start)}
 def classify(error):
- for needle,label in [('原字体','font-unavailable'),('字形','glyph-unavailable'),('字位','glyph-mapping'),('交错重叠','overlap'),('遮挡','overlap'),('分隔线','rule-overlap'),('MCID','tagged-boundary'),('裁剪','clip-boundary'),('映射','mapping'),('排版参数','typography')]:
+ for needle,label in [('注音','phonetic-attachment'),('语言标记','language-boundary'),('原字体','font-unavailable'),('字形','glyph-unavailable'),('字位','glyph-mapping'),('交错重叠','overlap'),('遮挡','overlap'),('分隔线','rule-overlap'),('MCID','tagged-boundary'),('裁剪','clip-boundary'),('映射','mapping'),('排版参数','typography')]:
   if needle in error:return label
  return 'rejected'
 def edit_model(m,operation):
@@ -157,20 +157,34 @@ def glyph_signature(key,cp):
  # advances. The writer can legally bake tracking into hmtx; raw advance equality
  # would incorrectly label an unchanged outline as a substituted typeface.
  return hashbytes(json.dumps(norm(pen.value),sort_keys=True).encode())
+@lru_cache(maxsize=24000)
+def glyph_advance(key,cp):
+ resource=font_resource(key)
+ if not resource:return None
+ font,cmap,glyphs,upm=resource;name=cmap.get(cp)
+ return float(glyphs[name].width)/upm if name else None
+
 def audit_font_shapes(expected,actual):
  def style(model,offset):return next((r for r in model.get('runs',[]) if r['start']<=offset<r['end']),model)
- checked=0;unavailable=0;differences=[];size_differences=[];offset=0
+ checked=0;unavailable=0;differences=[];size_differences=[];positive_advances_checked=0;invalid_advances=[];offset=0
  for ch in expected['text']:
   before=style(expected,offset);after=style(actual,offset);offset+=len(ch.encode('utf-16-le'))//2
   if ch.isspace():continue
-  old=glyph_signature(before.get('fontKey',expected.get('fontKey')),ord(ch));new=glyph_signature(after.get('fontKey',actual.get('fontKey')),ord(ch))
+  oldkey=before.get('fontKey',expected.get('fontKey'));newkey=after.get('fontKey',actual.get('fontKey'))
+  old=glyph_signature(oldkey,ord(ch));new=glyph_signature(newkey,ord(ch))
   if old is None or new is None:unavailable+=1
   else:
    checked+=1
    if old!=new:differences.append(dict(offset=offset-1,character=ch,beforeFont=before.get('fontName'),afterFont=after.get('fontName')))
+  oldadvance=glyph_advance(oldkey,ord(ch));newadvance=glyph_advance(newkey,ord(ch))
+  # Tracking may change an advance. A formerly positive advance becoming zero
+  # can hide behind explicit origins, then collapse positions on later reflow.
+  if oldadvance is not None and math.isfinite(oldadvance) and oldadvance>0 and newadvance is not None:
+   positive_advances_checked+=1
+   if not math.isfinite(newadvance) or newadvance<=0:invalid_advances.append(dict(offset=offset-1,character=ch,before=oldadvance,after=newadvance))
   oldsize=before.get('size',expected['size']);newsize=after.get('size',actual['size'])
   if abs(oldsize-newsize)>.06:size_differences.append(dict(offset=offset-1,before=oldsize,after=newsize))
- return dict(checkedCharacters=checked,unavailableCharacters=unavailable,outlineDifferences=len(differences),sizeDifferences=len(size_differences),examples=differences[:8],sizeExamples=size_differences[:8])
+ return dict(checkedCharacters=checked,unavailableCharacters=unavailable,outlineDifferences=len(differences),sizeDifferences=len(size_differences),positiveAdvancesChecked=positive_advances_checked,invalidAdvances=len(invalid_advances),examples=differences[:8],sizeExamples=size_differences[:8],advanceExamples=invalid_advances[:8])
 def verify(before,after,accepted,objects,has_sibling):
  errors=[];checks={};source_text=standard_text(before);expected=characters(source_text)
  expected_pdfium=characters(pdfium_text(before));unmapped=pdfium_unmapped_characters(before);normalized=[]
@@ -212,6 +226,7 @@ def verify(before,after,accepted,objects,has_sibling):
    if row['phoneticAudit'].get('lostAssociations'):errors.append(row['operation']+': phonetic annotation detached from edited base character')
    if row['fontAudit']['outlineDifferences']:errors.append(row['operation']+': rendered glyph outlines changed')
    if row['fontAudit']['sizeDifferences']:errors.append(row['operation']+': rendered font size changed')
+   if row['fontAudit']['invalidAdvances']:errors.append(row['operation']+': positive original glyph advance became zero/invalid')
    if not row['softBreaksExact']:errors.append(row['operation']+': soft breaks changed')
    if row['styleMappingWarning']:errors.append(row['operation']+': reopened style mapping warning')
   # Require the exact edited text to be present as a contiguous sequence under
@@ -292,7 +307,7 @@ for kind,name,pageno in SPECS:
     if r.get('overflow') or not r.get('mappingComplete'):attempt.update(status='blocked',reason='layout-overflow' if r.get('overflow') else 'layout-mapping');continue
     pending=[dict(id=a['attempt']['operation'],type='flow',page=1,sources=a['model']['sources'],model=a['model'],ink=a['result'].get('glyphs',[])) for a in accepted]
     conflicts=js("import{flowConflicts}from'./src/flow-page-model.mjs';console.log(JSON.stringify(flowConflicts(v.m,v.objects,v.edits,1,null,v.glyphs)));",dict(m=m,objects=data['objects'],edits=pending,glyphs=r.get('glyphs',[])))
-    if conflicts:attempt.update(status='blocked',reason='neighbour-conflict',conflicts=conflicts[:8]);continue
+    if conflicts:attempt.update(status='blocked',reason='phonetic-attachment' if any(c.get('kind')=='annotation' for c in conflicts) else 'neighbour-conflict',conflicts=conflicts[:8]);continue
     attempt['status']='ready';accepted.append(dict(model=m,result=r,original=candidate,attempt=attempt))
    except ValueError as error:attempt.update(status='blocked',reason=classify(str(error)),error=str(error),totalLayoutMs=milliseconds(t))
    except Exception as error:attempt.update(status='failed',reason='unexpected-layout-error',error=str(error),totalLayoutMs=milliseconds(t));traceback.print_exc()

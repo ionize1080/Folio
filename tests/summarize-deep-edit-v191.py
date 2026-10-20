@@ -3,7 +3,7 @@ from pathlib import Path
 import argparse,json,statistics,math
 from collections import Counter
 ROOT=Path(__file__).resolve().parents[1]
-p=argparse.ArgumentParser();p.add_argument('--baseline',default='baseline-original');p.add_argument('--final',default='final');args=p.parse_args()
+p=argparse.ArgumentParser();p.add_argument('--baseline',default='baseline-original');p.add_argument('--final',default='final');p.add_argument('--draft',action='store_true');p.add_argument('--new-glyph-second-save',choices=['not-assessed','pending-retest','passed'],default='not-assessed');args=p.parse_args()
 OUT=ROOT/'tests/output/deep-edit-v191'
 base=json.loads((OUT/args.baseline/'report.json').read_text(encoding='utf8'));final=json.loads((OUT/args.final/'report.json').read_text(encoding='utf8'))
 baseline_original_counts=dict(base['operationSummary']);baseline_phonetic_adjustments=[]
@@ -24,9 +24,9 @@ def dist(values):
 def summary(r):
  attempts=[a for p in r['pages'] for a in p['attempts']];passed=[a for a in attempts if a['status']=='passed'];batches=[b for p in r['pages'] for b in p.get('batches',[]) if 'verification' in b]
  fonts=[a['fontAudit'] for a in passed if 'fontAudit' in a];prefix=[a['unchangedPrefixPositions'] for a in passed if a.get('unchangedPrefixPositions',{}).get('comparedGlyphs')]
- return dict(operations=r['operationSummary'],pages=r['pageSummary'],blockingReasons=r['blockingReasons'],
+ return dict(operations=r['operationSummary'],byOperation={op:dict(Counter(a['status']for a in attempts if a['operation']==op)) for op in ('short-insert','long-insert','short-delete','long-delete','body-long-insert','body-long-delete')},pages=r['pageSummary'],blockingReasons=r['blockingReasons'],
   timing=dict(inspect=dist([p['inspectMs'] for p in r['pages']]),paragraphModel=dist([p['paragraphModelMs'] for p in r['pages']]),layout=dist([a['totalLayoutMs'] for a in attempts if 'totalLayoutMs'in a]),save=dist([b['saveMs']for b in batches]),reopen=dist([b['verification']['reopenMs']for b in batches])),
-  fontAudit=dict(checkedCharacters=sum(x['checkedCharacters'] for x in fonts),unavailableCharacters=sum(x['unavailableCharacters'] for x in fonts),outlineDifferences=sum(x['outlineDifferences'] for x in fonts),sizeDifferences=sum(x['sizeDifferences'] for x in fonts)),phoneticAudit=dict(annotationsChecked=sum(a.get('phoneticAudit',{}).get('annotationsChecked',0)for a in passed),lostAssociations=sum(a.get('phoneticAudit',{}).get('lostAssociations',0)for a in passed)),
+  fontAudit=dict(checkedCharacters=sum(x['checkedCharacters'] for x in fonts),unavailableCharacters=sum(x['unavailableCharacters'] for x in fonts),outlineDifferences=sum(x['outlineDifferences'] for x in fonts),sizeDifferences=sum(x['sizeDifferences'] for x in fonts),positiveAdvancesChecked=sum(x.get('positiveAdvancesChecked',0) for x in fonts),invalidAdvances=sum(x.get('invalidAdvances',0) for x in fonts),advanceAuditAvailable=all('positiveAdvancesChecked' in x for x in fonts)),phoneticAudit=dict(annotationsChecked=sum(a.get('phoneticAudit',{}).get('annotationsChecked',0)for a in passed),lostAssociations=sum(a.get('phoneticAudit',{}).get('lostAssociations',0)for a in passed)),
   layoutModes=dict(Counter(a.get('layoutMode','unknown')for a in passed)),fallbackCharacters=sum(a.get('fallbackCount') or 0 for a in passed),frameGrowthOperations=sum('frameGrowth'in a for a in passed),
   unchangedPrefix=dict(comparedGlyphs=sum(x['comparedGlyphs']for x in prefix),within01Point=sum(x['within01Point']for x in prefix),maxDriftPoints=max((x['maxDriftPoints']for x in prefix),default=None)),
   outsideChangedPixels=sum(b['verification'][e+'Pixels']['outsideChangedPixels']for b in batches for e in ('MuPDF','PDFium')),
@@ -35,24 +35,36 @@ def summary(r):
 bs,fs=summary(base),summary(final)
 loaded_sources={'src/flow-page-model.mjs','src/flow-model.mjs','src/flow-style.mjs','src/flow-regions.mjs','src/ruby-anchors.mjs','tests/structure_checks_v191.py','tests/annotation_checks_v191.py'}
 published_hashes={k:v for k,v in final['codeHashes'].items() if k.replace('\\','/').startswith('native/') or k.replace('\\','/')in loaded_sources}
-public=dict(date='2026-10-20',baselineLabel=args.baseline,finalLabel=args.final,engines=final.get('engines'),baselineOriginalCounts=baseline_original_counts,baselineRetrospectivePhoneticAdjustments=baseline_phonetic_adjustments,baseline=bs,final=fs,finalCodeHashes=published_hashes,pages=[])
+public=dict(date='2026-10-20',validationStatus=dict(publication='draft'if args.draft else'complete-corpus-report',newGlyphSecondSave=args.new_glyph_second_save),benchmarkScope='120 fixed-position native/editor-model operations, each batch starting from the complete original PDF. Automatic integrity checks are separate from visual quality; packaged UI new-glyph save/reopen/save cycles are reported independently.',baselineLabel=args.baseline,finalLabel=args.final,engines=final.get('engines'),baselineOriginalCounts=baseline_original_counts,baselineRetrospectivePhoneticAdjustments=baseline_phonetic_adjustments,baseline=bs,final=fs,finalCodeHashes=published_hashes,pages=[])
+if args.new_glyph_second_save=='pending-retest':
+ public['validationStatus']['knownFailure']='Packaged UI new-glyph save/reopen/save has a confirmed visual failure awaiting repair validation. The first save already stored zero advances but displayed correctly through explicit origins; second-save reflow reused the zero metrics and collapsed glyph origins. The native 120-operation corpus does not cover this sequence.'
 for after in final['pages']:
  before=next(p for p in base['pages']if p['id']==after['id'])
  public['pages'].append(dict(id=after['id'],sample=after['sample'],physicalPage=after['page'],baseline=before['operationSummary'],final=after['operationSummary'],baselineParagraphs=before['paragraphs'],finalParagraphs=after['paragraphs'],resegmentedTargets=after['resegmentedTargets'],
-  operations=[dict(operation=a['operation'],status=a['status'],reason=a.get('reason'),insertedCharacters=a.get('change',{}).get('insertedCharacters'),deletedCharacters=a.get('change',{}).get('deletedCharacters'),sourceCharacters=a.get('sourceCharacters'),frameGrowth=a.get('frameGrowth'),fontAudit={k:v for k,v in a.get('fontAudit',{}).items()if k not in ('examples','sizeExamples')})for a in after['attempts']]))
+  operations=[dict(operation=a['operation'],status=a['status'],reason=a.get('reason'),insertedCharacters=a.get('change',{}).get('insertedCharacters'),deletedCharacters=a.get('change',{}).get('deletedCharacters'),sourceCharacters=a.get('sourceCharacters'),frameGrowth=a.get('frameGrowth'),fontAudit={k:v for k,v in a.get('fontAudit',{}).items()if k not in ('examples','sizeExamples','advanceExamples')})for a in after['attempts']]))
 public['wholeDocuments']=[{k:v for k,v in x.items()if k not in ('verification','fontAudit')}for x in final.get('wholeDocuments',[])]
+quality_path=OUT/args.final/'visual-quality-audit.json'
+if quality_path.exists():public['visualQualityAudit']=json.loads(quality_path.read_text(encoding='utf8'))
 dest=ROOT/'docs';dest.mkdir(exist_ok=True);(dest/'deep-edit-2026-10-20.json').write_text(json.dumps(public,ensure_ascii=False,indent=2),encoding='utf8')
 def counts(d):return '/'.join(str(d.get(k,0))for k in ('passed','blocked','failed'))
-reason_names={'neighbour-conflict':'邻近正文/图像/复合对象冲突','layout-overflow':'内容超出可用框','font-unavailable':'原字体无法恢复','save-tagged-boundary':'标签结构范围限制','target-merged-with-previous-edit':'修复分段后目标与同批另一项合并','original-target-no-longer-editable':'原目标无法恢复为可编辑候选','layout-mapping':'字位映射不完整','typography':'排版参数不支持','glyph-mapping':'字位保护'}
-lines=['# 深度编辑实测（2026-10-20）','',f'直接使用两个完整原始 PDF，覆盖 20 个物理页、120 项预先固定位置的编辑。修复前通过/阻止/失败为 **{counts(bs["operations"])}**，修复后为 **{counts(fs["operations"])}**。阻止和失败均不计成功。','',
+reason_names={'neighbour-conflict':'邻近正文/图像/复合对象冲突','phonetic-attachment':'独立注音与基字对应保护','save-phonetic-attachment':'保存时独立注音与基字对应保护','layout-overflow':'内容超出可用框','font-unavailable':'原字体无法恢复','save-tagged-boundary':'标签结构范围限制','save-language-boundary':'不同语言标签范围保护','target-merged-with-previous-edit':'修复分段后目标与同批另一项合并','original-target-no-longer-editable':'原目标无法恢复为可编辑候选','layout-mapping':'字位映射不完整','typography':'排版参数不支持','glyph-mapping':'字位保护'}
+status_lines=[]
+if args.draft:status_lines+=['> 验证草稿：本页是主 120 项基准结果，不是最终发布验收。','']
+if args.new_glyph_second_save=='pending-retest':status_lines+=['> 正式包新增缺字二次保存已确认视觉失败，待修复复测：首存已有零宽度元数据，靠显式字位显示正常；重开重排误用零宽后字位塌缩。下列 0 失败不涵盖此界面流程。','']
+lines=['# 深度编辑实测（2026-10-20）','',*status_lines,f'直接使用两个完整原始 PDF，覆盖 20 个物理页、120 项预先固定位置的编辑。修复前自动完整性通过/阻止/失败为 **{counts(bs["operations"])}**，修复后为 **{counts(fs["operations"])}**。阻止和失败均不计成功，视觉排版质量另行说明。','',
 f'旧代码原始自动计数为 {counts(baseline_original_counts)}；对已保存结果增加独立注音锚点审计后，另发现 {len(baseline_phonetic_adjustments)} 项注音错位/删基字后注音残留，已纳入上面的严格失败数。完整原始结果与追加审计均保留，不用后续发现放宽原判据。','',
 '样本为《义务教育教科书·语文五年级下册》（131 页）与《十五五规划投资全景·跨市场五年配置策略》（13 页）。原文件只读；原件、测试副本、提取文字与截图仅留在忽略版本控制的本地测试目录，未随报告发布。','',
 '## 方法与边界','',
-'每页先选择从上至下分散的四个段落位置，执行 2 字插入、32–72 字插入、2 字删除和 12–60 字删除，再对较长正文增加长插、长删两项。插入从目标段落已有文字选取，以隔离原字形保持与新增缺字问题。四项分散编辑及两项正文编辑分成两批，尽量合并保存；批量保存被拒时逐项隔离重试。每次均重新读取完整原始文件，从未用提页后丢失标签树的 PDF 充当主测试输入。','',
+'每页先选择从上至下分散的四个候选位置（包括页眉/标题），执行 2 字插入、32–72 字插入、2 字删除和 12–60 字删除，再对较长正文增加长插、长删两项。策略十页的短插目标恰为有下方分隔线的页眉，不能将其短插成功率泛化为普通正文。插入从目标段落已有文字选取，以隔离原字形保持与新增缺字问题。四项分散编辑及两项正文编辑分成两批，尽量合并保存；批量保存被拒时逐项隔离重试。每次均重新读取完整原始文件，从未用提页后丢失标签树的 PDF 充当主测试输入。','',
 f'分段修复后有 {fs["resegmentedTargets"]} 个目标的源对象集合重新归组；重放保持原页和位置，依据新的完整段落重新计算插删位置及长度，因此这部分不是逐字相同的 A/B 测试。与同批目标合并的项目单列为阻止，没有默认为成功。','',
-'保存后由 MuPDF 和 PDFium 分别检查完整页非空白字符数量、修改段落的精确字符序列、每个原/新字形包围框之外的像素以及真实相邻页像素，再通过 Folio 重新建立精确段落和软换行。字体另外按每个非空白字符比较缓存字体中去复合后的轮廓与字号；字体名称相似不算轮廓一致。合法写入字距的字体 advance 不作原值相等要求。标签文件还比较完整结构树、ParentTree、各页 StructParents 与 MCID 身份和计数。','',
+'保存后由 MuPDF 和 PDFium 分别检查完整页非空白字符数量、修改段落的精确字符序列、各源文字对象与新字形包围框之外的像素以及真实相邻页像素，再通过 Folio 重新建立精确段落和软换行。像素掩码分别包围各对象/字形并外扩 2 pt，不取覆盖整页的总框；两引擎以 1.5 倍渲染。字体另外按每个非空白字符比较缓存字体中去复合后的轮廓与字号；字体名称相似不算轮廓一致。合法写入字距的字体 advance 不作原值相等要求。标签文件还比较完整结构树、ParentTree、各页 StructParents 与 MCID 身份和计数。','',
 '另独立检查已知 Hanyu/Pinyin 字体注音与所依附汉字的相对位置；删除基字而留下注音也判失败。普通小字脚注及加点字形不泛化为注音，依靠原有碰撞保护和逐页视觉审查。配置策略原件的跨行 C-REIT 连字符已被 PDFium 标为 U+FFFE；各引擎以自身原文为期望，只有实际选中源字位的既有标记按对应字形还原后参与编辑差分，不把原有提取差异当成编辑新损坏，也不全局忽略未知字符。','',
-'时间为同一 Windows 主机的原生工作进程/模型调用实测；包含热磁盘字体缓存，不等于全新系统冷启动，也不包含人手点击、输入耗时。此处不据此推断 Acrobat 或 PDF-XChange 的速度。','',
+'时间为同一 Windows 主机的原生工作进程/模型调用实测；包含热磁盘字体缓存，不等于全新系统冷启动，也不包含人手点击、输入耗时。同机还有验证任务，属于非隔离环境的观察值，不据此推断 Acrobat 或 PDF-XChange 的速度。','',
+'## 按操作结果','',
+'| 操作（各 20 项） | 修复前通过 / 阻止 / 失败 | 修复后通过 / 阻止 / 失败 |','|---|---:|---:|']
+for op,title in [('short-insert','分散位置短插'),('long-insert','分散位置长插'),('short-delete','分散位置短删'),('long-delete','分散位置长删'),('body-long-insert','额外正文长插'),('body-long-delete','额外正文长删')]:lines.append(f'| {title} | {counts(bs["byOperation"][op])} | {counts(fs["byOperation"][op])} |')
+long_pass=sum(fs['byOperation'][op].get('passed',0) for op in ('long-insert','body-long-insert'))
+lines+=['',f'40 项长插通过 **{long_pass}/40**。这是固定测试位置、保持其他段落并只按空白约束尝试自动扩框的结果；不能把保护拒绝当作长插能力完成。','',
 '## 逐页结果','',
 '单元格依次为「通过 / 阻止 / 失败」，页码为物理页。','',
 '| 样本 | 页 | 修复前 | 修复后 | 段落数（前→后） |','|---|---:|---:|---:|---:|']
@@ -68,6 +80,13 @@ for k,v in fs['blockingReasons'].items():lines.append(f'- {reason_names.get(k,k)
 lines+=['','以上阻止是真实未完成编辑，不能宣传为已支持。长插入需要的行数超过现有空白、表格固定高度、注音/装饰对象重叠等情形仍需进一步设计。','']
 for x in public['wholeDocuments']:
  lines.append(f'- {x["sample"]}：{x.get("status")}；物理页 {x.get("page")}，整本 {x.get("pages")} 页，检查 {x.get("untouchedPagesChecked")} 个未改页，变化页 {x.get("changedUntouchedPages")}。读取 {x.get("inspectMs")} ms，排版 {x.get("layoutMs")} ms，保存 {x.get("saveMs")} ms，重开读取 {x.get("reopenInspectMs")} ms。')
+if fs['fontAudit']['advanceAuditAvailable']:
+ lines+=['',f'补充字体度量检查：{fs["fontAudit"]["positiveAdvancesChecked"]} 个原 advance 为正的字在 Folio 重开字体缓存中再次检查，异常 {fs["fontAudit"]["invalidAdvances"]} 个。只要求仍为有限正值，不要求合法字距写入后的宽度数值相等。重开过程可能按 PDF 权威字宽修复旧资源，故本项不是直接检验输出 PDF 的原始 hmtx；此项为后期新增判据，旧基线未执行，也不能代替新增缺字的二次保存几何核验。','']
+else:
+ lines+=['','本轮尚未包含后期新增的正 advance 检查，不能由轮廓一致推断字宽元数据正确。','']
+if public.get('visualQualityAudit'):
+ lines+=['','## 视觉质量补充','', '自动完整性通过不等于排版与分段质量无缺陷。逐页截图复核发现的问题及最终状态另列，不能被通过数掩盖。','']
+ for finding in public['visualQualityAudit']['findings']:lines.append(f'- {finding["id"]} / {finding["operation"]}：{finding.get("description",finding["type"])}；{finding["status"]}。')
 lines+=['','完整机器可读汇总见 [deep-edit-2026-10-20.json](deep-edit-2026-10-20.json)。复现入口为 `tests/deep-edit-v191.py`；本地详细报告位于 `tests/output/deep-edit-v191/`。字体缺字专项、额外样本、真实界面输入与竞品对比另列，不能与这里的 120 项混成一个分母。','']
 (dest/'DEEP-EDIT-2026-10-20.zh-Hans.md').write_text('\n'.join(lines),encoding='utf8')
 print(json.dumps(dict(baseline=bs['operations'],final=fs['operations'],report='docs/DEEP-EDIT-2026-10-20.zh-Hans.md'),ensure_ascii=False))

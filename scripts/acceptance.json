@@ -117,6 +117,16 @@
       "capability": "tagged preview preserves semantic context and matches saved page",
       "runtime": "python",
       "args": ["tests/preview-tags-v191.py"]
+    },
+    {
+      "capability": "compressed TrueType metrics and recovered subsets survive repeated saves",
+      "runtime": "python",
+      "args": ["tests/font-metrics-v191.py"]
+    },
+    {
+      "capability": "independent engines detect collapsed Chinese glyph positions",
+      "runtime": "python",
+      "args": ["tests/ui-glyph-verification-v191.py"]
     }
   ],
   "browser": [
