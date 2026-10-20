@@ -3,6 +3,7 @@
 const heading =
   /^(?:第[〇零一二三四五六七八九十百千万\d]+[章节篇部分]|[（(]?(?:[一二三四五六七八九十百]+|\d{1,3})[）)、.．](?![0-9]))/u;
 const item = /^[\s]*[□☐☑✓√·•▪●]/u;
+const diamondItem = /^[\s]*[◇◆]/u;
 export function textDirection(o) {
   const m = o.matrix || [1, 0, 0, 1, 0, 0],
     gs = (o.glyphs || []).filter((g) => g.text?.trim());
@@ -126,6 +127,7 @@ function leadingRhythms(rows) {
       row.heading ||
       row.code ||
       item.test(row.text) ||
+      diamondItem.test(row.text) ||
       row.end - row.u < s * 12 ||
       /[。！？.!?][”’」』）)]?$/.test(row.text)
     )
@@ -280,6 +282,7 @@ export function connectedParagraphs(objects, h, barriers = objects) {
       let parent = null;
       if (
         !item.test(row.text) &&
+        !diamondItem.test(row.text) &&
         (!row.heading || row.smallCaps) &&
         d.supported
       ) {

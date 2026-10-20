@@ -7,6 +7,7 @@ import {
   PDFString,
   PDFHexString,
   PDFRef,
+  PDFStream,
   PDFNull,
   rgb,
   degrees,
@@ -230,6 +231,18 @@ export class PdfEngine {
       if (object instanceof PDFRef && this.refs.has(object.toString()))
         return ["page", this.refs.get(object.toString())];
       const value = this.lookup(object);
+      if (value instanceof PDFStream) {
+        if (seen.has(value)) return ["cycle", seen.get(value)];
+        seen.set(value, seen.size);
+        // Native writers may reorder a stream dictionary without changing its
+        // content (e.g. /Length after /Type in an outline's /SE metadata).
+        // Preserve the payload check; serialization order is not identity.
+        return [
+          "stream",
+          visit(value.dict, depth + 1),
+          Array.from(value.getContents()),
+        ];
+      }
       if (value instanceof PDFDict || value instanceof PDFArray) {
         if (seen.has(value)) return ["cycle", seen.get(value)];
         seen.set(value, seen.size);

@@ -62,5 +62,46 @@ m=json.loads(subprocess.check_output(['node','--input-type=module','-e',code],cw
 m['softBreaks']=[]
 assert original_render(m) is None
 checks.append('BMP-to-supplementary replacement before a hard newline safely falls back without invalid UTF-16 offsets')
+# Length changes must not strand Chinese closing punctuation on the next line
+# or an opening bracket on the previous line. Leave spare capacity at the end
+# so these cases exercise local line layout rather than overflow protection.
+doc=fitz.open();p=doc.new_page(width=400,height=400)
+p.insert_font(fontname='test',fontfile=str(ROOT/'native/fonts/NotoSansSC.ttf'))
+for i,line in enumerate(['春天的山野充满希望，','清晨阳光照亮了村庄，','孩子们走在田间小路，','真美好。']):
+    p.insert_text((40,60+i*26),line,fontsize=14,fontname='test')
+doc.new_page(width=400,height=400).insert_text((20,40),'Untouched sibling')
+doc.subset_fonts();punct_raw=repair(doc.tobytes(),generated=True);doc.close()
+_,punct_models=models(punct_raw);punct=next(m for m in punct_models if len(m.get('softBreaks',[]))==3)
+from original_layout import _NO_LINE_START, _NO_LINE_END
+for inserted in ['春','春天','（春天）']:
+    new=punct['text'][:3]+inserted+punct['text'][5 if inserted.startswith('（') else 3:]
+    m=json.loads(subprocess.check_output(['node','--input-type=module','-e',code],cwd=ROOT,input=json.dumps({'m':punct,'text':new}).encode()))
+    r=layout(m)
+    assert r['engine']=='Folio anchored layout / MuPDF' and not r['overflow'],(inserted,{k:r.get(k) for k in ('engine','overflow','mappingComplete')},m['text'],m['frame'])
+    rows={}
+    for g in r['glyphs']:
+        ch=new[g['start']:g['end']]
+        if ch!='\n':rows.setdefault(round(g['baseline'],3),[]).append((g['x'],ch))
+    for row in rows.values():
+        chars=''.join(ch for _,ch in sorted(row))
+        assert chars[0] not in _NO_LINE_START and chars[-1] not in _NO_LINE_END,chars
+    changed=save(punct_raw,m,result=r)
+    assert pixels(punct_raw,1)==pixels(changed,1)
+    _,reopened=models(changed)
+    assert any(x['text']==new for x in reopened)
+checks.append('Chinese commas, full stops and brackets obey local-wrap boundaries while preserving baselines, exact saved text and sibling pixels')
+style=dict(fontKey='builtin-cjk',size=14,color='#000000',bold=False,italic=False,charSpacing=0,wordSpacing=0,horizontalScale=100)
+settings=dict(size=14,align='left',lineHeight=1.2,charSpacing=0,wordSpacing=0,bold=False,italic=False,firstIndent=0,paragraphBefore=0,paragraphGap=0)
+frame=dict(x=40,y=40,width=120,height=100)
+m={**style,**settings,'text':'春'+('，'*8)+'秋','frame':frame,'pageWidth':400,'pageHeight':300,'columns':1,
+   'originalLayout':{'text':'春秋','frame':frame,'settings':settings,'glyphs':[
+       dict(text=ch,start=i,end=i+1,originX=x,baseline=60,x=x,y=48,w=14,h=14,style=style)
+       for i,(ch,x) in enumerate([('春',40),('秋',120)])]},'runs':[{**style,'start':0,'end':10}]}
+try:
+    original_render(m)
+    raise AssertionError('unbreakable punctuation silently escaped fixed-column protection')
+except ValueError as error:
+    assert '固定列间距' in str(error)
+checks.append('unbreakable punctuation retains fixed-column protection instead of escaping to paragraph reflow')
 (OUT/'v191-original-wrap-report.json').write_text(json.dumps({'checks':checks,'errors':[]},ensure_ascii=False,indent=2),encoding='utf8')
 print(json.dumps({'checks':checks,'errors':[]}))

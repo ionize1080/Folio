@@ -1,6 +1,12 @@
 """Capture PDFium character origins; preserve horizontal glyphs on local edits."""
 import ctypes as C
 
+# Chinese closing punctuation must travel with its preceding character when a
+# local edit creates a new wrap; opening punctuation travels with the following
+# character. Keep the original line origins rather than shifting the paragraph.
+_NO_LINE_START=set('，。、；：？！）》」』】〕〉〗〙〛’”﹐﹑﹒﹔﹕﹖﹗）］｝')
+_NO_LINE_END=set('（《「『【〔〈〖〘〚‘“［｛')
+
 def normalize_hyphens(r,page,tp,objects):
     """Restore PDFium's proved line-end hyphen marker, keeping raw signatures.
 
@@ -201,6 +207,7 @@ def render(m):
             end=lines[last][-1]+1+delta;cursor=begin;trial={}
             for li in range(first,last+1):
                 x=gs[lines[li][0]]['originX'];base=gs[lines[li][0]]['baseline'];right=m['frame']['x']+m['frame']['width']
+                line_begin=cursor
                 next_index=lines[li][-1]+1
                 if next_index in boundaries:right=gs[next_index]['originX']-m['size']*.3
                 while cursor<end:
@@ -209,6 +216,14 @@ def render(m):
                     # Do not split ASCII words across lines; use Story if needed.
                     if cursor>begin and cursor+1<end and text[cursor].isascii() and text[cursor].isalnum() and text[cursor+1].isascii() and text[cursor+1].isalnum() and x+t['advance']+tokens[cursor+1]['width']>right+.25:return None
                     trial[cursor]=(x,base);x+=t['advance'];cursor+=1
+                if cursor<end:
+                    # Back up to a legal break instead of leaving a comma or
+                    # closing bracket at the start of the following line.
+                    while cursor>line_begin and (text[cursor] in _NO_LINE_START or text[cursor-1] in _NO_LINE_END):
+                        cursor-=1;trial.pop(cursor,None)
+                    if cursor==line_begin:
+                        if boundaries:raise ValueError('原文含固定列间距；本次修改无法保留各列位置，请缩短修改或明确选择段落重排')
+                        return None
             if cursor==end:
                 placement.update(trial);fit=True;break
             if lines[last][-1]+1 in boundaries:break
