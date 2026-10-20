@@ -423,15 +423,15 @@ export function fastLayout(m, measure) {
     };
     offset += ch.length;
     lineSize = Math.max(lineSize, size);
-    if (measured.fallback)
+    if (measured.fallback && ch.trim())
       details.push({
         start: g.start,
         end: g.end,
         text: ch,
         original: style.fontName,
         actual: measured.name,
-        match: "fallback",
-        confidence: 0,
+        match: measured.match || "fallback",
+        confidence: measured.confidence || "低",
       });
     if (ch === "\n" && !soft) nextLine(true);
     else pen += advance;
@@ -490,9 +490,20 @@ export function fastLayout(m, measure) {
   };
 }
 const fontCache = new Map();
+// Share full matched faces across paragraphs and successive missing characters,
+// as native/font_similarity.fallback does. Never block keystrokes on scoring.
+const matchedFaces = new Map(),
+  matchingFaces = new Map(),
+  attemptedMatches = new Set();
+const matchBucket = (key, ch) =>
+  `${key}:${ch.codePointAt(0) < 0x300 ? "latin" : ch.codePointAt(0) >= 0x2e80 && ch.codePointAt(0) <= 0x9fff ? "cjk" : "other"}`;
 export class FastFonts {
-  constructor(call) {
+  constructor(call, onMatched = () => {}, { preloadFallback = false } = {}) {
     this.call = call;
+    this.onMatched = onMatched;
+    this.pendingMatches = new Set();
+    this.matchModel = null;
+    this.preloadFallback = preloadFallback;
     this.fonts = new Map();
     this.widths = new Map();
     this.canvas = document.createElement("canvas");
@@ -560,10 +571,15 @@ export class FastFonts {
       if (f?.systemKey && !f.coverage.has(cp)) {
         const system = this.fonts.get(f.systemKey);
         if (!system) {
-          keys.add(f.systemKey);
-          continue;
+          // Production already has an emergency face, so new keystrokes must
+          // not wait for a large same-name system font. Outline matching loads
+          // the final face asynchronously and calibrates the preview afterward.
+          if (!this.preloadFallback) {
+            keys.add(f.systemKey);
+            continue;
+          }
         }
-        if (system.coverage.has(cp)) f = system;
+        if (system?.coverage.has(cp)) f = system;
       }
       if (
         !f?.coverage.has(cp) ||
@@ -589,6 +605,12 @@ export class FastFonts {
         .flatMap((r) => [r.fontKey, r.latinFontKey, r.cjkFontKey])
         .filter(Boolean),
     );
+    // Load reusable emergency faces while opening a paragraph, before the first
+    // missing character arrives. They remain temporary if outline matching wins.
+    if (this.preloadFallback) {
+      keys.add("builtin-latin");
+      keys.add("builtin-cjk");
+    }
     await Promise.all([...keys].map((k) => this.load(k)));
     // At most two fallback edges: original -> same-name system -> builtin.
     for (let pass = 0; pass < 3; pass++) {
@@ -597,11 +619,108 @@ export class FastFonts {
       await Promise.all(missing.map((k) => this.load(k)));
     }
   }
+  replacement(key, ch) {
+    const face = matchedFaces
+      .get(matchBucket(key, ch))
+      ?.find((f) => f.coverage.has(ch.codePointAt(0)));
+    if (face) this.fonts.set(face.key, face);
+    return face;
+  }
+  matchMissing(m) {
+    this.matchModel = m;
+    const runs = m.runs || [],
+      requests = new Map();
+    let ri = 0,
+      offset = 0;
+    for (const ch of m.text) {
+      while (ri < runs.length && runs[ri].end <= offset) ri++;
+      const s = { ...m, ...(runs[ri]?.start <= offset ? runs[ri] : {}) };
+      offset += ch.length;
+      if (!ch.trim()) continue;
+      const key =
+        (ch.codePointAt(0) < 0x300 ? s.latinFontKey : s.cjkFontKey) ||
+        s.fontKey;
+      const source = this.fonts.get(key),
+        bucket = matchBucket(key, ch);
+      if (
+        !source ||
+        source.coverage.has(ch.codePointAt(0)) ||
+        this.replacement(key, ch) ||
+        (attemptedMatches.has(bucket + ":" + ch) && !matchingFaces.has(bucket))
+      )
+        continue;
+      if (!requests.has(bucket)) requests.set(bucket, { key, ch });
+    }
+    for (const [bucket, { key, ch }] of requests) {
+      if (this.pendingMatches.has(bucket)) continue;
+      this.pendingMatches.add(bucket);
+      if (!matchingFaces.has(bucket)) {
+        attemptedMatches.add(bucket + ":" + ch);
+        if (attemptedMatches.size > 2048)
+          attemptedMatches.delete(attemptedMatches.values().next().value);
+        const task = (async () => {
+          // Match the same first missing scalar and default evidence set as the
+          // native fallback; a full selected face normally covers the rest.
+          const choice = (
+            await this.call("font-recommend", { fontKey: key, missing: ch })
+          ).fonts?.[0];
+          if (!choice) return null;
+          const selected = await this.call("font-select", {
+            fontId: choice.id,
+          });
+          const face = await this.load(selected.fontKey);
+          if (!face.coverage.has(ch.codePointAt(0))) return null;
+          const matched = {
+            ...face,
+            match: choice.match,
+            confidence: choice.confidence,
+          };
+          matchedFaces.set(
+            bucket,
+            [matched, ...(matchedFaces.get(bucket) || [])].slice(0, 4),
+          );
+          if (matchedFaces.size > 64)
+            matchedFaces.delete(matchedFaces.keys().next().value);
+          return matched;
+        })()
+          .catch(() => null)
+          .finally(() => matchingFaces.delete(bucket));
+        matchingFaces.set(bucket, task);
+      }
+      matchingFaces.get(bucket).then((face) => {
+        this.pendingMatches.delete(bucket);
+        if (!this.matchModel) return;
+        if (face) {
+          this.fonts.set(face.key, face);
+          this.onMatched();
+        }
+        if (this.matchModel) this.matchMissing(this.matchModel);
+      });
+    }
+  }
+  async settle(m) {
+    this.matchMissing(m);
+    while (this.matchModel && this.pendingMatches.size)
+      await Promise.all(
+        [...this.pendingMatches].map((bucket) => matchingFaces.get(bucket)),
+      );
+  }
+  dispose() {
+    this.matchModel = null;
+    this.onMatched = () => {};
+  }
   measure = (ch, s) => {
     const key =
       (ch.codePointAt(0) < 0x300 ? s.latinFontKey : s.cjkFontKey) || s.fontKey;
     let f = this.fonts.get(key),
       fallback = false;
+    if (f && !f.coverage.has(ch.codePointAt(0))) {
+      const matched = this.replacement(key, ch);
+      if (matched) {
+        f = matched;
+        fallback = true;
+      }
+    }
     if (f?.systemKey && !f.coverage.has(ch.codePointAt(0))) {
       const system = this.fonts.get(f.systemKey);
       if (system?.coverage.has(ch.codePointAt(0))) {
@@ -645,6 +764,8 @@ export class FastFonts {
       ...metrics,
       fontKey: f.key,
       fallback,
+      match: f.match,
+      confidence: f.confidence,
       name: f.name,
       fontBold: f.fontBold,
       fontItalic: f.fontItalic,

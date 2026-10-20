@@ -4,7 +4,12 @@ def inspect_tables(data, number):
     with fitz.open(stream=data,filetype='pdf') as doc:
         page=doc[number-1];page.set_rotation(0);result=[]
         drawings=page.get_drawings()
-        for i,t in enumerate(page.find_tables().tables):
+        # Office exporters paint separate background rectangles behind each
+        # wrapped text line and each cell's padding. Treating those fills as
+        # rules splits one cell into tiny empty cells and isolates continuation
+        # lines. Strict mode keeps strokes and thin filled rules while ignoring
+        # broad fill-only rectangles as evidence of cell boundaries.
+        for i,t in enumerate(page.find_tables(strategy='lines_strict').tables):
             # At least a two-dimensional grid; prose aligned in columns is not a table.
             if t.row_count<2 or t.col_count<2:continue
             cells=[];seen=set()

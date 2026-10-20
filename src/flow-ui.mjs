@@ -195,7 +195,14 @@ export function installFlowUI(ctx) {
       ink.style.width = (100 * b.width) / w + "%";
       ink.style.height = (100 * b.height) / h + "%";
     }
-    const fastFonts = new FastFonts(call);
+    const fastFonts = new FastFonts(
+      call,
+      () => {
+        if (!closed && model && !composing && fastReady && !showingPrecise)
+          queue();
+      },
+      { preloadFallback: true },
+    );
     let fastReady = false,
       precise = null,
       preciseTimer = null,
@@ -1228,6 +1235,7 @@ export function installFlowUI(ctx) {
         status(
           `${res.layoutMode}完成 · ${model.text.length} 字符 · ${(performance.now() - t).toFixed(1)} ms${res.overflow ? " · 内容溢出" : ""}`,
         );
+        fastFonts.matchMissing(model);
       } catch (e) {
         validRevision = -1;
         status(e.message, true);
@@ -3005,6 +3013,12 @@ export function installFlowUI(ctx) {
       if (composing) throw Error("请先完成当前输入法组词");
       if (showingPrecise) throw Error("请先选择保留快速排版或应用精排");
       if (model && S.flowDraftDirty) {
+        if (fastReady && model.layoutMode !== "reflow") {
+          // Typing stays immediate; committing waits for the already-running
+          // outline choice so a temporary preview face cannot become permanent.
+          await fastFonts.settle(model);
+          if (!closed && model) renderFast();
+        }
         await reflow();
         if (validRevision !== revision || !preview)
           throw Error(bar.querySelector("#pe-status").textContent);
@@ -3040,6 +3054,7 @@ export function installFlowUI(ctx) {
     }
     function destroy() {
       closed = true;
+      fastFonts.dispose();
       clearTimeout(activationTimer);
       pendingActivation?.resolve(false);
       pendingActivation = null;

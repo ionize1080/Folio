@@ -67,6 +67,56 @@
       "capability": "text semantics and inline-image reopen",
       "runtime": "python",
       "args": ["tests/editor-v190.py"]
+    },
+    {
+      "capability": "legacy embedded TrueType programs",
+      "args": ["tests/font-legacy-v191.py"],
+      "runtime": "python"
+    },
+    {
+      "capability": "sampled outline matching preserves rankings",
+      "args": ["tests/font-similarity-v191.py"],
+      "runtime": "python"
+    },
+    {
+      "capability": "source spacing and valid negative word spacing",
+      "args": ["tests/font-word-spacing-v191.py"],
+      "runtime": "python"
+    },
+    {
+      "capability": "source baselines during soft-wrap insertion and deletion",
+      "args": ["tests/original-wrap-v191.py"],
+      "runtime": "python"
+    },
+    {
+      "capability": "tagged paragraph replacement retains structure through two saves",
+      "args": ["tests/tagged-edit-v191.py"],
+      "runtime": "python"
+    },
+    {
+      "capability": "table fills are not ruling lines",
+      "args": ["tests/table-geometry-v191.py"],
+      "runtime": "python"
+    },
+    {
+      "capability": "subpixel clipping permits editable reopen but rejects actual clipping",
+      "args": ["tests/clip-tolerance-v191.py"],
+      "runtime": "python"
+    },
+    {
+      "capability": "retained watermark overlap and original paint order",
+      "runtime": "python",
+      "args": ["tests/watermark-edit-v191.py"]
+    },
+    {
+      "capability": "independent phonetic anchors stay attached on save",
+      "runtime": "python",
+      "args": ["tests/ruby-anchors-v191.py"]
+    },
+    {
+      "capability": "tagged preview preserves semantic context and matches saved page",
+      "runtime": "python",
+      "args": ["tests/preview-tags-v191.py"]
     }
   ],
   "browser": [

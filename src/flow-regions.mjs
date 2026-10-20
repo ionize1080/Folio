@@ -1,7 +1,7 @@
 // Direction-aware local connectivity. Sorting O(n log n), bounded active rows /
 // paragraphs; never compare every object pair. Distances are in page points.
 const heading =
-  /^(?:第[〇零一二三四五六七八九十百千万\d]+[章节篇部分]|[（(]?[一二三四五六七八九十百\d]+[）)、.．](?![0-9]))/u;
+  /^(?:第[〇零一二三四五六七八九十百千万\d]+[章节篇部分]|[（(]?(?:[一二三四五六七八九十百]+|\d{1,3})[）)、.．](?![0-9]))/u;
 const item = /^[\s]*[□☐☑✓√·•▪●]/u;
 export function textDirection(o) {
   const m = o.matrix || [1, 0, 0, 1, 0, 0],
@@ -112,6 +112,55 @@ export function horizontalRows(objects, h) {
     0.9,
   );
 }
+
+// Some Office reports use 2.5–3 em leading. Learn a repeated local rhythm
+// instead of treating the old 2.3 em limit as proof of a paragraph break.
+// Only long, unfinished lines supply evidence; headings and sentence endings
+// cannot teach us to join unrelated labels merely because they are aligned.
+function leadingRhythms(rows) {
+  const rhythms = [];
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i],
+      s = row.size;
+    if (
+      row.heading ||
+      row.code ||
+      item.test(row.text) ||
+      row.end - row.u < s * 12 ||
+      /[。！？.!?][”’」』）)]?$/.test(row.text)
+    )
+      continue;
+    for (let j = i + 1; j < Math.min(rows.length, i + 33); j++) {
+      const next = rows[j],
+        gap = next.base - row.base;
+      if (gap > s * 3.2) break;
+      if (
+        gap < s * 0.65 ||
+        next.heading ||
+        next.code ||
+        next.heavy !== row.heavy ||
+        Math.abs(next.size - s) > s * 0.08 ||
+        Math.abs(next.u - row.u) > s * 2.2 ||
+        Math.min(row.end, next.end) - Math.max(row.u, next.u) < s * 2
+      )
+        continue;
+      let rhythm = rhythms.find(
+        (r) =>
+          Math.abs(r.size - s) < s * 0.08 &&
+          Math.abs(r.left - row.u) < s * 2.2 &&
+          Math.abs(r.gap - gap) < Math.max(0.5, s * 0.1),
+      );
+      if (!rhythm) {
+        rhythm = { size: s, left: row.u, gap, count: 0 };
+        rhythms.push(rhythm);
+      }
+      rhythm.count++;
+      break;
+    }
+  }
+  return rhythms.filter((r) => r.count >= 2);
+}
+
 export function connectedParagraphs(objects, h, barriers = objects) {
   const buckets = new Map();
   for (const o of objects) {
@@ -199,22 +248,61 @@ export function connectedParagraphs(objects, h, barriers = objects) {
         letters * 0.8;
       row.heading =
         heading.test(row.text) ||
-        (row.smallCaps && row.text.length <= 120 && !/[.!?。！？]$/.test(row.text));
+        (row.smallCaps &&
+          row.text.length <= 120 &&
+          !/[.!?。！？]$/.test(row.text));
+    }
+    const rhythms = leadingRhythms(rows);
+    const margins = [];
+    for (const row of rows) {
+      if (row.heading || row.code || row.end - row.u < row.size * 12) continue;
+      let margin = margins.find(
+        (m) =>
+          Math.abs(m.size - row.size) < row.size * 0.08 &&
+          Math.abs(m.left - row.u) < row.size * 0.3 &&
+          m.heavy === row.heavy,
+      );
+      if (!margin) {
+        margin = { left: row.u, size: row.size, heavy: row.heavy, count: 0 };
+        margins.push(margin);
+      }
+      margin.count++;
+    }
+    for (const row of rows) {
+      const firstLineIndent = margins.some(
+        (m) =>
+          m.count >= 2 &&
+          m.heavy === row.heavy &&
+          Math.abs(m.size - row.size) < row.size * 0.08 &&
+          row.u - m.left >= row.size * 1.2 &&
+          row.u - m.left <= row.size * 3,
+      );
       let parent = null;
-      if (!item.test(row.text) && (!row.heading || row.smallCaps) && d.supported) {
+      if (
+        !item.test(row.text) &&
+        (!row.heading || row.smallCaps) &&
+        d.supported
+      ) {
         for (const p of paragraphs.slice(-32).reverse()) {
           const last = p.rows.at(-1),
             gap = row.base - last.base,
             s = Math.max(row.size, last.size);
+          const wideLeading = rhythms.some(
+            (r) =>
+              Math.abs(r.size - s) < s * 0.08 &&
+              Math.abs(r.left - p.u) < s * 2.2 &&
+              Math.abs(r.gap - gap) < Math.max(0.5, s * 0.15),
+          );
           if (
             gap <= s * 0.65 ||
-            gap > s * 2.3 ||
+            (gap > s * 2.3 && !wideLeading) ||
             Math.abs(row.size - last.size) > s * 0.25
           )
             continue;
           if (
             item.test(last.text) ||
-            ((row.heading || last.heading) && !(row.smallCaps && last.smallCaps))
+            ((row.heading || last.heading) &&
+              !(row.smallCaps && last.smallCaps))
           )
             continue;
           if (row.code !== last.code || row.heavy !== last.heavy) continue;
@@ -223,24 +311,26 @@ export function connectedParagraphs(objects, h, barriers = objects) {
           // The first indented line followed by a flush-left row still joins.
           if (
             !row.code &&
-            p.rows.length >= 2 &&
-            Math.abs(last.u - p.u) < s * 0.4 &&
-            row.u - p.u >= s * 1.2 &&
-            row.u - p.u <= s * 3 &&
+            (firstLineIndent ||
+              (p.rows.length >= 2 &&
+                Math.abs(last.u - p.u) < s * 0.4 &&
+                row.u - p.u >= s * 1.2 &&
+                row.u - p.u <= s * 3)) &&
             /[\u3400-\u9fff]/u.test(row.text) &&
             /[。！？.!?][”’」』）)]?$/.test(last.text)
           )
             continue;
           if (
             !row.code &&
-            (/[:：]$/.test(last.text) ||
+            ((/[:：]$/.test(last.text) &&
+              last.end - last.u < Math.max(16 * s, (row.end - row.u) * 0.8)) ||
               (row.heavy && last.text.length < 32 && row.text.length < 32))
           )
             continue;
           // A short preceding line is a boundary, not a bridge to a wider block.
           if (
             !row.code &&
-            last.end - last.u < Math.min(6 * s, (row.end - row.u) * 0.65)
+            last.end - last.u < Math.min(8 * s, (row.end - row.u) * 0.65)
           )
             continue;
           if (Math.abs(p.u - row.u) > s * 2.2 || last.end < p.end - s * 2)

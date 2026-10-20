@@ -42,7 +42,7 @@ def render(m):
     Equal-width corrections keep all anchors. Other edits reflow only affected
     original lines, extending the affected range until it fits or using Story.
     """
-    import base64, difflib, unicodedata, fitz
+    import base64, difflib, re, unicodedata, fitz
     from font_match import load_font
     from font_similarity import fallback
     original=m.get('originalLayout')
@@ -52,9 +52,47 @@ def render(m):
     if any(abs(m['frame'][k]-original['frame'][k])>.01 for k in ('x','y')) or m['frame']['width']<original['frame']['width']-.01:return None
     text=m['text'];old=original['text'];gs=original['glyphs']
     if '\n' in text or '\n' in old:
+        # Extraction wraps are not hard paragraphs. Keep the original physical
+        # baselines available to local insert/delete layout instead of forcing
+        # every length change through Story's different line-box metrics.
+        soft=set(m.get('softBreaks',[]));offset=0;newlines=[]
+        for ch in text:
+            if ch=='\n':newlines.append(offset)
+            offset+=len(ch.encode('utf-16-le'))//2
+        if newlines and set(newlines)==soft and old.count('\n')==len(newlines) and not re.search(r'[A-Za-z0-9]\n[A-Za-z0-9]',text):
+            from copy import deepcopy
+            def offsets(value):
+                full=flat=0;forward={};reverse={}
+                for ch in value:
+                    n=len(ch.encode('utf-16-le'))//2
+                    for j in range(n):forward[full+j]=flat+(j if ch!='\n' else 0)
+                    if ch!='\n':reverse[flat]=full;flat+=n
+                    full+=n
+                forward[full]=flat
+                return forward,reverse
+            old_map,_=offsets(old);new_map,new_full=offsets(text)
+            clean=deepcopy(m);clean['text']=text.replace('\n','');clean['softBreaks']=[]
+            clean['originalLayout']['text']=old.replace('\n','')
+            clean['originalLayout']['glyphs']=[{**g,'start':old_map[g['start']],'end':old_map[g['end']]} for g in gs if g['text']!='\n']
+            clean['runs']=[{**r,'start':new_map[r['start']],'end':new_map[r['end']]} for r in m.get('runs',[]) if new_map[r['end']]>new_map[r['start']]]
+            result=render(clean)
+            if result:
+                for g in result['glyphs']:
+                    n=g['end']-g['start'];g['start']=new_full[g['start']];g['end']=g['start']+n
+                visible=tuple(result['glyphs'])
+                for pos in newlines:
+                    before=next((g for g in reversed(visible) if g['end']<=pos),None)
+                    after=next((g for g in visible if g['start']>pos),None)
+                    anchor=before or after
+                    if anchor:result['glyphs'].append({**anchor,'x':anchor['x']+(anchor['w'] if before else 0),'w':0,'start':pos,'end':pos+1})
+                result['glyphs'].sort(key=lambda g:g['start'])
+                for d in result.get('fallbackDetails',[]):
+                    n=d['end']-d['start'];d['start']=new_full[d['start']];d['end']=d['start']+n
+                return result
         # Explicit extraction breaks are semantic boundaries. Equal-length
         # corrections may reuse the legacy exact anchors without deleting them.
         if len(text.split('\n'))!=len(old.split('\n')) or any(len(a)!=len(b) for a,b in zip(text.split('\n'),old.split('\n'))):return None
+        if any(len(a.encode('utf-16-le'))!=len(b.encode('utf-16-le')) for a,b in zip(text.split('\n'),old.split('\n'))):return None
         from copy import deepcopy
         clean=deepcopy(m);clean['text']=text.replace('\n','');clean['originalLayout']['text']=old.replace('\n','')
         flat_to_full={};full_to_flat={};full=flat=0
@@ -210,7 +248,7 @@ def render(m):
             ref=None if t['fallbackFont'] else source_ink.get((t['text'],t['fontKey'],t['size'],t['scale']*100))
             if ref:box={'x':x+ref['x']-ref['originX'],'y':y+ref['y']-ref['baseline'],'w':ref['w'],'h':ref['h']}
             else:box={'x':x,'y':y-t['size']*.85,'w':t['width'],'h':t['size']}
-        mapped.append({**box,'start':t['start'],'end':t['end'],'baseline':y,'line':round(y,3),'size':t['size']})
+        mapped.append({**box,'start':t['start'],'end':t['end'],'originX':x,'baseline':y,'line':round(y,3),'size':t['size']})
     from text_semantics import expand_preview
     original_box,preview_bounds=expand_preview(page)
     svg=page.get_svg_image(text_as_path=True);page.set_mediabox(original_box)

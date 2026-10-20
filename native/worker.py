@@ -64,6 +64,7 @@ def contains_ink_clip(r,clip,bounds=None,rectangles=None):
  Keep curves, holes, partial glyph clipping and unknown paths read-only.
  PDFium clip segments and object bounds are both in page coordinates.
  """
+ from clip_contract import CLIP_TOLERANCE
  if not clip or r.FPDFClipPath_CountPaths(clip)<=0:return True
  for i in range(r.FPDFClipPath_CountPaths(clip)):
   n=r.FPDFClipPath_CountPathSegments(clip,i)
@@ -83,7 +84,7 @@ def contains_ink_clip(r,clip,bounds=None,rectangles=None):
   if len(xs)!=2 or len(ys)!=2 or set(pts)!={(x,y) for x in xs for y in ys}:return False
   if any(a[0]!=b[0] and a[1]!=b[1] for a,b in zip(pts,pts[1:]+pts[:1])):return False
   if rectangles is not None:rectangles.append([xs[0],ys[0],xs[1],ys[1]])
-  if bounds is not None and not (xs[0]<=bounds[0]+.001 and ys[0]<=bounds[1]+.001 and xs[1]>=bounds[2]-.001 and ys[1]>=bounds[3]-.001):return False
+  if bounds is not None and not (xs[0]<=bounds[0]+CLIP_TOLERANCE and ys[0]<=bounds[1]+CLIP_TOLERANCE and xs[1]>=bounds[2]-CLIP_TOLERANCE and ys[1]>=bounds[3]-CLIP_TOLERANCE):return False
  return True
 def describe(r,obj,i,tp):
  typ=r.FPDFPageObj_GetType(obj);m=r.FS_MATRIX();r.FPDFPageObj_GetMatrix(obj,C.byref(m));b=[C.c_float() for _ in range(4)];r.FPDFPageObj_GetBounds(obj,*map(C.byref,b))
@@ -300,7 +301,7 @@ def recognize(pdf,r,args):
  from ocr_reading_order import reading_order
  return {'regionQuad':region_quad,'rss':sample_memory(),'blocks':reading_order(unique),'skipped':False,'seconds':recognized-rendered,'diagnostics':diagnostics,'profile':profile,'timing':{'load':loaded-started,'render':rendered-loaded,'recognize':recognized-rendered,'total':time.perf_counter()-started},'engine':'RapidOCR / ONNX Runtime CPU','threads':threads,'batch':batch}
 
-def run(args):
+def run(args, *, _preview=False):
  global CACHED_PDF,CACHED_PATH
  if args.get('command') in ('large-info','large-save','large-page','large-text'):
   from large_pdf import process
@@ -349,16 +350,17 @@ def run(args):
   from image_adjustments import preview
   return preview(args)
  if args.get('command')=='flow-background':
-  from preview_page import selected_page, compact_preview
-  number=args.get('page',1);page_data=selected_page(args)
-  edits=[{**e,'page':1} for e in args.get('edits',[]) if e['page']==number]
+  from preview_page import preview_source, render_page, compact_preview
+  number=args.get('page',1);page_data,target,tagged=preview_source(args)
+  edits=[{**e,'page':target} for e in args.get('edits',[]) if e['page']==number]
   if args.get('imagePreviews') is not None:
    for edit in edits:
     if edit.get('type')=='image':
      edit['_previewLimit']=1200
      edit['_previewImage']=args['imagePreviews'].get(str(edit.get('index')))
-  blocks=[{**b,'page':1} for b in read_blocks(args) if b['page']==number]
-  data=run({'command':'apply','page':1,'bytes':base64.b64encode(page_data).decode(),'edits':edits,'blocks':blocks,'ocr':blocks,'resolvedForms':True})['bytes']
+  blocks=[{**b,'page':target} for b in read_blocks(args) if b['page']==number]
+  data=run({'command':'apply','page':target,'bytes':base64.b64encode(page_data).decode(),'edits':edits,'blocks':blocks,'ocr':blocks,'resolvedForms':True},_preview=True)['bytes']
+  if tagged:data=base64.b64encode(render_page(base64.b64decode(data),target)).decode()
   if args.get('imagePreviews') is not None:data=compact_preview(data)
   return {'pdf':data}
  import pypdfium2 as p
@@ -416,8 +418,8 @@ def run(args):
     bad=(report['issues']+editreport['issues'])[0];raise ValueError(f"第 {bad['page']} 页有字体未覆盖字符："+' '.join(c['code'] for c in bad['characters'])+'；请在 OCR 问题列表校对或排除此条')
    def inspect(number):
     page=pdf[number-1];page.set_rotation(0);tp=page.get_textpage();des=[describe(p.raw,p.raw.FPDFPage_GetObject(page,i),i,tp) for i in range(p.raw.FPDFPage_CountObjects(page))]
-    from original_layout import normalize_hyphens
-    normalize_hyphens(p.raw,page,tp,des)
+    from original_layout import inspect as inspect_origins
+    box=page.get_mediabox();inspect_origins(p.raw,page,tp,des,box[3]-box[1])
     tp.close();page.close();return des
    def fragment(width,height,edits,bs):
     d=p.PdfDocument.new();pg=d.new_page(width,height);pg.close()
@@ -427,7 +429,7 @@ def run(args):
      d.close()
    def progress(number):
     if args.get('progress'):emit({'progress':{'page':number,'stage':'write'}})
-   data=compose(data,args.get('edits',[]),read_blocks(args),inspect,fragment,progress)
+   data=compose(data,args.get('edits',[]),read_blocks(args),inspect,fragment,progress,preview=_preview)
    if 'output' in args:Path(args['output']).write_bytes(data);return {'bytes':len(data)}
    return {'bytes':base64.b64encode(data).decode()}
   if cmd=='ocr':return recognize(pdf,p.raw,args)

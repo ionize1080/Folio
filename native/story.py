@@ -104,7 +104,12 @@ def styled_html(m):
             raise ValueError('原字体 '+str(style.get('fontOriginalName') or style.get('fontName') or '')+' 未解析，草稿已保留；请明确选择此范围的替代字体后应用')
         covered=font and ord(ch) in font['coverage']
         size=number(style.get('size') or m['size'],4,150)
-        spacing=number(style.get('charSpacing') or 0,min(-5,-size),30);word=number(style.get('wordSpacing') or 0,-5,50)
+        spacing=number(style.get('charSpacing') or 0,min(-5,-size),30)
+        # PDF authors commonly cancel character tracking on spaces with an
+        # equal negative Tw (e.g. Tc=9, Tw=-9 in textbook vocabulary rows).
+        # Validate the actual combined advance below instead of rejecting a
+        # harmless unused Tw, or a positive space advance, at an arbitrary -5pt.
+        word=number(style.get('wordSpacing') or 0,min(-5,-size),50)
         color=style.get('color') or m['color']
         if not re.fullmatch('#[0-9a-fA-F]{6}',color):raise ValueError('文字颜色无效')
         if not covered and font and not ch.isspace():

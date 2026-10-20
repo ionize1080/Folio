@@ -3,6 +3,10 @@
 A clip that contains the original glyphs can still truncate replacement ink.
 Rectangles are certified; curves/compound paths retain an unknown marker.
 """
+
+# PDFium bounds and generated font bearings differ by a few hundredths of a
+# point. Use one sub-pixel tolerance for save validation and editable reopen.
+CLIP_TOLERANCE = 0.05
 def clip_states(operations):
     matrix=(1,0,0,1,0,0);clips=();stack=[];path=[];pending=False;result={}
     def point(x,y):
@@ -33,7 +37,7 @@ def clip_states(operations):
 def validate_ink(boxes, clips):
     if not clips:return
     if any(clip is None for clip in clips) or any(
-        box[0]<clip[0]-.01 or box[1]<clip[1]-.01 or box[2]>clip[2]+.01 or box[3]>clip[3]+.01
+        box[0]<clip[0]-CLIP_TOLERANCE or box[1]<clip[1]-CLIP_TOLERANCE or box[2]>clip[2]+CLIP_TOLERANCE or box[3]>clip[3]+CLIP_TOLERANCE
         for box in boxes for clip in clips):
         raise ValueError('新文字超出原 PDF 裁剪边界，请缩小文字或调整位置；草稿已保留')
 

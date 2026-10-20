@@ -108,6 +108,7 @@ app.whenReady().then(async () => {
   session.defaultSession.setPermissionRequestHandler((_w, _p, cb) => cb(false));
   session.defaultSession.setPermissionCheckHandler(() => false);
   win = new BrowserWindow({
+    show: process.env.FOLIO_TEST_BACKGROUND !== "1",
     width: 1500,
     height: 970,
     minWidth: 1080,
@@ -117,6 +118,7 @@ app.whenReady().then(async () => {
     autoHideMenuBar: true,
     icon: path.join(__dirname, "assets/icon.png"),
     webPreferences: {
+      backgroundThrottling: process.env.FOLIO_TEST_BACKGROUND !== "1",
       preload: path.join(__dirname, "preload.cjs"),
       nodeIntegration: false,
       contextIsolation: true,

@@ -2,8 +2,8 @@
 
 [English](README.md) · **简体中文** · [繁體中文](README.zh-Hant.md)
 
-> **1.8.0**：改进教材双栏、跨页层级、年鉴字体层级与正文定位，补救扫描目录漏识别页码；主工具栏直达智能目录，目录与正文 OCR 分开控制。
-> [下载 1.8.0](https://github.com/ionize1080/Folio/releases/tag/v1.8.0) · [发布说明与限制](docs/RELEASE-1.8.0.zh-Hans.md) · [验收入口](docs/VALIDATION.md)。本版在 Windows 本机验收，附件报告记录源码提交及实际发行包哈希。
+> **1.9.1**：修复教材旧格式嵌入字体、宽行距正文分段、背景误冲突和带标签段落保存，改进软换行增删与缺字匹配速度。
+> [下载 1.9.1](https://github.com/ionize1080/Folio/releases/tag/v1.9.1) · [发布说明与限制](docs/RELEASE-1.9.1.zh-Hans.md) · [深度编辑实测](docs/DEEP-EDIT-1.9.1.zh-Hans.md)。本版在 Windows 本机验收，附件报告记录源码提交及实际发行包哈希。
 
 面向 Windows x64 的离线 PDF 工作台，重点解决长文档的**书签生成与整理、页面内文字编辑、OCR 识别与校对**。阅读、版面分析、字体匹配和 OCR 在本地运行；完整便携包无需另装 Python、Node.js 或模型。
 

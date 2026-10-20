@@ -213,7 +213,7 @@ def stream_identity(stream):
     import json
     return hashlib.sha256(json.dumps(values,sort_keys=True).encode()+b'\0'+stream.get_data()).hexdigest()
 
-def compose(data,edits,blocks,inspect,fragment,progress=None):
+def compose(data,edits,blocks,inspect,fragment,progress=None,*,preview=False):
     from pdf_writer import clone_document
     reader=PdfReader(io.BytesIO(data));writer=clone_document(reader)
     bypage={};stream_cache={}
@@ -284,6 +284,11 @@ def compose(data,edits,blocks,inspect,fragment,progress=None):
                     if mapped is None or not isinstance(idx,int) or not 0<=idx<len(desc):raise ValueError('段落对象映射不可靠')
                     d=desc[idx];m=mapped[idx]
                     if not d.get('flowEditable') or d['signature']!=source.get('signature'):raise ValueError('段落包含不可安全替换或已变化的对象')
+                from ruby_anchors import validate as validate_ruby
+                # Hiding the old paragraph is a display-only editor operation.
+                # This trusted flag is never read from the public edit payload.
+                if not (preview and (flow.get('model') or {}).get('text')==''):
+                    validate_ruby(page,desc,indices,flow)
                 patch=None
                 if len(sources)==1:
                     from original_patch import correction
@@ -319,12 +324,22 @@ def compose(data,edits,blocks,inspect,fragment,progress=None):
                 structured=[scope for source in sources for scope in mapped[source['index']].get('structureScopes',[])]
                 preserve_site=bool(sources) and not (flow.get('model') or {}).get('behindPage') and (flow.get('model') or {}).get('layerOrder') is None
                 relocated_scope=None
+                structured_position=None
                 if structured:
-                    scopes={(s['at'],s['end'],s['count'],s['mcid']) for s in structured}
-                    if len(scopes)!=1 or structured[0]['count']!=len(sources) or len(structured)!=len(sources):raise ValueError('带标签文字需在同一完整 MCID 范围内编辑，草稿已保留')
-                    scope=structured[0];ends=[mapped[source['index']].get('end') for source in sources]
+                    from structure_scope import validate_scopes
+                    original_stream,raw_objects=map_objects(page)
+                    scopes,scope=validate_scopes(page,original_stream,raw_objects,mapped,sources)
+                    ends=[mapped[source['index']].get('end') for source in sources]
                     if any(end is None for end in ends):raise ValueError('标签文字范围不完整')
-                    if any(not scope['at']<end<scope['end'] for end in ends):
+                    if len(scopes)>1:
+                        # All selected runs are complete and consecutive inside
+                        # the same P/heading. Keep their tag-tree identities:
+                        # relocate its paragraph-owned MCID around the replacement, and
+                        # leave the other now-empty scopes and ParentTree intact.
+                        structured_position=max(scopes[-1]['end'],*ends)
+                        relocated_scope=original_stream.operations[scope['at']]
+                        relocated_marks.update((scope['at'],scope['end']))
+                    elif any(not scope['at']<end<scope['end'] for end in ends):
                         # Entire MCID is selected, but its wrappers sit inside
                         # BT. Move that single complete marked-content scope to
                         # the replacement call after ET; page ownership/MCID and
@@ -336,6 +351,7 @@ def compose(data,edits,blocks,inspect,fragment,progress=None):
                     ends=[mapped[source['index']].get('end') for source in sources]
                     if any(end is None for end in ends):raise ValueError('原文绘制范围不完整，草稿已保留')
                     position=max(ends);original_stream,_=map_objects(page)
+                    if structured_position is not None:position=structured_position
                     first=min(mapped[source['index']]['at'] for source in sources)
                     # Story's own rectangular layout clip belongs to the old
                     # paragraph frame. Once the entire verified generated

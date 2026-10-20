@@ -1,6 +1,7 @@
 import { sourceStyles } from "./flow-style.mjs";
 import { paragraphCandidates, mergeCandidates } from "./flow-model.mjs";
 import { horizontalRows } from "./flow-regions.mjs";
+import { rubyConflicts } from "./ruby-anchors.mjs";
 
 const area = (b) => Math.max(0, b[2] - b[0]) * Math.max(0, b[3] - b[1]);
 export const intersects = (a, b, t = 0) =>
@@ -14,17 +15,21 @@ export const topBounds = (o, h) => [
 export const frameBounds = (f) => [f.x, f.y, f.x + f.width, f.y + f.height];
 
 function savedParagraph(src) {
-  const first = src[0], text = first?.flowText;
+  const first = src[0],
+    text = first?.flowText;
   const compact = (s) => s.replace(/\s/g, "");
   if (
-    first?.flowGroup == null || typeof text !== "string" ||
+    first?.flowGroup == null ||
+    typeof text !== "string" ||
     !src.every((o) => o.flowGroup === first.flowGroup && o.flowText === text) ||
     compact(src.map((o) => o.text).join("")) !== compact(text)
-  ) return null;
+  )
+    return null;
   const breaks = first.flowSoftBreaks;
-  const valid = Array.isArray(breaks) && breaks.every(
-    (n) => Number.isInteger(n) && n >= 0 && text[n] === "\n",
-  ) && new Set(breaks).size === breaks.length;
+  const valid =
+    Array.isArray(breaks) &&
+    breaks.every((n) => Number.isInteger(n) && n >= 0 && text[n] === "\n") &&
+    new Set(breaks).size === breaks.length;
   return { text, softBreaks: valid ? [...breaks] : [] };
 }
 
@@ -341,7 +346,9 @@ export function pageCandidates(objects, w, h, regions = [], tables = []) {
     return { id: "page-paragraph-" + i, model: m, original, reason };
   });
   for (const cell of cellList) {
-    const src = [...(cellObjects.get(cell.id) || [])].sort((a, b) => a.index - b.index);
+    const src = [...(cellObjects.get(cell.id) || [])].sort(
+      (a, b) => a.index - b.index,
+    );
     if (
       src.length === 0 &&
       objects.some(
@@ -441,7 +448,7 @@ export function flowConflicts(
   glyphs = null,
 ) {
   const ids = new Set(model.sources.map((s) => s.index)),
-    conflicts = [];
+    conflicts = rubyConflicts(model, objects, glyphs);
   const ink = (glyphs || [])
     .filter((g) => g.w > 0.05)
     .map((g) => [g.x, g.y + g.h * 0.13, g.x + g.w, g.y + g.h * 0.87])
@@ -497,16 +504,74 @@ export function flowConflicts(
         });
     }
   }
+  const sourceInk = model.originalLayout?.glyphs?.filter(
+    (g) => g.w > 0.05 && g.h > 0.05,
+  );
+  const firstSource = Math.min(...ids),
+    lastSource = Math.max(...ids);
+  const originalInkBox = sourceInk?.length
+    ? [
+        Math.min(...sourceInk.map((g) => g.x)),
+        Math.min(...sourceInk.map((g) => g.y)),
+        Math.max(...sourceInk.map((g) => g.x + g.w)),
+        Math.max(...sourceInk.map((g) => g.y + g.h)),
+      ]
+    : null;
+  const inside = (g, b) =>
+    g.x >= b[0] - 0.5 &&
+    g.y >= b[1] - 0.5 &&
+    g.x + g.w <= b[2] + 0.5 &&
+    g.y + g.h <= b[3] + 0.5;
   for (const o of objects) {
     if (ids.has(o.index) || removed.has(o.index)) continue;
     const box = topBounds(o, model.pageHeight);
+    // Text already painted over background artwork must remain editable.
+    // Require source paint order and full containment of the original ink;
+    // Unknown, truncated or text-bearing Forms remain obstacles.
+    const artwork =
+      o.type === "image" ||
+      (o.type === "form" &&
+        o.nestedContent?.text === 0 &&
+        o.nestedContent.truncated === false);
+    const backgroundImage =
+      artwork &&
+      ids.size > 0 &&
+      o.index < firstSource &&
+      sourceInk?.length &&
+      sourceInk.every(
+        (g) =>
+          g.x >= box[0] - 0.5 &&
+          g.y >= box[1] - 0.5 &&
+          g.x + g.w <= box[2] + 0.5 &&
+          g.y + g.h <= box[3] + 0.5,
+      );
+    // A text-free watermark after every source remains after the replacement.
+    // Existing overlap may be retained only within the old ink envelope;
+    // entering a new region, interleaved Forms and unknown content still warn.
+    const retainedWatermark =
+      o.type === "form" &&
+      artwork &&
+      o.index > lastSource &&
+      originalInkBox &&
+      glyphs?.length &&
+      sourceInk.some((g) =>
+        intersects([g.x, g.y, g.x + g.w, g.y + g.h], box, 0.5),
+      ) &&
+      glyphs
+        .filter((g) => g.w > 0.05 && g.h > 0.05)
+        .every((g) => inside(g, originalInkBox));
     if (o.type === "text" && o.text?.trim() && touches(box))
       conflicts.push({
         kind: "text",
         bounds: box,
         message: "文字与邻近正文发生遮挡，可接续段落或调整字号",
       });
-    if (["image", "form"].includes(o.type) && touches(box))
+    if (
+      ["image", "form"].includes(o.type) &&
+      !backgroundImage &&
+      !retainedWatermark &&
+      touches(box)
+    )
       conflicts.push({
         kind: "image",
         bounds: box,

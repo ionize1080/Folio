@@ -2,6 +2,8 @@
 Exact identity means matching sampled glyphs, not proof of an entire font family.
 """
 import hashlib, json, math
+import struct
+from collections.abc import Mapping
 from functools import lru_cache
 from collections import OrderedDict
 from pathlib import Path
@@ -11,10 +13,58 @@ from font_match import load_font
 # every installed face. Outline masks are bounded to approximately 32 MiB.
 _glyph_features=OrderedDict()
 
-@lru_cache(maxsize=2048)
-def coverage(path,face,stamp):
+def outline_font(path, face, sampled=False):
     from fontTools.ttLib import TTFont
     font=TTFont(path,fontNumber=face,lazy=True)
+    if 'glyf' in font:
+        # Glyph names are irrelevant to Unicode coverage and outline identity.
+        # For name-less CJK subsets FontTools otherwise reverse-engineers tens
+        # of thousands of names from cmap, then decompiles the same cmap again.
+        # Stable GID names retain composite references and metrics exactly, and
+        # avoid doing that reconstruction for every installed candidate face.
+        count=font['maxp'].numGlyphs
+        order=['.notdef']+['glyph%05d'%gid for gid in range(1,count)]
+        font.setGlyphOrder(order)
+        if sampled:
+            from fontTools.ttLib import newTable
+            from fontTools.ttLib.tables._g_l_y_f import Glyph
+            # A recommendation samples at most 16 glyphs. Loading 65,000 Glyph
+            # objects and all advances for each CJK face dominates that work.
+            # Keep FontTools' actual outline decoder, including composites and
+            # variations, and defer only the table's dictionary materialization.
+            class Indexed(Mapping):
+                def __len__(self):return count
+                def __iter__(self):return iter(order)
+                def gid(self,name):
+                    gid=0 if name=='.notdef' else int(name.removeprefix('glyph'))
+                    if not 0<=gid<count:raise KeyError(name)
+                    return gid
+            data=font.reader['glyf'];locations=font['loca'].locations
+            class Glyphs(Indexed):
+                def __init__(self):self.cache={}
+                def __getitem__(self,name):
+                    if name not in self.cache:
+                        gid=self.gid(name);a,b=locations[gid:gid+2]
+                        if not 0<=a<=b<=len(data):raise ValueError('字体字形范围无效')
+                        self.cache[name]=Glyph(data[a:b])
+                    return self.cache[name]
+            glyf=newTable('glyf');glyf.glyphOrder=order;glyf._reverseGlyphOrder={}
+            glyf.axisTags=[axis.axisTag for axis in font['fvar'].axes] if 'fvar' in font else []
+            glyf.glyphs=Glyphs();font['glyf']=glyf
+            class Metrics(Indexed):
+                def __init__(self,raw,metric_count):self.raw=raw;self.metric_count=metric_count
+                def __getitem__(self,name):
+                    gid=self.gid(name);n=self.metric_count
+                    if gid<n:return struct.unpack_from('>Hh',self.raw,gid*4)
+                    return (struct.unpack_from('>H',self.raw,(n-1)*4)[0],struct.unpack_from('>h',self.raw,n*4+(gid-n)*2)[0])
+            for tag,header,field in [('hmtx','hhea','numberOfHMetrics'),('vmtx','vhea','numberOfVMetrics')]:
+                if tag in font:
+                    table=newTable(tag);table.metrics=Metrics(font.reader[tag],getattr(font[header],field));font[tag]=table
+    return font
+
+@lru_cache(maxsize=2048)
+def coverage(path,face,stamp):
+    font=outline_font(path,face)
     try:
         # A packed bitset costs 139 KiB even for a huge CJK face; Latin faces
         # use only their highest scalar. It avoids thousands of Python integers.
@@ -27,7 +77,6 @@ def covers(bits,cp):return cp//8<len(bits) and bool(bits[cp//8] & (1<<(cp%8)))
 
 @lru_cache(maxsize=128)
 def features(path, face, stamp, characters):
-    from fontTools.ttLib import TTFont
     from fontTools.pens.recordingPen import DecomposingRecordingPen
     from fontTools.pens.basePen import BasePen
     from PIL import Image, ImageDraw, ImageChops
@@ -39,7 +88,7 @@ def features(path, face, stamp, characters):
             out[ch]=_glyph_features[key];_glyph_features.move_to_end(key)
         elif covers(bits,ord(ch)):pending.append(ch)
     if not pending:return out,bits,restricted
-    font=TTFont(path,fontNumber=face,lazy=True)
+    font=outline_font(path,face,sampled=True)
     try:
         cmap=font.getBestCmap() or {}; units=font['head'].unitsPerEm
         glyphs=font.getGlyphSet()

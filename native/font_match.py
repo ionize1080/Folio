@@ -29,8 +29,12 @@ def checksum(data):
 
 def unicode_cmap(blob,mapping):
     # sfnt directory rebuild; cmap format 12 works for BMP and supplementary Unicode.
-    if blob[:4] not in (b'\0\1\0\0',b'OTTO'):raise ValueError('Unsupported embedded font')
-    from font_sfnt import tables as read_tables, build, normalize
+    # Legacy Apple TrueType programs use ``true``. It has the same sfnt
+    # directory and glyph tables, and normalize converts its signature for OTS.
+    # Keep one supported-format definition instead of rejecting valid textbook
+    # subsets before the existing normalizer gets a chance to process them.
+    from font_sfnt import tables as read_tables, build, normalize, MAGIC
+    if blob[:4] not in MAGIC:raise ValueError('Unsupported embedded font')
     tables=read_tables(blob)
     glyph_count=struct.unpack_from('>H',tables[b'maxp'],4)[0]
     pairs=sorted((u,g) for u,g in mapping.items() if 0<g<glyph_count and 0<=u<=0x10ffff)
