@@ -85,16 +85,34 @@ const { _electron: electron } = require("playwright"),
     );
     assert(!result.isError, JSON.stringify(result));
     assert.equal(result.content[1].type, "image");
-    const root = app.process().pid;
+    const root = await app.evaluate(() => process.pid);
     const audit = execFileSync(path.resolve('native/runtime/python.exe'),
       [path.resolve('tests/process-audit.py'), String(root)],
       {encoding:'utf8',windowsHide:true});
     const listeners = audit.trim() ? JSON.parse(audit) : [];
-    assert.equal(
-      Array.isArray(listeners) ? listeners.length : 1,
-      0,
-      "packaged app must not listen on TCP ports",
-    );
+    const harnessListeners = Array.isArray(listeners) ? listeners : [listeners];
+    console.log('Instrumentation listeners', harnessListeners);
+    const launchArgs = app.process().spawnargs.join(' ');
+    assert(launchArgs.includes('--inspect=0') && launchArgs.includes('--remote-debugging-port=0'));
+    assert(harnessListeners.length <= 2 && harnessListeners.every(item => item.pid === root && /^(127\.0\.0\.1|\[::1\]):/.test(item.address)),
+      'Only the two explicit Playwright debugger endpoints may listen; Chatbox and other descendants must not');
+    await app.close();
+    const cleanProfile = path.resolve('tests/output/plain-launch-'+Date.now());
+    const health = path.join(cleanProfile,'updates','install-11111111-1111-1111-1111-111111111111.json.health.json');
+    fs.mkdirSync(path.dirname(health), {recursive:true});
+    const plain = require('child_process').spawn(path.resolve('dist/Folio-PDF-Studio-win-x64/Folio.exe'),
+      ['--user-data-dir='+cleanProfile,'--folio-update-health='+health],
+      {env:{...process.env,FOLIO_TEST_PROFILE:cleanProfile,FOLIO_TEST_BACKGROUND:'1'},windowsHide:true,stdio:'ignore'});
+    try {
+      for(let i=0;i<300 && !fs.existsSync(health);i++) await new Promise(r=>setTimeout(r,100));
+      assert(fs.existsSync(health),'standalone renderer ready');
+      const actualPid=JSON.parse(fs.readFileSync(health,'utf8')).pid;
+      const productionListeners=JSON.parse(execFileSync(path.resolve('native/runtime/python.exe'),
+        [path.resolve('tests/process-audit.py'),String(actualPid)],{encoding:'utf8',windowsHide:true}));
+      assert.deepEqual(productionListeners,[],'uninstrumented production app must not listen on TCP');
+    } finally {
+      try {execFileSync('taskkill.exe',['/PID',String(plain.pid),'/T','/F'],{windowsHide:true,stdio:'ignore'});} catch {}
+    }
     fs.writeFileSync(
       "tests/output/packaged-ai.json",
       JSON.stringify(
@@ -102,7 +120,9 @@ const { _electron: electron } = require("playwright"),
           version: require("../package.json").version,
           tools: list.tools.length,
           defaultLimitMB: budget.limitMB,
-          listeners,
+          listeners: [],
+          harnessListeners,
+          standaloneProductionVerified: true,
           debugPortIgnored: true,
           portablePdfRendering: true,
           sidebarToggle: true,
@@ -117,7 +137,7 @@ const { _electron: electron } = require("playwright"),
       "PASS packaged Chatbox, 60 stdio tools, portable PDF rendering, 2GB budget, zero TCP listeners",
     );
   } finally {
-    await app.close();
+    await app.close().catch(() => {});
   }
 })().catch((e) => {
   console.error(e);
