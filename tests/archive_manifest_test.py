@@ -1,8 +1,25 @@
 import unittest, tempfile, subprocess, sys, json, hashlib
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'scripts'))
-from archive_manifest import source_files
+from archive_manifest import source_files, verify_git_zip
+import zipfile
 class ArchiveTests(unittest.TestCase):
+ def test_git_zip_content_validation_ignores_compression_but_rejects_tampering(self):
+  with tempfile.TemporaryDirectory() as temp:
+   root=Path(temp);subprocess.run(['git','init','-q',temp],check=True)
+   data=b'fixed source bytes';(root/'source.txt').write_bytes(data)
+   subprocess.run(['git','add','source.txt'],cwd=root,check=True)
+   subprocess.run(['git','-c','user.name=Folio test','-c','user.email=test@example.invalid','commit','-qm','fixture'],cwd=root,check=True)
+   commit=subprocess.check_output(['git','rev-parse','HEAD'],cwd=root,text=True).strip()
+   archive=root/'source.zip'
+   for compression in [zipfile.ZIP_STORED,zipfile.ZIP_DEFLATED]:
+    with zipfile.ZipFile(archive,'w',compression) as z:z.writestr('source.txt',data)
+    verify_git_zip(archive,root,commit)
+   with zipfile.ZipFile(archive,'w') as z:z.writestr('source.txt',b'tampered')
+   self.assertRaises(ValueError,verify_git_zip,archive,root,commit)
+   with zipfile.ZipFile(archive,'w') as z:z.writestr('unexpected.txt',data)
+   self.assertRaises(ValueError,verify_git_zip,archive,root,commit)
+   self.assertRaises(ValueError,verify_git_zip,archive,root,'0'*40)
  def test_only_tracked_and_verified_assets(self):
   with tempfile.TemporaryDirectory() as temp:
    root=Path(temp);subprocess.run(['git','init','-q',temp],check=True)

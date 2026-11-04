@@ -3,6 +3,28 @@ from pathlib import Path
 import hashlib
 import json
 import subprocess
+import io
+import tarfile
+import zipfile
+
+def verify_git_zip(archive, checkout, commit):
+    """Verify source contents, independent of Git/zlib ZIP container versions."""
+    if not Path(checkout).is_dir():
+        raise ValueError('Unverified Chatbox source archive: pinned checkout missing')
+    actual = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=checkout, text=True).strip()
+    if actual != commit:
+        raise ValueError('Chatbox source revision mismatch')
+    canonical = subprocess.check_output(['git', 'archive', '--format=tar', commit], cwd=checkout)
+    with tarfile.open(fileobj=io.BytesIO(canonical)) as tar, zipfile.ZipFile(archive) as zipped:
+        expected = {item.name: item for item in tar if item.isfile() or item.issym()}
+        entries = [item for item in zipped.infolist() if not item.is_dir()]
+        if len(entries) != len(expected) or {item.filename for item in entries} != set(expected):
+            raise ValueError('Chatbox archive file set mismatch')
+        for item in entries:
+            original = expected[item.filename]
+            data = original.linkname.encode('utf-8') if original.issym() else tar.extractfile(original).read()
+            if item.file_size != len(data) or zipped.read(item) != data:
+                raise ValueError('Chatbox source content mismatch: ' + item.filename)
 
 # Bundled certifi public CA certificates are runtime data, not private keys.
 # Pin the reviewed contents and exact path; all other PEM/key files still fail.
@@ -18,7 +40,8 @@ def source_files(root):
     chatbox_source = Path('.ai-runtime/Chatbox/Chatbox-1.20.3-source.zip')
     if (root/chatbox_source).exists():
         if hashlib.sha256((root/chatbox_source).read_bytes()).hexdigest() != '97d1218b0b94a3d35d7b657b59fd5560320317ea6cd8ee7e4e123de77911adec':
-            raise ValueError('Unverified Chatbox source archive')
+            verify_git_zip(root/chatbox_source, root/'.ai-runtime/chatbox-source',
+                           'd3cd0ad1e6a1127bbbf3991bb5296c181f4cbdeb')
         allowed.add(chatbox_source)
     submodule = Path('integrations/pdf-mcp-upstream')
     if submodule in allowed:
