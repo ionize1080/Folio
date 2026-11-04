@@ -2,7 +2,7 @@
 
 **English** · [简体中文](README.zh-Hans.md) · [繁體中文](README.zh-Hant.md)
 
-An offline PDF workspace for Windows x64, built for **long-document bookmarks, in-page text and image editing, and OCR review**. The portable package includes its runtime, fonts and models. No separate Python or Node.js installation is needed.
+A local-first PDF workspace for Windows x64, built for **long-document bookmarks, in-page text and image editing, OCR review, and optional Chatbox AI assistance**. The portable package includes its runtime, fonts and models. No separate Python or Node.js installation is needed.
 
 [Download](https://github.com/ionize1080/Folio/releases/latest) · [2.0.0 release notes](docs/RELEASE-2.0.0.md) · [Limitations](#limitations) · [Development](#development)
 
@@ -113,6 +113,9 @@ Shortcuts are focus-aware and configurable. Tab moves focus. Language selection 
 | --- | --- |
 | Desktop | Electron, `main.cjs`, `preload.cjs`: windows, dialogs, restricted IPC, workers and updates |
 | Workspace | HTML/CSS, ES modules, PDF.js: rendering, selection, editing and review |
+| AI client | Chatbox 1.20.3, `integrations/chatbox/`, `ai-host.cjs`, `ai-dock.cjs`: native provider settings, sidebar/window modes, authenticated pipe and stdio |
+| On-demand tools | `src/ai-*.mjs`, `integrations/pdf-server.py`, `integrations/pdf_objects.py`: 23 Folio operations, 60 PDF tools and approval/revision checks |
+| Storage budget | `storage-budget.cjs`: 2 GB default, protected active files, LRU rotation and temporary large-task expansion |
 | Localization | `src/i18n.mjs`, `src/locales/`: offline catalogs, locale persistence, UI translation and user-content exclusions |
 | Structure | pdf-lib, Web Workers: bookmarks, annotations, rules, filters and projects |
 | PDF engine | Python, PDFium, PyMuPDF, pikepdf/libqpdf: objects, geometry, composition and writeback |
@@ -121,7 +124,7 @@ Shortcuts are focus-aware and configurable. Tab moves focus. Language selection 
 | Images/tables | `src/image-*.mjs`, `native/image_*`, `src/table-*.mjs`, `native/table_*` |
 | State/save | `src/project*`, `src/recovery.mjs`, `source-store.cjs`, `file-store.cjs`: assets, recovery and atomic saves |
 
-The original PDF remains the session baseline. Content is composed, bookmark provenance is checked, and then the output is written. Displaying a PDF does not imply every object can be rewritten losslessly. See the [documentation index](docs/README.md) for historical technical records.
+The original PDF remains the session baseline. Content is composed, bookmark provenance is checked, and then the output is written. Displaying a PDF does not imply every object can be rewritten losslessly. See the [current architecture and data flows](docs/ARCHITECTURE.md) and [documentation index](docs/README.md).
 
 ## Limitations
 
@@ -129,7 +132,7 @@ The original PDF remains the session baseline. Content is composed, bookmark pro
 - Saving/reopening may split paragraphs. Searchable text does not prove that original spaces, code formatting and all glyph positions were retained.
 - OCR can omit characters, misread orientation or merge across cells. Confidence does not establish completeness; review output.
 - Cross-page reflow, arbitrary image wrapping, complex/borderless/nested tables and structured equation editing are not fully supported.
-- Forms, secure redaction, digital signing and proprietary PDF-XChange bookmark exchange are not implemented. Rewriting may invalidate signatures.
+- Folio has no full interactive form, secure-redaction or digital-signing interface. File-based PDF MCP supplies corresponding upstream tools; these operate on separate files and require review. Proprietary PDF-XChange bookmark exchange is unsupported. Rewriting may invalidate signatures.
 - Ordinary edits and projects retaining original content are not secure redaction. Off-page content is clipped on export.
 - Automated Windows acceptance does not cover every real IME, mixed-DPI setup or hardware combination. Linux engine tests do not imply a Linux desktop release.
 
@@ -139,15 +142,18 @@ Windows CI uses Node.js 24, Python 3.12 and the pinned lockfile.
 
 ```sh
 npm ci
+git submodule update --init
 python -m pip install -r tests/requirements.txt
 python -m pip install --target native/vendor fonttools==4.61.1
 python scripts/restore-assets.py
 npm run test:unit
+# Prepare Chatbox and PDF MCP first; replace both paths below.
+python scripts/prepare-ai.py --chatbox "path-to-extracted-installer" --sevenzip "path-to-7z.exe"
 npm run build:win
 npm run test:package
 ```
 
-Version 2.0.0 uses local Windows acceptance and packaged EXE tests, with source and binary hashes recorded in its release validation attachment; see the [deep-edit report](docs/DEEP-EDIT-2.0.0.zh-Hans.md). [.github/workflows/folio-v16.yml](.github/workflows/folio-v16.yml) remains a historical packaging and Windows acceptance reference, including fontTools licensing. `npm start` launches development mode. `npm test` is the historical standard suite; release-specific checks run separately. Set `FOLIO_EXE` for `node tests/i18n-v16.cjs`. Other options include `FOLIO_PYTHON`, `FOLIO_CHROMIUM` and `FOLIO_FIXTURES`.
+Version 2.0.0 uses local Windows acceptance and packaged EXE tests, with source and binary hashes recorded in its release validation attachment; see the [2.0.0 validation scope](docs/RELEASE-2.0.0.md). [.github/workflows/folio-v16.yml](.github/workflows/folio-v16.yml) remains a historical packaging and Windows acceptance reference, including fontTools licensing. `npm start` launches development mode. `npm test` is the historical standard suite; release-specific checks run separately. Set `FOLIO_EXE` for `node tests/i18n-v16.cjs`. Other options include `FOLIO_PYTHON`, `FOLIO_CHROMIUM` and `FOLIO_FIXTURES`.
 
 Edit translation JSON, run `node scripts/build-locales.mjs`, then unit/UI acceptance. Preserve placeholders and technical tokens. List new languages only after complete translation and validation. See [localization guidance](docs/LOCALIZATION.md).
 
@@ -155,7 +161,7 @@ Edit translation JSON, run `node scripts/build-locales.mjs`, then unit/UI accept
 
 Priorities remain paragraph ownership after reopening, font fidelity, OCR completeness/orientation, manual-correction protection, first-edit speed and real large-file performance. Cross-page reflow and structured export remain future work. Historical measurements are not acceptance for new binaries; each release includes its own report.
 
-Folio code uses [MIT](LICENSE). Distributed PyMuPDF/MuPDF components use AGPL terms; fonts, models and runtimes retain their own licenses. The root license does not relicense dependencies. See [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
+Folio code uses [MIT](LICENSE). Chatbox uses GPL-3.0 and PDF MCP uses Apache-2.0. Distributed PyMuPDF/MuPDF components use AGPL terms; fonts, models and runtimes retain their own licenses. The root license does not relicense dependencies. See [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
 
 Core document processing and interface translation stay local. Optional AI sends requested text and page images through your selected Chatbox provider. Chatbox reporting is disabled. Checking/downloading updates accesses GitHub. Local OCR/layout models do not automatically generate or rewrite document prose.
 

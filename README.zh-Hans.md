@@ -5,7 +5,7 @@
 > **2.0.0 — AI 辅助与 2 GB 缓存**
 > 默认侧栏 Chatbox 1.20.3，可切换独立窗口；通过原生设置配置 API 和模型。按需发现 23 项 Folio 操作、60 项 PDF 工具及 29 项底层对象操作。默认手动审批，自动审批双重确认并标红。本地 Paddle 优先，95% 低置信度阈值可调，复杂页面可按需使用外部图像识别。缓存默认 2 GB，大文件任务临时扩容。 [下载 / 下載](https://github.com/ionize1080/Folio/releases/tag/v2.0.0) · [AI 指南](docs/AI.md) · [验证记录 / 驗證記錄](docs/RELEASE-2.0.0.md)
 
-面向 Windows x64 的离线 PDF 工作台，重点解决长文档的**书签生成与整理、页面内文字编辑、OCR 识别与校对**。阅读、版面分析、字体匹配和 OCR 在本地运行；完整便携包无需另装 Python、Node.js 或模型。
+面向 Windows x64、以本地处理为主并支持可选 Chatbox AI 的 PDF 工作台，重点解决长文档的**书签生成与整理、页面内文字编辑、OCR 识别与校对**。阅读、版面分析、字体匹配和 OCR 在本地运行；完整便携包无需另装 Python、Node.js 或模型。
 
 [已实现功能](#已实现功能) · [项目架构](#项目架构) · [已知问题](#已知问题与适用边界) · [下一步计划](#下一步功能计划) · [开发与测试](#开发构建与测试)
 
@@ -28,7 +28,7 @@
 | 文件 | 用途 |
 | --- | --- |
 | `Folio-PDF-Studio-2.0.0-portable-win-x64.zip` | 完整便携包，解压后运行 `Folio.exe` |
-| `Folio-PDF-Studio-2.0.0-source.zip` | 完整离线源码与随包运行资源 |
+| `Folio-PDF-Studio-2.0.0-source.zip` | 源码与核心运行资源；AI 组件按构建指南准备 |
 | `Folio-PDF-Studio-2.0.0-validation.json` | Windows 回归、本地样本范围及对应源码和程序哈希 |
 | `Folio-PDF-Studio-2.0.0-SHA256.txt` | 附件校验值 |
 
@@ -157,6 +157,18 @@
 | 本地识别 | RapidOCR、RapidLayout、ONNX Runtime、PicoDet CDLA | OCR 和版面区域候选；不使用生成模型自动改写正文 |
 | 状态与持久化 | 会话修订号、内容寻址资产、ZIP 工程、IndexedDB | 过期结果拒绝、撤销、缓存、工程保存及异常恢复 |
 
+### AI 与本地引擎的边界
+
+Chatbox 1.20.3 保留原生服务商、API 和模型配置；Folio 首选项管理审批、OCR 阈值和缓存。MCP 使用 stdio，窗口与应用桥使用认证命名管道，不开放网络监听端口。PDF 工具本地运行，外部文字/图像辅助经所选 Chatbox 模型发送；检查更新访问 GitHub。
+
+| 新增模块 | 职责 |
+| --- | --- |
+| `ai-host.cjs`、`ai-dock.cjs` | Chatbox 生命周期、窗口嵌入、命名管道、stdio 客户端与快照租约 |
+| `src/ai-ui.mjs`、`src/ai-tools.mjs`、`src/ai-worker.mjs` | 按需发现、审批、版本检查，复用书签和页面操作 |
+| `integrations/chatbox/` | 原生 Chatbox 适配、请求头、视觉附件、窗口与审批快捷操作 |
+| `integrations/pdf-server.py`、`pdf_objects.py` | 完整 PDF MCP、底层对象和文件式本地 OCR |
+| `storage-budget.cjs` | 默认 2 GB 缓存、轮替与大任务保护 |
+
 ### 运行链路
 
 ```mermaid
@@ -208,7 +220,7 @@ flowchart TD
 
 ### 数据与保存约束
 
-`.folio` v2 的主要条目为 `source.pdf`、`state.json`、`assets/<sha256>.pdf/json` 与 `manifest.json`。PDF 片段不再进行无效重复压缩，读取时检查条目、格式和哈希。当前工程路径的源 PDF 上限为 768 MiB，工程上限为 1 GiB；恢复存储设有 1 GiB 资源配额。独立大文件通道不进入上述完整字节数组与工程路径，其 8 GiB 上限只适用于已列出的阅读/书签能力。这些限制及历史预算**不是整个应用进程内存的硬上限**。
+`.folio` v2 的主要条目为 `source.pdf`、`state.json`、`assets/<sha256>.pdf/json` 与 `manifest.json`。PDF 片段不再进行无效重复压缩，读取时检查条目、格式和哈希。当前工程路径的源 PDF 上限为 768 MiB，工程上限为 1 GiB；缓存及恢复存储默认使用可配置的 2 GB 预算，活动大文件临时扩容并保护未保存草稿。独立大文件通道不进入上述完整字节数组与工程路径，其 8 GiB 上限只适用于已列出的阅读/书签能力。这些限制及历史预算**不是整个应用进程内存的硬上限**。
 
 保存先合成内容，再验证原始书签动作来源和语义，最后写入 PDF 结构并替换目标文件。无法证明安全的对象修改会被拒绝或使用片段路径；能显示一个 PDF 不代表其所有结构都能无损重写。
 
@@ -234,7 +246,7 @@ flowchart TD
 
 - 同页文本框连接和同一文本流分栏已实现；跨页文章级自动续排、任意图文绕排仍未完成。
 - 页面布局模型提供候选区域，不能替代完整语义结构；公式结构编辑、全文 DOCX/HTML/Markdown 结构化导出尚未实现。
-- 表单编辑、安全涂黑、数字签名及 PDF-XChange 专有书签格式未实现。对含签名 PDF 的重写可能影响原签名有效性。
+- Folio 尚无完整的交互式表单、安全涂黑和签名界面；文件式 PDF MCP 提供对应上游工具，输出应另存并复核。PDF-XChange 专有书签格式仍未实现。对含签名 PDF 的重写可能影响原签名有效性。
 - 隐藏 OCR 层的校对不等于扫描图像可见文字编辑；其他来源的文字层不会被无条件删除。
 - Windows 自动化验证已通过，但真实中文输入法、混合 DPI 及所有 Windows 10/11 硬件组合未全部覆盖。
 
@@ -260,6 +272,7 @@ flowchart TD
 git clone https://github.com/ionize1080/Folio.git
 cd Folio
 npm ci
+git submodule update --init
 python -m pip install -r tests/requirements.txt
 python -m pip install --target native/vendor fonttools==4.61.1
 npx playwright install chromium
@@ -268,7 +281,9 @@ python scripts/restore-assets.py
 
 `restore-assets.py` 按 `native/models/manifest.json` 下载并校验固定模型；已存在且哈希正确时复用，下载失败或校验不符会停止。首次准备开发环境需要下载依赖；完整便携包的日常运行不需要此步骤。
 
-Windows 完整打包还需随包运行时、字体和原生组件。以 [.github/workflows/folio-v16.yml](.github/workflows/folio-v16.yml) 为本版构建与验收参考，包括 fontTools 许可文件的复制步骤。`npm start` 启动开发界面，原生功能要求相应运行资源齐备。
+Windows 完整打包还需随包运行时、字体和原生组件。以 [.github/workflows/folio-v16.yml](.github/workflows/folio-v16.yml) 为历史构建参考，包括 fontTools 许可文件的复制步骤。`npm start` 启动开发界面，原生功能要求相应运行资源齐备。
+
+AI 运行资源还需按 [AI 构建指南](docs/AI.md#构建与测试) 执行 `scripts/prepare-ai.py`，再打包。
 
 ### 命令
 
@@ -288,7 +303,7 @@ Windows 完整打包还需随包运行时、字体和原生组件。以 [.github
 
 可配置 `FOLIO_PYTHON` 指定解释器、`FOLIO_CHROMIUM` 指定测试浏览器、`FOLIO_FIXTURES` 指定真实文档目录。复用离线 Windows 便携基线时，设置 `FOLIO_RUNTIME_BASE` 为解压目录、`FOLIO_RUNTIME_BASE_ZIP` 为对应 ZIP；打包脚本校验运行时并重新装入业务源码及引擎。
 
-1.9.1 的验收以本机 Windows 的 `scripts/acceptance.mjs`、实际打包 EXE 测试及发布的 `validation.json` 为准；报告绑定源码、程序和原生模块哈希，范围见[深度编辑报告](docs/DEEP-EDIT-1.9.1.zh-Hans.md)。`folio-v16.yml` 和 P6 等历史工作流保留供构建参考与追溯。`npm test` 是历史标准入口，不会单独运行所有版本专项、公开语料和打包 EXE 检查；当前通用检查使用 `npm run test:quick` / `npm run test:full`，发布专项另外执行。任意主线文档提交不等于重新跑过全部 Windows 验收。
+2.0.0 的 AI 与打包验收见 [发布记录](docs/RELEASE-2.0.0.md)。1.9.1 编辑基线的验收以本机 Windows 的 `scripts/acceptance.mjs`、实际打包 EXE 测试及发布的 `validation.json` 为准；报告绑定源码、程序和原生模块哈希，范围见[深度编辑报告](docs/DEEP-EDIT-1.9.1.zh-Hans.md)。`folio-v16.yml` 和 P6 等历史工作流保留供构建参考与追溯。`npm test` 是历史标准入口，不会单独运行所有版本专项、公开语料和打包 EXE 检查；当前通用检查使用 `npm run test:quick` / `npm run test:full`，发布专项另外执行。任意主线文档提交不等于重新跑过全部 Windows 验收。
 
 ### 历史验证与版本追踪
 
