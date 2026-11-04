@@ -169,7 +169,8 @@ await fs.cp(
   path.join(root, "assets/Folio-Sample.pdf"),
   path.join(out, "Folio-Sample.pdf"),
 );
-await fs.copyFile(path.join(root, "README.md"), path.join(out, "README.md"));
+for (const name of ["README.md", "README.zh-Hans.md", "README.zh-Hant.md"])
+  await fs.copyFile(path.join(root, name), path.join(out, name));
 await fs.copyFile(
   path.join(root, "LICENSE"),
   path.join(out, "FOLIO-LICENSE.txt"),
