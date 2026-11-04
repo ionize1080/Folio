@@ -29,6 +29,9 @@ const { _electron: electron, chromium } = require("playwright"),
     await folio.waitForFunction(() =>
       document.querySelector("#doc-name").textContent.includes("modes"),
     );
+    await folio.locator('[data-action="settings"]').click();
+    await folio.locator("#set-ai-approval").selectOption("auto");
+    await folio.locator("#modal-footer .primary").click();
     await folio.evaluate(() => window.desktop.aiOpen());
     for (let i = 0; i < 30; i++) {
       try {
@@ -73,7 +76,7 @@ const { _electron: electron, chromium } = require("playwright"),
     await page.reload();
     await page.waitForFunction(() => !!window.electronAPI?.invoke);
     await page.waitForTimeout(3000);
-    await page.getByText("New Chat", { exact: true }).first().click();
+    await page.keyboard.press("Control+n");
     await page.waitForTimeout(900);
     await page
       .locator("textarea[placeholder]")

@@ -33,7 +33,7 @@ for (const name of [
   "stdio.cjs",
   "network.cjs",
   "vision-body.cjs",
-  "dock.ps1",
+  "dock.py",
 ])
   fs.copyFileSync(
     path.join(__dirname, "../integrations/chatbox", name),

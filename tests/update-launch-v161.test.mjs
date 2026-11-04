@@ -28,6 +28,8 @@ test(
     });
     try {
       await fs.mkdir(manager.home, { recursive: true });
+      await fs.mkdir(path.join(home, "app"), { recursive: true });
+      await fs.writeFile(path.join(home, "app", "Folio.exe"), "fixture");
       const file = path.join(home, "invalid.zip");
       await fs.writeFile(file, "bad");
       manager.ready = { file, hash: "0".repeat(64), version: "v1.6.1" };

@@ -111,8 +111,7 @@ if (process.env.FOLIO_MCP_PIPE) {
       if (m.action === "mode" && primary) {
         const side = m.mode === "sidebar";
         primary.setMovable(!side);
-        primary.setResizable(!side);
-        primary.setSkipTaskbar(side);
+        primary.setSkipTaskbar(false);
         primary.webContents.send("folio:display", m.mode);
       }
     } catch {}

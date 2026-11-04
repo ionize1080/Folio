@@ -4,7 +4,7 @@
 
 A local-first PDF workspace for Windows x64, built for **long-document bookmarks, in-page text and image editing, OCR review, and optional Chatbox AI assistance**. The portable package includes its runtime, fonts and models. No separate Python or Node.js installation is needed.
 
-[Download](https://github.com/ionize1080/Folio/releases/latest) · [2.0.0 release notes](docs/RELEASE-2.0.0.md) · [Limitations](#limitations) · [Development](#development)
+[Download](https://github.com/ionize1080/Folio/releases/latest) · [2.0.1 release notes](docs/RELEASE-2.0.1.md) · [Limitations](#limitations) · [Development](#development)
 
 ## AI assistance in 2.0.0
 
@@ -175,3 +175,8 @@ Smart contents 1.8.0 improves textbook columns, continuation pages, yearbook fon
 ### Reliability acceptance
 
 `npm run test:quick` runs all unit contracts and archive/release transport tests. `npm run test:full` also runs native preservation and browser transaction tests; install the test dependencies and Playwright browser first. The machine-readable capability list is `scripts/acceptance.json`. Windows package and release-specific checks run separately; the release validation attachment states which checks ran. See [review decisions](docs/REVIEW-2026-10-07-response.md).
+
+
+## 2.0.1 compatibility update
+
+Sidebar input and Sogou IME were tested through native computer use. Sidebar and updater use bundled Python; no PowerShell process or WebView2 is required. Older versions on machines with PowerShell blocked must first upgrade by manually extracting the portable ZIP. [Validation and target-system limits](docs/RELEASE-2.0.1.md).

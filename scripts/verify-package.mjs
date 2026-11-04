@@ -252,7 +252,7 @@ for (const name of [
   "stdio.cjs",
   "network.cjs",
   "vision-body.cjs",
-  "dock.ps1",
+  "dock.py",
 ])
   assert.deepEqual(
     await fs.readFile(path.join(out, "resources/Chatbox", name)),

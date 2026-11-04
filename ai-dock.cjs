@@ -11,6 +11,8 @@ class AIDock {
     this.helper = null;
     win.on("resize", () => this.layout());
     win.on("move", () => this.layout());
+    for (const event of ["minimize", "restore", "hide", "show"])
+      win.on(event, () => this.layout());
   }
   ready(handle, client) {
     if (!/^\d+$/.test(handle)) throw Error("Invalid window handle");
@@ -51,17 +53,16 @@ class AIDock {
     if (process.platform !== "win32") return;
     if (!this.helper) {
       this.helper = spawn(
-        "powershell.exe",
+        this.app.isPackaged
+          ? path.join(process.resourcesPath, "native/runtime/python.exe")
+          : path.join(__dirname, "native/runtime/python.exe"),
         [
-          "-NoProfile",
-          "-ExecutionPolicy",
-          "Bypass",
-          "-File",
+          "-u",
           path.join(
             this.app.isPackaged
               ? path.join(process.resourcesPath, "Chatbox")
               : path.join(__dirname, "integrations/chatbox"),
-            "dock.ps1",
+            "dock.py",
           ),
         ],
         { windowsHide: true, stdio: ["pipe", "ignore", "pipe"] },
@@ -89,7 +90,8 @@ class AIDock {
     const message = {
       mode: this.mode,
       hidden:
-        !this.visible || (this.mode === "sidebar" && this.overlay === true),
+        !this.visible || (this.mode === "sidebar" &&
+          (this.overlay === true || this.win.isMinimized() || !this.win.isVisible())),
       child: this.handle,
       parent,
       x: Math.round(

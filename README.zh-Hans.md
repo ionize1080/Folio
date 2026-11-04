@@ -330,3 +330,8 @@ Folio 自有代码采用 [MIT License](LICENSE)。组合分发包含 PyMuPDF/MuP
 当前应用没有遥测；检查和下载更新时访问 GitHub，文档处理和界面翻译均在本地完成。本地模型参与 OCR 和版面候选分析，不自动生成或改写文档正文。
 
 [2026 年 10 月評審採納與後續事項](docs/REVIEW-2026-10-07-response.md)
+
+
+## 2.0.1 compatibility update
+
+Sidebar input and Sogou IME were tested through native computer use. Sidebar and updater use bundled Python; no PowerShell process or WebView2 is required. Older versions on machines with PowerShell blocked must first upgrade by manually extracting the portable ZIP. [Validation and target-system limits](docs/RELEASE-2.0.1.md).

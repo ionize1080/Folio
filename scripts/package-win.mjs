@@ -79,7 +79,7 @@ for (const item of [
   "ai-dock.cjs",
   "storage-budget.cjs",
   "update-manager.cjs",
-  "portable-update.ps1",
+  "portable-update.py",
   "file-store.cjs",
   "source-store.cjs",
   "temp-store.cjs",

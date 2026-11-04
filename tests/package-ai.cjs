@@ -29,7 +29,7 @@ const { _electron: electron } = require("playwright"),
     await page.locator('[data-action="open"]').first().click();
     await page.waitForFunction(() => document.querySelector('#doc-name').textContent.includes('modes'));
     await page.locator('[data-action="right-mode"]').waitFor({state:'visible'});
-    assert((await page.title()).includes("2.0.0"));
+    assert((await page.title()).includes(require("../package.json").version));
     await page.evaluate(() => {
       window.aiState = null;
       window.desktop.onAIState((s) => (window.aiState = s));
@@ -86,15 +86,9 @@ const { _electron: electron } = require("playwright"),
     assert(!result.isError, JSON.stringify(result));
     assert.equal(result.content[1].type, "image");
     const root = app.process().pid;
-    const audit = execFileSync(
-      "powershell.exe",
-      [
-        "-NoProfile",
-        "-Command",
-        `$all=Get-CimInstance Win32_Process; $ids=@(${root}); do {$next=@($all | Where-Object {$_.ParentProcessId -in $ids -and $_.ProcessId -notin $ids} | Select-Object -ExpandProperty ProcessId); $ids+=$next} while($next.Count); @(@(Get-NetTCPConnection -State Listen -ErrorAction SilentlyContinue) | Where-Object {$_.OwningProcess -in $ids} | Select-Object LocalAddress,LocalPort,OwningProcess) | ConvertTo-Json -Compress`,
-      ],
-      { encoding: "utf8", windowsHide: true },
-    );
+    const audit = execFileSync(path.resolve('native/runtime/python.exe'),
+      [path.resolve('tests/process-audit.py'), String(root)],
+      {encoding:'utf8',windowsHide:true});
     const listeners = audit.trim() ? JSON.parse(audit) : [];
     assert.equal(
       Array.isArray(listeners) ? listeners.length : 1,
@@ -105,7 +99,7 @@ const { _electron: electron } = require("playwright"),
       "tests/output/packaged-ai.json",
       JSON.stringify(
         {
-          version: "2.0.0",
+          version: require("../package.json").version,
           tools: list.tools.length,
           defaultLimitMB: budget.limitMB,
           listeners,

@@ -332,49 +332,23 @@ class UpdateManager {
         path.join(this.home, "last-install.json"),
         JSON.stringify({ manifest: path.basename(manifest) }),
       );
-      const script = manifest + ".ps1";
-      await fs.writeFile(
-        script,
-        "\uFEFF" +
-          (
-            await fs.readFile(
-              path.join(__dirname, "portable-update.ps1"),
-              "utf8",
-            )
-          ).replace(/^\uFEFF/, ""),
-      );
+      const helperRoot = manifest + ".runtime";
+      await fs.mkdir(helperRoot, { recursive: true });
+      const runtime = path.join(process.resourcesPath || __dirname, "native/runtime");
+      for (const name of ["python.exe", "python312.dll", "python3.dll", "python312.zip", "python312._pth", "vcruntime140.dll", "vcruntime140_1.dll", "_ctypes.pyd", "libffi-8.dll", "_hashlib.pyd", "libcrypto-3.dll"])
+        await fs.copyFile(path.join(runtime, name), path.join(helperRoot, name));
+      const script = path.join(helperRoot, "portable-update.py");
+      await fs.copyFile(path.join(__dirname, "portable-update.py"), script);
       const output = await fs.open(launchLog, "a");
       let child,
         helperPid,
         committed = false;
       try {
         child = spawn(
-          path.join(
-            process.env.SystemRoot || "C:\\Windows",
-            "System32",
-            "WindowsPowerShell",
-            "v1.0",
-            "powershell.exe",
-          ),
-          [
-            "-NoProfile",
-            "-STA",
-            "-NonInteractive",
-            "-WindowStyle",
-            "Hidden",
-            "-ExecutionPolicy",
-            "Bypass",
-            "-File",
-            script,
-            "-Manifest",
-            manifest,
-            "-Bootstrap",
-          ],
-          // A short-lived normal PowerShell bootstrap starts the actual helper
-          // with its own hidden console. Neither DETACHED_PROCESS nor sharing
-          // the parent's console reliably survives the Windows handoff.
+          path.join(helperRoot, "python.exe"),
+          ["-u", script, manifest],
           {
-            detached: false,
+            detached: true,
             stdio: ["ignore", output.fd, output.fd],
             cwd: this.home,
             windowsHide: true,
