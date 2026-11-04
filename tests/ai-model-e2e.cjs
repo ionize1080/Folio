@@ -58,21 +58,21 @@ const { _electron: electron, chromium } = require("playwright"),
       timeout: 20000,
     });
     await page.waitForTimeout(2000);
-    const key = fs
-      .readFileSync("D:/APP/API/qwen-plan.txt", "utf8")
+    const key = (process.env.FOLIO_QWEN_API_KEY || fs.readFileSync("D:/APP/API/qwen-plan.txt", "utf8"))
       .trim()
       .replace(/^\uFEFF/, "");
-    await page.evaluate(async (key) => {
+    await page.evaluate(async ({key,endpoint}) => {
       const s = await window.electronAPI.invoke("getSettings");
       s.language = "en";
       s.messageLayout = "left";
       s.providers["folio-qwen"].apiKey = key;
+      if(endpoint)s.providers["folio-qwen"].apiHost = endpoint;
       await window.electronAPI.invoke(
         "setStoreValue",
         "settings",
         JSON.stringify(s),
       );
-    }, key);
+    }, {key,endpoint:process.env.FOLIO_QWEN_API_URL});
     await page.reload();
     await page.waitForFunction(() => !!window.electronAPI?.invoke);
     await page.waitForTimeout(3000);
