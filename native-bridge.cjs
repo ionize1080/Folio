@@ -1,3 +1,4 @@
+const {storageBudget}=require('./storage-budget.cjs');
 const { makeTemp } = require("./temp-store.cjs");
 const fs = require("node:fs/promises"),
   path = require("node:path"),
@@ -208,6 +209,7 @@ class NativeBridge {
         return this.backgroundCache.get(key);
       if (command === "apply" && this.cache.has(key)) {
         const entry = this.cache.get(key);
+        storageBudget.touch(entry);
         this.cache.delete(key);
         this.cache.set(key, entry);
         try {
@@ -243,9 +245,11 @@ class NativeBridge {
           const file = path.join(this.cacheRoot, key + ".pdf");
           await fs.copyFile(output, file);
           this.cache.set(key, file);
+          await storageBudget.add(file,{onEvict:()=>this.cache.delete(key)});
           while (this.cache.size > 2) {
             const [old, oldfile] = this.cache.entries().next().value;
             this.cache.delete(old);
+            storageBudget.forget(oldfile);
             await fs.rm(oldfile, { force: true }).catch(() => {});
           }
           return { bytes: await fs.readFile(output), cached: false };
@@ -271,6 +275,7 @@ class NativeBridge {
     }
   }
   async clearCache() {
+    for(const file of this.cache.values())storageBudget.forget(file);
     this.cache.clear();
     this.backgroundCache.clear();
     if (this.cacheRoot)

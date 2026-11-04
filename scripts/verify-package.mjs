@@ -56,6 +56,12 @@ assert(
   "packaged visible version differs from release version",
 );
 for (const f of [
+  "ai-host.cjs",
+  "ai-dock.cjs",
+  "storage-budget.cjs",
+  "src/ai-ui.mjs",
+  "src/ai-tools.mjs",
+  "src/ai-worker.mjs",
   "native-bridge.cjs",
   "large-files.cjs",
   "flow-layout.cjs",
@@ -188,8 +194,12 @@ async function compareNative(dir, rel = "") {
 await compareNative(path.join(root, "native"));
 const nativeCodeHash = createHash("sha256");
 const nativeDirectory = path.join(out, "resources/native");
-for (const name of (await fs.readdir(nativeDirectory)).filter((n) => n.endsWith(".py")).sort()) {
-  const hash = createHash("sha256").update(await fs.readFile(path.join(nativeDirectory, name))).digest("hex");
+for (const name of (await fs.readdir(nativeDirectory))
+  .filter((n) => n.endsWith(".py"))
+  .sort()) {
+  const hash = createHash("sha256")
+    .update(await fs.readFile(path.join(nativeDirectory, name)))
+    .digest("hex");
   nativeCodeHash.update(name + "\n" + hash + "\n");
 }
 for (const f of [
@@ -228,6 +238,55 @@ for (const f of [
   "runtime/Lib/site-packages/rapid_layout/__init__.py",
 ])
   await fs.access(path.join(out, "resources/native", f));
+for (const name of [
+  "ChatboxRuntime/electron.exe",
+  "ChatboxRuntime/resources/default_app.asar",
+  "Chatbox/Chatbox-1.20.3-source.zip",
+  "Chatbox/CHATBOX-LICENSE.txt",
+  "pdf-runtime/python.exe",
+  "pdf-runtime/tesseract/tesseract.exe",
+])
+  await fs.access(path.join(out, "resources", name));
+for (const name of [
+  "bootstrap.cjs",
+  "stdio.cjs",
+  "network.cjs",
+  "vision-body.cjs",
+  "dock.ps1",
+])
+  assert.deepEqual(
+    await fs.readFile(path.join(out, "resources/Chatbox", name)),
+    await fs.readFile(path.join(root, "integrations/chatbox", name)),
+    `stale Chatbox adapter ${name}`,
+  );
+for (const name of ["pdf-server.py", "pdf_objects.py"])
+  assert.deepEqual(
+    await fs.readFile(path.join(out, "resources/pdf-runtime", name)),
+    await fs.readFile(path.join(root, "integrations", name)),
+    `stale PDF adapter ${name}`,
+  );
+const chatboxProvenance = JSON.parse(
+  await fs.readFile(
+    path.join(out, "resources/Chatbox/provenance.json"),
+    "utf8",
+  ),
+);
+assert.equal(
+  chatboxProvenance.sourceCommit,
+  "d3cd0ad1e6a1127bbbf3991bb5296c181f4cbdeb",
+);
+for (const patch of chatboxProvenance.patches)
+  assert.equal(
+    createHash("sha256")
+      .update(
+        await fs.readFile(
+          path.join(out, "resources/Chatbox/native", patch.file),
+        ),
+      )
+      .digest("hex"),
+    patch.sha256,
+    `Chatbox patch ${patch.file}`,
+  );
 const info = {
   native_compared_files: nativeFiles,
   native_code_sha256: nativeCodeHash.digest("hex"),

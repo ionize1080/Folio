@@ -1,5 +1,15 @@
 # Third-party components
 
+## AI components added in 2.0.0
+
+- Chatbox 1.20.3, GPL-3.0: official binary archive SHA-256 `e43647af8168b731caa9afaed269a4700f8686c257fbc4dd6a254da42729fa01`; upstream source commit `d3cd0ad1e6a1127bbbf3991bb5296c181f4cbdeb`. The portable bundle includes `resources/Chatbox/CHATBOX-LICENSE.txt`, the corresponding upstream source ZIP and `provenance.json`. Folio adaptations are supplied in `integrations/chatbox` and the exact preparation script. Upstream dependencies retain their licenses.
+- PDF MCP 2.0.0, Apache-2.0, commit `9d66cca073f664a8c97d4984b5d9d61d68d4ba30`: all 57 registered tools retained; source submodule `integrations/pdf-mcp-upstream`, LICENSE/NOTICE included under `resources/pdf-runtime/licenses/pdf-mcp`.
+- Model Context Protocol TypeScript SDK 1.32.1, MIT: pinned by `integrations/chatbox/package-lock.json`. Python dependencies are pinned in `integrations/pdf-mcp-requirements.lock.txt`; their distribution metadata and licenses remain in the portable runtime.
+- Tesseract OCR 5.5.3 and tessdata_fast, Apache-2.0: Windows portable binaries and English, simplified/traditional Chinese and orientation models. Model source revision and individual SHA-256 hashes are in PDF runtime provenance. Paddle remains the preferred Folio OCR engine.
+- pyzbar 0.1.9, MIT, with its bundled ZBar/libiconv libraries and their included notices, supplies barcode detection.
+
+Chatbox is a separate GPL program launched locally; its model configuration is not replaced by a Folio-only settings format. No API keys or test profiles are part of the distribution.
+
 | Component | Version | License | Included license |
 |---|---|---|---|
 | Electron | 44.3.0 | MIT, plus Chromium third-party licenses | Runtime LICENSE and LICENSES.chromium.html |

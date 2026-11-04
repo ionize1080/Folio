@@ -12,3 +12,6 @@ docs/validation*/
 dist/
 deliverables/
 release-assets/
+
+.ai-runtime/
+.venv-ai/

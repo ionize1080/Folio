@@ -1,0 +1,3 @@
+[submodule "integrations/pdf-mcp-upstream"]
+	path = integrations/pdf-mcp-upstream
+	url = https://github.com/nfsarch33/pdf-mcp-server.git

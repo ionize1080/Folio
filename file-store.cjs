@@ -1,3 +1,4 @@
+const { storageBudget } = require("./storage-budget.cjs");
 const fs = require("node:fs/promises"),
   syncFS = require("node:fs"),
   path = require("node:path"),
@@ -169,6 +170,7 @@ class FileStore {
     e.writing = true;
     try {
       await e.f.writeFile(Buffer.from(bytes));
+      await storageBudget.add(e.tmp, { pinned: true });
       e.hash.update(Buffer.from(bytes));
       e.offset += bytes.length;
       e.time = Date.now();
@@ -190,6 +192,8 @@ class FileStore {
       await e.f.close();
       await this.checkVersion(e.file, e.expected);
       await this.replace(e.tmp, e.file);
+      storageBudget.forget(e.tmp);
+      await storageBudget.trim();
       await this.savedVersion(e.file, e.hash.digest("hex"));
       this.streams.delete(id);
       return {
@@ -208,6 +212,8 @@ class FileStore {
       this.streams.delete(id);
       await e.f.close().catch(() => {});
       await fs.rm(e.tmp, { force: true }).catch(() => {});
+      storageBudget.forget(e.tmp);
+      await storageBudget.trim();
     }
   }
   async close() {
@@ -238,6 +244,7 @@ class FileStore {
       await f.sync();
       await f.close();
       f = null;
+      await storageBudget.add(tmp, { pinned: true });
       await this.checkVersion(file, grant.expected);
       await this.replace(tmp, file);
       await this.savedVersion(
@@ -256,6 +263,9 @@ class FileStore {
       throw Error(
         `保存 ${path.basename(file)} 失败：${labels[err.code] || err.message}`,
       );
+    } finally {
+      storageBudget.forget(tmp);
+      await storageBudget.trim();
     }
     return {
       name: path.basename(file),

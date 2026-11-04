@@ -7,12 +7,12 @@ package = json.loads((root / 'package.json').read_text())
 version = package['version'] + ('-' + package['releaseChannel'].upper() if package.get('releaseChannel') else '')
 out = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else root.parent / 'deliverables'
 out.mkdir(parents=True, exist_ok=True)
-files = [out / f'Folio-PDF-Studio-{version}-win-x64.zip', out / f'Folio-PDF-Studio-{version}-source.zip']
+files = [out / f'Folio-PDF-Studio-{version}-portable-win-x64.zip', out / f'Folio-PDF-Studio-{version}-source.zip']
 base = root / 'dist/Folio-PDF-Studio-win-x64'
 with zipfile.ZipFile(files[0], 'w', zipfile.ZIP_DEFLATED, compresslevel=6) as z:
     for f in sorted(base.rglob('*')):
         rel = f.relative_to(base)
-        if f.is_file() and not any(p.startswith('.') or p == '__pycache__' for p in rel.parts) and f.name not in ['electron.exe', 'default_app.asar']:
+        if f.is_file() and not any(p.startswith('.') or p == '__pycache__' for p in rel.parts) and rel != Path('resources/default_app.asar') and rel != Path('electron.exe'):
             z.write(f, Path('Folio-PDF-Studio') / rel)
 with zipfile.ZipFile(files[1], 'w', zipfile.ZIP_DEFLATED, compresslevel=6) as z:
     manifest = []
@@ -27,4 +27,5 @@ for f in files:
         assert z.testzip() is None
     result.append({'file': f.name, 'bytes': f.stat().st_size, 'sha256': hashlib.sha256(f.read_bytes()).hexdigest()})
 (out / f'Folio-PDF-Studio-{version}-SHA256.json').write_text(json.dumps(result, indent=2))
+(out / f'Folio-PDF-Studio-{version}-SHA256.txt').write_text(''.join(item['sha256']+'  '+item['file']+'\n' for item in result),encoding='utf8')
 print(json.dumps(result, indent=2))

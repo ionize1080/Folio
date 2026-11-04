@@ -2,8 +2,8 @@
 
 [English](README.md) · [简体中文](README.zh-Hans.md) · **繁體中文**
 
-> **1.9.1**：修復教材舊格式內嵌字型、寬行距正文分段、背景誤報衝突和帶標籤段落儲存，改善軟換行增刪與缺字比對速度。
-> [下載 1.9.1](https://github.com/ionize1080/Folio/releases/tag/v1.9.1) · [釋出說明與限制](docs/RELEASE-1.9.1.zh-Hant.md) · [深度編輯實測](docs/DEEP-EDIT-1.9.1.zh-Hans.md)。本版在 Windows 本機驗收，附件報告記錄原始碼提交及實際發行套件雜湊。
+> **2.0.0 — AI 輔助與 2 GB 快取**
+> 預設側欄 Chatbox 1.20.3，可切換獨立視窗；透過原生設定配置 API 和模型。按需探索 23 項 Folio 操作、60 項 PDF 工具及 29 項底層物件操作。預設手動審批，自動審批雙重確認並標紅。本機 Paddle 優先，95% 低信心閾值可調，複雜頁面可按需使用外部影像辨識。快取預設 2 GB，大檔案任務臨時擴容。 [下载 / 下載](https://github.com/ionize1080/Folio/releases/tag/v2.0.0) · [AI 指南](docs/AI.md) · [验证记录 / 驗證記錄](docs/RELEASE-2.0.0.md)
 
 面向 Windows x64 的離線 PDF 工作臺，重點解決長文件的**書籤生成與整理、頁面內文字編輯、OCR 識別與校對**。閱讀、版面分析、字型匹配和 OCR 在本地執行；完整便攜包無需另裝 Python、Node.js 或模型。
 
@@ -27,11 +27,10 @@
 
 | 檔案 | 用途 |
 | --- | --- |
-| `Folio-PDF-Studio-1.9.1-portable-win-x64.zip` | 完整便攜包，解壓後執行 `Folio.exe` |
-| `Folio-PDF-Studio-1.9.1-source.zip` | 完整離線原始碼與隨包執行資源 |
-| `Folio-PDF-Studio-1.9.1-update-repair.zip` | 舊版本更新故障的一次性修復工具 |
-| `Folio-PDF-Studio-1.9.1-validation.json` | Windows 迴歸、本機樣本範圍及對應原始碼和程式雜湊 |
-| `Folio-PDF-Studio-1.9.1-SHA256.txt` | 附件校驗值 |
+| `Folio-PDF-Studio-2.0.0-portable-win-x64.zip` | 完整便攜包，解壓後執行 `Folio.exe` |
+| `Folio-PDF-Studio-2.0.0-source.zip` | 完整離線原始碼與隨包執行資源 |
+| `Folio-PDF-Studio-2.0.0-validation.json` | Windows 迴歸、本機樣本範圍及對應原始碼和程式雜湊 |
+| `Folio-PDF-Studio-2.0.0-SHA256.txt` | 附件校驗值 |
 
 請保留解壓後的完整目錄，包括 `resources`、`locales` 和 DLL。GitHub 自動生成的 **Source code (zip/tar.gz)** 是倉庫快照，與上述完整離線 `source.zip` 的資產範圍不同。
 

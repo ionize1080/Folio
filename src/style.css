@@ -5038,3 +5038,14 @@ body[data-right="narrow"] .inspector { overflow:clip; }
 .st-page-choice { display: inline-flex; align-items: center; gap: 3px; padding: 3px 6px; border: 1px solid var(--line); border-radius: 8px; }
 .st-page-choice:has(input:checked) { background: var(--accent-soft); border-color: var(--accent); }
 .st-page-choice input { width: 16px; height: 16px; }
+
+body.ai-sidebar-open { --ai-left: var(--sidebar, 300px); }
+body.ai-sidebar-open[data-left="narrow"] { --ai-left: 48px; }
+body.ai-sidebar-open[data-left="hidden"] { --ai-left: 0px; }
+body.ai-sidebar-open > main { grid-template-columns: var(--ai-left) minmax(100px, 1fr) clamp(340px, 36vw, 480px) !important; }
+body.ai-sidebar-open .inspector,body.ai-sidebar-open .inspector * { visibility: hidden !important; }
+.folio-ai-open { white-space: nowrap; }
+
+.preferences-ai { margin: 20px 0; padding: 16px; border: 1px solid var(--line); border-radius: 12px; }
+.preferences-ai legend { padding: 0 8px; font-weight: 600; }
+.folio-ai-open[aria-pressed="true"] { background: var(--accent-soft); }

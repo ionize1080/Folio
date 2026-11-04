@@ -2409,11 +2409,13 @@ async function cacheDialog() {
   };
 }
 async function settingsDialog() {
+  const ai = aiUI?.getSettings();
+  const diskBudget=await window.desktop?.storageBudget?.();
   const software = (await window.desktop?.graphics?.()) || false;
   const network = (await window.desktop?.updateInfo?.())?.settings;
   modal(
     "偏好设置",
-    `<div class="preferences-language"><span>界面语言</span>${languagePicker("settings-language")}<small>立即生效，并记住选择。不会改变文档文字或 OCR 语言。</small></div><div class="form-grid"><label>默认留白单位<select id="set-whitespace-unit"><option value="mm">毫米 mm</option><option value="pt">点 pt</option></select></label><label>外观主题<select id="set-theme"><option value="light">浅色</option><option value="dark">深色</option></select></label><label>书签侧栏宽度（px）<input id="set-sidebar" type="number" min="220" max="520" value="${settings.sidebar}"></label><label>书签行高<select id="set-row"><option value="28">紧凑 · 28 px</option><option value="34">标准 · 34 px</option><option value="40">宽松 · 40 px</option></select></label><label>渲染像素倍率上限<select id="set-quality"><option value="1">1× · 节省内存</option><option value="2">2× · 推荐</option><option value="3">3× · 高清</option></select></label><label>撤销步数上限<input id="set-undo" type="number" min="5" max="100" value="${settings.undo}"></label></div><label class="check"><input id="set-outline" type="checkbox" ${settings.showBookmarks ? "checked" : ""}>保存后建议阅读器显示书签面板</label><label class="check"><input id="set-protect" type="checkbox" ${settings.protect ? "checked" : ""}>原文件保护：首次保存为副本，之后更新副本</label><label class="check"><input id="set-restore" type="checkbox" ${settings.restoreView ? "checked" : ""}>记住每本文档的阅读位置、缩放和布局（关闭后尊重文档初始视图）</label><label class="check"><input id="set-ignore-zoom" type="checkbox" ${settings.ignoreZoom ? "checked" : ""}>忽略书签的缩放要求（不修改 PDF 目标）</label><label class="check"><input id="set-wrap" type="checkbox" ${settings.wrap ? "checked" : ""}>长书签标题显示两行</label><label class="check"><input id="set-summary" type="checkbox" ${settings.saveSummary ? "checked" : ""}>保存前显示修改摘要</label><label class="check"><input id="set-gpu" type="checkbox" ${software ? "checked" : ""} ${window.desktop?.graphics ? "" : "disabled"}>显卡兼容：关闭硬件加速（重新启动后生效）</label><label>HTTP 代理（更新共用）<input id="set-http-proxy" placeholder="留空使用系统代理"></label><button data-action="shortcuts">自定义快捷键…</button><button id="ocr-cache-open">OCR 任务记录与缓存…</button><p class="hint">撤销快照受 32 MB 预算限制；画布按可见范围加载，高清画布与分块按约 128 MB 预算回收，当前可见区域优先，缩放期间保留已完成画面。恢复快照在编辑停止 0.7 秒后保存在本机。</p>`,
+    `<div class="preferences-language"><span>界面语言</span>${languagePicker("settings-language")}<small>立即生效，并记住选择。不会改变文档文字或 OCR 语言。</small></div><div class="form-grid"><label>默认留白单位<select id="set-whitespace-unit"><option value="mm">毫米 mm</option><option value="pt">点 pt</option></select></label><label>外观主题<select id="set-theme"><option value="light">浅色</option><option value="dark">深色</option></select></label><label>书签侧栏宽度（px）<input id="set-sidebar" type="number" min="220" max="520" value="${settings.sidebar}"></label><label>书签行高<select id="set-row"><option value="28">紧凑 · 28 px</option><option value="34">标准 · 34 px</option><option value="40">宽松 · 40 px</option></select></label><label>渲染像素倍率上限<select id="set-quality"><option value="1">1× · 节省内存</option><option value="2">2× · 推荐</option><option value="3">3× · 高清</option></select></label><label>磁盘缓存上限（MB，默认2048）<input id="set-disk-budget" type="number" min="64" max="262144" value="${diskBudget?.limitMB||2048}"></label><label>撤销步数上限<input id="set-undo" type="number" min="5" max="100" value="${settings.undo}"></label></div>${ai ? `<fieldset class="preferences-ai"><legend>AI 文档辅助</legend><p class="hint">API、服务商和模型在 Chatbox 原生设置中配置；以下选项管理 Folio 文档操作。</p><div class="form-grid"><label>操作审批<select id="set-ai-approval"><option value="manual">手动审批</option><option value="auto">自动审批</option></select></label><label>Chatbox 显示方式<select id="set-ai-display"><option value="sidebar">侧栏</option><option value="window">独立窗口</option></select></label><label>OCR 低置信度复核阈值（%）<input id="set-ai-threshold" type="number" min="0" max="100" step="1" value="${ai.threshold}"></label></div><p class="hint">优先本地 Paddle；低于阈值的结果可按需交给所选模型复核。默认 95%。自动审批仅在本次会话生效，启用需二次确认，AI 图标标红。</p></fieldset>` : ""}<label class="check"><input id="set-outline" type="checkbox" ${settings.showBookmarks ? "checked" : ""}>保存后建议阅读器显示书签面板</label><label class="check"><input id="set-protect" type="checkbox" ${settings.protect ? "checked" : ""}>原文件保护：首次保存为副本，之后更新副本</label><label class="check"><input id="set-restore" type="checkbox" ${settings.restoreView ? "checked" : ""}>记住每本文档的阅读位置、缩放和布局（关闭后尊重文档初始视图）</label><label class="check"><input id="set-ignore-zoom" type="checkbox" ${settings.ignoreZoom ? "checked" : ""}>忽略书签的缩放要求（不修改 PDF 目标）</label><label class="check"><input id="set-wrap" type="checkbox" ${settings.wrap ? "checked" : ""}>长书签标题显示两行</label><label class="check"><input id="set-summary" type="checkbox" ${settings.saveSummary ? "checked" : ""}>保存前显示修改摘要</label><label class="check"><input id="set-gpu" type="checkbox" ${software ? "checked" : ""} ${window.desktop?.graphics ? "" : "disabled"}>显卡兼容：关闭硬件加速（重新启动后生效）</label><label>HTTP 代理（更新共用）<input id="set-http-proxy" placeholder="留空使用系统代理"></label><button data-action="shortcuts">自定义快捷键…</button><button id="ocr-cache-open">OCR 任务记录与缓存…</button><p class="hint">撤销快照受 32 MB 预算限制；画布按可见范围加载，高清画布与分块按约 128 MB 预算回收，当前可见区域优先，缩放期间保留已完成画面。恢复快照在编辑停止 0.7 秒后保存在本机。缓存超限按最近使用时间轮替；大文件处理中临时扩容，当前文档、原子保存及未保存草稿受保护。</p>`,
     [
       { text: "取消", run: closeModal },
       {
@@ -2424,6 +2426,10 @@ async function settingsDialog() {
             undo = Number($("#set-undo").value);
           if (sidebar < 220 || sidebar > 520 || undo < 5 || undo > 100)
             throw Error("设置数值超出范围");
+          if (ai && !aiUI.applySettings({ threshold: Number($("#set-ai-threshold").value), auto: $("#set-ai-approval").value === "auto", display: $("#set-ai-display").value })) return;
+          const budget=Number($("#set-disk-budget").value);
+          if(window.desktop?.storageBudget)await window.desktop.storageBudget(budget);
+          localStorage.setItem("folio-storage-budget-mb",String(budget));
           if (window.desktop?.graphics)
             await window.desktop.graphics($("#set-gpu").checked);
           if (network)
@@ -2451,6 +2457,10 @@ async function settingsDialog() {
       },
     ],
   );
+  if (ai) {
+    $("#set-ai-approval").value = ai.auto ? "auto" : "manual";
+    $("#set-ai-display").value = ai.display;
+  }
   $("#set-http-proxy").value = network?.proxy || "";
   $("#ocr-cache-open").onclick = () => guarded(cacheDialog);
   $("#set-whitespace-unit").value = preferredUnit();
@@ -2461,7 +2471,7 @@ async function settingsDialog() {
 function helpDialog() {
   modal(
     document.title,
-    `<p>面向 Windows 11 x64 的离线书签工作台。建议先用副本验证实际工作文档。</p><h3>快捷操作</h3><p>Ctrl+O 打开 · Ctrl+S 保存 · Ctrl+Shift+S 另存 · Ctrl+B 书签面板 · Ctrl+Shift+B 新建<br>Ctrl+Z 撤销 · Ctrl+Y 重做 · Ctrl+F 搜索正文 · Ctrl+滚轮缩放 · Alt+左右返回视图<br>Ctrl / Shift 多选 · Delete 删除 · F2 改名<br>书签树中 Ctrl+A 全选 · Alt+左右箭头 升降级 · Tab 移动焦点<br>拖动行：上部插在前面，中部成为子项，下部插在后面；左侧退级区域移至根层。悬停展开，Esc 取消</p><h3>精确目标</h3><p>PDF 坐标以 pt 为单位，使用原生页面坐标系。XYZ = [左, 顶, 缩放]；留空为 null。FitR = [左, 底, 右, 顶]。XYZ 的 zoom=0 由阅读器解释为保持缩放。原始动作默认保持；使用「整理 → 原始本地目标 → 可编辑目标」后可统一偏移。</p><h3>当前边界</h3><p>已实现书签、批注、旋转、页面提取与追加、文档属性编辑。已加入文字/路径对象编辑、离线 OCR、段落流式编辑和同页分栏续排；工作工程可续编。加密文件可通过更多工具导出无密码副本后编辑。尚未实现跨页文章重排、公式结构编辑、表单编辑、安全涂黑、数字签名，以及 PDF-XChange 专有书签导入导出。不是 PDF-XChange 全功能替代品。</p><h3>技术与许可</h3><p>Electron 44.3.0 · PDF.js 5.6.205（Apache-2.0）· pdf-lib 1.17.1（MIT）。源码及依赖许可随包附带。图像调整离线运行；仅检查更新和下载时访问 GitHub。</p>`,
+    `<p>面向 Windows 11 x64 的离线书签工作台。建议先用副本验证实际工作文档。</p><h3>快捷操作</h3><p>Ctrl+O 打开 · Ctrl+S 保存 · Ctrl+Shift+S 另存 · Ctrl+B 书签面板 · Ctrl+Shift+B 新建<br>Ctrl+Z 撤销 · Ctrl+Y 重做 · Ctrl+F 搜索正文 · Ctrl+滚轮缩放 · Alt+左右返回视图<br>Ctrl / Shift 多选 · Delete 删除 · F2 改名<br>书签树中 Ctrl+A 全选 · Alt+左右箭头 升降级 · Tab 移动焦点<br>拖动行：上部插在前面，中部成为子项，下部插在后面；左侧退级区域移至根层。悬停展开，Esc 取消</p><h3>精确目标</h3><p>PDF 坐标以 pt 为单位，使用原生页面坐标系。XYZ = [左, 顶, 缩放]；留空为 null。FitR = [左, 底, 右, 顶]。XYZ 的 zoom=0 由阅读器解释为保持缩放。原始动作默认保持；使用「整理 → 原始本地目标 → 可编辑目标」后可统一偏移。</p><h3>当前边界</h3><p>已实现书签、批注、旋转、页面提取与追加、文档属性编辑。已加入文字/路径对象编辑、离线 OCR、段落流式编辑和同页分栏续排；工作工程可续编。加密文件可通过更多工具导出无密码副本后编辑。尚未实现跨页文章重排、公式结构编辑、表单编辑、安全涂黑、数字签名，以及 PDF-XChange 专有书签导入导出。不是 PDF-XChange 全功能替代品。</p><h3>技术与许可</h3><p>Electron 44.3.0 · PDF.js 5.6.205（Apache-2.0）· pdf-lib 1.17.1（MIT）。源码及依赖许可随包附带。图像调整离线运行；更新访问 GitHub，AI 按需通过 Chatbox 联系所选模型。</p>`,
     [
       {
         text: "检查更新",
@@ -2886,6 +2896,12 @@ function gotoDialog() {
   };
 }
 function panelMode(side) {
+  if (side === "right" && document.body.classList.contains("ai-sidebar-open")) {
+    window.desktop.aiOpen();
+    settings.rightMode = "full";
+    applySettings();
+    return;
+  }
   const key = side === "left" ? "leftMode" : "rightMode";
   settings[key] =
     settings[key] === "full"
@@ -4632,3 +4648,6 @@ installDropOpen({
 // A background or occluded window may not receive an animation frame. Confirm
 // initialization independently of painting so successful updates do not time out.
 window.desktop?.updateStarted?.().catch(() => {});
+
+import {installAI} from './ai-ui.mjs';
+const aiUI=installAI({S,commit,getLargeDocument:()=>largeWorkspace,session:documentSession,applyContent:async(edits,ocr)=>{await refreshNative(edits,ocr);commit(clone(S.nodes),{nativeEdits:edits,ocr});},exportPDF:async()=>rpc('save',await buildExportSnapshot(S,settings,documentSession)),undo:()=>restoreHistory('undo'),redo:()=>restoreHistory('redo')});

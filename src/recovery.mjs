@@ -1,6 +1,6 @@
 import { digest, packState, unpackState } from "./portable-state.mjs";
 const ocrCache = new WeakMap();
-const BUDGET = 1024 * 1024 * 1024;
+const budget = () => {let mb=2048;try{mb=Number(localStorage.getItem("folio-storage-budget-mb"))||2048;}catch{}return Math.max(64,Math.min(262144,mb))*1024**2;};
 function open() {
   return new Promise((resolve, reject) => {
     const q = indexedDB.open("folio-recovery", 3);
@@ -67,7 +67,7 @@ export async function recoveryStore(value, sessionId = null) {
         const sizes = new Map();
         for (const r of retained)
           for (const [k, n] of Object.entries(r.sizes || {})) sizes.set(k, n);
-        if ([...sizes.values()].reduce((a, b) => a + b, 0) > BUDGET) {
+        if ([...sizes.values()].reduce((a, b) => a + b, 0) > Math.max(budget(),...[...retained].map(r=>Object.values(r.sizes||{}).reduce((a,b)=>a+b,0)))) {
           t.abort();
           return;
         }
@@ -105,7 +105,7 @@ export async function recoveryStore(value, sessionId = null) {
           Error(
             t.error?.name === "QuotaExceededError"
               ? "草稿空间不足，已保留上一份快照，请保存工程"
-              : "草稿未写入或超过 1 GB 配额，已保留上一份快照，请保存工程",
+              : "草稿未写入或超过配置配额，已保留上一份快照，请保存工程",
           ),
         );
     });

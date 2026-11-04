@@ -15,6 +15,17 @@ def source_files(root):
     root = Path(root).resolve()
     names = subprocess.check_output(['git', 'ls-files', '-z'], cwd=root).decode().split('\0')
     allowed = {Path(n) for n in names if n}
+    chatbox_source = Path('.ai-runtime/Chatbox/Chatbox-1.20.3-source.zip')
+    if (root/chatbox_source).exists():
+        if hashlib.sha256((root/chatbox_source).read_bytes()).hexdigest() != '97d1218b0b94a3d35d7b657b59fd5560320317ea6cd8ee7e4e123de77911adec':
+            raise ValueError('Unverified Chatbox source archive')
+        allowed.add(chatbox_source)
+    submodule = Path('integrations/pdf-mcp-upstream')
+    if submodule in allowed:
+        allowed.remove(submodule)
+        children = subprocess.check_output(['git','ls-files','-z'],cwd=root/submodule).decode().split('\0')
+        allowed.update(submodule/Path(n) for n in children if n)
+
     manifest = root / 'native/models/manifest.json'
     if manifest.exists():
         for item in json.loads(manifest.read_text(encoding='utf-8')):

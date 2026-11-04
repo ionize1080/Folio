@@ -1,3 +1,4 @@
+const {storageBudget}=require('./storage-budget.cjs');
 const { makeTemp } = require("./temp-store.cjs");
 const fs = require("node:fs/promises"),
   path = require("node:path"),
@@ -52,6 +53,7 @@ class SourceStore {
         leases: 0,
         released: false,
       });
+      await storageBudget.add(file,{pinned:true});
       return { handle, sha256: hash, size: data.length };
     } catch (error) {
       if (file) await fs.rm(file, { force: true }).catch(() => {});
@@ -86,6 +88,7 @@ class SourceStore {
     const e = this.entries.get(handle);
     if (e?.released && !e.leases) {
       this.entries.delete(handle);
+      storageBudget.forget(e.file);
       await fs.rm(e.file, { force: true }).catch(() => {});
     }
   }

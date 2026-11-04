@@ -631,7 +631,7 @@ class OCRJobs {
       throw Error("OCR 结果版本已失效，请重新应用");
     return this.references.get(id);
   }
-  async prune(budget = 1024 ** 3) {
+  async prune(budget = require('./storage-budget.cjs').storageBudget.limit) {
     // Original job inputs and old JSONL snapshots are reproducible caches.
     // Keep reviewed page JSON, corrections, current job and live history refs.
     await fs.mkdir(this.store, { recursive: true });

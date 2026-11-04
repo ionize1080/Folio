@@ -5,6 +5,25 @@ contextBridge.exposeInMainWorld("desktop", {
     ipcRenderer.on("native-progress", fn);
     return () => ipcRenderer.removeListener("native-progress", fn);
   },
+  storageBudget: (value) => ipcRenderer.invoke("storage-budget", value),
+  aiPdf: (value) => ipcRenderer.invoke("ai-pdf", value),
+  aiSnapshot: (bytes) => ipcRenderer.invoke("ai-snapshot", bytes),
+  aiApproval: (auto) => ipcRenderer.invoke("ai-approval", auto),
+  aiBounds: (bounds) => ipcRenderer.invoke("ai-bounds", bounds),
+  aiOverlay: (hidden) => ipcRenderer.invoke("ai-overlay", hidden),
+  aiDisplay: (mode) => ipcRenderer.invoke("ai-display", mode),
+  onAIState: (callback) => {
+    const fn = (_e, v) => callback(v);
+    ipcRenderer.on("ai-state", fn);
+    return () => ipcRenderer.removeListener("ai-state", fn);
+  },
+  aiOpen: () => ipcRenderer.invoke("ai-open"),
+  aiReply: (value) => ipcRenderer.invoke("ai-reply", value),
+  onAIRequest: (callback) => {
+    const fn = (_e, value) => callback(value);
+    ipcRenderer.on("ai-request", fn);
+    return () => ipcRenderer.removeListener("ai-request", fn);
+  },
   setLanguage: (value) => ipcRenderer.invoke("ui-language", value),
   updateInfo: () => ipcRenderer.invoke("update-info"),
   updateConfigure: (v) => ipcRenderer.invoke("update-configure", v),
@@ -18,6 +37,7 @@ contextBridge.exposeInMainWorld("desktop", {
     ipcRenderer.on("update-state", fn);
     return () => ipcRenderer.removeListener("update-state", fn);
   },
+  largeSource: (handle) => ipcRenderer.invoke("large-source", handle),
   largeRead: (data) => ipcRenderer.invoke("large-read", data),
   largePage: (data) => ipcRenderer.invoke("large-page", data),
   largeInfo: (data) => ipcRenderer.invoke("large-info", data),

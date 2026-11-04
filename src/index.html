@@ -7,7 +7,7 @@
       http-equiv="Content-Security-Policy"
       content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' blob: data:; connect-src 'self' blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'none'"
     />
-    <title>Folio PDF Studio 1.9.1</title>
+    <title>Folio PDF Studio 2.0.0</title>
     <link rel="stylesheet" href="style.css" />
     <link rel="stylesheet" href="vendor/pdf_viewer.css" />
   </head>
@@ -16,7 +16,7 @@
       <div class="brand">
         <img class="logo" src="brand.svg" alt="Folio">
         <div>Folio <b>PDF Studio</b></div>
-        <span class="version">1.9.1</span>
+        <span class="version">2.0.0</span>
       </div>
       <div class="doc-tab">
         <i data-icon="file"></i><span id="doc-name">未打开文档</span
@@ -312,7 +312,7 @@
             <i data-icon="rotate"></i>
           </button>
           <button data-action="right-mode" title="属性侧栏：展开 / 窄列 / 隐藏">
-            <i data-icon="sidebar"></i>
+            <i data-icon="sidebar-right"></i>
           </button>
         </div>
         <div id="findbar" hidden>
@@ -346,7 +346,7 @@
                 ><small>标题字号 · 正则 · 目录文本</small>
               </div>
               <div>
-                <i data-icon="shield"></i><b>文档留在本机</b
+                <i data-icon="shield"></i><b>本地编辑 · 可选 AI</b
                 ><small>离线处理 · 默认另存副本</small>
               </div>
             </div>
@@ -439,7 +439,7 @@
           <div class="hint" id="target-note"></div>
         </form>
         <div class="inspector-footer">
-          <i data-icon="shield"></i>离线运行 · 不上传文档
+          <i data-icon="shield"></i>本地编辑 · AI 按需辅助
         </div>
         <div class="panel-rail">
           <button data-action="right-expand" title="展开属性">
@@ -456,7 +456,7 @@
     <dialog aria-labelledby="modal-title" id="modal">
       <div class="modal-header">
         <div>
-          <span class="eyebrow" id="modal-kicker">FOLIO 1.9.1</span>
+          <span class="eyebrow" id="modal-kicker">FOLIO 2.0.0</span>
           <h2 id="modal-title"></h2>
         </div>
         <button id="modal-close" aria-label="关闭">×</button>

@@ -75,6 +75,9 @@ for (const item of [
   "node_modules/opencc-js",
   "assets",
   "main.cjs",
+  "ai-host.cjs",
+  "ai-dock.cjs",
+  "storage-budget.cjs",
   "update-manager.cjs",
   "portable-update.ps1",
   "file-store.cjs",
@@ -117,6 +120,11 @@ await fs.cp(path.join(root, "native"), path.join(out, "resources/native"), {
   filter: (p) =>
     !p.includes("__pycache__") && !p.split(path.sep).includes("build-wheels"),
 });
+for (const component of ['Chatbox','pdf-runtime']) {
+  await fs.access(path.join(root,'.ai-runtime',component));
+  await fs.cp(path.join(root,'.ai-runtime',component),path.join(out,'resources',component),{recursive:true,filter:p=>!p.includes('__pycache__')&&!p.includes('__editable__')});
+}
+await fs.cp(path.join(root,'node_modules/electron/dist'),path.join(out,'resources/ChatboxRuntime'),{recursive:true});
 await asar.createPackage(stage, path.join(out, "resources", "app.asar"));
 await fs.rm(path.join(out, "resources", "default_app.asar"), { force: true });
 const exe = PE.NtExecutable.from(

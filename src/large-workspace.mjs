@@ -139,7 +139,7 @@ export async function openLargeWorkspace(file, ctx) {
     ctx.onClose();
     return true;
   }
-  ctx.onReady({ close, isDirty: () => dirty, isBusy: () => busy });
+  ctx.onReady({ close, isDirty: () => dirty, isBusy: () => busy, aiDescribe:()=>({name:file.name,pageCount:info?.pages||0,bookmarkCount:rows.length,busy,workspace:"large",handle:file.handle,hasUnsavedChanges:dirty}) });
   document.body.append(host);
   host.showModal();
   $("[data-name]").textContent = file.name;

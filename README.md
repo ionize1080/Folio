@@ -4,7 +4,11 @@
 
 An offline PDF workspace for Windows x64, built for **long-document bookmarks, in-page text and image editing, and OCR review**. The portable package includes its runtime, fonts and models. No separate Python or Node.js installation is needed.
 
-[Download](https://github.com/ionize1080/Folio/releases/latest) · [1.9.1 release notes](docs/RELEASE-1.9.1.md) · [Limitations](#limitations) · [Development](#development)
+[Download](https://github.com/ionize1080/Folio/releases/latest) · [2.0.0 release notes](docs/RELEASE-2.0.0.md) · [Limitations](#limitations) · [Development](#development)
+
+## AI assistance in 2.0.0
+
+Chatbox 1.20.3 opens as a sidebar and can detach into its own window. Configure providers, API keys and models in native Chatbox settings. Four on-demand MCP entry points expose 23 Folio operations and 60 PDF tools, including 29 low-level PDF object operations. Manual approval is the default; automatic approval requires two confirmations and turns the controls red. Local Paddle OCR runs first, with optional vision assistance and a configurable 95% confidence threshold. Disk caches default to 2 GB and protect active large files. See the [AI guide](docs/AI.md) and [validation and release notes](docs/RELEASE-2.0.0.md).
 
 ## Language and appearance
 
@@ -16,11 +20,10 @@ Display language is independent of PDF text, bookmark titles, fonts, OCR setting
 
 | Attachment | Purpose |
 | --- | --- |
-| `Folio-PDF-Studio-1.9.1-portable-win-x64.zip` | Complete portable application; extract everything and run `Folio.exe` |
-| `Folio-PDF-Studio-1.9.1-source.zip` | Complete offline source and bundled resources |
-| `Folio-PDF-Studio-1.9.1-update-repair.zip` | One-time repair for update failures in older releases |
-| `Folio-PDF-Studio-1.9.1-validation.json` | Acceptance results tied to source and binary hashes |
-| `Folio-PDF-Studio-1.9.1-SHA256.txt` | Attachment checksums |
+| `Folio-PDF-Studio-2.0.0-portable-win-x64.zip` | Complete portable application; extract everything and run `Folio.exe` |
+| `Folio-PDF-Studio-2.0.0-source.zip` | Source and core resources; AI runtime preparation is documented |
+| `Folio-PDF-Studio-2.0.0-validation.json` | Acceptance results tied to source and binary hashes |
+| `Folio-PDF-Studio-2.0.0-SHA256.txt` | Attachment checksums |
 
 Keep the entire folder, including `resources`, `locales` and DLLs. GitHub's automatic Source code archives are repository snapshots and contain fewer resources than the complete source attachment.
 
@@ -144,7 +147,7 @@ npm run build:win
 npm run test:package
 ```
 
-Version 1.9.1 uses local Windows acceptance and packaged EXE tests, with source and binary hashes recorded in its release validation attachment; see the [deep-edit report](docs/DEEP-EDIT-1.9.1.zh-Hans.md). [.github/workflows/folio-v16.yml](.github/workflows/folio-v16.yml) remains a historical packaging and Windows acceptance reference, including fontTools licensing. `npm start` launches development mode. `npm test` is the historical standard suite; release-specific checks run separately. Set `FOLIO_EXE` for `node tests/i18n-v16.cjs`. Other options include `FOLIO_PYTHON`, `FOLIO_CHROMIUM` and `FOLIO_FIXTURES`.
+Version 2.0.0 uses local Windows acceptance and packaged EXE tests, with source and binary hashes recorded in its release validation attachment; see the [deep-edit report](docs/DEEP-EDIT-2.0.0.zh-Hans.md). [.github/workflows/folio-v16.yml](.github/workflows/folio-v16.yml) remains a historical packaging and Windows acceptance reference, including fontTools licensing. `npm start` launches development mode. `npm test` is the historical standard suite; release-specific checks run separately. Set `FOLIO_EXE` for `node tests/i18n-v16.cjs`. Other options include `FOLIO_PYTHON`, `FOLIO_CHROMIUM` and `FOLIO_FIXTURES`.
 
 Edit translation JSON, run `node scripts/build-locales.mjs`, then unit/UI acceptance. Preserve placeholders and technical tokens. List new languages only after complete translation and validation. See [localization guidance](docs/LOCALIZATION.md).
 
@@ -154,7 +157,7 @@ Priorities remain paragraph ownership after reopening, font fidelity, OCR comple
 
 Folio code uses [MIT](LICENSE). Distributed PyMuPDF/MuPDF components use AGPL terms; fonts, models and runtimes retain their own licenses. The root license does not relicense dependencies. See [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
 
-Document processing and translation stay local. There is no telemetry. Checking/downloading updates accesses GitHub. Local OCR/layout models do not automatically generate or rewrite document prose.
+Core document processing and interface translation stay local. Optional AI sends requested text and page images through your selected Chatbox provider. Chatbox reporting is disabled. Checking/downloading updates accesses GitHub. Local OCR/layout models do not automatically generate or rewrite document prose.
 
 ## Smart contents recognition
 

@@ -11,6 +11,8 @@ const paths = {
   link: "M10 14l4-4 M8 16l-1 1a4 4 0 0 1-6-6l5-5a4 4 0 0 1 6 0 M16 8l1-1a4 4 0 0 1 6 6l-5 5a4 4 0 0 1-6 0",
   check: "M4 12l5 5L20 6",
   spacing: "M3 4h18 M7 20h10 M12 7v10 M9 10l3-3 3 3 M9 14l3 3 3-3",
+  chat: "M21 11.5a8.5 8.5 0 0 1-8.5 8.5H4l-2 2V11.5A8.5 8.5 0 0 1 10.5 3h2a8.5 8.5 0 0 1 8.5 8.5Z M7 10h9 M7 14h6",
+  "sidebar-right": "M3 4h18v16H3z M15 4v16 M17 8h2 M17 12h2",
   sidebar: "M3 4h18v16H3z M9 4v16 M5 8h2 M5 12h2",
   "save-as": "M4 3h14l3 3v7 M7 3v6h10V3 M3 3v18h9 M14 18l5-5 3 3-5 5-4 1z",
 

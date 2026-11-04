@@ -1,3 +1,4 @@
+const {storageBudget}=require('./storage-budget.cjs');
 const { cleanupTemps } = require("./temp-store.cjs");
 const {
   app,
@@ -12,6 +13,7 @@ const {
 const path = require("node:path"),
   fs = require("node:fs/promises"),
   { pathToFileURL } = require("node:url");
+if(process.env.FOLIO_TEST_PROFILE)app.setPath('userData',process.env.FOLIO_TEST_PROFILE);
 const graphicsFile = path.join(app.getPath("userData"), "graphics.json");
 let softwareGraphics = false;
 try {
@@ -92,6 +94,7 @@ function ipc(name, fn) {
 app.setName("Folio PDF Studio");
 app.setAppUserModelId("studio.folio.pdf");
 app.whenReady().then(async () => {
+  await storageBudget.configure(path.join(app.getPath("userData"),"storage-budget.json"));
   protocol.handle("folio", (request) => {
     const url = new URL(request.url);
     if (url.host !== "app") return new Response("", { status: 403 });
@@ -137,6 +140,7 @@ app.whenReady().then(async () => {
   win.webContents.on("render-process-gone", clearRendererSources);
   win.webContents.on("destroyed", clearRendererSources);
   Menu.setApplicationMenu(null);
+  require('./ai-host.cjs').installAIHost({app,win,ipc});
   win.on("close", (e) => {
     if (dirty && !allowClose) {
       e.preventDefault();
@@ -270,7 +274,8 @@ app.whenReady().then(async () => {
     native.root,
     path.join(app.getPath("userData"), "ocr-jobs"),
   );
-  ipc("ocr-job", (data) => ocrJobs.run(data));
+  ipc("ocr-job", async (data) => {const result=await ocrJobs.run(data);if(["start","stop","history","remove","collect"].includes(data.action))await ocrJobs.prune(Math.max(0,storageBudget.limit-storageBudget.status().bytes));return result;});
+  ipc("storage-budget",async value=>{if(value!==undefined)await storageBudget.setLimit(value);const ocr=await ocrJobs.prune(Math.max(0,storageBudget.limit-storageBudget.status().bytes));return {...storageBudget.status(),ocrBytes:ocr.bytes,pinnedOverBudget:ocr.pinnedOverBudget};});
   app.on("before-quit", () => ocrJobs.stop());
   ipc("qpdf", (data) => {
     if (!["qpdf-status", "qpdf-decrypt"].includes(data?.command))
@@ -287,6 +292,7 @@ app.whenReady().then(async () => {
   ipc("save-stream-finish", (id) => fileStore.finishStream(id));
   ipc("save-stream-abort", (id) => fileStore.abortStream(id));
   app.on("before-quit", () => fileStore.close());
+  ipc("large-source",async handle=>(await largeFiles.entry(handle)).file);
   ipc("large-read", (data) => largeFiles.read(data));
   ipc("large-info", (data) => largeFiles.info(data));
   ipc("large-page", (data) => largeFiles.page(data));
