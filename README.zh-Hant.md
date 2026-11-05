@@ -2,44 +2,32 @@
 
 [English](README.md) · [简体中文](README.zh-Hans.md) · **繁體中文**
 
-> [2.1.0 · 多文件與配色](docs/RELEASE-2.1.0.zh-Hant.md)
+Folio PDF Studio 2.1.0 是 Windows x64 上的本機 PDF 工作台。可以同時開啟多份文件，整理長文件的書籤、編輯頁面文字與圖片，或把掃描文件處理成可檢索 PDF。需要模型協助時，從工具列開啟 Chatbox。
 
-面向 Windows x64、以本機處理為主並支援可選 Chatbox AI 的 PDF 工作臺，重點解決長文件的**書籤生成與整理、頁面內文字編輯、OCR 識別與校對**。閱讀、版面分析、字型匹配和 OCR 在本地執行；完整便攜包無需另裝 Python、Node.js 或模型。
+[下載 Windows x64 可攜版](https://github.com/ionize1080/Folio/releases/download/v2.1.0/Folio-PDF-Studio-2.1.0-portable-win-x64.zip) · [本版說明](docs/RELEASE-2.1.0.zh-Hant.md) · [AI 使用指南](docs/AI.zh-Hant.md) · [文件索引](docs/README.md)
 
-[已實現功能](#已實現功能) · [專案架構](#專案架構) · [已知問題](#已知問題與適用邊界) · [下一步計劃](#下一步功能計劃) · [開發與測試](#開發構建與測試)
+## 開啟第一組檔案
 
-## 介面語言
+1. 下載可攜版 ZIP，解壓整個資料夾後執行 `Folio.exe`。保留同目錄的 DLL、`resources` 和 `locales`。完整可攜版已包含執行環境、字型和 OCR 模型。
+2. 在「開啟」對話方塊中多選 PDF 或 `.folio` 專案，也可以一起拖入視窗。用 Ctrl+Tab / Ctrl+Shift+Tab 切換分頁，用 Ctrl+W 或分頁上的關閉按鈕關閉目前文件。各檔案獨立儲存閱讀位置、選區和撤銷記錄。
+3. 編輯後先套用，再按 Ctrl+S 寫入目前 PDF。原件保護預設首次另存副本。關閉含未儲存修改的普通 PDF 時，可選擇儲存、放棄或取消。需要保留段落結構及 OCR 校對進度時，在「更多工具 → 匯入 / 匯出」儲存 `.folio` 專案。
+4. 開啟「首選項」設定外觀。明暗模式可跟隨系統，內建鈷藍、青瓷、琥珀、桑葚、石墨五套配色，也可以自選重點色。介面語言預設跟隨 Windows，之前手動選擇的語言優先。
 
-介面預設跟隨系統語言。前往偏好設定可選擇簡體中文、繁體中文或 English，並設定明暗外觀和強調色。
+同一釋出頁也提供[原始碼包](https://github.com/ionize1080/Folio/releases/download/v2.1.0/Folio-PDF-Studio-2.1.0-source.zip)、[校驗值](https://github.com/ionize1080/Folio/releases/download/v2.1.0/Folio-PDF-Studio-2.1.0-SHA256.txt)和[驗收報告](https://github.com/ionize1080/Folio/releases/download/v2.1.0/Folio-PDF-Studio-2.1.0-validation.json)。檢查更新可從「關於與使用說明 → 檢查更新」進入。
 
-語言切換保持未儲存的編輯、輸入框內容和文件狀態，不翻譯 PDF 正文、書籤標題或 OCR 校對內容，也不改變 OCR 識別語言和輸出字形。Windows 原生檔案對話方塊遵循系統語言，底層引擎/系統診斷可能保留原始技術文字。淺色和深色主題均支援鍵盤操作的語言控制元件。
+## 用 AI 閱讀與編輯
 
-## 新增使用入口
+- **對照文件**。選取一段內文或書籤，問「這段話是什麼意思？另一份開啟的檔案怎樣表述？請分別標註頁碼。」Chatbox 可以讀取目前頁面和選取範圍，也可以按檔名查閱背景分頁。
+- **改圖或增強掃描文件**。選取圖片，要求先預覽暖色濾鏡或 RGB 曲線，再用局部細節複核。換圖時可以選本機圖片並指定區域。需要可搜尋的掃描文件時，同時要求加入本機 OCR 文字層。
+- **插入流程圖**。說明要放在哪頁、有哪些節點、怎樣連線。儲存並重開 PDF 後，仍可修改 Folio 嵌入的 SVG 元素或流程圖節點。
+- **模型設定**。在 Chatbox 中選擇服務提供者與模型。預覽像素需要支援視覺輸入的模型。使用生成圖片或局部重繪時，還需在 Chatbox 圖像創作中選擇圖像生成模型。獨立圖像生成服務的線上效果仍待驗證。
 
-- **編輯影象**：主工具欄點選後，在 PDF 頁面選中圖片。側欄內調引數，原位預覽，應用或完成後儲存 PDF；取消放棄尚未應用的調整。
-- **檢查更新**：關於/使用說明 → 檢查更新。支援正式版/包含預釋出，首選項 HTTP 代理共用，下載校驗後安裝並重啟。程式目錄保持不變，舊版保留同級備份。1.2.2 首次升級仍需手動下載，1.3 起支援軟體內更新。
-- 本版覆蓋截圖中的 18 類調整專案，演算法採用 Folio 的獨立 RGB 實現；精確範圍與 Photoshop 差異見釋出說明。
-
-## 下載與使用
-
-在 Release 頁面按用途下載：
-
-| 檔案 | 用途 |
-| --- | --- |
-| `Folio-PDF-Studio-2.0.0-portable-win-x64.zip` | 完整便攜包，解壓後執行 `Folio.exe` |
-| `Folio-PDF-Studio-2.0.0-source.zip` | 原始碼與核心執行資源；AI 元件依建置指南準備 |
-| `Folio-PDF-Studio-2.0.0-validation.json` | Windows 迴歸、本機樣本範圍及對應原始碼和程式雜湊 |
-| `Folio-PDF-Studio-2.0.0-SHA256.txt` | 附件校驗值 |
-
-請保留解壓後的完整目錄，包括 `resources`、`locales` 和 DLL。GitHub 自動生成的 **Source code (zip/tar.gz)** 是倉庫快照，與上述完整離線 `source.zip` 的資產範圍不同。
-
-歷史 RC 附件及備份保留；舊版本驗收記錄不作為本版透過證據。
-
-基本流程：開啟或拖入 PDF → 編輯書籤、頁面內容或校對 OCR → 應用修改 → 儲存 PDF。“完成編輯”或“應用修改”更新當前會話，**仍需儲存檔案**。需要繼續調整段落結構、OCR 校對和內容編輯時，透過“更多工具 → 匯入 / 匯出”儲存 `.folio` 工程。
+## 快捷鍵
 
 | 快捷鍵 | 操作 |
 | --- | --- |
 | `Ctrl+O` / `Ctrl+S` / `Ctrl+Shift+S` | 開啟 / 儲存 / 另存為 |
+| `Ctrl+Tab` / `Ctrl+Shift+Tab` / `Ctrl+W` | 下一個分頁 / 上一個分頁 / 關閉目前分頁 |
 | `Ctrl+F` / `F3` / `Shift+F3` | 搜尋正文 / 下一個 / 上一個結果 |
 | `Ctrl+Z` / `Ctrl+Y` | 撤銷 / 重做，輸入期間優先作用於當前段落 |
 | 移動手柄方向鍵 / `Shift`＋方向鍵 | 1 pt / 10 pt 微調文字框；輸入文字時不移動文字框 |
@@ -50,18 +38,16 @@
 | `Ctrl+0` / `Ctrl+1` / `Ctrl+2` | 適合頁面 / 實際大小 / 適合寬度 |
 | `Alt+←` / `Alt+→` | 閱讀區返回 / 前進；書籤樹中用於升降級 |
 
-快捷鍵按所在區域解釋，可在首選項中配置。當前主要交付平臺為 Windows x64；Linux 上的引擎或瀏覽器測試不等於提供 Linux 桌面發行版。
-
 ## 已實現功能
 
-以下基礎功能沿用 P6/P7；本版新增及修復見 [1.9.1 釋出說明](docs/RELEASE-1.9.1.zh-Hant.md)。功能存在並不表示任意 PDF 都能無損處理；複雜結構和已知缺陷單獨列在後文。
+下表列出閱讀、書籤、頁面編輯和 OCR 的常用能力。對應的檔案範圍和實測資料見[釋出驗收](docs/VALIDATION.md)。
 
 ### 1. 閱讀、定位與日常文件操作
 
 - PDF 閱讀、縮放、適合頁面/寬度、連續瀏覽、縮圖與檢視前進/返回。
 - 正文搜尋、文字選擇與複製、書籤導航；可收起的書籤側欄和屬性面板，明暗主題。
 - 頁面與高倍縮放瓦片按需渲染，使用快取預算、縮放錨點和過期渲染取消降低長文件開銷。
-- 拖入 PDF 或 Folio 工程，切換文件前處理未儲存更改；多檔案拖入時選擇要開啟的檔案。
+- 多檔案開啟時，每份文件進入各自的標籤。切換文件後可以繼續上一次閱讀或編輯。
 - 基礎批註、指定頁面旋轉、頁面提取、末尾追加另一 PDF、當前頁 PNG 匯出與文件屬性編輯。
 - 加密文件的密碼處理；透過 qpdf/pikepdf 匯出無密碼副本，錯誤密碼可重試，取消不寫檔案。
 
@@ -71,7 +57,7 @@
 
 ### 2. 書籤建立、批次編輯與自動生成
 
-書籤是核心工作流，**自動書籤入口常駐主工具欄**。
+書籤是核心工作流，**自動書籤入口常駐主工具列**。
 
 | 能力 | 當前實現 |
 | --- | --- |
@@ -99,9 +85,9 @@
 - 對單物件、單行、等字元數、已有編碼且不增寬等受限情形，支援保持原字型資源的區域性糾錯；不滿足條件時採用內容片段路徑。
 - 支援段落拆分、合併、人工結構鎖定，同頁文字框連線、順序調整和斷開，以及同一文字流內的分欄續排。
 - 文字框支援位置、尺寸、固定範圍和擴充套件方向設定；碰撞、溢位和頁外內容預設僅通知，可繼續輸入、選擇、撤銷和儲存，詳情按需展開；單元格預設保持邊界，擴充套件由使用者明確選擇。
-- 提供段落原文對照、字型替代明細，以及全頁並排、疊加和畫素變化網格對照。
+- 提供段落原文對照、字型替代明細，以及全頁並排、疊加和像素變化網格對照。
 
-**RC1-P6 的改進：**使用字型原始分數字寬，能放入原行的區域性編輯優先保持其他行字位；恢復多種 PDF 嵌入字型並校驗 CID/連字的實際匯出字形。字型推薦使用有界單字形快取並過濾過期響應。首次匹配仍有開銷，本次 45 字型實測的冷請求沒有改善，首字元變化後的推薦耗時下降約 45%。
+支援的局部修改會沿用原字型與字形位置。複雜段落可能需要重新排版，儲存前可用全頁對照檢查。
 
 現有字型匹配使用覆蓋、輪廓、形狀和字寬資訊。**未嵌入字型解析與混合字型保真仍存在已知問題**，並非任意原字型均能無損續寫。
 
@@ -121,7 +107,7 @@
 | 範圍與資源 | 指定頁範圍或框選區域性區域；180/240/300 DPI；自動、低佔用、高效能和自定義並行頁數/執行緒/文字行批次 |
 | 診斷與方向 | 保留檢測框、低分/空結果和過濾診斷；疑難框提供 0°/180°候選，穿越表格線等疑點交人工確認 |
 | 排程 | 獨立 OCR 工作者、逐頁進度、停止保留結果，以及相同文件和設定的已完成頁續做 |
-| 跳過策略 | 依據已有文字覆蓋判斷是否跳過，或選擇“任意已有文字”的舊策略；區域性區域有獨立處理邏輯 |
+| 跳過策略 | 依據已有文字覆蓋判斷是否跳過，或選擇「任意已有文字」的舊策略；區域性區域有獨立處理邏輯 |
 | 校對 | 單頁/連續滾動模式，文字與頁面雙向定位、疑點跳轉、確認下一處、暫緩、人工修改與校對草稿恢復 |
 | 語言與字形 | 簡中、繁中、英文等校對提示選項；保留其他識別文字；可保留原結果或轉換簡繁字形 |
 | 輸出 | 應用校對結果生成可搜尋、可複製的隱藏文字層，保留掃描影象；提供文字/識別框預覽 |
@@ -129,7 +115,7 @@
 
 語言勾選用於校對提示，**不擴充套件模型本身的語言能力**。字形轉換髮生在識別之後，原始識別文字和引擎置信度仍保留。修改隱藏 OCR 層不會直接修改掃描圖上的可見文字。
 
-當前已支援框選區域性識別及疑難框方向候選；未確認疑點不能直接寫入最終文字層。下一步計劃中的“補識別”進一步要求複用既有檢測框、比較候選、保護人工校對並可靠合併結果，兩者不能等同。
+當前已支援框選區域性識別及疑難框方向候選；未確認疑點不能直接寫入最終文字層。下一步計劃中的「補識別」進一步要求複用既有檢測框、比較候選、保護人工校對並可靠合併結果，兩者不能等同。
 
 ### 6. 儲存、工程、撤銷與恢復
 
@@ -142,92 +128,15 @@
 
 工程儲存原始內容、編輯狀態和非阻斷提示，適合續編。完成編輯僅生成修改頁預覽，儲存時合成完整 PDF。普通 PDF 輸出不保證重新開啟後還能恢復同一段落編輯模型；普通編輯和保留歷史的工程也不是安全塗黑。
 
-## 專案架構
+## 技術與驗證
 
-### 技術棧與分工
+Folio 使用 PDF.js 渲染頁面，透過本地原生引擎處理物件、排版和 OCR。Chatbox 與 Folio 共用 Electron 執行時，文件修改按檔案 ID 和修訂號路由到對應編輯器。詳見[架構與資料流](docs/ARCHITECTURE.md)。
 
-| 層次 | 技術 / 模組 | 職責 |
-| --- | --- | --- |
-| 桌面容器 | Electron、`main.cjs`、`preload.cjs` | 視窗、檔案互動、受限 IPC、原生任務與執行資源管理 |
-| 頁面工作區 | ES modules、HTML/CSS、PDF.js | 閱讀渲染、文字選擇、編輯游標、書籤樹、OCR 校對和屬性互動 |
-| 結構與計算 | pdf-lib、Web Workers | PDF 結構、書籤與批註寫入，規則計算、篩選、工程編解碼 |
-| 原生 PDF | Python、pypdfium2/PDFium、PyMuPDF、pikepdf/libqpdf | 物件解析、字形幾何、內容合成、排版輸出及解密 |
-| 確定性排版 | 原字位佈局、MuPDF Story | 區域性修改和受控段落重排，輸出對應的預覽及 PDF 片段 |
-| 本地識別 | RapidOCR、RapidLayout、ONNX Runtime、PicoDet CDLA | OCR 和版面區域候選；不使用生成模型自動改寫正文 |
-| 狀態與持久化 | 會話修訂號、內容定址資產、ZIP 工程、IndexedDB | 過期結果拒絕、撤銷、快取、工程儲存及異常恢復 |
-
-### AI 與本機引擎的邊界
-
-Chatbox 1.20.3 保留原生服務商、API 和模型設定；Folio 首選項管理審批、OCR 閾值和快取。MCP 使用 stdio，視窗與應用橋使用認證命名管道，不開放網路監聽埠。PDF 工具在本機執行，外部文字/影像輔助經所選 Chatbox 模型傳送；檢查更新訪問 GitHub。
-
-| 新增模組 | 職責 |
-| --- | --- |
-| `ai-host.cjs`、`ai-dock.cjs` | Chatbox 生命週期、視窗嵌入、命名管道、stdio 用戶端與快照租約 |
-| `src/ai-ui.mjs`、`src/ai-tools.mjs`、`src/ai-worker.mjs` | 按需探索、審批、版本檢查，複用書籤和頁面操作 |
-| `integrations/chatbox/` | 原生 Chatbox 適配、請求標頭、視覺附件、視窗與審批快捷操作 |
-| `integrations/pdf-server.py`、`pdf_objects.py` | 完整 PDF MCP、底層物件和檔案式本機 OCR |
-| `storage-budget.cjs` | 預設 2 GB 快取、輪替與大任務保護 |
-
-### 執行鏈路
-
-```mermaid
-flowchart TD
-  Input["PDF / Folio 工程"] --> Session["文件會話與原件基線"]
-  Session --> View["PDF.js 閱讀與頁面編輯"]
-  View --> State["書籤、內容、OCR 與撤銷狀態"]
-  View --> Bridge["受限 IPC 與任務排程"]
-  Bridge --> Layout["原字位佈局 / MuPDF Story"]
-  Bridge --> OCR["OCR 工作者與版面分析"]
-  Layout --> State
-  OCR --> Review["人工校對與明確應用"]
-  Review --> State
-  Session --> Compose["內容合成與 PDF 結構核對"]
-  State --> Compose
-  Compose --> Save["臨時檔案寫入與目標替換"]
-  State --> Project["工程 Worker 與恢復儲存"]
-  Session --> Project
-```
-
-閱讀渲染、PDF 結構處理、排版及 OCR 分工協作。原生橋在單個程序內序列請求，不同工作程序隔離內容、背景、字型、排版及 qpdf 等任務；OCR 另有頁級排程。取消代次和文件修訂號用於拒絕過期結果，但已進入某次原生呼叫的工作不一定能立即中斷。
-
-### 主要原始碼入口
-
-| 檔案 / 目錄 | 主要職責 |
-| --- | --- |
-| `main.cjs`、`preload.cjs` | 桌面啟動、IPC 傳送者校驗、檔案能力票據、原生程序入口 |
-| `src/app.mjs`、`src/session-state.mjs` | 命令協調、活動文件、對話方塊、文件身份與修訂號；`app.mjs` 仍較集中，尚未完成全面模組化 |
-| `src/viewer.mjs` | 頁面/瓦片虛擬化、渲染快取、縮放錨點和選擇 |
-| `src/bookmark-*.mjs`、`src/generation.mjs`、`src/text-lines.mjs` | 書籤樹、屬性、篩選、去重/拆分、文字重組與規則生成 |
-| `src/*-worker.mjs` | PDF 結構、規則生成、批次處理、篩選、校準和工程等後臺計算 |
-| `src/flow-ui.mjs`、`src/flow-model.mjs`、`src/flow-page-model.mjs`、`src/flow-structure.mjs` | 頁上編輯、字元/段落模型、選區、文字框接續及結構修正 |
-| `src/fast-layout.mjs`、`native/fast_layout.py`、`native/browser_fonts.py`、`native/font_sfnt.py` | 快速編輯字位、實際 PDF 字形寫回、嵌入字型修復與瀏覽器載入 |
-| `src/page-preview.mjs` | 修改頁預覽、共享原 PDF 與撤銷時的資源所有權 |
-| `large-files.cjs`、`native/large_pdf.py`、`src/large-workspace.mjs` | 大檔案受控控制代碼、按頁渲染、獨立書籤工作區和增量另存 |
-| `flow-layout.cjs`、`flow-validation.cjs` | 專用排版程序與輸入模型校驗；產品路徑不再依賴舊 Chromium 排版器 |
-| `native/original_layout.py`、`native/original_patch.py`、`native/story.py` | 原字位與區域性行佈局、受限原物件糾錯、Story 段落排版 |
-| `native/font_match.py`、`native/font_similarity.py`、`native/system_fonts.py` | 字型解析、覆蓋檢查、候選字形比較與系統字型資訊 |
-| `native/content.py`、`native-bridge.cjs` | 原物件來源校驗、版本化內容片段合成、請求隔離與結果快取 |
-| `ocr-jobs.cjs`、`native/worker.py`、`src/ocr-*.mjs` | OCR 頁任務、引擎執行、結果傳輸、校對狀態和應用 |
-| `src/table-*.mjs`、`native/table_*.py`、`native/image_edit.py` | 表格模型、結構/尺寸調整、輸出和圖片例項處理 |
-| `src/pdf-core.mjs`、`src/pdf-worker.mjs` | PDF 結構儲存、書籤動作保真與合成來源核對 |
-| `source-store.cjs`、`src/native-source.mjs` | 原 PDF 註冊、只讀控制代碼及租約，減少重複全檔案傳輸與落盤 |
-| `src/model.mjs`、`src/edit-assets.mjs`、`src/portable-state.mjs` | 小狀態歷史、不可變內容版本、內容定址資產和資源預算 |
-| `src/project.mjs`、`src/project-worker.mjs`、`src/zip-store.mjs` | v2 工程容器、清單校驗、Worker 編解碼及 v1 相容讀取 |
-| `src/recovery.mjs`、`src/ocr-review-store.mjs` | 會話恢復、去重儲存、配額處理與 OCR 校對草稿 |
-| `file-store.cjs`、`temp-store.cjs` | 檔案選擇票據、分塊寫入、原件保護與帶所有者資訊的臨時目錄清理 |
-| `scripts/`、`tests/`、`.github/workflows/` | 資源恢復、構建、迴歸、打包驗證和釋出流程 |
-
-### 資料與儲存約束
-
-`.folio` v2 的主要條目為 `source.pdf`、`state.json`、`assets/<sha256>.pdf/json` 與 `manifest.json`。PDF 片段不再進行無效重複壓縮，讀取時檢查條目、格式和雜湊。當前工程路徑的源 PDF 上限為 768 MiB，工程上限為 1 GiB；快取及復原儲存預設使用可配置的 2 GB 預算，活動大檔案臨時擴容並保護未儲存草稿。獨立大檔案通道不進入上述完整位元組陣列與工程路徑，其 8 GiB 上限只適用於已列出的閱讀/書籤能力。這些限制及歷史預算**不是整個應用程序記憶體的硬上限**。
-
-儲存先合成內容，再驗證原始書籤動作來源和語義，最後寫入 PDF 結構並替換目標檔案。無法證明安全的物件修改會被拒絕或使用片段路徑；能顯示一個 PDF 不代表其所有結構都能無損重寫。
-
-更完整的實現說明見 [當前架構](docs/ARCHITECTURE.md)。
+Windows 釋出任務透過了 12 個真實 Qwen 場景，並驗證打包程式、多文件切換和釋出 ZIP 升級。結果包含 2400 × 1600 彩色校樣、掃描頁 OCR、局部換圖以及流程圖重開編輯。[實測分析](docs/MCP-2.1.0-validation.zh-Hans.md) · [GitHub Actions](https://github.com/ionize1080/Folio/actions/runs/41994404438)
 
 ## 已知問題與適用邊界
 
-本輪修復和方法依據見 [P6 編輯審計](docs/RC1-P6-editor-audit.md)。目前仍保留以下限制：
+以下涉及 65 頁和 45 種字型的數字來自歷史 P6 編輯樣本。本版獨立驗收範圍見[驗證說明](docs/VALIDATION.md)。[P6 編輯審計](docs/RC1-P6-editor-audit.md)
 
 | 問題 | 已確認現象 / 邊界 |
 | --- | --- |
@@ -237,7 +146,7 @@ flowchart TD
 | 原樣保持 | 43/65 個最終樣本沒有超過 1 pt 的未改字元移動；放不下的區域性插入和擴寫仍會重排，不能保證任意修改都保持全部字位 |
 | 特殊字型與結構 | Type3、不能核驗的字元編碼/閱讀順序和非 1 UserUnit 等仍受限；保留原物件並解釋原因 |
 | 首次編輯與字型推薦 | 快取主要改善重複請求和編輯後複用，首次頁面分析及冷字型推薦仍需時間；未將 45 字型結果外推為千字型保證 |
-| OCR 完整性 | 本輪重點為頁面文字編輯；OCR 的框內漏字、低分過濾和跨格合併仍需按疑難樣本繼續複核，不能把引擎高置信度當作內容完整 |
+| OCR 完整性 | 可能漏字、過濾低分結果或跨格合併。請對照掃描影像複核。 |
 
 幾何通知非阻斷，內容歸屬、字位對映或字型覆蓋無法確認時仍保留草稿並拒絕不可靠寫回。頁外文字可以繼續編輯，匯出仍受原紙張大小裁切。
 
@@ -249,93 +158,6 @@ flowchart TD
 - 隱藏 OCR 層的校對不等於掃描影象可見文字編輯；其他來源的文字層不會被無條件刪除。
 - Windows 自動化驗證已透過，但真實中文輸入法、混合 DPI 及所有 Windows 10/11 硬體組合未全部覆蓋。
 
-## 下一步功能計劃
+## 開發與許可
 
-以 [P6 後續計劃](docs/NEXT-RELEASE-PLAN.md) 為統一入口。近期優先項：
-
-1. 儲存並核驗自有內容層的段落歸屬、邏輯空格和換行，解決儲存重開後拆段及程式碼格式變化。
-2. 補齊複雜方向、字元整形和特殊字型邊界；繼續保護未修改字元、原物件及其他頁面。
-3. 在已有 OCR 診斷和方向候選上完成區域性補識別、人工校對保護及可靠合併，並複核漏字和跨格樣本。
-4. 測量並改善首次分析、字型冷請求、長文件預覽/儲存及真實多 GB 檔案表現；繼續拆分集中模組。
-5. 補做真實 Windows 中文輸入法、混合 DPI、強退恢復和不同記憶體配置驗收。
-
-跨頁文章續排、複雜表格、公式結構編輯和 DOCX/HTML/Markdown 輸出仍屬後續方向。所有計劃與已實現功能分開記錄。
-
-## 開發、構建與測試
-
-### 環境與資源
-
-當前 Windows CI 使用 Node.js 24、Python 3.12 和 `package-lock.json`。原生依賴見 [tests/requirements.txt](tests/requirements.txt)，隨包資源版本及許可見 `native/runtime-lock.json` 和 [第三方說明](THIRD-PARTY-NOTICES.md)。
-
-```sh
-git clone https://github.com/ionize1080/Folio.git
-cd Folio
-npm ci
-git submodule update --init
-python -m pip install -r tests/requirements.txt
-python -m pip install --target native/vendor fonttools==4.61.1
-npx playwright install chromium
-python scripts/restore-assets.py
-```
-
-`restore-assets.py` 按 `native/models/manifest.json` 下載並校驗固定模型；已存在且雜湊正確時複用，下載失敗或校驗不符會停止。首次準備開發環境需要下載依賴；完整便攜包的日常執行不需要此步驟。
-
-Windows 完整打包還需隨包執行時、字型和原生元件。以 [.github/workflows/folio-v16.yml](.github/workflows/folio-v16.yml) 為歷史建置參考，包括 fontTools 許可檔案的複製步驟。`npm start` 啟動開發介面，原生功能要求相應執行資源齊備。
-
-AI 執行資源還需依 [AI 建置指南](docs/AI.md#构建与测试) 執行 `scripts/prepare-ai.py`，再打包。
-
-### 命令
-
-| 命令 | 用途 |
-| --- | --- |
-| `npm start` | 啟動 Electron 開發應用 |
-| `npm run test:unit` | 純 JavaScript 單元迴歸 |
-| `npm test` | 標準迴歸入口：JS、原生 PDF/OCR、OCR 排程與瀏覽器介面 |
-| `npm run test:native` | 原生引擎及相關排程迴歸 |
-| `npm run test:ui` | 生成所需樣本後執行介面迴歸 |
-| `npm run test:documents` | 外部真實 PDF 專項驗證，不將使用者文件隨倉庫分發 |
-| `npm run build:win` | 構建 Windows x64 包 |
-| `npm run test:package` | 構建後核對 PE 資訊、程式內容及執行資產 |
-| `python tests/editor-p6.py` / `python tests/public-corpus-p6.py` | P6 原生專項 / 10 份公開文件 50 頁檢查；需先準備依賴和固定語料 |
-| `node tests/electron-p6.cjs` | P6 實際 EXE 的頁外編輯、通知、字型載入及儲存重開驗收 |
-| `node tests/electron-v12.cjs` | 使用 `FOLIO_EXE` 指向打包程式，驗證實際 EXE 的啟動、原生編輯及儲存 |
-
-可配置 `FOLIO_PYTHON` 指定直譯器、`FOLIO_CHROMIUM` 指定測試瀏覽器、`FOLIO_FIXTURES` 指定真實文件目錄。複用離線 Windows 便攜基線時，設定 `FOLIO_RUNTIME_BASE` 為解壓目錄、`FOLIO_RUNTIME_BASE_ZIP` 為對應 ZIP；打包指令碼校驗執行時並重新裝入業務原始碼及引擎。
-
-2.0.0 的 AI 與打包驗收見 [釋出記錄](docs/RELEASE-2.0.0.md)。1.9.1 編輯基線的驗收以本機 Windows 的 `scripts/acceptance.mjs`、實際打包 EXE 測試及發布的 `validation.json` 為準；報告綁定原始碼、程式和原生模組雜湊，範圍見[深度編輯報告](docs/DEEP-EDIT-1.9.1.zh-Hans.md)。`folio-v16.yml` 和 P6 等歷史工作流保留供構建參考與追溯。`npm test` 是歷史標準入口，不會單獨執行所有版本專項、公開語料和打包 EXE 檢查；目前通用檢查使用 `npm run test:quick` / `npm run test:full`，發布專項另外執行。任意主線文件提交不等於重新跑過全部 Windows 驗收。
-
-### 歷史驗證與版本追蹤
-
-- **P6 程式基線：**`0b1cfa0cfb685f8d8bbd5ee04b0042574a85a8d5`，對應 [Windows 成功執行 35818217755](https://github.com/ionize1080/Folio/actions/runs/35818217755)。125 項 JS 單元測試、13 項 P6 原生專項、舊版本回歸、公開語料和實際 EXE 驗收透過。
-- **釋出產物核驗：**8 份 Windows 驗收記錄無錯誤，178 項字型載入檢查透過，4 組打包 EXE 驗收使用相同 EXE 與 `app.asar` 雜湊。釋出附件中的驗證 JSON 保留原始記錄。
-- **本地實文件複驗：**13 份文件 65 頁、2,111 個操作檢查點（含複測）；平臺與保真指標分別記錄，不等同於 Windows 人工驗收或全部用例無差異。
-- **2026-09-23 主線同步：**P6 功能此前已在 main；本次合入釋出分支的指令碼並同步文件，程式原始碼不變。原分支、Release 附件與後設資料獨立備份，詳見 [同步記錄](docs/RELEASE-SYNC-2026-09-23.md)。
-- **歷史記錄：**[P1](docs/PATCH-1.2-RC1-P1.md)、[P4](docs/editor-p4-validation.md)、[P5](docs/RC1-P5-editor-audit.md) 和 [RC1](docs/VALIDATION-1.2.md) 保留各自當時的基線，不作為當前能力的唯一依據。
-
-## 文件與許可
-
-- [1.2 更新說明](docs/CHANGELOG-1.2.md)
-- [P6 釋出說明](docs/RELEASE-P6.md)
-- [P6 編輯審計](docs/RC1-P6-editor-audit.md)
-- [P6 後續計劃](docs/NEXT-RELEASE-PLAN.md)
-- [主線同步與備份](docs/RELEASE-SYNC-2026-09-23.md)
-- [當前架構](docs/ARCHITECTURE.md)
-- [當前驗證範圍](docs/VALIDATION.md)
-- [1.1 功能更新](docs/CHANGELOG-1.1.md)
-- [第三方元件與許可](THIRD-PARTY-NOTICES.md)
-
-Folio 自有程式碼採用 [MIT License](LICENSE)。組合分發包含 PyMuPDF/MuPDF 等 AGPL 元件，以及各自許可下的字型、模型和執行時；根目錄 MIT 不覆蓋或重新授權這些第三方元件，`package.json` 的組合 SPDX 表示式也不替代逐元件許可檔案。
-
-當前應用沒有遙測；檢查和下載更新時訪問 GitHub，文件處理和介面翻譯均在本地完成。本地模型參與 OCR 和版面候選分析，不自動生成或改寫文件正文。
-
-[2026 年 10 月評審採納與後續事項](docs/REVIEW-2026-10-07-response.md)
-
-
-## 2.0.1 compatibility update
-
-Sidebar input and Sogou IME were tested through native computer use. Sidebar and updater use bundled Python; no PowerShell process or WebView2 is required. Older versions on machines with PowerShell blocked must first upgrade by manually extracting the portable ZIP. [Validation and target-system limits](docs/RELEASE-2.0.1.md).
-
-
-## 2.0.2 AI integration
-
-Chatbox now shares Folio’s Electron runtime and is built from pinned source. No Folio model presets; user configuration survives updates. Local progress, unobscured menus/dialogs, direct calibration/margin tools, selective AI review, paged output and upstream batch PDF extensions reduce repeated calls. See [release notes](docs/RELEASE-2.0.2.md).
+Windows 構建使用 Node.js 24、Python 3.12、鎖定依賴和固定的 Chatbox 原始碼。開發環境、測試命令、打包與釋出門禁見[開發指南](docs/DEVELOPMENT.md)。[文件索引與歷史記錄](docs/README.md) · [Folio 許可證](LICENSE) · [第三方元件與許可](THIRD-PARTY-NOTICES.md)

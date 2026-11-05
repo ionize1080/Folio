@@ -1,75 +1,46 @@
-# Folio 2.0.0 当前架构
+# Folio PDF Studio 2.1.0 架构
 
-更新：2026-11-04。本文描述 2.0.0 的实际模块与数据流；早期设计见 [0.6](ARCHITECTURE-0.6.md)、[0.7](ARCHITECTURE-0.7.md) 和 [P6 审计](RC1-P6-editor-audit.md)。使用入口见 [AI 指南](AI.md)，测试范围见 [2.0.0 发布记录](RELEASE-2.0.0.md)。
+每个打开的文件有自己的编辑器、PDF.js 工作者、选区、撤销记录和未保存状态。主进程管理标签和原生文件对话框。Chatbox 1.20.3 使用同一套 Electron 运行时，在侧栏和独立窗口之间切换时复用同一个聊天视图。[用户指南](../README.zh-Hans.md) · [AI 操作指南](AI.md)
 
-Folio 保留本地阅读、编辑、书签规则和 OCR 引擎，引入独立 Chatbox 1.20.3 进程作为可选 AI 客户端。模型配置与会话归 Chatbox；当前文档状态、审批和保存归 Folio。外部模型可以请求文字、整页或局部图像，也可以调用经过审批的文档工具。AI 不直接改写活动会话对象。
-
-## 进程与通信
+## 一次跨文件提问如何执行
 
 ```mermaid
 flowchart LR
-  User["用户"] --> Folio["Folio 渲染器
-阅读 / 编辑 / 首选项"]
-  User --> Chatbox["Chatbox 1.20.3
-侧栏 / 独立窗口"]
-  Chatbox <-->|"原生服务商 SDK 请求头
-Node fetch"| Model["用户所选模型"]
-  Chatbox <-->|"MCP stdio：4 个发现与调用入口"| Bridge["Folio MCP 桥"]
-  Bridge <-->|"认证 Windows 命名管道"| Host["Folio 主进程"]
-  Host <-->|"受限 Electron IPC"| Folio
-  Folio --> Gate["手动 / 自动审批
-版本与超时检查"]
-  Gate --> Tree["书签 Worker / 页面工具"]
-  Tree --> State["文档会话 / 撤销状态"]
-  Gate --> Host
-  Host <-->|"MCP stdio"| PDF["便携 Python PDF MCP
-57 上游工具 + 3 扩展"]
-  Host --> Native["Folio 原生编辑 / 本地 Paddle"]
-  PDF --> Native
-  State --> Save["内容合成 / 结构核验
-原子另存"]
+  Model["用户所选模型"] <--> Chat["Chatbox 渲染器与服务"]
+  Chat <-->|MCP stdio| Bridge["Folio MCP 桥"]
+  Bridge <-->|认证 Windows 命名管道| Host["Folio 主进程"]
+  Host -->|documentId| Tab["目标文件的编辑器"]
+  Tab -->|审批、revision| Ops["文字、书签、图像、矢量、OCR"]
+  Ops --> State["文档状态与撤销"]
+  State --> Save["合成、核对、原子保存"]
+  Host <-->|stdio| FileTools["Python 文件式 PDF MCP"]
 ```
 
-MCP 没有 HTTP、SSE 或 TCP 服务。Folio 与 Chatbox 的窗口控制及文档桥使用随机管道名和令牌；PDF 服务使用同步 stdio，诊断写 stderr。少数上游内部代码需要 socketpair 时使用本地 AF_UNIX，而不建立 TCP 唤醒端口。
+1. `document-tabs.cjs` 管理打开的文件和活动标签。首个编辑器承载首页，后续文件使用独立的 `WebContentsView`。打开同一路径可切换到已有标签。关闭标签前，由该文件的编辑器处理未保存修改。
+2. `ai-host.cjs` 在收到请求时按 `documentId` 绑定目标编辑器。省略 ID 时绑定活动文档。`folio_document` 的 `list` 返回 ID 列表，`context` 返回物理页码、书签、文字、选区和对象信息。在手动审批模式下，针对另一标签的请求可以切换到目标文档以供核对。
+3. 编辑器按文件核对修订号并执行操作。图像预览候选也绑定文件修订。过期的修改请求需重新读取状态；模型不能沿用另一份文件的写入版本号。已应用修改进入该文档的会话，用户执行保存后才写入输出 PDF。
+4. 文件式工具通过 `pdf_help` / `pdf_operation` 按需访问 62 个工具。需要当前编辑结果时，`snapshot` 可提供临时 PDF。文件式工具的输出作为单独文件打开和复核。
 
-PDF 服务适配器拒绝网络 socket 调用，其远程 LLM、远程时间戳等能力不能联网。外部模型请求走 Chatbox 当前服务商。Chatbox 自带更新与统计上报关闭，组件随 Folio 更新；Folio 更新访问 GitHub。该设计不等同于操作系统级进程沙箱。
+## Chatbox 和编辑工具
 
-## AI 与界面模块
-
-| 模块 | 职责与边界 |
+| 模块 | 职责 |
 | --- | --- |
-| `src/ai-ui.mjs` | 单一 AI 工具栏入口；首选项状态、审批、请求队列、会话版本校验、图像与 OCR 调用；自动审批只在当前会话生效 |
-| `src/ai-tools.mjs` / `src/ai-worker.mjs` | 23 项 Folio 操作的按需目录和参数；复用书签模型、生成、拆分、留白引擎，在 Worker 中执行树计算 |
-| `ai-host.cjs` | 认证命名管道、渲染器请求、超时、快照租约、Chatbox 生命周期和 Python stdio 客户端 |
-| `ai-dock.cjs` / `integrations/chatbox/dock.ps1` | Windows 原生窗口嵌入、DPI 坐标、侧栏/独立窗口切换；Folio 对话框打开时隐藏嵌入窗口 |
-| `integrations/chatbox/bootstrap.cjs` | 加载固定官方组件，注入不含密钥的初始 Qwen 配置与 stdio MCP；保留用户原生服务商与模型设置 |
-| `integrations/chatbox/controls.js` | 原生输入栏中 28 px 容器、18 px 图标、4 px 间距的窗口/审批快捷操作，继承 Chatbox 主题色 |
-| `integrations/chatbox/network*.js` / `network*.cjs` | 将原生 provider SDK 的请求头与流式消息交给 Node fetch，避免 Electron 网络层请求头；支持取消 |
-| `integrations/chatbox/vision*.js` / `vision-body.cjs` | 将 MCP 图像结果转换为真正视觉附件，避免将 Base64 当工具文本消耗 token |
-| `integrations/pdf-server.py` | 固定上游完整注册表、参数校验和同步 stdio；禁用网络 |
-| `integrations/pdf_objects.py` | 29 项 PDF 对象操作与按页本地 Paddle OCR；对象写入要求新输出路径 |
-| `storage-budget.cjs` | 统一可轮替文件登记、最近使用顺序、保护租约、默认 2048 MB 上限和临时扩容 |
+| `ai-dock.cjs`、`integrations/chatbox/controls.js`、`progress.js` | 托管 Chatbox，切换侧栏或独立窗口，在输入框上方显示进度。Folio 菜单或弹窗出现时让出原生视图。 |
+| `integrations/chatbox/stdio.cjs`、`tool-schema.cjs` | 向聊天模型注册十个入口。六个用于文档、书签、留白、校准、图像和矢量，四个用于帮助和通用操作。 |
+| `src/ai-ui.mjs`、`ai-tools.mjs`、`ai-efficient.mjs` | 处理审批、选区、修订和响应分页；用本地索引筛选及修改书签，用物理页码标识摘要证据。 |
+| `src/ai-images.mjs`、`native/image_adjustments.py` | 定位嵌入图像，返回候选像素和亮度分位数，按预览 ID 继续调整，在原图上应用色彩、曲线、滤镜或指定区域的替换。 |
+| `integrations/chatbox/image-generation.ts` | 用用户在图像创作中选择的服务商和模型生成候选。局部重绘需支持参考图输入。 |
+| `src/ai-vectors.mjs`、`native/vector_graphics.py` | 将流程图或经过校验的独立 SVG 嵌入 PDF Form XObject，同时保存 SVG 源码和图形 ID，供重开后继续修改。 |
+| `integrations/pdf-server.py`、`integrations/pdf_objects.py` | 本地 stdio 文件服务，包括批量读写、底层 PDF 对象操作与按页 OCR。 |
+| `src/appearance.mjs`、`src/controls.css`、`src/i18n.mjs` | 计算配色及可读前景、绘制状态和键盘焦点、解析系统语言及用户覆盖选项。 |
 
-主工具栏只保留 AI 聊天气泡入口，避免与自动书签的星形、OCR 的扫描框重复。OCR 阈值、审批和显示方式收纳到首选项；API/服务商/模型继续使用 Chatbox 原生设置。左右面板使用对应方向的图标。再次点击 AI 可收起侧栏，属性面板入口会恢复属性；独立窗口模式下点击 AI 聚焦 Chatbox。
+MCP 使用本地 stdio 和认证命名管道。模型联网请求由 Chatbox 的服务商适配处理。手动审批为启动默认值，用户切换自动审批需两次确认。模型可以收到用户请求所需的文字和图像，文档内容按数据处理。
 
-## 按需能力链与审批
+## 预览和完整输出
 
-Chatbox 只常驻 `folio_help`、`folio_operation`、`pdf_help`、`pdf_operation` 四个工具，不预先塞入所有 PDF 参数。模型先查询目录，再查询具体工具结构，最后显式传 operation 与 options。帮助查询不会隐式选择下一步操作。`folio://guide` 提供常用组合流程。
+页面预览与嵌入图像预览采用不同预算。整页工具可以按分类、目录细读和定位选择 960、1600、2200 像素的默认长边预算，并返回像素到 PDF 坐标的变换。嵌入图片的整体和细节预览长边分别最多 640 和 1200 像素，区域坐标从原图左上角计算。滤镜、色阶和曲线写回时处理源图像素。流程图的 PDF 路径及文字保持矢量形式。
 
-- **活动文档**：先读取 `document.describe` 的 revision；获取当前树、页面文字/图像或对象；提交书签或页面修改时核对最新版本。树替换、移动、复制、生成、拆分和校准复用 Folio 引擎；成功后进入撤销历史。用户切换文档或请求超时后，旧结果不能继续落入新会话。
-- **文件式 PDF 操作**：通过已保存文件或 `document.snapshot` 获取输入；`pdf_help` 查询完整结构后调用。60 个工具包括 57 个上游工具、底层对象 help/operation 和本地 OCR。文件结果不会自动同步回编辑器，也不进入当前文档的撤销历史；需要另存、审阅并重新打开。
-- **书签底层**：完整读取/替换树、父子关系、次序、标题、样式、展开状态、目标页和原生目标参数；还可通过 PDF 对象层处理 outline、xref 字典/流、页面框、标签、链接、附件和 XML 元数据。
-- **审批**：启动默认手动；文字/图像内容读取、OCR、修改和文件工具按规则请求批准。切到自动需两次确认，Folio AI 和 Chatbox 盾牌标红；模型的工具列表没有改变审批模式的入口。帮助和文档基本信息不弹重复确认。
-
-模型结果与 PDF 文字均视为待检查数据。原生坐标和图片像素不能混用；无完整目标或缺页码的创建请求报错，不能默默落到第一页。
-
-## OCR 与视觉辅助
-
-本地 PP-OCRv6 ONNX 模型优先；默认低置信度复核阈值 95%，可在首选项或单次工具参数中调整。模型可以复核疑难字词或复杂版面，不能伪造提高原始置信度。应用校对保留原文字与审阅标记。
-
-图像分辨率由任务用途决定：classify 最长边约 960 px、toc 约 1600 px、locate 约 2200 px；还受最多 3 倍缩放和像素预算约束。支持整页或归一化局部区域。返回 `imageToPdf=[a,b,c,d,e,f]`，按 `X=a*x+c*y+e; Y=b*x+d*y+f` 映射坐标，包含页面框偏移与旋转影响。模型可先低分辨率判断目录候选，再高清读取和局部定位。
-
-大文件使用文件式 `pdf_local_ocr`，先抽取单页再调用本地模型。独立大文件工作区有未保存修改时不对模型提供可误用的旧文件路径，应先保存。
+扫描增强改变图像像素。OCR 使用本地 Paddle 引擎，复核阈值默认 95%；明确要求写入 OCR 后生成可检索文字层。大文件工作区可通过文件式工具按页识别。独立出图服务的线上验收与已发布的 Qwen 看图、调色和换图测试分别记录。[发布验收](VALIDATION.md)
 
 ## 核心文档与编辑引擎
 
@@ -114,12 +85,4 @@ OCR 清理从共享预算剩余额度回收旧输入和无引用结果，保留�
 
 ## 构建、测试与许可
 
-- `npm run test:quick`：单元及源码/发布传输检查。
-- `node scripts/acceptance.mjs native`、`node scripts/acceptance.mjs browser`：编辑保真与浏览器事务回归；`npm run test:full` 组合通用阶段。
-- `tests/ai-integration.cjs`、`tests/ai-settings.cjs`：审批、版本、工具、设置与布局；`tests/pdf-mcp-bridge.cjs`：便携 stdio 和底层写入保护。
-- `tests/ai-corpus.cjs`、`tests/pdf-corpus.cjs`：真实文档；`tests/ai-model-corpus.cjs`：实际 Chatbox / API / MCP 五类工作流；`tests/verify-ai-results.py` 独立核对保存的 PDF。
-- `npm run build:win`、`npm run test:package`、`tests/package-ai.cjs`：构建、源码/组件哈希和实际 EXE、窗口模式、便携 Python、端口检查。仅开发测试显式启用调试端口，发行版忽略对应开关。
-
-原生运行时、Chatbox、Python PDF MCP 均随便携包提供。`scripts/prepare-chatbox.cjs` 验证官方 1.20.3 app.asar 并按锚点应用适配；`scripts/prepare-ai.py` 验证固定源码提交与资源哈希。详见 [构建步骤](AI.md#构建与测试)。API 测试凭证、用户配置、原始样本、聊天记录及渲染页面不进入发布包。
-
-Folio 自有代码为 MIT；Chatbox 为 GPL-3.0，PyMuPDF/MuPDF 遵循其 AGPL 条款，PDF MCP 为 Apache-2.0，其他组件保留各自许可。源码包含 Chatbox 上游源码 ZIP 和 PDF MCP 固定源码，运行包附修改哈希与许可；根许可证不替代依赖许可。见 [第三方说明](../THIRD-PARTY-NOTICES.md)。
+Chatbox 的渲染器、预加载脚本和主进程服务从固定社区源码构建。准备脚本核验上游提交、官方安装包及依赖，构建产物记录来源和哈希。PDF MCP 扩展通过仓库中的补丁应用到固定子模块。文件服务保留 57 项上游工具，并提供批量读写、底层对象帮助与操作、本地逐页 OCR 共五项扩展。Windows 工作流对打包后的程序、多文件切换和实际更新 ZIP 分别验收。[开发与发布步骤](DEVELOPMENT.md) · [第三方组件与许可](../THIRD-PARTY-NOTICES.md)

@@ -1,4 +1,24 @@
-# 当前验证入口：1.9.1
+# Folio PDF Studio 2.1.0 发布验证
+
+Windows x64 正式包由 GitHub Actions 从提交 `12eb72559979ed87e04a89e7b7bbedae92462206` 构建并发布。核对特定 ZIP 时使用同次发布的 SHA-256 清单；验证 JSON 还记录源码提交、程序哈希和各项结果。[Windows 发布任务](https://github.com/ionize1080/Folio/actions/runs/41994404438) · [发布包验证 JSON](https://github.com/ionize1080/Folio/releases/download/v2.1.0/Folio-PDF-Studio-2.1.0-validation.json) · [SHA-256 清单](https://github.com/ionize1080/Folio/releases/download/v2.1.0/Folio-PDF-Studio-2.1.0-SHA256.txt)
+
+| 检查 | 发布任务核对的结果 |
+| --- | --- |
+| 实际 API | Chatbox 使用真实 Qwen 调用 MCP，12 个场景通过，覆盖书签、跨文档阅读、总结、图片、扫描和矢量编辑。 |
+| 文档标签 | 打包程序通过多选打开、切换保持选区、关闭未保存文档时取消、关闭末页后重新打开及跨标签首选项检查。 |
+| 桌面与聊天 | 三种语言、三个窗口宽度及明暗外观共 18 组检查。另验证 Chatbox 原生侧栏让出菜单和弹窗、进度条与输入区分开、草稿随窗口切换保留。 |
+| 扫描与 OCR | 对公开标准摘要页制作的低对比度扫描样本，导出后的灰度跨度从 73 升至 197，可提取 OCR 文字。 |
+| 图片和局部替换 | 彩色校样保留 2400 × 1600 分辨率，相邻页渲染一致。另一项局部替换改变 68,310 个像素，选区外逐像素一致。 |
+| 矢量流程图 | 保存、关闭、重开后修改节点文字，再次导出。检查 PDF Form XObject、路径、文字和保留的 SVG 源码。 |
+| 安装和更新 | 检查打包程序、Chatbox、62 个文件式 PDF 工具及更新健康回报，并用最终便携 ZIP 验证升级。 |
+
+另有一轮本地开发构建的调用明细，包括模型用了哪些工具、回包大小和标签切换耗时。两组运行独立，扫描跨度等观测值应引用各自报告。[本地 MCP 实测及方法](MCP-2.1.0-validation.zh-Hans.md)
+
+独立像素生图服务仍需配置相应服务商并做线上验收。Windows 自动化覆盖的是该运行环境；Windows 10 21H1、混合 DPI、各种输入法及硬件组合仍需目标设备测试。
+
+---
+
+## 1.9.1 编辑验收
 
 本版由 Windows 本机完整原生、浏览器与真实便携 EXE 测试验证。新增 20 页、120 项固定位置的文字增删，以及字体轮廓、共享字宽、软换行、标签树、独立注音和整本未改页检查。真实键盘测试覆盖新增汉字的二次编辑保存，两种 PDF 引擎独立检查字位塌缩，另检查保留文字的字重、斜体、字号和可比字形轮廓。共享字体缓存使用独立进程验证完整发布与并发读取。详见 [深度编辑报告](DEEP-EDIT-1.9.1.zh-Hans.md) 和 [1.9.1 发布附件](https://github.com/ionize1080/Folio/releases/tag/v1.9.1)中的 validation.json。阻止、失败和成功分开记录；单页通过不代表全书或所有段落均可编辑，教材第20页仍有跨行重排越出装饰底色的视觉限制。
 
@@ -8,7 +28,7 @@
 
 新增 `tests/selection-v14.py`、`tests/selection-v14.test.mjs`、`tests/selection-v14.cjs`；Windows 发布工作流 `folio-v14.yml` 沿用全部 1.3 回归门控，并验证同一打包 EXE 的框选、多选、批量修改、撤销重做、保存、菜单层叠和手型拖动。
 
-# 当前验证入口：1.2.2
+## 1.2.2 编辑验收
 
 本版以 `.github/workflows/folio-editor-p8.yml` 的完整 Windows 运行和 [正式发布附件](https://github.com/ionize1080/Folio/releases/tag/v1.2.2)中的 `Folio-PDF-Studio-1.2.2-validation.json` 为准。附件记录 sourceCommit、windowsRun、各项报告，以及与便携 ZIP 一致的 EXE/app.asar 哈希；工作流未通过时不发布。
 

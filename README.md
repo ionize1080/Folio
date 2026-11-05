@@ -4,35 +4,22 @@
 
 A local-first PDF workspace for Windows x64, built for **long-document bookmarks, in-page text and image editing, OCR review, and optional Chatbox AI assistance**. The portable package includes its runtime, fonts and models. No separate Python or Node.js installation is needed.
 
-[Download](https://github.com/ionize1080/Folio/releases/latest) · [2.1.0 release notes](docs/RELEASE-2.1.0.md) · [Limitations](#limitations) · [Development](#development)
+[Download the Windows x64 portable ZIP](https://github.com/ionize1080/Folio/releases/download/v2.1.0/Folio-PDF-Studio-2.1.0-portable-win-x64.zip) · [2.1.0 release notes](docs/RELEASE-2.1.0.md) · [AI user guide](docs/AI.en.md) · [Documentation](docs/README.md)
 
-## AI assistance in 2.0.0
+## Open your first documents
 
-Chatbox 1.20.3 opens as a sidebar and can detach into its own window. Configure providers, API keys and models in native Chatbox settings. Four direct and four on-demand MCP entry points expose 25 Folio operations and 62 PDF tools, including 29 low-level PDF object operations. Manual approval is the default; automatic approval requires two confirmations and turns only the approval shield red. Local Paddle OCR runs first, with optional vision assistance and a configurable 95% confidence threshold. Disk caches default to 2 GB and protect active large files. See the [AI guide](docs/AI.md) and [validation and release notes](docs/RELEASE-2.0.0.md).
+1. Extract the entire portable ZIP and run `Folio.exe`. Keep the DLLs, `resources` and `locales` directories alongside the executable.
+2. Select several PDFs or `.folio` projects in **Open**, or drop them into the window together. Each tab keeps its reading position, selection, undo history and pending edits. Ctrl+Tab and Ctrl+Shift+Tab cycle through tabs. Ctrl+W closes the current document.
+3. Apply the edit, then choose **Save** to write the current PDF. With original-file protection enabled, the first save prompts for a copy. Closing an ordinary PDF with pending changes offers Save, Discard or Cancel. For continued work on paragraph structure or reviewed OCR, choose **More tools → Import / Export → Save .folio project**.
+4. Open **Preferences** to choose Cobalt, Celadon, Amber, Mulberry, Graphite or a custom accent. Appearance supports system, light and dark modes. Interface language follows Windows by default. An explicit language choice takes precedence.
 
-## Language and appearance
+The release also includes a [source archive](https://github.com/ionize1080/Folio/releases/download/v2.1.0/Folio-PDF-Studio-2.1.0-source.zip), [checksums](https://github.com/ionize1080/Folio/releases/download/v2.1.0/Folio-PDF-Studio-2.1.0-SHA256.txt) and a [validation report](https://github.com/ionize1080/Folio/releases/download/v2.1.0/Folio-PDF-Studio-2.1.0-validation.json). For an installed copy, use **About → Check for updates**.
 
-Folio follows the Windows display language on first launch. Choose Follow system, English, 简体中文 or 繁體中文 in Preferences. Changes apply immediately. Preferences also contains five palettes, a custom accent and light, dark or system appearance.
+## Work with Chatbox
 
-Display language is independent of PDF text, bookmark titles, fonts, OCR settings and script conversion. Switching does not translate documents or discard pending edits. Native Windows file dialogs follow Windows language settings. Engine and operating-system diagnostics may retain original technical text.
+Click **AI** and configure your provider, API credentials and tool-capable model in Chatbox settings. Use a vision-capable model to inspect images. Chatbox can compare open documents, report the current physical page and selection, cite pages in a summary, or generate and revise bookmarks.
 
-## Download and get started
-
-| Attachment | Purpose |
-| --- | --- |
-| `Folio-PDF-Studio-2.0.0-portable-win-x64.zip` | Complete portable application; extract everything and run `Folio.exe` |
-| `Folio-PDF-Studio-2.0.0-source.zip` | Source and core resources; AI runtime preparation is documented |
-| `Folio-PDF-Studio-2.0.0-validation.json` | Acceptance results tied to source and binary hashes |
-| `Folio-PDF-Studio-2.0.0-SHA256.txt` | Attachment checksums |
-
-Keep the entire folder, including `resources`, `locales` and DLLs. GitHub's automatic Source code archives are repository snapshots and contain fewer resources than the complete source attachment.
-
-1. Open or drop a PDF or `.folio` project.
-2. Edit bookmarks, page text or images; review OCR when needed.
-3. Apply or finish the edit, then **Save**. Applying updates the session; it does not save the file.
-4. For continued editing with paragraph structure and OCR corrections, use **More tools → Import / Export → Save .folio project**.
-
-Original protection saves a copy first. **About → Check for updates** offers stable/prerelease channels and the HTTP proxy shared with Preferences. Updates are verified before installation. The updater retains the application folder name and a previous-version backup. Versions 1.3–1.6 can fail to launch or retain the update helper; use the one-time repair tool attached to the current release, as described in [Upgrading](docs/RELEASE-1.6.2.md#upgrading-from-13–16).
+For a photo, ask for a whole-image preview, then a close-up to check a curve or filter. Apply your chosen candidate at source resolution. For a faded scan, ask for both contrast enhancement and local OCR. You can also replace a rectangle with a local image or embed a flowchart and edit it after reopening the PDF. Generating new pixels requires a separately configured model in **Chatbox → Image Creator**. See the [workflow examples and tested scope](docs/AI.en.md).
 
 ## Features
 
@@ -44,7 +31,7 @@ Annotations, rotation, extraction, PDF appending, PNG export, metadata editing, 
 
 ### Bookmarks and automatic outlines
 
-**Auto bookmarks** is always available in the toolbar.
+Use **Auto bookmarks** for rule-based headings and **Smart table of contents** to reconstruct entries from contents pages. Both are available on the toolbar. Review the proposed physical pages before applying. [Independent TOC page calibration](docs/TOC-PAGE-CALIBRATION.md)
 
 | Capability | Included |
 | --- | --- |
@@ -97,6 +84,7 @@ PDFs above **768 MiB** enter a separate file-backed workspace, up to **8 GiB**, 
 | Shortcut | Action |
 | --- | --- |
 | Ctrl+O / Ctrl+S / Ctrl+Shift+S | Open / Save / Save as |
+| Ctrl+Tab / Ctrl+Shift+Tab / Ctrl+W | Next document / Previous document / Close current document |
 | Ctrl+F / F3 / Shift+F3 | Find / Next / Previous |
 | Ctrl+Z / Ctrl+Y | Undo / Redo, prioritizing the active editor |
 | Ctrl+Shift+B | New bookmark from selection/current view |
@@ -111,10 +99,10 @@ Shortcuts are focus-aware and configurable. Tab moves focus. Language selection 
 
 | Layer | Modules and responsibility |
 | --- | --- |
-| Desktop | Electron, `main.cjs`, `preload.cjs`: windows, dialogs, restricted IPC, workers and updates |
+| Desktop | Electron, `main.cjs`, `preload.cjs`: document tabs, dialogs, restricted IPC, workers and updates |
 | Workspace | HTML/CSS, ES modules, PDF.js: rendering, selection, editing and review |
 | AI client | Chatbox 1.20.3, `integrations/chatbox/`, `ai-host.cjs`, `ai-dock.cjs`: native provider settings, sidebar/window modes, authenticated pipe and stdio |
-| On-demand tools | `src/ai-*.mjs`, `integrations/pdf-server.py`, `integrations/pdf_objects.py`: 25 Folio operations, 62 PDF tools and approval/revision checks |
+| On-demand tools | `src/ai-*.mjs`, `integrations/pdf-server.py`, `integrations/pdf_objects.py`: document context, raster and vector edits, and access to 62 file-level PDF tools |
 | Storage budget | `storage-budget.cjs`: 2 GB default, protected active files, LRU rotation and temporary large-task expansion |
 | Localization | `src/i18n.mjs`, `src/locales/`: offline catalogs, locale persistence, UI translation and user-content exclusions |
 | Structure | pdf-lib, Web Workers: bookmarks, annotations, rules, filters and projects |
@@ -136,52 +124,16 @@ The original PDF remains the session baseline. Content is composed, bookmark pro
 - Ordinary edits and projects retaining original content are not secure redaction. Off-page content is clipped on export.
 - Automated Windows acceptance does not cover every real IME, mixed-DPI setup or hardware combination. Linux engine tests do not imply a Linux desktop release.
 
-## Development
+## Development and verification
 
-Windows CI uses Node.js 24, Python 3.12 and the pinned lockfile.
+The Windows build uses Node.js 24, Python 3.12, pinned native resources and the Chatbox source integration. The release workflow verifies the packaged executable and exercises the exact portable ZIP in an update. The published validation report includes 12 real Qwen tasks, with independent checks on saved PDFs. Live testing of a separate image-generation provider remains open.
 
-```sh
-npm ci
-git submodule update --init
-python -m pip install -r tests/requirements.txt
-python -m pip install --target native/vendor fonttools==4.61.1
-python scripts/restore-assets.py
-npm run test:unit
-# Prepare Chatbox and PDF MCP first; replace both paths below.
-python scripts/prepare-ai.py --chatbox "path-to-extracted-installer" --sevenzip "path-to-7z.exe"
-npm run build:win
-npm run test:package
-```
+[Developer setup and test commands](docs/DEVELOPMENT.md) · [Windows release run](https://github.com/ionize1080/Folio/actions/runs/41994404438) · [Verification scope](docs/VALIDATION.md) · [Locale contributions](docs/LOCALIZATION.md)
 
-Version 2.0.0 uses local Windows acceptance and packaged EXE tests, with source and binary hashes recorded in its release validation attachment; see the [2.0.0 validation scope](docs/RELEASE-2.0.0.md). [.github/workflows/folio-v16.yml](.github/workflows/folio-v16.yml) remains a historical packaging and Windows acceptance reference, including fontTools licensing. `npm start` launches development mode. `npm test` is the historical standard suite; release-specific checks run separately. Set `FOLIO_EXE` for `node tests/i18n-v16.cjs`. Other options include `FOLIO_PYTHON`, `FOLIO_CHROMIUM` and `FOLIO_FIXTURES`.
+## Scope for further work
 
-Edit translation JSON, run `node scripts/build-locales.mjs`, then unit/UI acceptance. Preserve placeholders and technical tokens. List new languages only after complete translation and validation. See [localization guidance](docs/LOCALIZATION.md).
+Complex paragraph reflow, OCR review on difficult layouts and performance on real multi-gigabyte files remain areas for further testing. For older installations with a blocked updater, the historical compatibility notes describe the manual portable upgrade. [Planning archive](docs/NEXT-RELEASE-PLAN.md) · [Updater compatibility](docs/RELEASE-2.0.1.md)
 
-## Roadmap and licensing
+## Licensing
 
-Priorities remain paragraph ownership after reopening, font fidelity, OCR completeness/orientation, manual-correction protection, first-edit speed and real large-file performance. Cross-page reflow and structured export remain future work. Historical measurements are not acceptance for new binaries; each release includes its own report.
-
-Folio code uses [MIT](LICENSE). Chatbox uses GPL-3.0 and PDF MCP uses Apache-2.0. Distributed PyMuPDF/MuPDF components use AGPL terms; fonts, models and runtimes retain their own licenses. The root license does not relicense dependencies. See [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
-
-Core document processing and interface translation stay local. Optional AI sends requested text and page images through your selected Chatbox provider. Chatbox reporting is disabled. Checking/downloading updates accesses GitHub. Local OCR/layout models do not automatically generate or rewrite document prose.
-
-## Smart contents recognition
-
-**More tools → Smart table of contents** detects candidate pages, reconstructs entries from geometry, and searches each target independently. Review titles, hierarchy and candidate pages before applying. Optional bundled offline OCR supports image-only documents. [Workflow and limitations](docs/RELEASE-1.7.0.md) · [Corpus evidence](docs/SMART-TOC-VALIDATION.json) · [Online sample provenance](docs/SMART-TOC-SOURCES.json).
-
-
-Smart contents 1.8.0 improves textbook columns, continuation pages, yearbook font hierarchy and independent heading matching. The toolbar exposes the tool directly, with separate contents/body OCR switches. See [release notes](docs/RELEASE-1.8.0.md) for corpus validation and remaining review requirements.
-
-### Reliability acceptance
-
-`npm run test:quick` runs all unit contracts and archive/release transport tests. `npm run test:full` also runs native preservation and browser transaction tests; install the test dependencies and Playwright browser first. The machine-readable capability list is `scripts/acceptance.json`. Windows package and release-specific checks run separately; the release validation attachment states which checks ran. See [review decisions](docs/REVIEW-2026-10-07-response.md).
-
-
-## 2.0.1 compatibility update
-
-Sidebar input and Sogou IME were tested through native computer use. Sidebar and updater use bundled Python; no PowerShell process or WebView2 is required. Older versions on machines with PowerShell blocked must first upgrade by manually extracting the portable ZIP. [Validation and target-system limits](docs/RELEASE-2.0.1.md).
-
-
-## 2.0.2 AI integration
-
-Chatbox now shares Folio’s Electron runtime and is built from pinned source. No Folio model presets; user configuration survives updates. Local progress, unobscured menus/dialogs, direct calibration/margin tools, selective AI review, paged output and upstream batch PDF extensions reduce repeated calls. See [release notes](docs/RELEASE-2.0.2.md).
+Folio code uses MIT. The portable distribution includes Chatbox, MuPDF, PDF MCP, fonts, models and runtimes under their respective licenses. [Folio license](LICENSE) · [Third-party notices](THIRD-PARTY-NOTICES.md)

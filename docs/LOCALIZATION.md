@@ -1,6 +1,6 @@
-# Localization
+# Localization in 2.1.0
 
-Folio follows the Windows display language by default. Preferences can override it with English, Simplified Chinese or Traditional Chinese. Unsupported system languages fall back to English.
+Folio follows the Windows display language by default. Preferences can override it with English, Simplified Chinese or Traditional Chinese. The System option reads the preferred Windows language through Electron. Chinese locale variants resolve to Simplified or Traditional Chinese. Other unsupported languages fall back to English. An explicit choice is stored locally and takes precedence on upgrade.
 
 ## Design references
 
@@ -23,13 +23,13 @@ The UI observer updates changed subtrees, not the entire document on each input.
 1. Add the phrase to each catalog, preserving numbered placeholders and technical tokens.
 2. Keep document data out of UI labels; mark any user-content containers explicitly.
 3. Run `node scripts/build-locales.mjs` and `npm run test:unit`.
-4. Run packaged Windows acceptance with `FOLIO_EXE` and inspect screenshots in all locales, at supported minimum widths and in both themes.
-5. Update README and release notes in the same supported languages.
+4. Run the desktop checks in the [2.1.0 release workflow](../.github/workflows/release-210.yml), then run packaged Windows acceptance with `FOLIO_EXE` and inspect screenshots in all locales, at supported minimum widths and in both themes.
+5. Update the three user guides, AI guides and release-note sections together. Keep technical names, examples and coordinates consistent across languages.
 
 Do not add a language to the selector with a partial placeholder catalog. Older documents and release records remain historical sources; they are not silently rewritten. Native Windows dialogs follow OS language, and third-party technical diagnostics can retain original wording.
 
 ## Release contract
 
-GitHub release bodies contain an English section followed by collapsed Simplified/Traditional sections, identified with `folio-locale` comments. The in-app update view selects the current locale and falls back to English. Existing releases without these markers display unchanged. The installer receives only an allowlisted language code; it does not evaluate translated text as code.
+GitHub release bodies contain an English section followed by Simplified and Traditional Chinese sections, identified with `folio-locale` comments. The in-app update view selects the current locale and falls back to English. Existing releases without these markers display unchanged. The installer receives only an allowlisted language code; it does not evaluate translated text as code.
 
 Validation checks default/persistence/fallback, catalog and placeholder parity, document-data preservation, live changes in dialogs, keyboard focus and window widths. The publish job must verify report/binary hashes and refuse a release if its Windows gate failed.

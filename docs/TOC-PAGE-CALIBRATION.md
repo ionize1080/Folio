@@ -59,6 +59,10 @@ association, richer typography features and cross-page relation models remain
 separate follow-up work. Missing TOC page numbers outside the document still
 require correcting the initial import before opening calibration.
 
+## Using it alongside Chatbox in 2.1.0
+
+Use the independent calibration dialog to review candidate pages across a chosen body-page range. For a margin change or a heading near an existing target, Chatbox also provides the narrower `folio_whitespace` and `folio_calibrate` operations. When comparing two open PDFs, name the file whose bookmark targets should change. [Chatbox and MCP guide](AI.en.md)
+
 ## Validation
 
 - `npm run test:unit`: existing and new regression tests, including independently
