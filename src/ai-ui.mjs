@@ -1,5 +1,9 @@
+import { selectBookmarkIds, calibrationPages, calibrationPlan, pageResult } from "./ai-efficient.mjs";
+import { extractTocPage } from "./smart-toc-extract.mjs";
+import { recognizeTocPages, resolveTocEntries, entriesToNodes, calibrationLines } from "./smart-toc.mjs";
 import { icon } from "./icons.mjs";
 import { catalog, guide, treeOperation } from "./ai-tools.mjs";
+import { ocrPage } from "./ocr-data.mjs";
 import { extractLines } from "./text-lines.mjs";
 import { matchTargets } from "./calibrate-worker.mjs";
 import { nativeRequest } from "./native-source.mjs";
@@ -40,25 +44,39 @@ export function installAI({
   const desktop = window.desktop;
   if (!desktop?.aiOpen) return;
   let overlay = false;
-  new MutationObserver(() => {
-    const next = !!document.querySelector("dialog[open]");
+  let overlayFrame = 0;
+  const updateOverlay = () => {
+    overlayFrame = 0;
+    const next = !!document.querySelector("dialog[open], details[open], #context-menu:not([hidden])");
     if (next !== overlay) {
       overlay = next;
       desktop.aiOverlay(next);
     }
+  };
+  new MutationObserver((records) => {
+    // PDF text layers and virtual bookmark rows mutate continuously while scrolling.
+    // Only menu/dialog mutations affect the native view; coalesce to one layout frame.
+    const relevant = records.some(r => r.type === "attributes"
+      ? r.target.matches?.("dialog, details, #context-menu")
+      : [...r.addedNodes, ...r.removedNodes].some(n => n.nodeType === 1 &&
+          (n.matches?.("dialog, details, #context-menu") || n.querySelector?.("dialog, details, #context-menu"))));
+    if (relevant && !overlayFrame) overlayFrame = requestAnimationFrame(updateOverlay);
   }).observe(document.body, {
     subtree: true,
     attributes: true,
-    attributeFilter: ["open"],
+    attributeFilter: ["open", "hidden"],
+    childList: true,
   });
   let auto = false,
     queue = Promise.resolve();
   const ocrJobs = new Map();
+  let cacheRevision, snapshot;
+  const lineCache=new Map(), ocrCache=new Map();
   const bar = document.createElement("div");
   bar.className = "toolgroup";
   document.querySelector(".toolbar").append(bar);
   const open = document.createElement("button");
-  open.innerHTML = icon("chat") + "<span>AI</span>";
+  open.innerHTML = icon("spark") + "<span>AI</span>";
   open.className = "folio-ai-open";
   open.title = "AI 助手 · Chatbox";
   open.setAttribute("aria-pressed", "false");
@@ -94,7 +112,7 @@ export function installAI({
         return false;
     }
     auto = enabled;
-    open.style.color = auto ? "#d71920" : "";
+    open.style.color = "";
     open.title = auto ? "AI 助手 · 自动审批已开启" : "AI 助手 · Chatbox";
     desktop.aiApproval(auto);
     return true;
@@ -134,17 +152,28 @@ export function installAI({
       if (Date.now() > deadline) throw Error("请求已过期，未应用修改");
     };
     timely();
+    const direct = {folio_calibrate:"bookmark.calibrate",folio_whitespace:"bookmark.whitespace"};
+    if (direct[name] || name === "folio_bookmarks" || name === "folio_document") {
+      let op=direct[name];
+      if(name==="folio_bookmarks")op="bookmark."+a.action;
+      if(name==="folio_document")op=({describe:"document.describe",snapshot:"document.snapshot",toc:"document.toc",text:"page.text",ocr:"ocr.local",image:"page.image",objects:"page.objects"})[a.action];
+      const {revision,selector,action,options,...rest}=a;
+      return perform({name:"folio_operation",arguments:{operation:op,revision,options:{...options,...rest,...(selector?{selector}:{}),...(name==="folio_calibrate"?{apply:a.apply!==false}:{}),...(name==="folio_bookmarks"&&action==="read"?{detail:a.detail||"compact"}:{})}}},deadline);
+    }
     if (name === "folio_ui") {
       setApproval(!auto);
       return { auto };
     }
     if (name === "pdf_help") {
       const { tools } = await desktop.aiPdf({ action: "list" });
-      return a.operation
-        ? tools.find((t) => t.name === a.operation)
-        : tools.map((t) => ({ name: t.name, description: t.description }));
+      if(a.operation) {const tool=tools.find(t=>t.name===a.operation);if(!tool)throw Error("未知PDF工具");return tool;}
+      const terms=String(a.query||"").toLowerCase().split(/\s+/).filter(Boolean);
+      const matches=tools.map(tool=>({tool,score:terms.reduce((n,q)=>n+((tool.name+" "+tool.description).toLowerCase().includes(q)?1:0),0)+(terms.includes(tool.name.toLowerCase())?terms.length+1:0)}))
+        .filter(item=>!terms.length||item.score>0).sort((a,b)=>b.score-a.score).map(item=>item.tool);
+      return pageResult(matches.map(t=>({name:t.name,description:t.description.split("\n")[0].slice(0,220)})),{offset:a.offset,limit:a.limit||20});
     }
     if (name === "pdf_operation") {
+      if(a.resultId)return desktop.aiPdf({action:"result",resultId:a.resultId,offset:a.offset,limit:a.limit});
       if (
         !auto &&
         !confirm(
@@ -163,22 +192,25 @@ export function installAI({
         options: a.options,
       });
     }
-    if (name === "folio_help")
-      return a.operation
-        ? {
-            operation: a.operation,
-            definition: catalog[a.operation] || null,
-            guide,
-          }
-        : {
+    if (name === "folio_help") {
+      if (a.operation) {
+        const operation = ({image:"page.image", "folio_document.image":"page.image", text:"page.text", toc:"document.toc", calibrate:"bookmark.calibrate", whitespace:"bookmark.whitespace"})[a.operation] || a.operation;
+        if (!catalog[operation]) throw Error("未知操作。使用 folio_document 的 action=describe/text/toc/ocr/image/objects/snapshot；书签使用 folio_bookmarks；或不传 operation 查询操作名。");
+        return {operation,definition:catalog[operation]};
+      }
+      return {
             operations: Object.fromEntries(
               Object.entries(catalog).map(([k, v]) => [k, v[0]]),
             ),
             guide,
           };
+    }
     if (name !== "folio_operation") throw Error("未知工具");
     const op = a.operation,
-      p = a.options || {};
+      p = {...(a.options || {})};
+    if(p.selector)p.ids=selectBookmarkIds(S.nodes,p.selector);
+    if(op==="bookmark.calibrate" && !p.ids)p.ids=S.nodes.map(n=>n.id);
+    const progress=text=>desktop.aiProgress?.(text).catch(()=>{});
     if (!Object.hasOwn(catalog, op))
       throw Error(
         "缺少或未知必填字段 operation：" +
@@ -213,13 +245,16 @@ export function installAI({
       "bookmark.read",
       "page.objects",
       "page.text",
-      "bookmark.calibrate",
+      "page.image",
+      "document.snapshot",
+      ...(p.apply ? [] : ["bookmark.calibrate", "document.toc"]),
       "ocr.local",
     ].includes(op);
     const before = rev(),
       session = S.sessionId,
       bytes = S.bytes;
-    if (!read && a.revision !== before)
+    if(cacheRevision!==before){cacheRevision=before;lineCache.clear();ocrCache.clear();snapshot=null;}
+    if ((!read || a.revision !== undefined) && a.revision !== before)
       throw Error("文档版本已变化，请重新读取document.describe");
     if (
       !auto &&
@@ -239,10 +274,11 @@ export function installAI({
       if (S.sessionId !== session || S.bytes !== bytes || rev() !== before)
         throw Error("文档已变化，结果未应用");
     };
-    const pages = p.pages || (p.page !== undefined ? [p.page] : [S.page]);
+    const selectedNodes=S.nodes.filter(n=>!p.ids||p.ids.includes(n.id));
+    const pages = p.pages || (op==="bookmark.calibrate" ? calibrationPages(selectedNodes,S.info.pageCount,p.radius??2) : (p.page !== undefined ? [p.page] : [S.page]));
     if (
       !Array.isArray(pages) ||
-      pages.length > 100 ||
+      pages.length > (op==="bookmark.calibrate"?1000:100) ||
       pages.some((n) => !Number.isInteger(n) || n < 1 || n > S.info.pageCount)
     )
       throw Error("页码无效或超过100页预算");
@@ -259,26 +295,55 @@ export function installAI({
         throw Error("分页无效");
       return {
         revision: before,
-        total: S.nodes.length,
-        nodes: S.nodes.slice(offset, offset + limit),
-        nextOffset: offset + limit < S.nodes.length ? offset + limit : null,
+        total: selectedNodes.length,
+        nodes: selectedNodes.slice(offset, offset + limit).map(n=>p.detail==="compact"?{id:n.id,title:n.title,parent:n.parent,page:n.target?.page,bold:n.bold,italic:n.italic}:n),
+        nextOffset: offset + limit < selectedNodes.length ? offset + limit : null,
       };
     }
-    const lines = async () => {
-      const out = [];
-      for (const page of pages)
-        out.push(
-          ...(await extractLines(S.pdf, page, S.rotation[page] || 0, {})),
-        );
-      fresh();
+    const localOcr = async page => {
+      if(!ocrCache.has(page)) {progress(`正在本地识别第 ${page} 页文字`);const result=await nativeRequest({command:"ocr",bytes:await S.pdf.getData(),page,profile:"v6",skipText:false});fresh();ocrCache.set(page,result);lineCache.delete(page);}
+      return ocrCache.get(page);
+    };
+    const effectiveOCR=page=>{const saved=ocrPage(S.ocr,page);return saved.length?saved:(ocrCache.get(page)?.blocks||[])};
+    const lines = async (pageList=pages) => {
+      const out=[];
+      for (let i=0;i<pageList.length;i++) {
+        const page=pageList[i];
+        progress(`正在读取第 ${page} 页（${i+1}/${pageList.length}）`);
+        if(!lineCache.has(page))lineCache.set(page,await extractLines(S.pdf,page,S.rotation[page]??(await S.pdf.getPage(page)).rotate,{ocr:effectiveOCR(page)}));
+        out.push(...lineCache.get(page));fresh();
+        if(out.length>250000)throw Error("文字行超过预算，请缩小页范围");
+      }
       return out;
     };
     if (op === "document.snapshot") {
-      const bytes = await exportPDF();
-      fresh();
-      return { ...(await desktop.aiSnapshot(bytes)), revision: before };
+      if(!snapshot){const bytes = await exportPDF();fresh();snapshot=await desktop.aiSnapshot(bytes);}
+      return {...snapshot, revision: before };
     }
-    if (op === "page.text") return { revision: before, lines: await lines() };
+    if (op === "page.text") {
+      const all=await lines(), result=pageResult(all,p);
+      return {revision:before,...result,items:undefined,lines:result.items.map(l=>p.detail==="full"?l:{page:l.page,text:l.text,x:l.x,y:l.y,top:l.top,bottom:l.bottom,height:l.height})};
+    }
+    if(op==="document.toc") {
+      const extracted=[];
+      for(const page of pages){
+        progress(`正在本地识别第 ${page} 页目录`);
+        const rotation=S.rotation[page]??(await S.pdf.getPage(page)).rotate;
+        let result=await extractTocPage(S.pdf,page,rotation,effectiveOCR(page));
+        if(!result.fragments.length){await localOcr(page);result=await extractTocPage(S.pdf,page,rotation,effectiveOCR(page));}
+        extracted.push(result);fresh();
+      }
+      const found=recognizeTocPages(extracted), entries=found.flatMap(r=>r.entries);
+      const bodyPages=p.bodyPages||Array.from({length:Math.min(S.info.pageCount,100)},(_,i)=>i+1);
+      if(!Array.isArray(bodyPages)||bodyPages.length>100||bodyPages.some(n=>!Number.isInteger(n)||n<1||n>S.info.pageCount))throw Error("正文页范围无效，最多100页");
+      const byPage={};for(const l of await lines(bodyPages))(byPage[l.page]??=[]).push(l);
+      for(const page of Object.keys(byPage))byPage[page]=calibrationLines(byPage[page]);
+      const resolved=resolveTocEntries(entries,byPage,S.info.pageCount,(await S.pdf.getPageLabels())||[],pages);
+      const accepted=resolved.filter(e=>e.selected&&!e.needsReview),review=resolved.filter(e=>!e.selected||e.needsReview);
+      fresh();
+      if(p.apply && accepted.length)commit(p.replace?entriesToNodes(resolved.map(e=>({...e,selected:e.selected&&!e.needsReview})),S.info.pageCount):[...S.nodes,...entriesToNodes(resolved.map(e=>({...e,selected:e.selected&&!e.needsReview})),S.info.pageCount)]);
+      return {revision:rev(),applied:!!p.apply,recognized:entries.length,accepted:accepted.length,review:pageResult(review,p),scannedPages:bodyPages,hasMorePages:S.info.pageCount>bodyPages.length,next:"复核review条目；扫描件先ocr.local，低置信度再请求page.image；不要猜测印刷页与PDF页偏移"};
+    }
     if (op === "ocr.local") {
       const threshold =
         p.threshold ??
@@ -287,29 +352,20 @@ export function installAI({
         throw Error("置信度须在0到1之间");
       if (!Number.isInteger(p.page) || p.page < 1 || p.page > S.info.pageCount)
         throw Error("页码无效");
-      const result = await nativeRequest({
-        command: "ocr",
-        bytes: await S.pdf.getData(),
-        page: p.page,
-        profile: "v6",
-        skipText: false,
-      });
-      fresh();
+      const result=await localOcr(p.page);
       const jobId = crypto.randomUUID();
-      ocrJobs.clear();
+      if(ocrJobs.size>=8)ocrJobs.delete(ocrJobs.keys().next().value);
       ocrJobs.set(jobId, {
         revision: before,
         blocks: structuredClone(result.blocks),
       });
       return {
         revision: before,
-        ...result,
+        ...(p.detail==="full"?result:{page:p.page,blockCount:result.blocks.length}),
         jobId,
         threshold,
-        lowConfidence: result.blocks.filter(
-          (b) => (b.confidence ?? b.score ?? 0) < threshold,
-        ),
-        next: "使用page.image按需获取整页或region=[x,y,width,height]归一化区域，再复核低置信度文字。保留原始结果。",
+        lowConfidence: result.blocks.map((b,index)=>({...b,index})).filter(b=>(b.confidence??b.score??0)<threshold),
+        next: "page.text可读取本次OCR的全部文字，无需先写入PDF。仅对lowConfidence使用归一化region的page.image复核；保留原始结果。",
       };
     }
     if (op === "page.objects") {
@@ -321,7 +377,10 @@ export function installAI({
         page: p.page,
       });
       fresh();
-      return { revision: before, ...result };
+      const objects=Array.isArray(result.objects)?result.objects:[];
+      const selected=p.objectIndexes?objects.filter(o=>p.objectIndexes.includes(o.index)):objects;
+      const paged=pageResult(selected,{offset:p.offset,limit:p.limit||30});
+      return {revision:before,...result,objects:paged.items.map(o=>p.detail==="full"?o:Object.fromEntries(Object.entries(o).filter(([k])=>!["glyphs","clipBounds"].includes(k)))),total:paged.total,nextOffset:paged.nextOffset,next:"编辑前按objectIndexes读取detail=full；不要重复整页对象。"};
     }
     if (op === "page.edit") {
       if (!Array.isArray(p.edits) || p.edits.length > 1000)
@@ -374,7 +433,7 @@ export function installAI({
         x + w > 1 ||
         y + h > 1
       )
-        throw Error("区域无效");
+        throw Error("region须为归一化[left,top,width,height]，每项0..1，原点左上。上半页=[0,0,1,0.5]；不要使用PDF点数，整页省略region。");
       const budgets = { classify: 960, toc: 1600, locate: 2200 };
       const purpose = p.purpose || "classify";
       if (!budgets[purpose]) throw Error("purpose须为classify/toc/locate");
@@ -436,17 +495,15 @@ export function installAI({
       };
     }
     if (op === "bookmark.calibrate") {
-      const all = await lines(),
-        byPage = {};
-      for (const l of all) (byPage[l.page] ??= []).push(l);
-      return {
-        revision: before,
-        candidates: matchTargets({
-          ...p,
-          nodes: S.nodes.filter((n) => !p.ids || p.ids.includes(n.id)),
-          pages: byPage,
-        }),
-      };
+      const all=await lines(), byPage={};
+      for(const l of all)(byPage[l.page]??=[]).push(l);
+      const candidates=matchTargets({...p,radius:p.radius??2,searchAll:true,nodes:selectedNodes,pages:byPage});
+      const plan=calibrationPlan(candidates,p.threshold??0.95);
+      if(p.apply && plan.accepted.length) {
+        const result=await treeWorker({op:"bookmark.patch",args:{changes:plan.accepted.map(c=>({id:c.id,patch:{target:c.target}}))},nodes:S.nodes,pageCount:S.info.pageCount});
+        fresh();commit(result.nodes);
+      }
+      return {revision:rev(),applied:!!p.apply,scannedPages:pages,matched:plan.accepted.length,changed:p.apply?plan.accepted.length:0,review:plan.review,...(!p.apply?{accepted:plan.accepted}:{}),next:"仅复核review。低置信度候选未修改；先局部文字/OCR，必要时page.image裁剪，再bookmark.patch批量应用。"};
     }
     if (op === "history.undo" || op === "history.redo") {
       fresh();
@@ -463,13 +520,14 @@ export function installAI({
       context,
     });
     fresh();
-    commit(result.nodes);
+    const changed=result.nodes.filter(n=>JSON.stringify(n)!==JSON.stringify(S.nodes.find(old=>old.id===n.id))).length + S.nodes.filter(n=>!result.nodes.some(next=>next.id===n.id)).length;
+    if(changed)commit(result.nodes);
     const { nodes, changes, ...details } = result;
     return {
       ...details,
       node: details.id ? nodes.find((n) => n.id === details.id) : undefined,
       bookmarkCount: nodes.length,
-      changeCount: changes?.length,
+      changeCount: changed,
       applied: true,
       revision: rev(),
     };

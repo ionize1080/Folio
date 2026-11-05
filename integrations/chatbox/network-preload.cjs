@@ -19,6 +19,8 @@ require("electron").contextBridge.exposeInMainWorld("folioControls", {
     require("electron").ipcRenderer.invoke("folio:display", mode),
   approval: () => require("electron").ipcRenderer.invoke("folio:approval"),
   subscribe: (fn) => {
+    require("electron").ipcRenderer.invoke("folio:state").then(fn).catch(()=>{});
+    require("electron").ipcRenderer.on("folio:progress", (_e, progress) => fn({progress}));
     require("electron").ipcRenderer.on("folio:display", (_e, mode) =>
       fn({ mode }),
     );

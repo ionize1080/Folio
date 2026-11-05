@@ -88,7 +88,7 @@ const { _electron: electron } = require("playwright"),
     );
     assert.equal(
       await page.locator(".folio-ai-open").evaluate((e) => e.style.color),
-      "rgb(215, 25, 32)",
+      "",
     );
     let r = await call("folio_operation", {
       operation: "bookmark.create",
@@ -119,8 +119,8 @@ const { _electron: electron } = require("playwright"),
     console.log("image", JSON.parse(r.result.content[0].text));
     r = await call("pdf_help", {});
     assert(!r.error, r.error);
-    console.log("upstream tools", r.result.length);
-    assert(r.result.length >= 50);
+    console.log("upstream tools", r.result.total);
+    assert(r.result.total >= 50);
     await page.screenshot({ path: "tests/output/ai-integration.png" });
     await page.evaluate(() => window.desktop.setDirty(false));
   } finally {

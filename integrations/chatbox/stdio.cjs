@@ -43,10 +43,10 @@ const server = new Server(
   { name: "Folio PDF", version: "2.0.0" },
   { capabilities: { tools: {}, resources: {} } },
 );
-const tools = [
+const tools = [...require('./tool-schema.cjs'),
   {
     name: "folio_help",
-    description: "按需获取Folio能力目录、完整参数和操作指南；先查询再操作",
+    description: "仅参数未知时按operation查询说明；优先直接用folio_calibrate/folio_whitespace/folio_bookmarks/folio_document，无需先查帮助。",
     inputSchema: {
       type: "object",
       properties: { operation: { type: "string" } },
@@ -71,23 +71,23 @@ tools.push(
   {
     name: "pdf_help",
     description:
-      "按需查询完整开源PDF MCP工具目录和参数；OCR优先使用folio_operation ocr.local",
+      "搜索开源PDF MCP文件工具：query输入英文关键词，默认返回20项简短说明；operation返回单项完整参数。文件级多项读取优先 read_pdf_batch，多项修改优先 edit_pdf_batch（query=batch）。已有本地工具优先，不要反复列出整个目录。",
     inputSchema: {
       type: "object",
-      properties: { operation: { type: "string" } },
+      properties: { operation: { type: "string" },query:{type:'string'},offset:{type:'integer',minimum:0},limit:{type:'integer',minimum:1,maximum:100} },
     },
   },
   {
     name: "pdf_operation",
     description:
-      "调用开源PDF MCP原生操作；先pdf_help获取准确参数。文件操作受Folio审批。",
+      "调用已查询参数的开源PDF文件工具。大结果自动分页：传resultId/offset继续读取缓存，避免重新执行。",
     inputSchema: {
       type: "object",
       properties: {
         operation: { type: "string" },
         options: { type: "object" },
+        resultId:{type:'string'},offset:{type:'integer',minimum:0},limit:{type:'integer',minimum:1,maximum:20000},
       },
-      required: ["operation"],
     },
   },
 );
@@ -96,7 +96,7 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
   try {
     if (!tools.some((t) => t.name === req.params.name)) throw Error("未知工具");
     if (
-      req.params.name.endsWith("_operation") &&
+      req.params.name.endsWith("_operation") && !req.params.arguments?.resultId &&
       typeof req.params.arguments?.operation !== "string"
     )
       throw Error(

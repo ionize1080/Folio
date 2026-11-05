@@ -1,0 +1,547 @@
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index 39da243..442a9c3 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -7,6 +7,7 @@ This project follows Keep a Changelog and Semantic Versioning.
+ ## Unreleased
+ 
+ ### Added
++- Folio extension: bounded `read_pdf_batch` and atomic `edit_pdf_batch`, with explicit selectors, dry-run validation and source revision checks.
+ - `Containerfile`: a Python 3.12 slim image with Tesseract (English), run as a non-root user, entrypoint `pdf-mcp`, default command `serve`. `release.yml` builds it on a version tag, checks that it lists 57 tools over stdio, and pushes `ghcr.io/nfsarch33/pdf-mcp-server:<tag>`. The README has the podman command and an MCP client config.
+ 
+ ### Fixed
+diff --git a/USAGE.md b/USAGE.md
+index 55a238f..814962c 100644
+--- a/USAGE.md
++++ b/USAGE.md
+@@ -28,7 +28,7 @@ Run `pdf-mcp --help` for the top-level surface and `pdf-mcp <verb> --help` for t
+ | `sign` | 6 | Digital and visual signatures. |
+ | `extract` | 7 | Read-only extraction: text blocks, tables, images, links, structured data. |
+ | `ocr` | 2 | OCR helpers and image inspection. |
+-| `batch` | 2 | Multi-file processing and comparisons. |
++| `batch` | 4 | Multi-file processing and comparisons. |
+ | `ai` | 4 | LLM-backed extraction, auto-fill, and analysis. |
+ 
+ ## `pdf-mcp form`
+@@ -146,6 +146,8 @@ Multi-file processing and comparisons.
+ | ---- | ----------- |
+ | `compare-pdfs` | Compare two PDFs and identify differences. |
+ | `batch-process` | Process multiple PDFs with a single operation. |
++| `read-pdf-batch` | Read metadata/info, text, outlines/bookmarks, objects, links and boxes in ONE local PDF open. queries uses op (not type). Example: [{"op":"info"},{"op":"text","pages":[1,2],"limit":4000},{"op":"outline","limit":5}]. info returns pageCount/objectCount/metadata. text requires 1-based pages, offset/limit are characters per page (max 8000). outline supports offset/limit rows and levels=[1] for roots. objects requires xrefs; links/boxes require pages. Max 20 queries and 100 explicit pages per query; text/object output budget 32000 characters, nextOffset continues each result. |
++| `edit-pdf-batch` | Apply atomic page, outline and metadata edits with one save to a NEW output_path. operations uses op: page.rotate requires pages/degrees (absolute 0/90/180/270); page.box requires pages/box/rect (top-left points); metadata.set requires values dictionary; page.labels requires labels array; outline.style requires explicit selector={all:true} or levels/indices/title, patch={bold,italic,color}; outline.patch requires changes=[{index:1,title:"New title"}]. Indices/pages are 1-based, color is RGB fractions. Max 100 operations. dry_run validates without writing; expected_sha256 rejects stale source; failures leave source/output untouched. |
+ 
+ ## `pdf-mcp ai`
+ 
+diff --git a/pdf_mcp/folio_batch.py b/pdf_mcp/folio_batch.py
+new file mode 100644
+index 0000000..6f28b22
+--- /dev/null
++++ b/pdf_mcp/folio_batch.py
+@@ -0,0 +1,319 @@
++"""Bounded, local batch APIs: open one PDF, perform many operations, save once."""
++
++from __future__ import annotations
++
++import hashlib
++import math
++import os
++import tempfile
++from pathlib import Path
++from typing import Literal
++
++import pymupdf
++from typing_extensions import Required, TypedDict
++
++
++class ReadQuery(TypedDict, total=False):
++    op: Required[Literal["info", "text", "outline", "objects", "links", "boxes"]]
++    pages: list[int]
++    xrefs: list[int]
++    levels: list[int]
++    offset: int
++    limit: int
++
++
++class OutlineSelector(TypedDict, total=False):
++    all: bool
++    levels: list[int]
++    indices: list[int]
++    title: str
++
++
++class OutlinePatch(TypedDict, total=False):
++    index: int
++    title: str
++    bold: bool
++    italic: bool
++    color: list[float]
++
++
++class EditOperation(TypedDict, total=False):
++    op: Required[Literal["page.rotate", "page.box", "metadata.set", "page.labels", "outline.style", "outline.patch"]]
++    pages: list[int]
++    degrees: Literal[0, 90, 180, 270]
++    box: Literal["media", "crop", "trim", "bleed", "art"]
++    rect: list[float]
++    values: dict[str, str]
++    labels: list[dict]
++    selector: OutlineSelector
++    patch: OutlinePatch
++    changes: list[OutlinePatch]
++
++
++def _hash(path):
++    with open(path, "rb") as stream:
++        return hashlib.file_digest(stream, "sha256").hexdigest()
++
++
++def _keys(value, allowed):
++    if not isinstance(value, dict) or set(value) - set(allowed):
++        raise ValueError("Unknown or invalid operation parameters")
++
++
++def _integer(value, minimum, maximum):
++    if type(value) is not int or not minimum <= value <= maximum:
++        raise ValueError(f"Expected integer {minimum}..{maximum}")
++    return value
++
++
++def _pages(value, count):
++    if not isinstance(value, list) or not 1 <= len(value) <= 100:
++        raise ValueError("Supply 1..100 explicit 1-based pages")
++    return list(dict.fromkeys(_integer(p, 1, count) for p in value))
++
++
++def _slice(items, query, maximum=500):
++    offset = _integer(query.get("offset", 0), 0, 1_000_000_000)
++    limit = _integer(query.get("limit", min(100, maximum)), 1, maximum)
++    return {
++        "total": len(items),
++        "offset": offset,
++        "items": items[offset : offset + limit],
++        "nextOffset": offset + limit if offset + limit < len(items) else None,
++    }
++
++
++def _serial(value):
++    if isinstance(value, dict):
++        return {k: _serial(v) for k, v in value.items()}
++    if isinstance(value, (list, tuple, pymupdf.Point, pymupdf.Rect, pymupdf.Quad)):
++        return [_serial(v) for v in value]
++    return value
++
++
++def read_pdf_batch(input_path: str, queries: list[ReadQuery], password: str = "") -> dict:
++    """Read up to 20 queries in one open. op=info|text|outline|objects|links|boxes.
++
++    text: pages (1-based, max 100), offset and limit (characters/page, max 8000).
++    outline: offset/limit (rows), optional levels=[1] for roots; indexed 1-based.
++    objects: xrefs (max 100), offset/limit (characters/object, max 8000).
++    links/boxes: pages. Text/object output is bounded to 32000 characters total;
++    nextOffset is per page/object. No images/base64 or model calls are returned.
++    """
++    if not isinstance(queries, list) or not 1 <= len(queries) <= 20:
++        raise ValueError("Supply 1..20 queries")
++    results, budget = [], 32000
++    with pymupdf.open(input_path) as doc:
++        if doc.needs_pass and not doc.authenticate(password):
++            raise ValueError("PDF password required")
++        for query in queries:
++            op = query.get("op")
++            if op == "info":
++                _keys(query, ["op"])
++                result = {"pageCount": len(doc), "objectCount": doc.xref_length(), "metadata": doc.metadata}
++            elif op in ("text", "objects"):
++                _keys(query, ["op", "pages" if op == "text" else "xrefs", "offset", "limit"])
++                values = _pages(query.get("pages"), len(doc)) if op == "text" else query.get("xrefs")
++                if not isinstance(values, list) or not 1 <= len(values) <= 100:
++                    raise ValueError("Supply 1..100 xrefs")
++                rows = []
++                for value in values:
++                    if budget <= 0:
++                        rows.append(
++                            {
++                                "page" if op == "text" else "xref": value,
++                                "deferred": True,
++                                "nextOffset": query.get("offset", 0),
++                            }
++                        )
++                        continue
++                    raw = (
++                        doc[value - 1].get_text()
++                        if op == "text"
++                        else doc.xref_object(_integer(value, 1, doc.xref_length() - 1), compressed=False)
++                    )
++                    part = _slice(raw, query, 8000)
++                    text = part.pop("items")[:budget]
++                    budget -= len(text)
++                    end = part["offset"] + len(text)
++                    rows.append(
++                        {
++                            "page" if op == "text" else "xref": value,
++                            **part,
++                            "text": text,
++                            "nextOffset": end if end < len(raw) else None,
++                        }
++                    )
++                result = {"pages" if op == "text" else "objects": rows}
++            elif op == "outline":
++                _keys(query, ["op", "offset", "limit", "levels"])
++                rows = [
++                    {"index": i + 1, "level": row[0], "title": row[1], "page": row[2], "destination": row[3]}
++                    for i, row in enumerate(doc.get_toc(simple=False))
++                ]
++                if "levels" in query:
++                    rows = [row for row in rows if row["level"] in query["levels"]]
++                result = _slice(rows, query)
++            elif op in ("links", "boxes"):
++                _keys(query, ["op", "pages", "offset", "limit"])
++                rows = []
++                for number in _pages(query.get("pages"), len(doc)):
++                    page = doc[number - 1]
++                    rows.append(
++                        {
++                            "page": number,
++                            **(
++                                _slice(page.get_links(), query)
++                                if op == "links"
++                                else {
++                                    "rotation": page.rotation,
++                                    "media": list(page.mediabox),
++                                    "crop": list(page.cropbox),
++                                }
++                            ),
++                        }
++                    )
++                result = {"pages": rows}
++            else:
++                raise ValueError(
++                    "Use op=info|text|outline|objects|links|boxes; example queries=[{op:info},{op:text,pages:[1,2]},{op:outline,limit:5}]"
++                )
++            results.append({"op": op, **result})
++    return _serial({"results": results, "remainingCharacterBudget": budget})
++
++
++def edit_pdf_batch(
++    input_path: str,
++    output_path: str,
++    operations: list[EditOperation],
++    expected_sha256: str = "",
++    dry_run: bool = False,
++    password: str = "",
++) -> dict:
++    """Apply <=100 local operations in memory, then atomically publish ONE new PDF.
++
++    Failures leave source/output untouched. dry_run validates without saving.
++    op=page.rotate: pages, degrees=0|90|180|270 (absolute).
++    op=page.box: pages, box=media|crop|trim|bleed|art, rect=[x0,y0,x1,y1].
++    op=metadata.set: values dictionary. op=page.labels: labels array.
++    op=outline.style: selector with explicit all=true, levels, indices (1-based),
++    or title substring; patch={bold?,italic?,color?}. Other attributes preserved.
++    op=outline.patch: changes=[{index:1,title?:...,bold?:...,italic?:...,color?:...}].
++    Coordinates use PyMuPDF top-left page space. Never re-send the entire tree.
++    """
++    if not isinstance(operations, list) or not 1 <= len(operations) <= 100:
++        raise ValueError("Supply 1..100 operations")
++    source, output = Path(input_path).resolve(), Path(output_path).resolve()
++    if source == output:
++        raise ValueError("Input overwrite is not allowed")
++    if output.exists():
++        raise FileExistsError(str(output))
++    before = _hash(source)
++    if expected_sha256 and before != expected_sha256:
++        raise ValueError("Input changed; reread before editing")
++    counts = []
++    with pymupdf.open(source) as doc:
++        if doc.needs_pass and not doc.authenticate(password):
++            raise ValueError("PDF password required")
++        for operation in operations:
++            op = operation.get("op")
++            changed = 0
++            if op in ("page.rotate", "page.box"):
++                _keys(operation, ["op", "pages", "degrees"] if op == "page.rotate" else ["op", "pages", "box", "rect"])
++                for number in _pages(operation.get("pages"), len(doc)):
++                    page = doc[number - 1]
++                    if op == "page.rotate":
++                        if operation.get("degrees") not in (0, 90, 180, 270):
++                            raise ValueError("Invalid rotation")
++                        page.set_rotation(operation["degrees"])
++                    else:
++                        box, rect = operation.get("box"), operation.get("rect")
++                        if box not in ("media", "crop", "trim", "bleed", "art"):
++                            raise ValueError("Invalid page box")
++                        if (
++                            not isinstance(rect, list)
++                            or len(rect) != 4
++                            or any(not isinstance(n, (int, float)) or not math.isfinite(n) for n in rect)
++                        ):
++                            raise ValueError("Invalid rectangle")
++                        if rect[0] >= rect[2] or rect[1] >= rect[3]:
++                            raise ValueError("Empty rectangle")
++                        getattr(page, "set_" + box + "box")(pymupdf.Rect(rect))
++                    changed += 1
++            elif op == "metadata.set":
++                _keys(operation, ["op", "values"])
++                doc.set_metadata({**doc.metadata, **operation["values"]})
++                changed = len(operation["values"])
++            elif op == "page.labels":
++                _keys(operation, ["op", "labels"])
++                doc.set_page_labels(operation["labels"])
++                changed = len(operation["labels"])
++            elif op in ("outline.style", "outline.patch"):
++                _keys(operation, ["op", "selector", "patch"] if op == "outline.style" else ["op", "changes"])
++                toc = doc.get_toc(simple=False)
++                if op == "outline.style":
++                    selector = operation.get("selector")
++                    _keys(selector, ["all", "levels", "indices", "title"])
++                    if not selector or ("all" in selector and selector["all"] is not True):
++                        raise ValueError("Explicit outline selector required")
++                    patch = operation["patch"]
++                    _keys(patch, ["bold", "italic", "color"])
++                    changes = [
++                        {"index": i + 1, **patch}
++                        for i, row in enumerate(toc)
++                        if ("levels" not in selector or row[0] in selector["levels"])
++                        and ("indices" not in selector or i + 1 in selector["indices"])
++                        and ("title" not in selector or selector["title"] in row[1])
++                    ]
++                else:
++                    changes = operation["changes"]
++                if not isinstance(changes, list) or len(changes) > 10000:
++                    raise ValueError("Too many outline changes")
++                for change in changes:
++                    _keys(change, ["index", "title", "bold", "italic", "color"])
++                    index = _integer(change.get("index"), 1, len(toc)) - 1
++                    row = toc[index]
++                    if "title" in change:
++                        if not isinstance(change["title"], str) or not change["title"].strip():
++                            raise ValueError("Invalid title")
++                        row[1] = change["title"]
++                    for key in ("bold", "italic"):
++                        if key in change:
++                            if type(change[key]) is not bool:
++                                raise ValueError("Style must be boolean")
++                            row[3][key] = change[key]
++                    if "color" in change:
++                        color = change["color"]
++                        if (
++                            not isinstance(color, list)
++                            or len(color) != 3
++                            or any(type(n) not in (int, float) or not 0 <= n <= 1 for n in color)
++                        ):
++                            raise ValueError("Color must be RGB fractions")
++                        row[3]["color"] = tuple(color)
++                    doc.set_toc_item(index, title=row[1], dest_dict=row[3])
++                    changed += 1
++            else:
++                raise ValueError("Unknown edit op")
++            counts.append({"op": op, "changed": changed})
++        report = {
++            "applied": not dry_run,
++            "operationCount": len(operations),
++            "operations": counts,
++            "sourceSha256": before,
++        }
++        if dry_run:
++            return report
++        fd, temporary = tempfile.mkstemp(prefix=".pdf-batch-", suffix=".pdf", dir=output.parent)
++        os.close(fd)
++        try:
++            doc.save(temporary, garbage=0, deflate=True, encryption=pymupdf.PDF_ENCRYPT_KEEP)
++            with pymupdf.open(temporary) as verify:
++                if len(verify) != len(doc):
++                    raise ValueError("Output validation failed")
++            if _hash(source) != before:
++                raise ValueError("Input changed during editing")
++            os.link(temporary, output)  # Atomic, and never replaces an existing file.
++        finally:
++            Path(temporary).unlink(missing_ok=True)
++    return {**report, "output": str(output), "outputSha256": _hash(output)}
+diff --git a/pdf_mcp/registry.py b/pdf_mcp/registry.py
+index b64f5cf..621c316 100644
+--- a/pdf_mcp/registry.py
++++ b/pdf_mcp/registry.py
+@@ -199,7 +199,6 @@ def _seed_default_registry() -> None:
+     :func:`tests.test_registry.test_registry_mirrors_server_tool_names_in_order`).
+     """
+     pt = "pdf_mcp.pdf_tools"
+-
+     register_tool(
+         name="get_pdf_form_fields",
+         verb="form",
+@@ -568,5 +567,27 @@ def _seed_default_registry() -> None:
+         import_path=f"{pt}:analyze_pdf_content",
+     )
+ 
++    register_tool(
++        name="read_pdf_batch",
++        verb="batch",
++        description="Read metadata/info, text, outlines/bookmarks, objects, links and boxes in ONE local PDF open. "
++        'queries uses op (not type). Example: [{"op":"info"},{"op":"text","pages":[1,2],"limit":4000},{"op":"outline","limit":5}]. '
++        "info returns pageCount/objectCount/metadata. text requires 1-based pages, offset/limit are characters per page (max 8000). "
++        "outline supports offset/limit rows and levels=[1] for roots. objects requires xrefs; links/boxes require pages. "
++        "Max 20 queries and 100 explicit pages per query; text/object output budget 32000 characters, nextOffset continues each result.",
++        import_path="pdf_mcp.folio_batch:read_pdf_batch",
++    )
++    register_tool(
++        name="edit_pdf_batch",
++        verb="batch",
++        description="Apply atomic page, outline and metadata edits with one save to a NEW output_path. "
++        "operations uses op: page.rotate requires pages/degrees (absolute 0/90/180/270); page.box requires pages/box/rect (top-left points); "
++        "metadata.set requires values dictionary; page.labels requires labels array; "
++        "outline.style requires explicit selector={all:true} or levels/indices/title, patch={bold,italic,color}; "
++        'outline.patch requires changes=[{index:1,title:"New title"}]. Indices/pages are 1-based, color is RGB fractions. '
++        "Max 100 operations. dry_run validates without writing; expected_sha256 rejects stale source; failures leave source/output untouched.",
++        import_path="pdf_mcp.folio_batch:edit_pdf_batch",
++    )
++
+ 
+ _seed_default_registry()
+diff --git a/tests/golden_helpers.py b/tests/golden_helpers.py
+index af2c0e3..97012ef 100644
+--- a/tests/golden_helpers.py
++++ b/tests/golden_helpers.py
+@@ -46,6 +46,7 @@ import contextlib
+ import os
+ from pathlib import Path
+ from typing import Iterator, Sequence
++from unittest.mock import patch
+ 
+ GOLDEN_DIR: Path = Path(__file__).resolve().parent / "golden"
+ UPDATE_ENV: str = "PDF_MCP_UPDATE_SNAPSHOTS"
+@@ -74,7 +75,10 @@ def _pinned_terminal_env() -> Iterator[None]:
+     saved = {k: os.environ.get(k) for k in overrides}
+     os.environ.update(overrides)
+     try:
+-        yield
++        # Redirected Windows stdout reports a legacy terminal, changing both
++        # box glyphs and width. Pin terminal capability as well as its columns.
++        with patch("rich.console.detect_legacy_windows", return_value=False):
++            yield
+     finally:
+         for k, v in saved.items():
+             if v is None:
+diff --git a/tests/test_folio_batch.py b/tests/test_folio_batch.py
+new file mode 100644
+index 0000000..68c1447
+--- /dev/null
++++ b/tests/test_folio_batch.py
+@@ -0,0 +1,105 @@
++import hashlib
++import importlib
++import json
++
++import pymupdf
++import pytest
++
++
++def fixture(tmp_path):
++    path = tmp_path / "source.pdf"
++    doc = pymupdf.open()
++    for i in range(4):
++        doc.new_page().insert_text((50, 80), f"Chapter {i + 1}\nSample line {i + 1}")
++    doc.set_toc([[1, "Root", 1], [2, "Child", 2]])
++    doc.save(path)
++    doc.close()
++    return path
++
++
++def test_batch_reads_paged_text_and_outline_once(tmp_path):
++    api = importlib.import_module("pdf_mcp.folio_batch")
++    source = fixture(tmp_path)
++    result = api.read_pdf_batch(
++        str(source), [{"op": "text", "pages": [1, 2], "limit": 7}, {"op": "outline", "limit": 1}]
++    )
++    assert result["results"][0]["pages"][0]["nextOffset"] == 7
++    assert result["results"][1]["total"] == 2
++    assert result["results"][1]["nextOffset"] == 1
++    json.dumps(result)
++
++
++def test_atomic_batch_preserves_source_and_rolls_back_failure(tmp_path):
++    api = importlib.import_module("pdf_mcp.folio_batch")
++    source = fixture(tmp_path)
++    original = source.read_bytes()
++    output = tmp_path / "output.pdf"
++    ops = [
++        {"op": "outline.style", "selector": {"levels": [1]}, "patch": {"bold": True}},
++        {"op": "page.rotate", "pages": [2, 3], "degrees": 90},
++        {"op": "metadata.set", "values": {"title": "Batch"}},
++    ]
++    report = api.edit_pdf_batch(str(source), str(output), ops, expected_sha256=hashlib.sha256(original).hexdigest())
++    assert report["applied"] and report["operationCount"] == 3
++    with pymupdf.open(output) as doc:
++        toc = doc.get_toc(simple=False)
++        assert toc[0][3]["bold"] is True
++        assert not toc[1][3].get("bold")
++        assert doc[1].rotation == doc[2].rotation == 90
++        assert doc.metadata["title"] == "Batch"
++    assert source.read_bytes() == original
++    failed = tmp_path / "failed.pdf"
++    with pytest.raises(ValueError):
++        api.edit_pdf_batch(str(source), str(failed), ops + [{"op": "page.rotate", "pages": [9], "degrees": 90}])
++    assert not failed.exists()
++    with pytest.raises(FileExistsError):
++        api.edit_pdf_batch(str(source), str(output), ops)
++    with pytest.raises(ValueError, match="changed"):
++        api.edit_pdf_batch(str(source), str(failed), ops, expected_sha256="0" * 64)
++
++
++def test_empty_selectors_unknown_parameters_and_dry_run(tmp_path):
++    api = importlib.import_module("pdf_mcp.folio_batch")
++    source = fixture(tmp_path)
++    output = tmp_path / "dry.pdf"
++    with pytest.raises(ValueError):
++        api.edit_pdf_batch(str(source), str(output), [{"op": "outline.style", "selector": {}, "patch": {"bold": True}}])
++    with pytest.raises(ValueError):
++        api.read_pdf_batch(str(source), [{"op": "text", "pages": [1], "limti": 10}])
++    report = api.edit_pdf_batch(
++        str(source), str(output), [{"op": "page.rotate", "pages": [1], "degrees": 90}], dry_run=True
++    )
++    assert not report["applied"] and not output.exists()
++
++
++def test_batch_schema_exposes_operation_names_and_parameter_shapes():
++    from pydantic import TypeAdapter
++
++    from pdf_mcp.folio_batch import EditOperation, ReadQuery
++
++    read = TypeAdapter(ReadQuery).json_schema()
++    assert read["properties"]["op"]["enum"] == ["info", "text", "outline", "objects", "links", "boxes"]
++    assert read["required"] == ["op"]
++    assert read["properties"]["pages"]["items"]["type"] == "integer"
++    edit = TypeAdapter(EditOperation).json_schema()
++    assert "outline.style" in edit["properties"]["op"]["enum"]
++    assert "selector" in edit["properties"] and "patch" in edit["properties"]
++
++
++def test_batch_keeps_encryption_and_reports_complete_metadata(tmp_path):
++    api = importlib.import_module("pdf_mcp.folio_batch")
++    source, output = tmp_path / "secret.pdf", tmp_path / "result.pdf"
++    with pymupdf.open(fixture(tmp_path)) as doc:
++        doc.save(source, encryption=pymupdf.PDF_ENCRYPT_AES_256, owner_pw="owner", user_pw="reader")
++    api.edit_pdf_batch(
++        str(source), str(output), [{"op": "metadata.set", "values": {"title": "Updated"}}], password="owner"
++    )
++    with pymupdf.open(output) as doc:
++        assert doc.needs_pass
++        assert doc.authenticate("reader")
++        assert doc.metadata["title"] == "Updated"
++    report = api.read_pdf_batch(
++        str(output), [{"op": "info"}, {"op": "text", "pages": [1, 2]}, {"op": "outline", "limit": 5}], password="reader"
++    )
++    assert report["results"][0]["pageCount"] == 4
++    assert len(report["results"]) == 3
+diff --git a/tests/test_registry.py b/tests/test_registry.py
+index 0b3763a..6cb22e6 100644
+--- a/tests/test_registry.py
++++ b/tests/test_registry.py
+@@ -107,7 +107,7 @@ def test_lazy_callable_resolves() -> None:
+     lazy = LazyCallable("os:getcwd")
+ 
+     assert callable(lazy)
+-    assert lazy() == Path.cwd().as_posix()
++    assert Path(lazy()) == Path.cwd()
+ 
+ 
+ def test_lazy_callable_caches(

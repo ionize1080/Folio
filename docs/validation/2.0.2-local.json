@@ -1,0 +1,309 @@
+{
+  "date": "2026-11-05",
+  "computerUse": {
+    "status": "passed",
+    "date": "2026-11-05",
+    "runtime": "Chatbox source v1.20.3 hosted in Folio Electron",
+    "checks": [
+      "Native mouse opens More tools above AI view",
+      "Mixed Chinese and numeric text entered into AI using keyboard",
+      "Real Qwen calibration and whitespace request completes with 6 corrected targets",
+      "Visible model-analysis progress and elapsed time during native UI request",
+      "Unsaved changes dialog and all three action buttons remain visible; cancel restores AI view",
+      "Updated neutral toolbar and distinct bookmark/AI icons inspected using native window capture",
+      "English More tools labels fit; native mouse opens the menu above AI",
+      "Escape restores menu focus and the AI view",
+      "Auto bookmarks modal opens above AI and dismisses correctly"
+    ],
+    "foundAndFixed": [
+      "Approval icon did not restore after renderer reload; added current-state handshake",
+      "Menu width clipped long labels",
+      "Hidden menus briefly retained previous theme colors",
+      "Overlay observer scanned unrelated text-layer mutations",
+      "Batch MCP schema lacked nested operation fields; typed schemas and examples remove retries"
+    ],
+    "limitations": [
+      "Synthetic six-page PDF used for desktop interaction",
+      "Win10 21H1 not separately tested"
+    ]
+  },
+  "unitTests": {
+    "passed": 273,
+    "archiveAndReleaseTransportPassed": 8
+  },
+  "nativeRegression": {
+    "status": "passed",
+    "capabilities": 26
+  },
+  "realQwen": {
+    "status": "passed",
+    "model": {
+      "model": "qwen3.8-flash"
+    },
+    "checks": [
+      {
+        "task": "请校准所有书签的目标位置，标题上方保留5毫米留白。明确匹配的直接处理，不确定的保留原目标并告诉我。",
+        "expected": "folio_calibrate",
+        "tools": [
+          {
+            "name": "folio_document",
+            "action": "describe"
+          },
+          {
+            "name": "folio_calibrate"
+          }
+        ],
+        "seconds": 6.917,
+        "initialProgress": "已收到请求，正在准备工具 · 0 秒"
+      },
+      {
+        "task": "请给所有书签目标再增加3毫米留白。",
+        "expected": "folio_whitespace",
+        "tools": [
+          {
+            "name": "folio_document",
+            "action": "describe"
+          },
+          {
+            "name": "folio_whitespace",
+            "action": "x"
+          }
+        ],
+        "seconds": 4.76,
+        "initialProgress": "已收到请求，正在准备工具 · 0 秒"
+      },
+      {
+        "task": "请把顶层书签加粗，其他样式和子级书签保持不变。",
+        "expected": "folio_bookmarks",
+        "tools": [
+          {
+            "name": "folio_bookmarks",
+            "action": "read"
+          },
+          {
+            "name": "folio_bookmarks",
+            "action": "patch"
+          }
+        ],
+        "seconds": 16.626,
+        "initialProgress": "已收到请求，正在准备工具 · 0 秒"
+      },
+      {
+        "task": "读取当前文档第1页的上半页图像，告诉我图像中最大的英文标题。",
+        "expected": "folio_document",
+        "tools": [
+          {
+            "name": "folio_document",
+            "action": "image"
+          }
+        ],
+        "seconds": 3.127,
+        "initialProgress": "已收到请求，正在准备工具 · 0 秒"
+      }
+    ],
+    "headersPreserved": true,
+    "independentStateChecks": true
+  },
+  "realFileBatch": {
+    "status": "passed",
+    "source": "义务教育教科书·语文六年级上册.pdf",
+    "sourceUnchanged": true,
+    "checks": [
+      {
+        "task": "请用文件级工具一次性检查当前文档的信息、前2页文字和前5个书签，返回简短概述，勿修改文件。",
+        "tools": [
+          {
+            "name": "folio_document",
+            "action": "snapshot"
+          },
+          {
+            "name": "pdf_help"
+          },
+          {
+            "name": "pdf_help",
+            "operation": "read_pdf_batch"
+          },
+          {
+            "name": "pdf_operation",
+            "operation": "read_pdf_batch"
+          }
+        ],
+        "allCallsSucceeded": true
+      }
+    ]
+  },
+  "chrome": {
+    "status": "passed",
+    "checks": [
+      {
+        "language": "en",
+        "width": 1080,
+        "theme": "light",
+        "toolbarAligned": true,
+        "menuVisible": true,
+        "keyboard": true
+      },
+      {
+        "language": "en",
+        "width": 1080,
+        "theme": "dark",
+        "toolbarAligned": true,
+        "menuVisible": true,
+        "keyboard": true
+      },
+      {
+        "language": "en",
+        "width": 1250,
+        "theme": "light",
+        "toolbarAligned": true,
+        "menuVisible": true,
+        "keyboard": true
+      },
+      {
+        "language": "en",
+        "width": 1250,
+        "theme": "dark",
+        "toolbarAligned": true,
+        "menuVisible": true,
+        "keyboard": true
+      },
+      {
+        "language": "en",
+        "width": 1500,
+        "theme": "light",
+        "toolbarAligned": true,
+        "menuVisible": true,
+        "keyboard": true
+      },
+      {
+        "language": "en",
+        "width": 1500,
+        "theme": "dark",
+        "toolbarAligned": true,
+        "menuVisible": true,
+        "keyboard": true
+      },
+      {
+        "language": "zh-Hans",
+        "width": 1080,
+        "theme": "light",
+        "toolbarAligned": true,
+        "menuVisible": true,
+        "keyboard": true
+      },
+      {
+        "language": "zh-Hans",
+        "width": 1080,
+        "theme": "dark",
+        "toolbarAligned": true,
+        "menuVisible": true,
+        "keyboard": true
+      },
+      {
+        "language": "zh-Hans",
+        "width": 1250,
+        "theme": "light",
+        "toolbarAligned": true,
+        "menuVisible": true,
+        "keyboard": true
+      },
+      {
+        "language": "zh-Hans",
+        "width": 1250,
+        "theme": "dark",
+        "toolbarAligned": true,
+        "menuVisible": true,
+        "keyboard": true
+      },
+      {
+        "language": "zh-Hans",
+        "width": 1500,
+        "theme": "light",
+        "toolbarAligned": true,
+        "menuVisible": true,
+        "keyboard": true
+      },
+      {
+        "language": "zh-Hans",
+        "width": 1500,
+        "theme": "dark",
+        "toolbarAligned": true,
+        "menuVisible": true,
+        "keyboard": true
+      },
+      {
+        "language": "zh-Hant",
+        "width": 1080,
+        "theme": "light",
+        "toolbarAligned": true,
+        "menuVisible": true,
+        "keyboard": true
+      },
+      {
+        "language": "zh-Hant",
+        "width": 1080,
+        "theme": "dark",
+        "toolbarAligned": true,
+        "menuVisible": true,
+        "keyboard": true
+      },
+      {
+        "language": "zh-Hant",
+        "width": 1250,
+        "theme": "light",
+        "toolbarAligned": true,
+        "menuVisible": true,
+        "keyboard": true
+      },
+      {
+        "language": "zh-Hant",
+        "width": 1250,
+        "theme": "dark",
+        "toolbarAligned": true,
+        "menuVisible": true,
+        "keyboard": true
+      },
+      {
+        "language": "zh-Hant",
+        "width": 1500,
+        "theme": "light",
+        "toolbarAligned": true,
+        "menuVisible": true,
+        "keyboard": true
+      },
+      {
+        "language": "zh-Hant",
+        "width": 1500,
+        "theme": "dark",
+        "toolbarAligned": true,
+        "menuVisible": true,
+        "keyboard": true
+      }
+    ],
+    "errors": []
+  },
+  "realPdfCorpus": {
+    "samples": 10,
+    "sourceFilesUnchanged": true
+  },
+  "packagedAI": {
+    "version": "2.0.2",
+    "tools": 62,
+    "defaultLimitMB": 2048,
+    "listeners": [],
+    "harnessListeners": [],
+    "standaloneProductionVerified": true,
+    "debugPortIgnored": true,
+    "portablePdfRendering": true,
+    "sidebarToggle": true,
+    "windowSwitch": true,
+    "restoreProperties": true
+  },
+  "upstreamRegression": {
+    "passed": 529,
+    "skipped": 13,
+    "coveragePercent": 85.15,
+    "requiredCoveragePercent": 75,
+    "status": "passed"
+  }
+}

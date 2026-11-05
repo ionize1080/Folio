@@ -1,0 +1,110 @@
+name: Folio 2.0.2 verified Windows release
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+  actions: read
+concurrency:
+  group: folio-202-release
+  cancel-in-progress: false
+defaults:
+  run:
+    shell: cmd
+jobs:
+  release:
+    runs-on: windows-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: npm ci
+      - run: python -m pip install PyMuPDF==1.26.6 pypdf==6.10.0 pypdfium2==5.13.0 pikepdf==10.13.0.post1 fonttools==4.61.1 Pillow numpy
+      - run: python -m pip install --target native/vendor fonttools==4.61.1
+      - name: Restore pinned models and acceptance fixtures
+        shell: python
+        run: |
+          from pathlib import Path
+          import shutil, subprocess, fitz
+          license=Path('native/vendor/fontTools/LICENSE')
+          if not license.exists(): shutil.copyfile(next(Path('native/vendor').glob('fonttools-*.dist-info/**/LICENSE')),license)
+          subprocess.run(['python','scripts/restore-assets.py'],check=True)
+          out=Path('tests/output');out.mkdir(parents=True,exist_ok=True)
+          doc=fitz.open()
+          for i in range(12):doc.new_page().insert_text((60,100),f'Folio test page {i+1}',fontsize=28)
+          doc.set_toc([[1,f'Chapter {i+1}',i+1] for i in range(8)])
+          doc.save(out/'modes.pdf')
+          subprocess.run(['python','tests/ai-fixtures.py'],check=True)
+      - run: npm run test:quick
+      - run: node scripts/acceptance.mjs native
+      - name: Build pinned Chatbox source and patched PDF MCP
+        run: python scripts/prepare-ai-ci.py
+      - run: .venv-ai\Scripts\python.exe -m pip install pytest pytest-cov
+      - name: Full upstream MCP regression and coverage
+        shell: pwsh
+        run: |
+          $env:PATH="$PWD\.ai-runtime\pdf-runtime\tesseract;$env:PATH"
+          $env:TESSDATA_PREFIX="$PWD\.ai-runtime\pdf-runtime\tesseract\tessdata"
+          .venv-ai\Scripts\python.exe -m pytest integrations/pdf-mcp-upstream/tests -q
+          exit $LASTEXITCODE
+      - run: node tests/ai-settings.cjs
+      - run: node tests/chrome-202.cjs
+      - run: node tests/ai-integration.cjs
+      - run: node tests/ai-hosted.cjs
+      - run: node tests/pdf-mcp-bridge.cjs
+      - name: Require real Qwen through hosted Chatbox
+        run: node tests/ai-live-202.cjs
+        timeout-minutes: 12
+        env:
+          FOLIO_QWEN_API_KEY: ${{ secrets.FOLIO_QWEN_API_KEY }}
+          FOLIO_QWEN_API_URL: ${{ secrets.FOLIO_QWEN_API_URL }}
+      - name: Reclaim build-only files before packaging
+        shell: python
+        run: |
+          from pathlib import Path
+          import shutil
+          root=Path.cwd().resolve()
+          for rel in ['.ai-runtime/chatbox-source/node_modules','.ai-runtime/installer']:
+              target=(root/rel).resolve()
+              assert target.is_relative_to(root/'.ai-runtime') and target != root/'.ai-runtime'
+              if target.exists(): shutil.rmtree(target)
+      - run: python tests/update-python-201.py
+      - run: npm run build:win
+      - run: npm run test:package
+      - run: node tests/package-ai.cjs
+      - run: node tests/update-health-v162.cjs
+        env:
+          FOLIO_EXE: ${{ github.workspace }}\dist\Folio-PDF-Studio-win-x64\Folio.exe
+      - run: python scripts/archive-release.py deliverables
+      - name: Validate the exact release ZIP updater
+        run: node tests/update-201.cjs
+        timeout-minutes: 12
+        env:
+          FOLIO_EXE: ${{ github.workspace }}\dist\Folio-PDF-Studio-win-x64\Folio.exe
+          FOLIO_UPDATE_ZIP: ${{ github.workspace }}\deliverables\Folio-PDF-Studio-2.0.2-portable-win-x64.zip
+      - name: Publish verified artifacts
+        run: python scripts/publish-202-ci.py
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: remote-202-validation
+          path: |
+            tests/output/live-202.json
+            tests/output/hosted-202.json
+            tests/output/chrome-202.json
+            tests/output/chrome-*.png
+            tests/output/ai-settings.json
+            tests/output/update-python-201.json
+            tests/output/package-report.json
+            tests/output/packaged-ai.json
+            tests/output/v201-updater-report.json
+            tests/output/v162-health-report.json

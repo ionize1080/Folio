@@ -10,6 +10,7 @@ contextBridge.exposeInMainWorld("desktop", {
   aiSnapshot: (bytes) => ipcRenderer.invoke("ai-snapshot", bytes),
   aiApproval: (auto) => ipcRenderer.invoke("ai-approval", auto),
   aiBounds: (bounds) => ipcRenderer.invoke("ai-bounds", bounds),
+    aiProgress: (message) => ipcRenderer.invoke("ai-progress", message),
   aiOverlay: (hidden) => ipcRenderer.invoke("ai-overlay", hidden),
   aiDisplay: (mode) => ipcRenderer.invoke("ai-display", mode),
   onAIState: (callback) => {

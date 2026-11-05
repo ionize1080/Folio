@@ -239,8 +239,6 @@ for (const f of [
 ])
   await fs.access(path.join(out, "resources/native", f));
 for (const name of [
-  "ChatboxRuntime/electron.exe",
-  "ChatboxRuntime/resources/default_app.asar",
   "Chatbox/Chatbox-1.20.3-source.zip",
   "Chatbox/CHATBOX-LICENSE.txt",
   "pdf-runtime/python.exe",
@@ -248,11 +246,13 @@ for (const name of [
 ])
   await fs.access(path.join(out, "resources", name));
 for (const name of [
-  "bootstrap.cjs",
+  "profile.cjs",
+  "tool-schema.cjs",
+  "result-cache.cjs",
+  "upstream.json",
   "stdio.cjs",
   "network.cjs",
   "vision-body.cjs",
-  "dock.py",
 ])
   assert.deepEqual(
     await fs.readFile(path.join(out, "resources/Chatbox", name)),
@@ -265,6 +265,13 @@ for (const name of ["pdf-server.py", "pdf_objects.py"])
     await fs.readFile(path.join(root, "integrations", name)),
     `stale PDF adapter ${name}`,
   );
+assert.equal(await fs.stat(path.join(out, "resources/ChatboxRuntime")).catch(()=>null), null, "No duplicate Electron runtime");
+const pdfProvenance=JSON.parse(await fs.readFile(path.join(out,"resources/pdf-runtime/provenance.json"),"utf8"));
+assert.equal(pdfProvenance.pdfMcpCommit,"9d66cca073f664a8c97d4984b5d9d61d68d4ba30");
+assert.equal(pdfProvenance.folioPatchSha256,createHash("sha256").update(await fs.readFile(path.join(root,"integrations/pdf-mcp-folio.patch"))).digest("hex"));
+for(const name of ["folio_batch.py","registry.py"])
+  assert.deepEqual(await fs.readFile(path.join(out,"resources/pdf-runtime/Lib/site-packages/pdf_mcp",name)),
+    await fs.readFile(path.join(root,"integrations/pdf-mcp-upstream/pdf_mcp",name)),`stale upstream extension ${name}`);
 const chatboxProvenance = JSON.parse(
   await fs.readFile(
     path.join(out, "resources/Chatbox/provenance.json"),
@@ -275,6 +282,7 @@ assert.equal(
   chatboxProvenance.sourceCommit,
   "d3cd0ad1e6a1127bbbf3991bb5296c181f4cbdeb",
 );
+assert.equal(chatboxProvenance.build, "pinned-source");
 for (const patch of chatboxProvenance.patches)
   assert.equal(
     createHash("sha256")

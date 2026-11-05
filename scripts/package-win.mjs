@@ -67,7 +67,8 @@ await fs.mkdir(stage, { recursive: true });
 if (base)
   await fs.cp(base, out, {
     recursive: true,
-    filter: (p) => !path.basename(p).startsWith(".Folio.exe."),
+    filter: (p) => !path.basename(p).startsWith(".Folio.exe.") &&
+      !path.relative(base, p).split(path.sep).includes("ChatboxRuntime"),
   });
 else await extract(runtime, { dir: out });
 for (const item of [
@@ -124,7 +125,7 @@ for (const component of ['Chatbox','pdf-runtime']) {
   await fs.access(path.join(root,'.ai-runtime',component));
   await fs.cp(path.join(root,'.ai-runtime',component),path.join(out,'resources',component),{recursive:true,filter:p=>!p.includes('__pycache__')&&!p.includes('__editable__')});
 }
-await fs.cp(path.join(root,'node_modules/electron/dist'),path.join(out,'resources/ChatboxRuntime'),{recursive:true});
+// Chatbox shares the host Electron main process and Chromium runtime.
 await asar.createPackage(stage, path.join(out, "resources", "app.asar"));
 await fs.rm(path.join(out, "resources", "default_app.asar"), { force: true });
 const exe = PE.NtExecutable.from(

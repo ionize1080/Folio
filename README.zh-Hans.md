@@ -3,7 +3,7 @@
 [English](README.md) · **简体中文** · [繁體中文](README.zh-Hant.md)
 
 > **2.0.0 — AI 辅助与 2 GB 缓存**
-> 默认侧栏 Chatbox 1.20.3，可切换独立窗口；通过原生设置配置 API 和模型。按需发现 23 项 Folio 操作、60 项 PDF 工具及 29 项底层对象操作。默认手动审批，自动审批双重确认并标红。本地 Paddle 优先，95% 低置信度阈值可调，复杂页面可按需使用外部图像识别。缓存默认 2 GB，大文件任务临时扩容。 [下载 / 下載](https://github.com/ionize1080/Folio/releases/tag/v2.0.0) · [AI 指南](docs/AI.md) · [验证记录 / 驗證記錄](docs/RELEASE-2.0.0.md)
+> 默认侧栏 Chatbox 1.20.3，可切换独立窗口；通过原生设置配置 API 和模型。按需发现 25 项 Folio 操作、62 项 PDF 工具及 29 项底层对象操作。默认手动审批，自动审批双重确认并标红。本地 Paddle 优先，95% 低置信度阈值可调，复杂页面可按需使用外部图像识别。缓存默认 2 GB，大文件任务临时扩容。 [下载 / 下載](https://github.com/ionize1080/Folio/releases/tag/v2.0.0) · [AI 指南](docs/AI.md) · [验证记录 / 驗證記錄](docs/RELEASE-2.0.0.md)
 
 面向 Windows x64、以本地处理为主并支持可选 Chatbox AI 的 PDF 工作台，重点解决长文档的**书签生成与整理、页面内文字编辑、OCR 识别与校对**。阅读、版面分析、字体匹配和 OCR 在本地运行；完整便携包无需另装 Python、Node.js 或模型。
 
@@ -307,7 +307,7 @@ AI 运行资源还需按 [AI 构建指南](docs/AI.md#构建与测试) 执行 `s
 
 ### 历史验证与版本追踪
 
-- **P6 程序基线：**`0b1cfa0cfb685f8d8bbd5ee04b0042574a85a8d5`，对应 [Windows 成功运行 35818217755](https://github.com/ionize1080/Folio/actions/runs/35818217755)。127 项 JS 单元测试、13 项 P6 原生专项、旧版本回归、公开语料和实际 EXE 验收通过。
+- **P6 程序基线：**`0b1cfa0cfb685f8d8bbd5ee04b0042574a85a8d5`，对应 [Windows 成功运行 35818217755](https://github.com/ionize1080/Folio/actions/runs/35818217755)。125 项 JS 单元测试、13 项 P6 原生专项、旧版本回归、公开语料和实际 EXE 验收通过。
 - **发布产物核验：**8 份 Windows 验收记录无错误，178 项字体加载检查通过，4 组打包 EXE 验收使用相同 EXE 与 `app.asar` 哈希。发布附件中的验证 JSON 保留原始记录。
 - **本地实文档复验：**13 份文档 65 页、2,111 个操作检查点（含复测）；平台与保真指标分别记录，不等同于 Windows 人工验收或全部用例无差异。
 - **2026-09-23 主线同步：**P6 功能此前已在 main；本次合入发布分支的脚本并同步文档，程序源码不变。原分支、Release 附件与元数据独立备份，详见 [同步记录](docs/RELEASE-SYNC-2026-09-23.md)。
@@ -335,3 +335,8 @@ Folio 自有代码采用 [MIT License](LICENSE)。组合分发包含 PyMuPDF/MuP
 ## 2.0.1 compatibility update
 
 Sidebar input and Sogou IME were tested through native computer use. Sidebar and updater use bundled Python; no PowerShell process or WebView2 is required. Older versions on machines with PowerShell blocked must first upgrade by manually extracting the portable ZIP. [Validation and target-system limits](docs/RELEASE-2.0.1.md).
+
+
+## 2.0.2 AI integration
+
+Chatbox now shares Folio’s Electron runtime and is built from pinned source. No Folio model presets; user configuration survives updates. Local progress, unobscured menus/dialogs, direct calibration/margin tools, selective AI review, paged output and upstream batch PDF extensions reduce repeated calls. See [release notes](docs/RELEASE-2.0.2.md).

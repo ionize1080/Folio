@@ -56,7 +56,7 @@ const path = require("path"),
     assert.equal(prompts, 2);
     assert.equal(
       await p.locator(".folio-ai-open").evaluate((e) => e.style.color),
-      "rgb(215, 25, 32)",
+      "",
     );
     await p.reload();
     await p.waitForLoadState("domcontentloaded");

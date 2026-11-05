@@ -1,0 +1,69 @@
+"""Publish only the exact package accepted by this Windows Actions job."""
+from pathlib import Path
+import hashlib
+import json
+import os
+import zipfile
+
+from release_transport import gh, publish
+
+root = Path(__file__).resolve().parents[1]
+out = root / 'deliverables'
+repo, sha = os.environ['GITHUB_REPOSITORY'], os.environ['GITHUB_SHA']
+tag, prefix = 'v2.0.2', 'Folio-PDF-Studio-2.0.2'
+assert json.loads((root / 'package.json').read_text())['version'] == '2.0.2'
+reports = {}
+for name in ['live-202.json', 'hosted-202.json', 'chrome-202.json', 'ai-settings.json',
+             'update-python-201.json', 'packaged-ai.json', 'v201-updater-report.json',
+             'v162-health-report.json', 'package-report.json']:
+    reports[name] = json.loads((root / 'tests/output' / name).read_text(encoding='utf-8'))
+    assert not reports[name].get('errors'), name
+assert reports['live-202.json']['status'] == 'passed'
+assert reports['live-202.json']['independentStateChecks']
+assert len(reports['live-202.json']['checks']) == 4
+assert reports['chrome-202.json']['status'] == 'passed'
+assert reports['hosted-202.json']['sharedElectron']
+assert reports['hosted-202.json']['settingsReloadPersisted']
+assert reports['packaged-ai.json']['tools'] == 62
+info = json.loads((root / 'dist/Folio-PDF-Studio-win-x64/BUILD-INFO.json').read_text())
+portable, source = out / (prefix + '-portable-win-x64.zip'), out / (prefix + '-source.zip')
+with zipfile.ZipFile(portable) as z:
+    assert not any('/ChatboxRuntime/' in n for n in z.namelist())
+    for name, key in [('Folio.exe', 'exe_sha256'), ('resources/app.asar', 'asar_sha256')]:
+        assert hashlib.sha256(z.read('Folio-PDF-Studio/' + name)).hexdigest() == info[key]
+        assert reports['v201-updater-report.json'][key] == info[key]
+    for name in ['profile.cjs', 'tool-schema.cjs', 'result-cache.cjs', 'network.cjs']:
+        assert z.read('Folio-PDF-Studio/resources/Chatbox/' + name) == (root / 'integrations/chatbox' / name).read_bytes()
+with zipfile.ZipFile(source) as z:
+    for name in ['ai-dock.cjs', 'integrations/pdf-mcp-folio.patch', 'scripts/build-chatbox-source.cjs', 'src/chrome.css']:
+        assert z.read('Folio-PDF-Studio-source/' + name) == (root / name).read_bytes()
+run = f'https://github.com/{repo}/actions/runs/{os.environ["GITHUB_RUN_ID"]}'
+validation = out / (prefix + '-validation.json')
+local = json.loads((root / 'docs/validation/2.0.2-local.json').read_text(encoding='utf-8'))
+validation.write_text(json.dumps(dict(sourceCommit=sha, windowsActionsRun=run, package=info,
+                                     reports=reports, localAcceptance=local, targetWin10_21H1Tested=False),
+                                 indent=2), encoding='utf-8')
+assets = [portable, source, validation]
+checksums = out / (prefix + '-SHA256.txt')
+lines = []
+for file in assets:
+    with file.open('rb') as stream:
+        lines.append(hashlib.file_digest(stream, 'sha256').hexdigest() + '  ' + file.name + '\n')
+checksums.write_text(''.join(lines), encoding='utf-8')
+assets.append(checksums)
+notes = []
+for lang, suffix in [('en', ''), ('zh-Hans', '.zh-Hans'), ('zh-Hant', '.zh-Hant')]:
+    notes.append(f'<!-- folio-locale:{lang} -->\n' + (root / f'docs/RELEASE-2.0.2{suffix}.md').read_text(encoding='utf-8') + '\n<!-- /folio-locale -->')
+notes.append(f'Source: `{sha}`. Built, tested and published by [Windows Actions]({run}). Real Qwen acceptance: **passed**, including independent document-state checks.')
+notes_file = out / 'release-notes.md'
+notes_file.write_text('\n\n'.join(notes), encoding='utf-8')
+releases = json.loads(gh('api', f'repos/{repo}/releases?per_page=100'))
+draft = next((r for r in releases if r['tag_name'] == tag), None)
+if draft:
+    assert draft['draft'], 'Never replace a published release'
+    for asset in json.loads(gh('api', f'repos/{repo}/releases/{draft["id"]}/assets')):
+        assert asset['name'].startswith(prefix + '-'), 'Unexpected draft asset'
+        gh('api', '--method', 'DELETE', f'repos/{repo}/releases/assets/{asset["id"]}')
+    gh('release', 'edit', tag, '--repo', repo, '--target', sha, '--notes-file', str(notes_file))
+publish(repo, tag, sha, 'Folio PDF Studio 2.0.2 — Shared Electron, efficient tools and refined desktop UI', notes_file, assets)
+print(f'Published https://github.com/{repo}/releases/tag/{tag}')

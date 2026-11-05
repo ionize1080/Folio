@@ -33,6 +33,7 @@ export async function extractLines(
         right: Math.max(...q.map((q) => q[0])),
         bottom: Math.max(...q.map((q) => q[1])),
         source: "OCR",
+        confidence: b.reviewed || b.reviewAccepted || b.corrected ? 1 : (b.confidence ?? b.score ?? 0),
       };
     });
   } else {
@@ -83,6 +84,7 @@ export async function extractLines(
         right: Math.max(...q.map((q) => q[0])),
         bottom: Math.max(...q.map((q) => q[1])),
         source: "OCR",
+        confidence: b.reviewed || b.reviewAccepted || b.corrected ? 1 : (b.confidence ?? b.score ?? 0),
       };
     });
     fragments = fragments

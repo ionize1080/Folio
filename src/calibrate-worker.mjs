@@ -9,6 +9,7 @@ export function matchTargets({
   offset = 5,
   unit = "mm",
   radius = 0,
+  searchAll = false,
 }) {
   const re = strip ? new RegExp(strip, "gu") : null,
     results = [];
@@ -83,7 +84,7 @@ export function matchTargets({
           },
         });
       }
-      if (candidates.length) break;
+      if (candidates.length && !searchAll) break;
     }
     candidates.sort((a, b) => b.score - a.score || a.top - b.top);
     for (let i = candidates.length - 1; i > 0; i--)

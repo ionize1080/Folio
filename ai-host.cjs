@@ -10,8 +10,7 @@ function installAIHost({ app, win, ipc }) {
     token = crypto.randomBytes(32).toString("hex"),
     pending = new Map(),
     clients = new Set();
-  let child,
-    startup,
+  let startup,
     settleStartup,
     seq = 0,
     approvalAuto = false;
@@ -24,12 +23,11 @@ function installAIHost({ app, win, ipc }) {
   });
   ipc("ai-approval", (auto) => {
     approvalAuto = auto === true;
-    if (!dock.client?.destroyed)
-      dock.client?.write(
-        JSON.stringify({ action: "approval", auto: auto === true }) + "\n",
-      );
+    dock.approvalAuto = approvalAuto;
+    dock.send("folio:approval", approvalAuto);
   });
   ipc("ai-display", (mode) => dock.setMode(mode));
+  ipc("ai-progress", (message) => dock.send("folio:progress", String(message).slice(0,200)));
   ipc("ai-overlay", (hidden) => dock.setOverlay(hidden === true));
   ipc("ai-bounds", (bounds) => {
     if (
@@ -57,18 +55,6 @@ function installAIHost({ app, win, ipc }) {
         try {
           const m = JSON.parse(line);
           if (m.token !== token) throw Error("Invalid session");
-          if (m.action === "ready") {
-            dock.ready(m.handle, client);
-            settleStartup?.();
-            client.write(
-              JSON.stringify({ action: "approval", auto: approvalAuto }) + "\n",
-            );
-            continue;
-          }
-          if (m.action === "display") {
-            dock.setMode(m.mode);
-            continue;
-          }
           const id = ++seq;
           const timer = setTimeout(() => {
             pending.delete(id);
@@ -112,7 +98,8 @@ function installAIHost({ app, win, ipc }) {
     for (const dir of snapshotDirs)
       fs.promises.rm(dir, { recursive: true, force: true }).catch(() => {});
   });
-  let upstream;
+  let upstream, toolList;
+  const resultCache = new (require(app.isPackaged ? path.join(process.resourcesPath,'Chatbox/result-cache.cjs') : './integrations/chatbox/result-cache.cjs').ResultCache)();
   async function pdfClient() {
     if (upstream) return upstream;
     const root = app.isPackaged
@@ -148,8 +135,9 @@ function installAIHost({ app, win, ipc }) {
     return client;
   }
   ipc("ai-pdf", async (m) => {
+    if(m.action === 'result')return resultCache.read(m);
     const client = await pdfClient();
-    if (m.action === "list") return client.listTools();
+    if (m.action === "list") return toolList ||= await client.listTools();
     if (m.action === "call") {
       const paths = [];
       const visit = (v) => {
@@ -159,10 +147,10 @@ function installAIHost({ app, win, ipc }) {
       visit(m.options);
       const release = storageBudget.lease(paths);
       try {
-        return await client.callTool({
+        return resultCache.put(await client.callTool({
           name: m.name,
           arguments: m.options || {},
-        });
+        }));
       } finally {
         await release();
       }
@@ -175,70 +163,29 @@ function installAIHost({ app, win, ipc }) {
     if (!p) return;
     clearTimeout(p.timer);
     pending.delete(m.id);
+    if (p.resolve) return m.error ? p.reject(Error(m.error)) : p.resolve(m.result);
     if (!p.client.destroyed)
       p.client.write(
         JSON.stringify({ id: p.id, result: m.result, error: m.error }) + "\n",
       );
   });
+  function request(params) {
+    return new Promise((resolve,reject)=>{
+      const id=++seq, timer=setTimeout(()=>{pending.delete(id);reject(Error("操作超时"))},300000);
+      pending.set(id,{resolve,reject,timer});
+      win.webContents.send("ai-request",{id,params,deadline:Date.now()+300000});
+    });
+  }
   ipc("ai-open", () => {
-    if (child) {
-      if (!startup) dock.toggle();
-      return startup || { running: true };
-    }
-    const root = app.isPackaged
-      ? path.join(process.resourcesPath, "Chatbox")
-      : path.join(__dirname, ".ai-runtime", "Chatbox");
-    if (!fs.existsSync(path.join(root, "native", "package.json")))
-      throw Error("Chatbox组件尚未准备，请运行准备脚本");
-    const exe = app.isPackaged
-      ? path.join(process.resourcesPath, "ChatboxRuntime", "electron.exe")
-      : process.execPath;
-    startup = new Promise((resolve, reject) => {
-      const timer = setTimeout(() => {
-        const process = child;
-        settleStartup?.(Error("Chatbox 启动超时，请重试"));
-        process?.kill();
-      }, 60000);
-      settleStartup = (error) => {
-        clearTimeout(timer);
-        settleStartup = null;
-        startup = null;
-        error ? reject(error) : resolve({ running: true });
-      };
-    });
-    child = spawn(
-      exe,
-      [
-        root,
-        ...(!app.isPackaged && process.env.FOLIO_TEST_CHATBOX_PORT
-          ? ["--remote-debugging-port=" + process.env.FOLIO_TEST_CHATBOX_PORT]
-          : []),
-      ],
-      {
-        windowsHide: true,
-        stdio: "ignore",
-        env: {
-          ...process.env,
-          ELECTRON_RUN_AS_NODE: undefined,
-          FOLIO_MCP_PIPE: pipe,
-          FOLIO_MCP_TOKEN: token,
-        },
-      },
-    );
-    child.on("error", (error) => {
-      settleStartup?.(Error("Chatbox 启动失败：" + error.message));
-      child = null;
-    });
-    child.on("exit", () => {
-      settleStartup?.(Error("Chatbox 在启动完成前退出，请检查组件是否完整"));
-      child = null;
-      dock.close();
-    });
+    if (startup) return startup;
+    const root = app.isPackaged ? path.join(process.resourcesPath,"Chatbox") : path.join(__dirname,".ai-runtime/Chatbox");
+    if(!fs.existsSync(path.join(root,"native/dist/main/main.js")))throw Error("Chatbox组件尚未准备");
+    const profile = require(path.join(root,"profile.cjs")).prepareProfile(app.getPath("appData"),process.env.FOLIO_CHATBOX_PROFILE);
+    startup = dock.open({root,profile,pipe,token,request,approvalAuto}).finally(()=>{startup=null});
     return startup;
   });
   app.on("before-quit", () => {
     dock.close();
-    child?.kill();
     for (const p of pending.values()) clearTimeout(p.timer);
     pending.clear();
     for (const c of clients) c.destroy();

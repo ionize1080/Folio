@@ -4,11 +4,11 @@
 
 A local-first PDF workspace for Windows x64, built for **long-document bookmarks, in-page text and image editing, OCR review, and optional Chatbox AI assistance**. The portable package includes its runtime, fonts and models. No separate Python or Node.js installation is needed.
 
-[Download](https://github.com/ionize1080/Folio/releases/latest) · [2.0.1 release notes](docs/RELEASE-2.0.1.md) · [Limitations](#limitations) · [Development](#development)
+[Download](https://github.com/ionize1080/Folio/releases/latest) · [2.0.2 release notes](docs/RELEASE-2.0.2.md) · [Limitations](#limitations) · [Development](#development)
 
 ## AI assistance in 2.0.0
 
-Chatbox 1.20.3 opens as a sidebar and can detach into its own window. Configure providers, API keys and models in native Chatbox settings. Four on-demand MCP entry points expose 23 Folio operations and 60 PDF tools, including 29 low-level PDF object operations. Manual approval is the default; automatic approval requires two confirmations and turns the controls red. Local Paddle OCR runs first, with optional vision assistance and a configurable 95% confidence threshold. Disk caches default to 2 GB and protect active large files. See the [AI guide](docs/AI.md) and [validation and release notes](docs/RELEASE-2.0.0.md).
+Chatbox 1.20.3 opens as a sidebar and can detach into its own window. Configure providers, API keys and models in native Chatbox settings. Four direct and four on-demand MCP entry points expose 25 Folio operations and 62 PDF tools, including 29 low-level PDF object operations. Manual approval is the default; automatic approval requires two confirmations and turns only the approval shield red. Local Paddle OCR runs first, with optional vision assistance and a configurable 95% confidence threshold. Disk caches default to 2 GB and protect active large files. See the [AI guide](docs/AI.md) and [validation and release notes](docs/RELEASE-2.0.0.md).
 
 ## Language and appearance
 
@@ -114,7 +114,7 @@ Shortcuts are focus-aware and configurable. Tab moves focus. Language selection 
 | Desktop | Electron, `main.cjs`, `preload.cjs`: windows, dialogs, restricted IPC, workers and updates |
 | Workspace | HTML/CSS, ES modules, PDF.js: rendering, selection, editing and review |
 | AI client | Chatbox 1.20.3, `integrations/chatbox/`, `ai-host.cjs`, `ai-dock.cjs`: native provider settings, sidebar/window modes, authenticated pipe and stdio |
-| On-demand tools | `src/ai-*.mjs`, `integrations/pdf-server.py`, `integrations/pdf_objects.py`: 23 Folio operations, 60 PDF tools and approval/revision checks |
+| On-demand tools | `src/ai-*.mjs`, `integrations/pdf-server.py`, `integrations/pdf_objects.py`: 25 Folio operations, 62 PDF tools and approval/revision checks |
 | Storage budget | `storage-budget.cjs`: 2 GB default, protected active files, LRU rotation and temporary large-task expansion |
 | Localization | `src/i18n.mjs`, `src/locales/`: offline catalogs, locale persistence, UI translation and user-content exclusions |
 | Structure | pdf-lib, Web Workers: bookmarks, annotations, rules, filters and projects |
@@ -180,3 +180,8 @@ Smart contents 1.8.0 improves textbook columns, continuation pages, yearbook fon
 ## 2.0.1 compatibility update
 
 Sidebar input and Sogou IME were tested through native computer use. Sidebar and updater use bundled Python; no PowerShell process or WebView2 is required. Older versions on machines with PowerShell blocked must first upgrade by manually extracting the portable ZIP. [Validation and target-system limits](docs/RELEASE-2.0.1.md).
+
+
+## 2.0.2 AI integration
+
+Chatbox now shares Folio’s Electron runtime and is built from pinned source. No Folio model presets; user configuration survives updates. Local progress, unobscured menus/dialogs, direct calibration/margin tools, selective AI review, paged output and upstream batch PDF extensions reduce repeated calls. See [release notes](docs/RELEASE-2.0.2.md).

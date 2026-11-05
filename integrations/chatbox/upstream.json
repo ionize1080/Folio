@@ -1,0 +1,8 @@
+{
+  "version": "1.20.3",
+  "repository": "https://github.com/chatboxai/chatbox.git",
+  "commit": "d3cd0ad1e6a1127bbbf3991bb5296c181f4cbdeb",
+  "node": "22",
+  "pnpm": "10.33.0",
+  "adapterVersion": 1
+}

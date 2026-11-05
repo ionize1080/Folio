@@ -1,0 +1,118 @@
+/* Desktop chrome: consistent optical weight, compact controls and neutral states.
+   Guidance: Apple HIG Layout/Icons; Windows Content basics (4 px spacing rhythm).
+   Document contents, selection geometry and PDF colors are deliberately separate. */
+:root {
+  --bg: #f3f4f5;
+  --panel: #fff;
+  --panel2: #f7f8f9;
+  --line: #e1e4e8;
+  --text: #272b31;
+  --muted: #68717d;
+  --accent: #356493;
+  --accent-soft: #edf2f7;
+  --hover: #f0f1f3;
+  --selected: #e8ebef;
+  --selected-line: #c9cfd7;
+  --shadow: 0 8px 28px #17212e14, 0 1px 4px #17212e0d;
+  --control-height: 32px;
+  --control-radius: 6px;
+}
+body.dark {
+  --bg: #1c1e22;
+  --panel: #24272c;
+  --panel2: #2b2e34;
+  --line: #3b3f46;
+  --text: #e8eaed;
+  --muted: #a3aab4;
+  --accent: #9fc4ec;
+  --accent-soft: #303c4a;
+  --hover: #33373e;
+  --selected: #3e444e;
+  --selected-line: #626c7a;
+  --shadow: 0 8px 28px #0005, 0 1px 4px #0003;
+}
+body { color:var(--text); }
+button { border-radius: var(--control-radius); transition: background-color 100ms; }
+button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline-color:var(--accent); }
+button:enabled:hover, .more-tools summary:hover { background: var(--hover); color: var(--text); }
+button:disabled:hover { background: transparent; color: var(--text); }
+button:enabled:active { background: var(--selected); }
+.primary, .primary:enabled:hover { background: var(--accent); }
+.secondary { background: var(--selected); color: var(--text); }
+button svg, summary svg, i[data-icon] svg { width:18px; height:18px; flex:none; stroke-width:1.65; }
+i[data-icon] { width:18px; height:18px; }
+.appbar, html[lang="en"] .appbar {
+  gap:8px 16px; padding:8px 16px; min-height:96px; align-items:center;
+}
+.appbar .brand { gap:8px; line-height:1.3; }
+.appbar .logo { width:28px; height:28px; }
+.appbar .doc-tab { height:34px; padding:0 10px; border-radius:6px; }
+.doc-tab #doc-name { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.app-actions { align-items:center; gap:4px; }
+.app-actions button, .language-picker { height:34px; min-height:34px; border-radius:6px; }
+.language-picker { gap:8px; }
+.language-picker select { padding-block:0; height:30px; }
+.appbar > .toolbar, html[lang="en"] .appbar > .toolbar { padding:0; gap:8px; min-height:34px; }
+.toolbar .toolgroup { gap:4px; padding-right:12px; align-items:center; }
+.toolbar .toolgroup:last-child { padding-right:0; border-right:0; }
+.toolbar button, .more-tools summary, .selection-toolbar button, .viewer-toolbar button {
+  min-height:var(--control-height); height:var(--control-height); padding:0 9px;
+  gap:8px; line-height:18px; border-radius:var(--control-radius); font-size:12px;
+}
+.toolbar [data-action=undo], .toolbar [data-action=redo],
+.app-actions [data-action=theme], .app-actions [data-action=help] { width:32px; padding-inline:0; }
+.more-tools summary { list-style:none; }
+.more-tools summary:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+.toolbar button[aria-pressed="true"], .selection-toolbar button[aria-pressed="true"],
+body.dark .selection-toolbar button[aria-pressed="true"], .page-edit-bar button[aria-pressed="true"],
+.more-tools[open] summary, .filter-wrap button[aria-pressed="true"] {
+  color:var(--text); background:var(--selected); box-shadow:inset 0 0 0 1px var(--selected-line);
+}
+.selection-toolbar { gap:4px; padding:6px 12px; }
+.viewer-toolbar { gap:4px; padding:6px 12px; align-items:center; }
+.viewer-toolbar input, .viewer-toolbar select { min-height:32px; padding-block:5px; border-radius:6px; }
+.viewer-toolbar svg { width:16px; height:16px; }
+.viewer-toolbar #page-number { font-variant-numeric:tabular-nums; }
+.tree-row { border-radius:4px; }
+.tree-row.selected { background:var(--selected); box-shadow:none; }
+#tree:focus-within .tree-row.selected { box-shadow:inset 2px 0 var(--accent); }
+.tree-row .page { font-variant-numeric:tabular-nums; }
+.rule-nav-item[aria-current="true"], body.dark .rule-nav-item[aria-current="true"],
+.rules-view-tabs button[aria-pressed="true"], .split-dialog .split-tabs [aria-pressed="true"],
+.radio-tabs .active, .ocr-stream-page.active .ocr-stream-label {
+  background:var(--selected); color:var(--text); box-shadow:inset 0 0 0 1px var(--selected-line);
+}
+.page-tile.selected, body.dark .page-tile.selected { background:var(--selected); border-color:var(--selected-line); }
+.page-edit-bar button[aria-pressed="true"] { border-color:var(--selected-line); }
+.more-tools-menu {
+  top:calc(100% + 6px); width:max-content; min-width:248px; max-width:calc(100vw - 32px);
+  max-height:calc(100vh - 132px); overflow-x:hidden; overflow-y:auto; padding:6px;
+  border-radius:8px; box-shadow:var(--shadow); overscroll-behavior:contain;
+}
+.more-tools-menu button { width:100%; height:auto !important; min-height:32px; padding:7px 10px; gap:10px; white-space:normal; text-align:left; line-height:18px; transition:none; }
+.more-tools-menu button i { color:var(--muted); }
+.more-tools-menu button:focus-visible, #context-menu button:focus-visible { outline-offset:-2px; background:var(--selected); color:var(--text); }
+#context-menu { border-radius:8px; box-shadow:var(--shadow); overflow-x:hidden; overscroll-behavior:contain; }
+#context-menu button { min-height:32px; padding:7px 12px; line-height:18px; border-radius:4px; }
+dialog { border-radius:12px; box-shadow:0 16px 60px #121a2929; }
+dialog::backdrop { background:#1018265c; backdrop-filter:none; }
+#modal-close { width:32px; height:32px; padding:0; }
+#modal-footer { align-items:center; gap:8px; }
+#modal-footer button { min-height:32px; }
+@media (max-width:1120px) {
+ .appbar, html[lang="en"] .appbar { padding-inline:12px; column-gap:12px; }
+ .toolbar .toolgroup { padding-right:8px; gap:2px; }
+ .toolbar button, .more-tools summary { padding-inline:7px; gap:6px; }
+ .app-actions [data-action=find] span, .app-actions [data-action=find] kbd { display:none; }
+}
+@media (max-width:960px) {
+ .appbar > .toolbar, html[lang="en"] .appbar > .toolbar { flex-wrap:wrap; }
+ .brand b { display:none; }
+ .selection-toolbar { padding-inline:8px; }
+}
+@media (prefers-reduced-motion:reduce) {
+ button, .tree-row, summary { transition:none !important; }
+}
+@media (forced-colors:active) {
+ .toolbar button[aria-pressed=true], .selection-toolbar button[aria-pressed=true], .tree-row.selected { outline:1px solid Highlight; }
+}

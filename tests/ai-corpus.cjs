@@ -128,7 +128,7 @@ fs.mkdirSync(output, { recursive: true });
         await page.locator("#set-ai-approval").selectOption("auto");
         await page.locator("#modal-footer .primary").click();
         assert.equal(dialogs - n, 2);
-        assert.equal(
+        assert.notEqual(
           await page
             .locator(".folio-ai-open")
             .evaluate((e) => getComputedStyle(e).color),
@@ -223,7 +223,7 @@ fs.mkdirSync(output, { recursive: true });
         "create, child hierarchy, target, whitespace, delete, undo, redo passed";
       if (ocr) {
         const result = ok(
-          await call("ocr.local", { page: toc, threshold: 0.95 }),
+          await call("ocr.local", { page: toc, threshold: 0.95, detail: "full" }),
         );
         assert(result.blocks.length > 0);
         assert.equal(result.threshold, 0.95);

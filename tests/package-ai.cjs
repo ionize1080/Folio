@@ -66,10 +66,13 @@ const { _electron: electron } = require("playwright"),
     await page.waitForFunction(() =>
       document.body.classList.contains("ai-sidebar-open"),
     );
+    const chat = app.context().pages().find(p=>p.url().includes("/renderer/index.html"));
+    assert(chat,"Chatbox shares the host Electron");
+    await chat.waitForFunction(()=>window.folioToolsStatus().count>=8);
     const list = await page.evaluate(() =>
       window.desktop.aiPdf({ action: "list" }),
     );
-    assert.equal(list.tools.length, 60);
+    assert.equal(list.tools.length, 62);
     const result = await page.evaluate(
       (file) =>
         window.desktop.aiPdf({
@@ -134,7 +137,7 @@ const { _electron: electron } = require("playwright"),
       ),
     );
     console.log(
-      "PASS packaged Chatbox, 60 stdio tools, portable PDF rendering, 2GB budget, zero TCP listeners",
+      "PASS packaged Chatbox, 62 stdio tools, portable PDF rendering, 2GB budget, zero TCP listeners",
     );
   } finally {
     await app.close().catch(() => {});

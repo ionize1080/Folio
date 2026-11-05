@@ -1,0 +1,36 @@
+const {_electron:electron}=require('playwright'),path=require('node:path'),fs=require('node:fs'),assert=require('node:assert/strict');
+(async()=>{
+ const id=Date.now(), app=await electron.launch({args:[path.resolve('.')],env:{...process.env,FOLIO_TEST_BACKGROUND:'1',FOLIO_TEST_PROFILE:path.resolve('tests/output/chrome-'+id)},timeout:60000});
+ const checks=[],errors=[];
+ try {
+  const p=await app.firstWindow();await p.waitForLoadState('domcontentloaded');p.on('pageerror',e=>errors.push(e.message));
+  await app.evaluate(({dialog},file)=>{dialog.showOpenDialog=async()=>({canceled:false,filePaths:[file]})},path.resolve('tests/output/ai-202.pdf'));
+  await p.locator('[data-action="open"]').first().click();await p.waitForFunction(()=>document.querySelector('#doc-name').textContent.includes('ai-202'));await p.locator('#busy').waitFor({state:'hidden'});
+  for(const language of ['en','zh-Hans','zh-Hant'])for(const width of [1080,1250,1500])for(const dark of [false,true]){
+   await p.locator('#language-select').selectOption(language);
+   await app.evaluate(({BrowserWindow},width)=>BrowserWindow.getAllWindows()[0].setSize(width,850),width);
+   await p.evaluate(dark=>document.body.classList.toggle('dark',dark),dark);
+   await p.waitForTimeout(100);
+   const geometry=await p.evaluate(()=>{
+    const controls=[...document.querySelectorAll('.appbar > .toolbar button:not(.more-tools-menu button),.appbar > .toolbar summary')];
+    const rects=controls.map(e=>{const r=e.getBoundingClientRect();return {label:e.textContent.trim()||e.title,x:r.x,right:r.right,y:r.y,h:r.height}});
+    return {width:innerWidth,overflow:document.documentElement.scrollWidth>innerWidth,rects};
+   });
+   assert(!geometry.overflow,JSON.stringify({language,width,dark,geometry}));
+   geometry.rects.forEach(r=>assert(r.x>=0&&r.right<=geometry.width&&r.h===32,JSON.stringify({language,width,dark,r})));
+   await p.locator('.more-tools > summary').focus();await p.keyboard.press('ArrowDown');
+   await p.locator('.more-tools-menu').waitFor({state:'visible'});
+   const menu=await p.locator('.more-tools-menu').evaluate(e=>{const r=e.getBoundingClientRect();return {x:r.x,right:r.right,bottom:r.bottom,viewport:innerWidth,height:innerHeight,clipped:e.scrollWidth>e.clientWidth,focus:e.contains(document.activeElement)}});
+   assert(menu.x>=0&&menu.right<=menu.viewport&&menu.bottom<=menu.height&&!menu.clipped&&menu.focus,JSON.stringify({language,width,dark,menu}));
+   await p.keyboard.press('End');assert.equal(await p.locator('.more-tools-menu button').last().evaluate(e=>e===document.activeElement),true);
+   const colors=await p.locator('.more-tools-menu button').first().evaluate(e=>({actual:getComputedStyle(e).color,expected:getComputedStyle(document.body).color}));
+   assert.equal(colors.actual,colors.expected,'theme colors update while menu is closed');
+   if(width===1250)await p.screenshot({path:`tests/output/chrome-${language}-${dark?'dark':'light'}.png`});
+   await p.keyboard.press('Escape');assert.equal(await p.locator('.more-tools > summary').evaluate(e=>e===document.activeElement),true);
+   checks.push({language,width,theme:dark?'dark':'light',toolbarAligned:true,menuVisible:true,keyboard:true});
+  }
+  const paths=await p.locator('[data-action="generate"] svg,.folio-ai-open svg,[data-select-mode] svg').evaluateAll(es=>es.map(e=>e.innerHTML));
+  assert.equal(new Set(paths).size,paths.length,'distinct icons for distinct tools');
+  assert.deepEqual(errors,[]);fs.writeFileSync('tests/output/chrome-202.json',JSON.stringify({status:'passed',checks,errors},null,2));console.log('PASS chrome',checks.length,'language / size / theme combinations');
+ }finally{await app.close()}
+})().catch(e=>{console.error(e);process.exitCode=1});

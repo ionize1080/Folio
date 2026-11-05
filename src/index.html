@@ -7,16 +7,17 @@
       http-equiv="Content-Security-Policy"
       content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' blob: data:; connect-src 'self' blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'none'"
     />
-    <title>Folio PDF Studio 2.0.1</title>
+    <title>Folio PDF Studio 2.0.2</title>
     <link rel="stylesheet" href="style.css" />
     <link rel="stylesheet" href="vendor/pdf_viewer.css" />
+    <link rel="stylesheet" href="chrome.css" />
   </head>
   <body>
     <header class="appbar">
       <div class="brand">
         <img class="logo" src="brand.svg" alt="Folio">
         <div>Folio <b>PDF Studio</b></div>
-        <span class="version">2.0.1</span>
+        <span class="version">2.0.2</span>
       </div>
       <div class="doc-tab">
         <i data-icon="file"></i><span id="doc-name">未打开文档</span
@@ -58,7 +59,7 @@
             data-doc
             title="点击页面图片，原位调整色阶、曲线及颜色"
           >
-            <i data-icon="sliders"></i>编辑图像
+            <i data-icon="image-edit"></i>编辑图像
           </button>
           <button data-action="ocr" data-doc>
             <i data-icon="scan"></i>OCR
@@ -66,13 +67,13 @@
         </div>
 
         <div class="toolgroup">
-          <button data-action="smart-toc" data-doc><i data-icon="scan"></i><span>智能目录识别</span></button>
+          <button data-action="smart-toc" data-doc><i data-icon="contents"></i><span>智能目录识别</span></button>
           <button
             data-action="generate"
             data-doc
             title="按多级规则自动生成书签"
           >
-            <i data-icon="spark"></i>自动书签
+            <i data-icon="auto-bookmark"></i>自动书签
           </button>
         </div>
 
@@ -89,19 +90,19 @@
               <i data-icon="save-as"></i><span>另存为</span>
             </button>
             <button data-action="ocr-preview" data-doc>
-              <i data-icon="text"></i>文字预览
+              <i data-icon="text-lines"></i>文字预览
             </button>
             <button data-action="calibrate" data-doc>
               <i data-icon="crosshair"></i>目标校准
             </button>
             <button data-action="calibrate-pages" data-doc>
-              <i data-icon="crosshair"></i>逐条校准目录页码
+              <i data-icon="page-target"></i>逐条校准目录页码
             </button>
             <button data-action="whitespace" data-doc>
               <i data-icon="spacing"></i>跳转留白
             </button>
             <button data-action="batch" data-doc>
-              <i data-icon="sliders"></i>批量规则
+              <i data-icon="rules"></i>批量规则
             </button>
             <button data-action="exchange" data-doc>
               <i data-icon="exchange"></i>导入 / 导出
@@ -110,16 +111,16 @@
               <i data-icon="table"></i>表格结构
             </button>
             <button data-action="page-diff" data-doc>
-              <i data-icon="pages"></i>全页输出对照
+              <i data-icon="compare"></i>全页输出对照
             </button>
             <button data-action="decrypt">
               <i data-icon="unlock"></i>导出无密码副本
             </button>
             <button data-action="recover">
-              <i data-icon="undo"></i>恢复草稿
+              <i data-icon="history"></i>恢复草稿
             </button>
             <button data-action="metadata" data-doc>
-              <i data-icon="info"></i>文档属性
+              <i data-icon="file"></i>文档属性
             </button>
           </div>
         </details>
@@ -242,16 +243,16 @@
             aria-pressed="true"
             title="选择文字内容并复制"
           >
-            <i data-icon="text"></i>选择文本
+            <i data-icon="text-select"></i>选择文本
           </button>
           <button data-select-mode="all" data-doc title="框选文字和图片对象">
             <i data-icon="cursor"></i>选择对象
           </button>
           <button data-select-mode="text" data-doc title="只框选文字对象">
-            文字框选
+            <i data-icon="text-box"></i>文字框选
           </button>
           <button data-select-mode="image" data-doc title="只框选图片对象">
-            图片框选
+            <i data-icon="image-box"></i>图片框选
           </button>
         </div>
         <div class="viewer-toolbar">
@@ -456,7 +457,7 @@
     <dialog aria-labelledby="modal-title" id="modal">
       <div class="modal-header">
         <div>
-          <span class="eyebrow" id="modal-kicker">FOLIO 2.0.1</span>
+          <span class="eyebrow" id="modal-kicker">FOLIO 2.0.2</span>
           <h2 id="modal-title"></h2>
         </div>
         <button id="modal-close" aria-label="关闭">×</button>
