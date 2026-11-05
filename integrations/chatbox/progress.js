@@ -3,8 +3,13 @@
   const states = new Map(); let active;
   const box = document.createElement('div'); box.id='folio-progress';
   box.setAttribute('role','status'); box.setAttribute('aria-live','polite');box.hidden=true;
-  box.style.cssText='position:fixed;top:64px;left:12px;right:12px;z-index:30;border-radius:8px;padding:8px 12px;font-size:13px;background:var(--mantine-color-body,#fff);color:var(--mantine-color-text,#263449);border:1px solid #cbd5e1;box-shadow:0 2px 8px #0001;pointer-events:none';
-  document.body.append(box);
+  box.style.cssText='font-size:12px;line-height:18px;padding:3px 6px;color:var(--mantine-color-text);border-inline-start:2px solid var(--mantine-color-blue-6);white-space:nowrap;overflow:hidden;text-overflow:ellipsis';
+  function attach() {
+    const slot=document.getElementById('folio-progress-slot');
+    if(slot && box.parentElement!==slot) slot.append(box);
+  }
+  new MutationObserver(attach).observe(document.body,{childList:true,subtree:true});
+  attach();
   const labels={'document.describe':'读取文档信息','bookmark.read':'读取书签','bookmark.calibrate':'校准书签目标','bookmark.whitespace':'调整书签留白','bookmark.batch':'批量修改书签','bookmark.generate':'匹配本地标题','bookmark.replace':'写入书签','ocr.local':'本地文字识别','ocr.apply':'写入识别结果','page.text':'提取页面文字','page.image':'读取待复核图像','page.objects':'检查页面对象','page.edit':'应用页面修改','document.snapshot':'准备文档副本','document.toc':'本地识别目录'};
   function render(){const s=states.get(active);box.hidden=!s;if(s)box.textContent=s.text+' · '+Math.floor((Date.now()-s.started)/1000)+' 秒'}
   window.folioProgress={
@@ -14,5 +19,5 @@
     end(id){states.delete(id);if(active===id)active=[...states.keys()].at(-1);render()}
   };
   window.folioControls?.subscribe(s=>{if(s.progress && active)window.folioProgress.phase(active,s.progress)});
-  setInterval(render,1000);
+  setInterval(()=>{if(active)render()},1000);
 })();

@@ -1,5 +1,22 @@
 const { contextBridge, ipcRenderer, webUtils } = require("electron");
+const listen = (channel, callback) => {
+  const fn = (_event, value) => callback(value);
+  ipcRenderer.on(channel, fn);
+  return () => ipcRenderer.removeListener(channel, fn);
+};
 contextBridge.exposeInMainWorld("desktop", {
+  systemLanguages: () => ipcRenderer.invoke("system-languages"),
+  openDocuments: () => ipcRenderer.invoke("tabs-open"),
+  dropDocuments: files => ipcRenderer.invoke("tabs-open", files.map(file => webUtils.getPathForFile(file))),
+  tabsState: () => ipcRenderer.invoke("tabs-state"),
+  tabsReady: () => ipcRenderer.invoke("tabs-ready"),
+  tabMeta: value => ipcRenderer.invoke("tabs-meta",value),
+  tabSelect: id => ipcRenderer.invoke("tabs-select",id),
+  tabClose: id => ipcRenderer.invoke("tabs-close",id),
+  tabReply: value => ipcRenderer.invoke("tabs-reply",value),
+  onTabs: cb => listen("tabs-state",cb),
+  onTabRequest: cb => listen("tabs-request",cb),
+  onTabError: cb => listen("tabs-error",cb),
   onNativeProgress: (callback) => {
     const fn = (_e, value) => callback(value);
     ipcRenderer.on("native-progress", fn);
@@ -44,7 +61,7 @@ contextBridge.exposeInMainWorld("desktop", {
   largeInfo: (data) => ipcRenderer.invoke("large-info", data),
   largeSave: (data) => ipcRenderer.invoke("large-save", data),
   largeRelease: (handle) => ipcRenderer.invoke("large-release", handle),
-  largeCancel: () => ipcRenderer.invoke("large-cancel"),
+  largeCancel: handle => ipcRenderer.invoke("large-cancel", handle),
   ocrJob: (data) => ipcRenderer.invoke("ocr-job", data),
   flowLayout: (data) => ipcRenderer.invoke("flow-layout", data),
   qpdf: (data) => ipcRenderer.invoke("qpdf", data),

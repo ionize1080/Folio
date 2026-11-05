@@ -47,7 +47,7 @@ export function installAI({
   let overlayFrame = 0;
   const updateOverlay = () => {
     overlayFrame = 0;
-    const next = !!document.querySelector("dialog[open], details[open], #context-menu:not([hidden])");
+    const next = !!document.querySelector("dialog[open]:not(.large-workspace), details[open], #context-menu:not([hidden])");
     if (next !== overlay) {
       overlay = next;
       desktop.aiOverlay(next);
@@ -119,6 +119,7 @@ export function installAI({
   };
   desktop.onAIState((state) => {
     displayMode = state.mode;
+    if (typeof state.auto === "boolean") auto = state.auto;
     open.setAttribute("aria-pressed", String(state.open));
     document.body.classList.toggle(
       "ai-sidebar-open",
@@ -136,28 +137,41 @@ export function installAI({
   };
   new ResizeObserver(dockBounds).observe(document.querySelector("main"));
   new ResizeObserver(dockBounds).observe(document.querySelector(".inspector"));
-  const revision = () => JSON.stringify(session.capture());
-  let prior = "",
-    counter = 0;
   const rev = () => {
-    const now = revision();
-    if (now !== prior) {
-      prior = now;
-      counter++;
-    }
-    return String(counter);
+    const {id, revision} = session.capture();
+    return id + "/" + revision;
   };
+  function currentSelection() {
+    const selection = window.getSelection();
+    const pageFor = node => (node?.nodeType === 1 ? node : node?.parentElement)?.closest(".pdf-page .textLayer")?.closest("[data-page]");
+    const start = pageFor(selection?.anchorNode), end = pageFor(selection?.focusNode);
+    const text = start && end ? selection.toString() : "";
+    const ids = [...S.selected];
+    return {
+      currentPage:S.page, pageLabel:S.labels?.[S.page-1] ?? String(S.page),
+      tool:document.querySelector("[data-select-mode][aria-pressed=true]")?.dataset.selectMode,
+      selectedPageCount:S.selectedPages?.size || 0, selectedPages:[...(S.selectedPages || [])].slice(0,200),
+      selectedBookmarkCount:ids.length,
+      selectedBookmarks:ids.slice(0,100).map(id => S.index.get(id)).filter(Boolean).map(({id,title,target}) => ({id,title,target})),
+      textSelection:text ? {text:text.slice(0,12000),truncated:text.length>12000,anchorPage:Number(start.dataset.page),focusPage:Number(end.dataset.page)} : null,
+      objectSelection:S.objectSelection?.selection() || null
+    };
+  }
   async function perform({ name, arguments: a = {} }, deadline = Infinity) {
     const timely = () => {
       if (Date.now() > deadline) throw Error("请求已过期，未应用修改");
     };
     timely();
+    if (name === "folio_document" && a.action === "list") {
+      const {documents,activeDocumentId} = await desktop.tabsState();
+      return {documents,activeDocumentId};
+    }
     const direct = {folio_calibrate:"bookmark.calibrate",folio_whitespace:"bookmark.whitespace"};
     if (direct[name] || name === "folio_bookmarks" || name === "folio_document") {
       let op=direct[name];
       if(name==="folio_bookmarks")op="bookmark."+a.action;
-      if(name==="folio_document")op=({describe:"document.describe",snapshot:"document.snapshot",toc:"document.toc",text:"page.text",ocr:"ocr.local",image:"page.image",objects:"page.objects"})[a.action];
-      const {revision,selector,action,options,...rest}=a;
+      if(name==="folio_document")op=({context:"document.context",describe:"document.describe",snapshot:"document.snapshot",toc:"document.toc",text:"page.text",ocr:"ocr.local",image:"page.image",objects:"page.objects"})[a.action];
+      const {revision,selector,action,options,documentId,...rest}=a;
       return perform({name:"folio_operation",arguments:{operation:op,revision,options:{...options,...rest,...(selector?{selector}:{}),...(name==="folio_calibrate"?{apply:a.apply!==false}:{}),...(name==="folio_bookmarks"&&action==="read"?{detail:a.detail||"compact"}:{})}}},deadline);
     }
     if (name === "folio_ui") {
@@ -208,7 +222,7 @@ export function installAI({
     if (name !== "folio_operation") throw Error("未知工具");
     const op = a.operation,
       p = {...(a.options || {})};
-    if(p.selector)p.ids=selectBookmarkIds(S.nodes,p.selector);
+    if(p.selector)p.ids=selectBookmarkIds(S.nodes,p.selector,S.selected);
     if(op==="bookmark.calibrate" && !p.ids)p.ids=S.nodes.map(n=>n.id);
     const progress=text=>desktop.aiProgress?.(text).catch(()=>{});
     if (!Object.hasOwn(catalog, op))
@@ -220,7 +234,7 @@ export function installAI({
     const large = getLargeDocument?.();
     if (large) {
       const state = large.aiDescribe();
-      if (op === "document.describe")
+      if (op === "document.describe" || op === "document.context")
         return {
           ...state,
           path: state.hasUnsavedChanges
@@ -236,12 +250,15 @@ export function installAI({
     if (op === "document.describe")
       return {
         name: S.name,
+        documentId:(await desktop.tabsState()).self,
+        currentPage:S.page,
         pageCount: S.info.pageCount,
         bookmarkCount: S.nodes.length,
         busy: !!S.busy,
         revision: rev(),
       };
     const read = [
+      "document.context",
       "bookmark.read",
       "page.objects",
       "page.text",
@@ -259,7 +276,7 @@ export function installAI({
     if (
       !auto &&
       !confirm(
-        "AI 请求：" +
+        "AI 请求：" + S.name + " · " +
           op +
           "\n" +
           JSON.stringify(p, null, 2).slice(0, 5000) +
@@ -274,7 +291,10 @@ export function installAI({
       if (S.sessionId !== session || S.bytes !== bytes || rev() !== before)
         throw Error("文档已变化，结果未应用");
     };
-    const selectedNodes=S.nodes.filter(n=>!p.ids||p.ids.includes(n.id));
+    if (op === "document.context") return {...currentSelection(), documentId:(await desktop.tabsState()).self, name:S.name, revision:before};
+    if (["page.text","page.image","page.objects","ocr.local"].includes(op)) p.page ??= S.page;
+    const idSet = p.ids && new Set(p.ids);
+    const selectedNodes = idSet ? S.nodes.filter(n => idSet.has(n.id)) : S.nodes;
     const pages = p.pages || (op==="bookmark.calibrate" ? calibrationPages(selectedNodes,S.info.pageCount,p.radius??2) : (p.page !== undefined ? [p.page] : [S.page]));
     if (
       !Array.isArray(pages) ||
@@ -520,7 +540,9 @@ export function installAI({
       context,
     });
     fresh();
-    const changed=result.nodes.filter(n=>JSON.stringify(n)!==JSON.stringify(S.nodes.find(old=>old.id===n.id))).length + S.nodes.filter(n=>!result.nodes.some(next=>next.id===n.id)).length;
+    const nextIds = new Set(result.nodes.map(n => n.id));
+    const changed = result.nodes.filter(n => JSON.stringify(n) !== JSON.stringify(S.index.get(n.id))).length
+      + S.nodes.filter(n => !nextIds.has(n.id)).length;
     if(changed)commit(result.nodes);
     const { nodes, changes, ...details } = result;
     return {

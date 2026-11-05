@@ -4,7 +4,7 @@ const net = require("node:net"),
   path = require("node:path"),
   fs = require("node:fs"),
   { spawn } = require("node:child_process");
-function installAIHost({ app, win, ipc }) {
+function installAIHost({ app, win, ipc, tabs, sender, requireActive }) {
   const pipe =
       "\\\\.\\pipe\\Folio-AI-" + crypto.randomBytes(16).toString("hex"),
     token = crypto.randomBytes(32).toString("hex"),
@@ -18,23 +18,40 @@ function installAIHost({ app, win, ipc }) {
     app,
     win,
     onState: (state) => {
-      if (!win.isDestroyed()) win.webContents.send("ai-state", state);
+      if (!win.isDestroyed()) for (const t of tabs.entries.values()) t.wc.send("ai-state", {...state,auto:approvalAuto});
     },
   });
+  function route(params) {
+    const id = params?.arguments?.documentId;
+    const target = id === undefined ? tabs.active : tabs.byId(id);
+    if (!approvalAuto && target !== tabs.active) tabs.select(target);
+    return target.wc;
+  }
+  tabs.onSelect = tab => {
+    dock.bounds = tab.bounds;
+    dock.setOverlay(!!tab.overlay);
+  };
+  tabs.onReady = tab => tab.wc.send("ai-state", {...dock.state(),auto:approvalAuto});
   ipc("ai-approval", (auto) => {
     approvalAuto = auto === true;
     dock.approvalAuto = approvalAuto;
+    for (const t of tabs.entries.values()) t.wc.send("ai-state", {...dock.state(),auto:approvalAuto});
     dock.send("folio:approval", approvalAuto);
   });
   ipc("ai-display", (mode) => dock.setMode(mode));
   ipc("ai-progress", (message) => dock.send("folio:progress", String(message).slice(0,200)));
-  ipc("ai-overlay", (hidden) => dock.setOverlay(hidden === true));
+  ipc("ai-overlay", hidden => {
+    tabs.entries.get(sender()).overlay = hidden === true;
+    if (requireActive()) dock.setOverlay(hidden === true);
+  });
   ipc("ai-bounds", (bounds) => {
     if (
       Object.values(bounds).every(
         (n) => Number.isFinite(n) && n >= 0 && n < 20000,
       )
     ) {
+      tabs.entries.get(sender()).bounds = bounds;
+      if (!requireActive()) return;
       dock.bounds = bounds;
       dock.layout();
     }
@@ -55,6 +72,9 @@ function installAIHost({ app, win, ipc }) {
         try {
           const m = JSON.parse(line);
           if (m.token !== token) throw Error("Invalid session");
+          let owner;
+          try { owner = route(m.params); }
+          catch (error) { client.write(JSON.stringify({id:m.id,error:error.message}) + "\n"); continue; }
           const id = ++seq;
           const timer = setTimeout(() => {
             pending.delete(id);
@@ -63,8 +83,8 @@ function installAIHost({ app, win, ipc }) {
                 JSON.stringify({ id: m.id, error: "操作超时" }) + "\n",
               );
           }, 300000);
-          pending.set(id, { client, id: m.id, timer });
-          win.webContents.send("ai-request", {
+          pending.set(id, { client, id: m.id, timer, owner });
+          owner.send("ai-request", {
             id,
             params: m.params,
             deadline: Date.now() + 300000,
@@ -77,17 +97,32 @@ function installAIHost({ app, win, ipc }) {
   });
   server.listen(pipe);
   const snapshotDirs = [];
-  let latestSnapshot;
+  const snapshots = new Map();
+  tabs.onRemove = tab => {
+    const file = snapshots.get(tab.id);
+    if (file) void storageBudget.unpin(file);
+    snapshots.delete(tab.id);
+    for (const [id, p] of pending) {
+      if (p.owner !== tab.wc) continue;
+      pending.delete(id);
+      clearTimeout(p.timer);
+      if (p.reject) p.reject(Error("Document closed"));
+      else if (!p.client.destroyed) p.client.write(JSON.stringify({id:p.id,error:"Document closed"}) + "\n");
+    }
+  };
   ipc("ai-snapshot", async (bytes) => {
     if (!bytes || bytes.length > 768 * 1024 * 1024)
       throw Error("PDF大小超出预算");
+    const id = tabs.entries.get(sender()).id;
     const dir = await require("./temp-store.cjs").makeTemp("folio-source-");
     snapshotDirs.push(dir);
     const file = path.join(dir, "document.pdf");
     await fs.promises.writeFile(file, Buffer.from(bytes));
     await storageBudget.add(file, { pinned: true });
-    if (latestSnapshot) await storageBudget.unpin(latestSnapshot);
-    latestSnapshot = file;
+    if (tabs.entries.get(sender())?.id !== id) { await storageBudget.unpin(file); throw Error("Document closed"); }
+    const prior = snapshots.get(id);
+    snapshots.set(id,file);
+    if (prior) await storageBudget.unpin(prior);
     return {
       path: file,
       cache: true,
@@ -160,7 +195,7 @@ function installAIHost({ app, win, ipc }) {
   app.on("before-quit", () => upstream?.close());
   ipc("ai-reply", (m) => {
     const p = pending.get(m.id);
-    if (!p) return;
+    if (!p || p.owner !== sender()) return;
     clearTimeout(p.timer);
     pending.delete(m.id);
     if (p.resolve) return m.error ? p.reject(Error(m.error)) : p.resolve(m.result);
@@ -172,8 +207,9 @@ function installAIHost({ app, win, ipc }) {
   function request(params) {
     return new Promise((resolve,reject)=>{
       const id=++seq, timer=setTimeout(()=>{pending.delete(id);reject(Error("操作超时"))},300000);
-      pending.set(id,{resolve,reject,timer});
-      win.webContents.send("ai-request",{id,params,deadline:Date.now()+300000});
+      const owner = route(params);
+      pending.set(id,{resolve,reject,timer,owner});
+      owner.send("ai-request",{id,params,deadline:Date.now()+300000});
     });
   }
   ipc("ai-open", () => {

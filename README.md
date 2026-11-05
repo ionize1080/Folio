@@ -4,7 +4,7 @@
 
 A local-first PDF workspace for Windows x64, built for **long-document bookmarks, in-page text and image editing, OCR review, and optional Chatbox AI assistance**. The portable package includes its runtime, fonts and models. No separate Python or Node.js installation is needed.
 
-[Download](https://github.com/ionize1080/Folio/releases/latest) · [2.0.2 release notes](docs/RELEASE-2.0.2.md) · [Limitations](#limitations) · [Development](#development)
+[Download](https://github.com/ionize1080/Folio/releases/latest) · [2.1.0 release notes](docs/RELEASE-2.1.0.md) · [Limitations](#limitations) · [Development](#development)
 
 ## AI assistance in 2.0.0
 
@@ -12,7 +12,7 @@ Chatbox 1.20.3 opens as a sidebar and can detach into its own window. Configure 
 
 ## Language and appearance
 
-English is the default for new and previously unconfigured profiles, regardless of Windows language. Choose **English / 简体中文 / 繁體中文** using the globe control in the top bar or **Preferences → Interface language**. Your choice is saved locally and takes effect without reopening the document. Both light and dark themes support the control.
+Folio follows the Windows display language on first launch. Choose Follow system, English, 简体中文 or 繁體中文 in Preferences. Changes apply immediately. Preferences also contains five palettes, a custom accent and light, dark or system appearance.
 
 Display language is independent of PDF text, bookmark titles, fonts, OCR settings and script conversion. Switching does not translate documents or discard pending edits. Native Windows file dialogs follow Windows language settings. Engine and operating-system diagnostics may retain original technical text.
 

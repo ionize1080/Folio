@@ -1,6 +1,6 @@
 # Localization
 
-Folio 1.6 ships English (default), Simplified Chinese (`zh-Hans`) and Traditional Chinese (`zh-Hant`). The choice is explicit and stored as `folio-language`; unsupported/corrupt values fall back to English. It does not follow the OS automatically. OCR output scripts and display language are separate settings.
+Folio follows the Windows display language by default. Preferences can override it with English, Simplified Chinese or Traditional Chinese. Unsupported system languages fall back to English.
 
 ## Design references
 
@@ -8,7 +8,7 @@ Folio 1.6 ships English (default), Simplified Chinese (`zh-Hans`) and Traditiona
 - [Microsoft: globalization and localization](https://learn.microsoft.com/en-us/windows/apps/design/globalizing/globalizing-portal): separate language resources and locale-aware layout.
 - [USWDS: selecting a language](https://designsystem.digital.gov/patterns/select-a-language/selected-content/): native language names for discoverability.
 
-Folio adds a persistent globe/native-name selector to the top bar, mirrors it in Preferences, preserves keyboard focus and changes labels without restarting an editing session. Commands occupy their own row to accommodate longer English labels. No flags imply a one-to-one country/language mapping.
+Folio presents native language names in Preferences, preserves keyboard focus and changes labels without restarting an editing session. Commands occupy their own row to accommodate longer English labels. No flags imply a one-to-one country/language mapping.
 
 ## Runtime contract
 

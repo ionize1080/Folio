@@ -131,7 +131,7 @@ export async function openLargeWorkspace(file, ctx) {
       return false;
     closed = true;
     serial++;
-    api.largeCancel();
+    resize.disconnect();
     await api.largeRelease(file.handle);
     host.close();
     host.remove();
@@ -139,9 +139,14 @@ export async function openLargeWorkspace(file, ctx) {
     ctx.onClose();
     return true;
   }
-  ctx.onReady({ close, isDirty: () => dirty, isBusy: () => busy, aiDescribe:()=>({name:file.name,pageCount:info?.pages||0,bookmarkCount:rows.length,busy,workspace:"large",handle:file.handle,hasUnsavedChanges:dirty}) });
+  ctx.onReady({ close, isDirty: () => dirty, isBusy: () => busy, aiDescribe:()=>({name:file.name,currentPage:page,selectedBookmarks:rows[selected] ? [{index:selected,...rows[selected]}] : [],pageCount:info?.pages||0,bookmarkCount:rows.length,busy,workspace:"large",handle:file.handle,hasUnsavedChanges:dirty}) });
   document.body.append(host);
-  host.showModal();
+  const resize = new ResizeObserver(() => {
+    host.style.top = document.querySelector(".appbar").getBoundingClientRect().bottom + "px";
+  });
+  const appbar = document.querySelector(".appbar");
+  if (appbar) resize.observe(appbar);
+  host.show();
   $("[data-name]").textContent = file.name;
   status("正在读取文档结构…");
   host.addEventListener("cancel", (e) => {
@@ -155,10 +160,13 @@ export async function openLargeWorkspace(file, ctx) {
       $("[data-save]").click();
     }
   });
-  $("[data-close]").onclick = guarded(close);
+  $("[data-close]").onclick = guarded(async () => {
+    if (api.tabClose) await api.tabClose((await api.tabsState()).self);
+    else await close();
+  });
   $("[data-cancel]").onclick = () => {
     serial++;
-    api.largeCancel();
+    api.largeCancel(file.handle);
     status("已请求停止，正在清理任务…");
   };
   $("[data-list]").onchange = guarded(async () => {

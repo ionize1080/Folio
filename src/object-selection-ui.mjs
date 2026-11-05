@@ -378,6 +378,7 @@ export function installObjectSelection({
         await editImages({ indices, page });
       });
     active = {
+      selection: () => ({page, mode, count:selected.size, items:selectedObjects().slice(0,100).map(({index,type,bounds,text}) => ({index,type,bounds,text:text?.slice(0,500)}))}),
       destroy,
       overlay: draw,
       change,

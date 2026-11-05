@@ -41,6 +41,7 @@ const paths = {
   info: "M12 8h.01 M12 11v6 M22 12a10 10 0 1 0-20 0 10 10 0 0 0 20 0",
   search: "M21 21l-5-5 M18 10a8 8 0 1 0-16 0 8 8 0 0 0 16 0",
   plus: "M12 5v14 M5 12h14",
+  disclose: "m9 6 6 6-6 6",
   chevron: "m7 10 5 5 5-5",
   bookmark: "M6 3h12v19l-6-4-6 4z",
   branch: "M6 3v13a3 3 0 0 0 3 3h10 M6 7h13 M16 4l3 3-3 3 M16 16l3 3-3 3",

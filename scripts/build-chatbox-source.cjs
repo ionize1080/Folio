@@ -34,7 +34,21 @@ fs.copyFileSync(path.join(adapter,'folio-electron.ts'),path.join(source,'src/mai
 patch('src/preload/index.ts', [['invoke: ipcRenderer.invoke,',"invoke: ((channel: string, ...args: any[]) => ipcRenderer.invoke('chatbox:' + channel, ...args)) as any,"]]);
 fs.appendFileSync(path.join(source,'src/preload/index.ts'),'\n'+fs.readFileSync(path.join(adapter,'network-preload.cjs'),'utf8'));
 patch('src/shared/defaults.ts', [["provider: ModelProviderEnum.ChatboxAI,\n    modelId: 'chatboxai-4',", "provider: '' as any,\n    modelId: '',"]]);
+// Replace the upstream promotional landing card with help for the open PDFs.
+const homePath = 'src/renderer/routes/index.tsx';
+const homeSource = git('show', pin.commit + ':' + homePath);
+const start = homeSource.indexOf("        {messageLayout || welcomeCardMode !== 'none'");
+const end = homeSource.indexOf('        <Stack gap="sm">\n          {session.copilotId', start);
+if (start < 0 || end <= start) throw Error('Chatbox home layout changed');
+patch(homePath, [[homeSource.slice(start,end), `
+        <Stack align="flex-start" justify="center" gap="xs" flex={1} w="100%" maw={560} mx="auto" px="lg" py="md" style={{minHeight:0,overflowY:'auto'}}>
+          <Text component="h1" size="xl" fw={600} m={0}>{language.startsWith('zh') ? (language === 'zh-Hant' ? '詢問 PDF' : '询问 PDF') : 'Ask about your PDFs'}</Text>
+          <Text size="sm" c="dimmed">{language.startsWith('zh') ? (language === 'zh-Hant' ? '選取一段文字來提問，或比較已開啟文件中的內容。' : '选取一段文字来提问，或比较已打开文档中的内容。') : 'Select a passage to ask about it, or compare content across open documents.'}</Text>
+          {!providers.length && <Button size="xs" variant="default" onClick={() => navigateToSettings('provider')}>{language.startsWith('zh') ? (language === 'zh-Hant' ? '設定模型服務' : '设置模型服务') : 'Set up a model provider'}</Button>}
+        </Stack>
+`]]);
 patch('src/renderer/components/InputBox/InputBox.tsx', [
+  ['{currentSessionId && <CompactionStatus', '<div id="folio-progress-slot" style={{display:"contents"}} />\n          {currentSessionId && <CompactionStatus'],
   ['constructedMessage: preConstructedMessage.message,\n          needGenerating,','constructedMessage: await (window as any).folioCaptureMessage(preConstructedMessage.message),\n          needGenerating,'],
   ['{featureFlags.knowledgeBase && !isSmallScreen && (','<span id="folio-toolbar-slot" />\n                {featureFlags.knowledgeBase && !isSmallScreen && (']]);
 // A responsive/initialization remount can happen inside the upstream 300ms

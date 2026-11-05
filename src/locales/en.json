@@ -2305,5 +2305,13 @@
   "Chatbox 显示方式": "Chatbox display",
   "OCR 低置信度复核阈值（%）": "OCR review confidence threshold (%)",
   "OCR 复核阈值应为 0 至 100%": "OCR review threshold must be between 0 and 100%.",
-  "优先本地 Paddle；低于阈值的结果可按需交给所选模型复核。默认 95%。自动审批仅在本次会话生效，启用需二次确认，自动审批盾牌图标标红。": "Local Paddle runs first. Results below the threshold can be reviewed by your selected model when needed. Default: 95%. Automatic approval lasts only for this session, requires two confirmations, and turns the automatic approval shield red."
+  "优先本地 Paddle；低于阈值的结果可按需交给所选模型复核。默认 95%。自动审批仅在本次会话生效，启用需二次确认，自动审批盾牌图标标红。": "Local Paddle runs first. Results below the threshold can be reviewed by your selected model when needed. Default: 95%. Automatic approval lasts only for this session, requires two confirmations, and turns the automatic approval shield red.",
+  "界面配色": "Color palette",
+  "钴蓝": "Cobalt",
+  "青瓷": "Celadon",
+  "琥珀": "Amber",
+  "桑葚": "Mulberry",
+  "石墨": "Graphite",
+  "自定义重点色": "Custom accent color",
+  "跟随系统": "Follow system"
 }

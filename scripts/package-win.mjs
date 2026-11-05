@@ -78,6 +78,7 @@ for (const item of [
   "main.cjs",
   "ai-host.cjs",
   "ai-dock.cjs",
+  "document-tabs.cjs",
   "storage-budget.cjs",
   "update-manager.cjs",
   "portable-update.py",

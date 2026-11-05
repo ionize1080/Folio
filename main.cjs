@@ -35,6 +35,10 @@ protocol.registerSchemesAsPrivileged([
   },
 ]);
 let uiLanguage = "en";
+let tabs;
+const { AsyncLocalStorage } = require("node:async_hooks");
+const editorCall = new AsyncLocalStorage();
+const sender = () => editorCall.getStore();
 let win,
   dirty = false,
   allowClose = false;
@@ -80,7 +84,7 @@ app.on("before-quit", () => largeFiles.close());
 const root = path.join(__dirname, "src");
 function check(e) {
   if (
-    e.sender !== win.webContents ||
+    !tabs?.entries.has(e.sender) || e.senderFrame !== e.sender.mainFrame ||
     !e.senderFrame.url.startsWith("folio://app/")
   )
     throw Error("Invalid sender");
@@ -88,7 +92,7 @@ function check(e) {
 function ipc(name, fn) {
   ipcMain.handle(name, async (e, ...args) => {
     check(e);
-    return fn(...args);
+    return editorCall.run(e.sender, () => fn(...args));
   });
 }
 app.setName("Folio PDF Studio");
@@ -110,6 +114,14 @@ app.whenReady().then(async () => {
   });
   session.defaultSession.setPermissionRequestHandler((_w, _p, cb) => cb(false));
   session.defaultSession.setPermissionCheckHandler(() => false);
+  const editorOptions = {
+      backgroundThrottling: process.env.FOLIO_TEST_BACKGROUND !== "1",
+      preload: path.join(__dirname, "preload.cjs"),
+      nodeIntegration: false,
+      contextIsolation: true,
+      sandbox: true,
+      webSecurity: true,
+  };
   win = new BrowserWindow({
     show: process.env.FOLIO_TEST_BACKGROUND !== "1",
     width: 1500,
@@ -120,40 +132,79 @@ app.whenReady().then(async () => {
     title: "Folio PDF Studio",
     autoHideMenuBar: true,
     icon: path.join(__dirname, "assets/icon.png"),
-    webPreferences: {
-      backgroundThrottling: process.env.FOLIO_TEST_BACKGROUND !== "1",
-      preload: path.join(__dirname, "preload.cjs"),
-      nodeIntegration: false,
-      contextIsolation: true,
-      sandbox: true,
-      webSecurity: true,
-    },
+    webPreferences: editorOptions,
   });
-  win.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
-  win.webContents.on("will-navigate", (e) => e.preventDefault());
-  // Clear only after a full main-frame navigation commits. A cancelled
-  // navigation or same-document hash change still owns its current handles.
-  const clearRendererSources = () => {
-    void sourceStore.clear().catch(() => {});
-  };
-  win.webContents.on("did-navigate", clearRendererSources);
-  win.webContents.on("render-process-gone", clearRendererSources);
-  win.webContents.on("destroyed", clearRendererSources);
+  const sources = new Map();
+  const workers = new Map();
+  function editorWorker(kind) {
+    if (sender() === win.webContents) return {native, background:backgroundNative, qpdf:qpdfNative}[kind];
+    let group = workers.get(sender());
+    if (!group) { group = {}; workers.set(sender(),group); }
+    return group[kind] ||= new NativeBridge(native.root,native.python,sourceStore);
+  }
+  function configureEditor(wc) {
+    wc.setWindowOpenHandler(() => ({ action: "deny" }));
+    wc.on("will-navigate", e => e.preventDefault());
+    sources.set(wc, new Set());
+    const clear = () => {
+      const owned = sources.get(wc) || [];
+      sources.set(wc,new Set());
+      for (const handle of owned) void sourceStore.release(handle).catch(() => {});
+      const group = workers.get(wc);
+      if (group) for (const bridge of Object.values(group)) { bridge.cancel(); void bridge.clearCache(); }
+      workers.delete(wc);
+    };
+    wc.on("did-navigate", clear);
+    wc.on("render-process-gone", clear);
+    wc.once("destroyed", () => { clear(); sources.delete(wc); });
+  }
+  const {DocumentTabs} = require("./document-tabs.cjs");
+  tabs = new DocumentTabs(win, editorOptions, configureEditor, readDocument);
+  const requireActive = () => sender() === tabs.active.wc;
   Menu.setApplicationMenu(null);
-  require('./ai-host.cjs').installAIHost({app,win,ipc});
-  win.on("close", (e) => {
-    if (dirty && !allowClose) {
-      e.preventDefault();
-      win.webContents.send("request-close");
-    }
+  require("./ai-host.cjs").installAIHost({app, win, ipc, tabs, sender, requireActive});
+  let closing = false;
+  win.on("close", e => {
+    if (allowClose || ![...tabs.entries.values()].some(t => t.dirty || t.busy)) return;
+    e.preventDefault();
+    if (closing) return;
+    closing = true;
+    tabs.enqueue(async () => {
+      try {
+        if (await tabs.confirmWindow()) { allowClose = true; win.close(); }
+      } finally { closing = false; }
+    }).catch(() => {});
   });
+  ipc("tabs-state", () => ({...tabs.snapshot(), self:tabs.entries.get(sender()).id}));
+  ipc("tabs-ready", () => tabs.ready(sender()));
+  ipc("tabs-select", id => tabs.select(tabs.byId(id)));
+  ipc("tabs-close", id => tabs.enqueue(() => tabs.closeOne(id)));
+  ipc("tabs-reply", value => tabs.reply(sender(), value));
+  ipc("tabs-open", async paths => {
+    if (paths === undefined) {
+      const pick = await dialog.showOpenDialog(win, {properties:["openFile","multiSelections"], filters:[{name:"PDF / Folio", extensions:["pdf","folio"]}]});
+      if (pick.canceled) return;
+      paths = pick.filePaths;
+    }
+    if (!Array.isArray(paths) || paths.some(p => typeof p !== "string")) throw Error("Invalid documents");
+    return tabs.enqueue(() => tabs.open(paths));
+  });
+  ipc("tabs-meta", ({name,busy,handle}) => {
+    const tab = tabs.entries.get(sender());
+    if (typeof busy === "boolean") tab.busy = busy;
+    const file = fileStore?.handles.get(handle);
+    if (file) tab.key = process.platform === "win32" ? file.toLowerCase() : file;
+    if (name && name !== tab.name) { tab.name = path.basename(name); tabs.publish(); }
+  });
+  ipc("system-languages", () => app.getPreferredSystemLanguages());
   ipc("ui-language", (value) => {
     uiLanguage = ["en", "zh-Hans", "zh-Hant"].includes(value) ? value : "en";
     updater.language = uiLanguage;
     return uiLanguage;
   });
   ipc("dirty", (value) => {
-    dirty = !!value;
+    const tab = tabs.entries.get(sender());
+    if (tab.dirty !== !!value) { tab.dirty = !!value; tabs.publish(); }
   });
   ipc("close", () => {
     allowClose = true;
@@ -164,9 +215,9 @@ app.whenReady().then(async () => {
     releaseChannel: require("./package.json").releaseChannel || "",
     app,
     session: session.fromPartition("folio-updates"),
-    dirty: () => dirty,
+    dirty: () => [...tabs.entries.values()].some(t => t.dirty || t.busy),
     notify: (r) => {
-      if (!win.isDestroyed()) win.webContents.send("update-state", r);
+      if (!win.isDestroyed()) for (const t of tabs.entries.values()) t.wc.send("update-state", r);
     },
   });
   await updater.init();
@@ -243,7 +294,7 @@ app.whenReady().then(async () => {
       handle: fileStore.grant(file, bytes),
     };
   });
-  ipc("open-drop", async (file) => {
+  async function readDocument(file) {
     if (typeof file !== "string" || !/\.(pdf|folio)$/i.test(file))
       throw Error("仅支持 PDF 与 Folio 文件");
     const stat = await fs.stat(file);
@@ -260,7 +311,8 @@ app.whenReady().then(async () => {
       bytes,
       handle: fileStore.grant(file, bytes),
     };
-  });
+  }
+  ipc("open-drop", readDocument);
   ipc("save", (data) => fileStore.save(data));
   ipc("save-prepare", (data) => fileStore.prepare(data));
   ipc("copy-text", (text) => {
@@ -280,13 +332,13 @@ app.whenReady().then(async () => {
   ipc("qpdf", (data) => {
     if (!["qpdf-status", "qpdf-decrypt"].includes(data?.command))
       throw Error("无效的 qpdf 请求");
-    return qpdfNative.run({
+    return editorWorker("qpdf").run({
       command: data.command,
       bytes: data.bytes,
       password: data.password,
     });
   });
-  ipc("qpdf-cancel", () => qpdfNative.cancel());
+  ipc("qpdf-cancel", () => editorWorker("qpdf").cancel());
   ipc("save-stream-begin", (data) => fileStore.beginStream(data));
   ipc("save-stream-append", (data) => fileStore.appendStream(data));
   ipc("save-stream-finish", (id) => fileStore.finishStream(id));
@@ -298,10 +350,18 @@ app.whenReady().then(async () => {
   ipc("large-page", (data) => largeFiles.page(data));
   ipc("large-save", (data) => largeFiles.save(data));
   ipc("large-release", (handle) => largeFiles.release(handle));
-  ipc("large-cancel", () => largeFiles.cancel());
-  ipc("source-register", (bytes) => sourceStore.register(bytes));
-  ipc("source-release", (handle) => sourceStore.release(handle));
+  ipc("large-cancel", handle => largeFiles.cancel(handle));
+  ipc("source-register", async bytes => {
+    const owned = sources.get(sender());
+    const registered = await sourceStore.register(bytes);
+    const {handle} = registered;
+    if (sources.get(sender()) !== owned) { await sourceStore.release(handle); throw Error("Document closed"); }
+    owned.add(handle);
+    return registered;
+  });
+  ipc("source-release", handle => sources.get(sender()).delete(handle) && sourceStore.release(handle));
   ipc("native", (data) => {
+    const owner = sender();
     const options = { ...data };
     if (
       [
@@ -320,9 +380,9 @@ app.whenReady().then(async () => {
     }
     delete options.ocrReference;
     return (
-      options.command === "flow-background" ? backgroundNative : native
+      editorWorker(options.command === "flow-background" ? "background" : "native")
     ).run(options, (progress) => {
-      if (!win.isDestroyed()) win.webContents.send("native-progress", progress);
+      if (!owner.isDestroyed()) owner.send("native-progress", progress);
     });
   });
   const { FlowLayout } = require("./flow-layout.cjs");
@@ -330,7 +390,7 @@ app.whenReady().then(async () => {
   ipc("flow-layout", (data) => flowLayout.render(data));
   app.on("before-quit", () => flowLayout.close());
   win.on("closed", () => flowLayout.close());
-  ipc("native-cancel", () => native.cancel());
+  ipc("native-cancel", () => editorWorker("native").cancel());
   ipc("graphics", async (value) => {
     if (typeof value === "boolean") {
       await fs.mkdir(path.dirname(graphicsFile), { recursive: true });

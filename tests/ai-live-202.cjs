@@ -5,11 +5,15 @@ const {configure}=require('./ai-live-support.cjs');
  const checks=[],errors=[];
  try {
   const host=await app.firstWindow();await host.waitForLoadState('domcontentloaded');host.on('dialog',d=>d.accept());
-  await app.evaluate(({dialog,BrowserWindow,ipcMain})=>{
+  await app.evaluate(({dialog,BrowserWindow,ipcMain,app})=>{
    globalThis.aiReplies={};
    const reply=ipcMain._invokeHandlers.get("ai-reply");ipcMain.removeHandler("ai-reply");ipcMain.handle("ai-reply",(e,v)=>{globalThis.aiReplies[v.id]=v;return reply(e,v)});
-   globalThis.aiTrace=[];const wc=BrowserWindow.getAllWindows()[0].webContents,send=wc.send.bind(wc);
-   wc.send=(name,...args)=>{if(name==='ai-request')globalThis.aiTrace.push(args[0].params);return send(name,...args)};
+   globalThis.aiTrace=[];
+   const watch=wc=>{
+     const send=wc.send.bind(wc);
+     wc.send=(name,...args)=>{if(name==='ai-request')globalThis.aiTrace.push(args[0].params);return send(name,...args)};
+   };
+   watch(BrowserWindow.getAllWindows()[0].webContents);app.on('web-contents-created',(_,wc)=>watch(wc));
    const original=globalThis.fetch;globalThis.headerAudits=[];
    globalThis.fetch=(url,init)=>{if(String(url).includes('/chat/completions'))globalThis.headerAudits.push({userAgent:new Headers(init?.headers).get('user-agent'),bearer:new Headers(init?.headers).get('authorization')?.startsWith('Bearer ')});return original(url,init)};
   });
@@ -25,7 +29,7 @@ const {configure}=require('./ai-live-support.cjs');
    await app.evaluate(({BrowserWindow},id)=>BrowserWindow.getAllWindows()[0].webContents.send('ai-request',{id,params:{name:'folio_bookmarks',arguments:{action:'read',detail:'full'}}}),id);
    for(let n=0;n<100;n++){const r=await app.evaluate((_,id)=>globalThis.aiReplies[id],id);if(r){assert(!r.error,r.error);return r.result.nodes}await host.waitForTimeout(50)}throw Error('read timeout');
   }
-  async function ask(task,expected){
+  async function ask(task,expected,verify){
    await app.evaluate(()=>{globalThis.aiTrace=[]});
    await chat.keyboard.press('Control+n');await chat.waitForTimeout(400);
    const input=chat.locator('textarea[placeholder]').first();await input.fill(task);const start=Date.now();await input.press('Enter');
@@ -36,7 +40,8 @@ const {configure}=require('./ai-live-support.cjs');
    fs.writeFileSync('tests/output/live-'+expected+'.txt',body);
    console.log(expected,JSON.stringify(trace.map(t=>({name:t.name,operation:t.arguments?.operation,action:t.arguments?.action}))),Math.round((Date.now()-start)/1000)+'s');
    assert(trace.some(t=>t.name===expected),'Natural request should select '+expected);
-   if(expected==='folio_document'){assert(trace.filter(t=>t.arguments?.action==='image').length===1,'image should not require retries');assert(trace.some(t=>JSON.stringify(t.arguments?.region)==='[0,0,1,0.5]'),'exact requested crop');assert(body.includes('Chapter 1'));}
+   if(verify) await verify(trace,await chat.locator('.msg-content').last().locator(':scope > div').last().innerText());
+   else if(expected==='folio_document'){assert(trace.filter(t=>t.arguments?.action==='image').length===1,'image should not require retries');assert(trace.some(t=>JSON.stringify(t.arguments?.region)==='[0,0,1,0.5]'),'exact requested crop');assert(body.includes('Chapter 1'));}
    checks.push({task,expected,tools:trace.map(t=>({name:t.name,operation:t.arguments?.operation,action:t.arguments?.action})),seconds:(Date.now()-start)/1000,initialProgress:initial});
   }
   const before=await read();
@@ -48,6 +53,22 @@ const {configure}=require('./ai-live-support.cjs');
   await ask('请把顶层书签加粗，其他样式和子级书签保持不变。','folio_bookmarks');
   const styled=await read();styled.forEach((n,i)=>{assert.deepEqual(n.target,spaced[i].target);assert.equal(n.bold,!n.parent?true:spaced[i].bold);assert.equal(n.italic,spaced[i].italic);assert.equal(n.color,spaced[i].color)});
   await ask('读取当前文档第1页的上半页图像，告诉我图像中最大的英文标题。','folio_document');
+  await app.evaluate(({dialog},file)=>{dialog.showOpenDialog=async()=>({canceled:false,filePaths:[file]})},path.resolve('tests/output/field-notes.pdf'));
+  const newPage=app.context().waitForEvent('page',p=>p!==host && p!==chat);
+  await host.evaluate(()=>window.desktop.openDocuments());
+  const other=await newPage;
+  await other.locator('.tree-row').first().click();
+  await other.waitForFunction(()=>document.querySelector('#page-number').value==='3');
+  const state=await other.evaluate(()=>window.desktop.tabsState());
+  assert.equal(state.documents.length,2);
+  const first=state.documents.find(d=>d.name==='ai-202.pdf').documentId;
+  await ask('查询我当前所在的物理页和选中书签标题，读出这一页的标本编号。同时查看另一个打开的 PDF，给出它第一页的大号英文标题。请把四项写在最终回答里。','folio_document',(trace,body)=>{
+    const calls=trace.filter(t=>t.name==='folio_document').map(t=>t.arguments);
+    assert(calls.some(a=>a.action==='context'),'Read live selection');
+    assert(calls.some(a=>a.action==='list'),'Enumerate open PDFs');
+    assert(calls.some(a=>a.documentId===first && ['text','image'].includes(a.action)),'Read the inactive PDF by ID');
+    assert(body.includes('ORCHID-812') && body.includes('Field observation') && body.includes('Chapter 1') && /3/.test(body),'Both documents and correct current page');
+  });
   const audits=await app.evaluate(()=>globalThis.headerAudits);assert(audits.length);assert(audits.every(a=>a.bearer&&a.userAgent?.includes('ai-sdk')));
   await chat.screenshot({path:'tests/output/live-202.png'});
   fs.writeFileSync('tests/output/live-202.json',JSON.stringify({status:'passed',model,checks,headers:audits,independentStateChecks:true,errors},null,2));assert.deepEqual(errors,[]);

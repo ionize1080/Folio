@@ -8,18 +8,29 @@ export const languages = Object.freeze([
   { id: 'zh-Hans', name: '简体中文', lang: 'zh-Hans' },
   { id: 'zh-Hant', name: '繁體中文', lang: 'zh-Hant' },
 ]);
-export const normalizeLanguage = value => languages.some(l=>l.id===value) ? value : Object.hasOwn({'en-US':1,'en-GB':1,'zh-CN':1,'zh-SG':1,'zh-TW':1,'zh-HK':1,'zh-MO':1},value) ? ({en:'en','en-US':'en','en-GB':'en','zh-CN':'zh-Hans','zh-SG':'zh-Hans','zh-Hans':'zh-Hans','zh-TW':'zh-Hant','zh-HK':'zh-Hant','zh-MO':'zh-Hant','zh-Hant':'zh-Hant'}[String(value)] || 'en') : 'en';
-let language = 'en';
-try { language = normalizeLanguage(globalThis.localStorage?.getItem('folio-language')); } catch {}
+export function normalizeLanguage(value) {
+  try {
+    const locale = new Intl.Locale(value);
+    if (locale.language === 'zh') return locale.maximize().script === 'Hant' ? 'zh-Hant' : 'zh-Hans';
+  } catch {}
+  return 'en';
+}
+let systemLanguage = normalizeLanguage(globalThis.navigator?.languages?.[0]);
+let preference = 'system';
+try { preference = globalThis.localStorage?.getItem('folio-language') || 'system'; } catch {}
+const resolveLanguage = () => preference === 'system' ? systemLanguage : normalizeLanguage(preference);
+let language = resolveLanguage();
 export const getLanguage = () => language;
 const listeners = new Set();
 export function onLanguageChange(fn) { listeners.add(fn); return () => listeners.delete(fn); }
+function refreshLanguage() {
+  language = resolveLanguage();
+  for (const fn of listeners) fn(language);
+}
 export function setLanguage(value) {
-  const next = normalizeLanguage(value);
-  try { globalThis.localStorage?.setItem('folio-language', next); } catch {}
-  if (next === language) return;
-  language = next;
-  for (const fn of listeners) fn(next);
+  preference = value === 'system' ? 'system' : normalizeLanguage(value);
+  try { globalThis.localStorage?.setItem('folio-language', preference); } catch {}
+  refreshLanguage();
 }
 const normalize = text => String(text).trim().replace(/\s+/g, ' ');
 const escapeRegex = text => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -112,7 +123,7 @@ export function localizeTree(root) {
   }
 }
 export function languagePicker(id='language-select') {
-  return `<label class="language-picker" title="Language / 语言"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3 12h18M5 6h14M5 18h14"/></svg><span class="sr-only" translate="no">Language / 语言</span><select id="${id}" data-language-select aria-label="Language / 语言" translate="no">${languages.map(l=>`<option value="${l.id}" lang="${l.lang}"${l.id===language?' selected':''}>${l.name}</option>`).join('')}</select></label>`;
+  return `<label class="language-picker" title="Language / 语言"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3 12h18M5 6h14M5 18h14"/></svg><span class="sr-only" translate="no">Language / 语言</span><select id="${id}" data-language-select aria-label="Language / 语言" translate="no"><option value="system"${preference==='system'?' selected':''}>${{en:"Follow system","zh-Hans":"跟随系统","zh-Hant":"跟隨系統"}[language]}</option>${languages.map(l=>`<option value="${l.id}" lang="${l.lang}"${l.id===preference?' selected':''}>${l.name}</option>`).join('')}</select></label>`;
 }
 export function installLocalization() {
   const root=document.documentElement;
@@ -120,12 +131,21 @@ export function installLocalization() {
     root.lang=language;
     root.dir='ltr';
     localizeTree(document.body);
-    document.querySelectorAll('[data-language-select]').forEach(el=>el.value=language);
+    document.querySelectorAll('[data-language-select]').forEach(el=>{el.value=preference;el.options[0].textContent={en:'Follow system','zh-Hans':'跟随系统','zh-Hant':'跟隨系統'}[language]});
     const live=document.getElementById('language-announcement');
     if(live)live.textContent={en:'Language: English','zh-Hans':'语言：简体中文','zh-Hant':'語言：繁體中文'}[language];
     window.desktop?.setLanguage?.(language).catch(()=>{});
   }
-  document.getElementById('language-slot').innerHTML=languagePicker();
+  const detect = async () => {
+    const values = await window.desktop?.systemLanguages?.().catch(()=>null);
+    systemLanguage = normalizeLanguage(values?.[0] || navigator.languages[0]);
+    if (preference === 'system') refreshLanguage();
+  };
+  void detect();
+  window.addEventListener('languagechange',detect);
+  window.addEventListener('storage', e => {
+    if(e.key === 'folio-language') { preference = e.newValue || 'system'; refreshLanguage(); }
+  });
   document.addEventListener('change',event=>{
     if(event.target.matches('[data-language-select]'))setLanguage(event.target.value);
   });

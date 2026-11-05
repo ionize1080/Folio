@@ -25,13 +25,13 @@ const path = require("path"),
     assert.equal(await p.locator(".folio-ai-approval").count(), 0);
     for (const language of ["en", "zh-Hans", "zh-Hant"])
       for (const width of [1080, 1250]) {
-        await p.locator("#language-select").selectOption(language);
         await app.evaluate(
           ({ BrowserWindow }, width) =>
             BrowserWindow.getAllWindows()[0].setSize(width, 800),
           width,
         );
         await p.locator('[data-action="settings"]').click();
+        await p.locator("#settings-language").selectOption(language);
         await p.locator("#set-ai-threshold").waitFor();
         assert.equal(await p.locator("#set-ai-threshold").inputValue(), "95");
         assert.equal(await p.locator("#set-disk-budget").inputValue(), "2048");
@@ -63,7 +63,7 @@ const path = require("path"),
     await p.locator('[data-action="settings"]').click();
     assert.equal(await p.locator("#set-ai-threshold").inputValue(), "90");
     assert.equal(await p.locator("#set-disk-budget").inputValue(), "3072");
-    assert.equal(await p.locator("#set-ai-approval").inputValue(), "manual");
+    assert.equal(await p.locator("#set-ai-approval").inputValue(), "auto");
     fs.writeFileSync(
       "tests/output/ai-settings.json",
       JSON.stringify(

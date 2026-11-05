@@ -5,7 +5,8 @@ const { NativeBridge } = require("./native-bridge.cjs");
 const MAX_SIZE = 8 * 1024 ** 3;
 class LargeFiles {
   constructor(root, python, pick) {
-    this.bridge = new NativeBridge(root, python);
+    this.root = root;
+    this.python = python;
     this.writer = new NativeBridge(root, python);
     this.pick = pick;
     this.entries = new Map();
@@ -22,7 +23,7 @@ class LargeFiles {
       await f.read(head, 0, 5, 0);
       if (head.toString() !== "%PDF-") throw Error("不是有效的 PDF 文件");
       const handle = crypto.randomUUID();
-      this.entries.set(handle, { f, file, stat, password: "" });
+      this.entries.set(handle, { f, file, stat, password: "", bridge:new NativeBridge(this.root,this.python) });
       return {
         large: true,
         handle,
@@ -71,7 +72,7 @@ class LargeFiles {
     const e = await this.entry(handle);
     if (typeof password !== "string" || password.length > 4096)
       throw Error("密码格式无效");
-    const result = await this.bridge.request({
+    const result = await e.bridge.request({
       command: "large-info",
       input: e.file,
       password,
@@ -81,8 +82,8 @@ class LargeFiles {
   }
   async page({ handle, page, scale = 1.5, textOnly = false }) {
     const e = await this.entry(handle);
-    if (!textOnly) this.bridge.cancel();
-    const result = await this.bridge.request({
+    if (!textOnly) e.bridge.cancel();
+    const result = await e.bridge.request({
       command: textOnly ? "large-text" : "large-page",
       input: e.file,
       password: e.password,
@@ -94,7 +95,7 @@ class LargeFiles {
   }
   async save({ handle, outlines }) {
     if (this.saving) throw Error("已有保存任务");
-    this.saving = true;
+    this.saving = handle;
     let tmp;
     try {
       const e = await this.entry(handle);
@@ -133,15 +134,16 @@ class LargeFiles {
       this.saving = false;
     }
   }
-  cancel() {
-    this.bridge.cancel();
-    this.writer.cancel();
+  cancel(handle) {
+    for (const [id,e] of this.entries) if (!handle || id === handle) e.bridge.cancel();
+    if (!handle || this.saving === handle) this.writer.cancel();
   }
   async release(handle) {
-    if (this.saving) throw Error("请先等待保存或取消完成");
+    if (this.saving === handle) throw Error("请先等待保存或取消完成");
     const e = this.entries.get(handle);
     if (e) {
       this.entries.delete(handle);
+      e.bridge.cancel();
       e.password = "";
       await e.f.close();
     }

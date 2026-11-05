@@ -1,13 +1,15 @@
-export function selectBookmarkIds(nodes, selector) {
+export function selectBookmarkIds(nodes, selector, selected = new Set()) {
   if (!selector || typeof selector !== 'object') throw Error('请明确提供 selector，例如 {scope:"all"}');
   const keys=Object.keys(selector);
   if(keys.some(k=>!['scope','ids','title','page'].includes(k)))throw Error('未知书签选择条件');
-  if(selector.scope && !['all','roots'].includes(selector.scope))throw Error('scope 必须为 all 或 roots');
+  if(selector.scope && !['all','roots','selected'].includes(selector.scope))throw Error('scope 必须为 all、roots 或 selected');
   if(!keys.length)throw Error('书签选择条件不能为空');
-  if(selector.ids && (!Array.isArray(selector.ids)||selector.ids.some(id=>!nodes.some(n=>n.id===id))))throw Error('书签ID不存在');
+  const known = selector.ids && new Set(nodes.map(n => n.id));
+  if(selector.ids && (!Array.isArray(selector.ids)||selector.ids.some(id=>!known.has(id))))throw Error('书签ID不存在');
   if(selector.title!==undefined && typeof selector.title!=='string')throw Error('title 必须为文字');
   if(selector.page!==undefined && (!Number.isInteger(selector.page)||selector.page<1))throw Error('页码无效');
-  return nodes.filter(n=>(selector.scope!=='roots'||!n.parent)&&(!selector.ids||selector.ids.includes(n.id))&&
+  const ids = selector.ids && new Set(selector.ids);
+  return nodes.filter(n=>(selector.scope!=='selected' || selected.has(n.id)) && (selector.scope!=='roots'||!n.parent)&&(!ids||ids.has(n.id))&&
     (selector.title===undefined||n.title.includes(selector.title))&&(selector.page===undefined||n.target?.page===selector.page)).map(n=>n.id);
 }
 export function calibrationPages(nodes, pageCount, radius=2) {

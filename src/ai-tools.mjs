@@ -13,6 +13,7 @@ import { generateRules } from "./generation.mjs";
 import { splitBookmarks } from "./bookmark-split.mjs";
 import { adjustWhitespace } from "./changes.mjs";
 export const catalog = {
+  "document.context": ["读取当前页、选中的书签、文本、对象和页面。", {}],
   "document.describe": ["读取当前文档、页数和版本", {}],
   "document.snapshot": [
     "将当前全部已应用修改输出为临时PDF，供开源PDF工具处理；返回path。原文件不变",

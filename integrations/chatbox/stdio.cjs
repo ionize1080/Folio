@@ -61,6 +61,7 @@ const tools = [...require('./tool-schema.cjs'),
       properties: {
         operation: { type: "string" },
         revision: { type: "string" },
+        documentId: { type: "string" },
         options: { type: "object" },
       },
       required: ["operation"],

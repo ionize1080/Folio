@@ -3,8 +3,9 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { t, translate, normalizeLanguage, setLanguage, getLanguage, identify } from '../src/i18n.mjs';
 import { en, zhHant } from '../src/locales/catalog.mjs';
-test('English default, valid aliases and unsupported locale fallback',()=>{
- assert.equal(getLanguage(),'en');
+test('System default, valid aliases and unsupported locale fallback',()=>{
+ assert.equal(getLanguage(),normalizeLanguage(globalThis.navigator?.languages?.[0]));
+ assert.equal(normalizeLanguage('zh-Hant-HK'),'zh-Hant');
  assert.equal(normalizeLanguage('zh-TW'),'zh-Hant');
  assert.equal(normalizeLanguage('zh-CN'),'zh-Hans');
  assert.equal(normalizeLanguage('__proto__'),'en');
@@ -23,6 +24,7 @@ test('Every bundled entry has matching placeholders and a Traditional translatio
  assert.deepEqual(zhHant,JSON.parse(fs.readFileSync(new URL('../src/locales/zh-Hant.json',import.meta.url))));
 });
 test('Dynamic message parameters preserve document content and template syntax',()=>{
+ setLanguage('en');
  assert.equal(translate('第 7 页：保存'),'Page 7: 保存');
  assert.equal(translate('  第 7 页：保存  '),'  Page 7: 保存  ');
  assert.equal(t('第 {0} 页：{1}',{0:3,1:'<script>打开</script>'},'en'),'Page 3: <script>打开</script>');

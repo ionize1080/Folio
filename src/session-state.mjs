@@ -36,7 +36,8 @@ export function readSettings(defaults, text) {
     layout: ["single", "continuous", "two", "two-continuous", "horizontal"],
     leftMode: ["full", "narrow", "hidden"],
     rightMode: ["full", "narrow", "hidden"],
-    theme: ["light", "dark"],
+    theme: ["system", "light", "dark"],
+    palette: ["cobalt","jade","amber","mulberry","slate","custom"],
     whitespaceUnit: ["pt", "mm", "cm", "in"],
   };
   const ranges = {
@@ -56,6 +57,8 @@ export function readSettings(defaults, text) {
           ranges[key][1],
           Math.max(ranges[key][0], Math.round(v)),
         );
+    } else if (key === "customAccent" && /^#[0-9a-f]{6}$/i.test(v)) {
+      out[key] = v;
     } else if (typeof defaults[key] === "boolean") {
       if (typeof v === "boolean") out[key] = v;
     } else if (

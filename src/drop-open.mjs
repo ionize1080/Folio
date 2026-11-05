@@ -1,4 +1,4 @@
-export function installDropOpen({ open, toast, isBusy }) {
+export function installDropOpen({ open, openMany, toast, isBusy }) {
   const veil = document.createElement("div");
   veil.className = "file-drop-veil";
   veil.hidden = true;
@@ -52,7 +52,8 @@ export function installDropOpen({ open, toast, isBusy }) {
           ? window.desktop.droppedFile(f)
           : { name: f.name, bytes: new Uint8Array(await f.arrayBuffer()) };
       try {
-        if (files.length === 1) await open(await read(files[0]));
+        if (openMany) await openMany(files);
+        else if (files.length === 1) await open(await read(files[0]));
         else {
           const dlg = document.createElement("dialog");
           dlg.className = "drop-choice";

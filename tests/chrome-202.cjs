@@ -7,9 +7,12 @@ const {_electron:electron}=require('playwright'),path=require('node:path'),fs=re
   await app.evaluate(({dialog},file)=>{dialog.showOpenDialog=async()=>({canceled:false,filePaths:[file]})},path.resolve('tests/output/ai-202.pdf'));
   await p.locator('[data-action="open"]').first().click();await p.waitForFunction(()=>document.querySelector('#doc-name').textContent.includes('ai-202'));await p.locator('#busy').waitFor({state:'hidden'});
   for(const language of ['en','zh-Hans','zh-Hant'])for(const width of [1080,1250,1500])for(const dark of [false,true]){
-   await p.locator('#language-select').selectOption(language);
+   await p.locator('[data-action="settings"]').click();
+   await p.locator('#settings-language').selectOption(language);
+   await p.locator('#set-theme').selectOption(dark?'dark':'light');
+   await p.locator('#modal-footer .primary').click();
    await app.evaluate(({BrowserWindow},width)=>BrowserWindow.getAllWindows()[0].setSize(width,850),width);
-   await p.evaluate(dark=>document.body.classList.toggle('dark',dark),dark);
+   assert.equal(await p.locator('.appbar [data-language-select]').count(),0);
    await p.waitForTimeout(100);
    const geometry=await p.evaluate(()=>{
     const controls=[...document.querySelectorAll('.appbar > .toolbar button:not(.more-tools-menu button),.appbar > .toolbar summary')];
