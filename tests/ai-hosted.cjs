@@ -34,16 +34,28 @@ const {_electron:electron}=require('playwright'),path=require('node:path'),fs=re
   assert.equal(await input.inputValue(),'','cleared draft does not return');
   await host.locator('.more-tools > summary').click();
   await host.locator('.more-tools-menu').waitFor({state:'visible'});
-  assert.equal(await app.evaluate(()=>globalThis.__folioChatboxHost.view.getVisible()),false,'native view yields to dropdown');
+  async function checkNativeVisible(expected) {
+    const start=Date.now();
+    while(await app.evaluate(()=>globalThis.__folioChatboxHost.view.getVisible())!==expected) {
+      if(Date.now()-start>1500) throw Error('Chatbox native visibility did not follow the active overlay');
+      await host.waitForTimeout(10);
+    }
+  }
+  await checkNativeVisible(false);
   await host.locator('.more-tools > summary').click();
   await host.locator('[data-action="settings"]').click();
   await host.locator('dialog[open]').waitFor();
-  assert.equal(await app.evaluate(()=>globalThis.__folioChatboxHost.view.getVisible()),false,'native view yields to modal');
+  await checkNativeVisible(false);
   await host.locator('#modal-close').click();
-  await host.waitForTimeout(300);
-  assert.equal(await app.evaluate(()=>globalThis.__folioChatboxHost.view.getVisible()),true);
+  await checkNativeVisible(true);
   await chat.evaluate(()=>{window.folioProgress.begin('test');window.folioProgress.chunk('test',{type:'tool-call',input:{operation:'bookmark.calibrate'}})});
   assert.match(await chat.locator('#folio-progress').innerText(),/校准/);
+  const layout=await chat.evaluate(()=>{
+    const progress=document.querySelector('#folio-progress'), input=document.querySelector('textarea[placeholder]');
+    const bar=progress.getBoundingClientRect(), field=input.getBoundingClientRect();
+    return {inComposer:!!progress.closest('#folio-progress-slot'),overlaps:bar.bottom>field.top && bar.top<field.bottom};
+  });
+  assert(layout.inComposer && !layout.overlaps,JSON.stringify(layout));
   await chat.evaluate(()=>window.folioProgress.end('test'));await chat.locator('#folio-progress').waitFor({state:'hidden'});
   await chat.waitForFunction(()=>window.folioToolsStatus().count>=8,{timeout:20000});
   await host.screenshot({path:'tests/output/hosted-202.png'});

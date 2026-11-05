@@ -43,11 +43,12 @@ const {configure}=require('./ai-live-support.cjs');
    await chat.locator('textarea[placeholder]').first().click();
    const apiStart=await app.evaluate(()=>globalThis.headerAudits.length);
    await chat.keyboard.press('Control+n');await chat.waitForTimeout(400);
-   const input=chat.locator('textarea[placeholder]').first();await input.fill(task);const start=Date.now();await input.press('Enter');
-   try {await chat.locator('#folio-progress').waitFor({state:'visible',timeout:25000});}
-   catch(error){console.log('Chatbox status',await chat.evaluate(()=>({tools:window.folioToolsStatus(),input:document.querySelector('textarea[placeholder]')?.value,body:document.body.innerText.slice(-2500)})));throw error;}
-   const initial=await chat.locator('#folio-progress').innerText();
-   await chat.locator('#folio-progress').waitFor({state:'hidden',timeout:180000});
+   const input=chat.locator('textarea[placeholder]').first();await input.fill(task);const start=Date.now();
+   const completed=await chat.evaluate(()=>window.folioProgress.status().completed);
+   await input.press('Enter');
+   await chat.waitForFunction(n=>window.folioProgress.status().completed>n,completed,{timeout:200000});
+   const initial=await chat.evaluate(()=>window.folioProgress.status().lastGeneration.firstVisible);
+   assert(initial,'Native progress was displayed during the actual model request');
    const trace=await app.evaluate(()=>globalThis.aiTrace),body=await chat.locator('body').innerText();
    const finalText=await chat.locator('.msg-content').last().locator(':scope > div > div').last().innerText().catch(()=> '');
    fs.writeFileSync('tests/output/live-'+expected+'.txt',finalText);
@@ -80,7 +81,7 @@ const {configure}=require('./ai-live-support.cjs');
     const calls=trace.filter(t=>t.name==='folio_document').map(t=>t.arguments);
     assert(calls.some(a=>a.action==='context'),'Read live selection');
     assert(calls.some(a=>a.action==='list'),'Enumerate open PDFs');
-    assert(calls.some(a=>a.documentId===first && ['text','image'].includes(a.action)),'Read the inactive PDF by ID');
+    assert(calls.some(a=>a.documentId===first && ['text','image','objects','brief'].includes(a.action)),'Read the inactive PDF by ID');
     assert(body.includes('ORCHID-812') && body.includes('Field observation') && body.includes('Chapter 1') && /3/.test(body),'Both documents and correct current page');
   });
   }

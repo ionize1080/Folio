@@ -438,8 +438,8 @@ const errors = [],
   await page.evaluate(() => { window.__qa.S.dirty = false; window.__qa.S.flowDraftDirty = false; });
   await page.reload();
   await page.waitForFunction(() => window.__qa);
-  assert.equal(await page.locator("#language-select").inputValue(), "zh-Hant");
-  await page.locator("#language-select").selectOption("en");
+  assert.equal(await page.locator("html").getAttribute("lang"), "zh-Hant");
+  await page.evaluate(async () => (await import("./i18n.mjs")).setLanguage("en"));
   await page.evaluate(async () => (await import("./i18n.mjs")).localizeTree(document.body));
   assert((await page.locator('.panel-resizer').evaluateAll(es => es.map(e => e.getAttribute('aria-label')))).every(text => text && !/[\u3400-\u9fff]/.test(text)));
   checks.push(

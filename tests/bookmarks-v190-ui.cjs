@@ -474,7 +474,7 @@ checks.push = (...items) => {
       "Online Samples nested-outline document: title-case batch preview/apply/undo preserves all original raw destinations",
     );
   }
-  await page.locator("#language-select").selectOption("en");
+  await page.evaluate(async () => (await import("./i18n.mjs")).setLanguage("en"));
   await action("bookmark-zoom");
   await page.locator("#b-zoom-mode").selectOption("FitBH");
   await page.waitForTimeout(300);

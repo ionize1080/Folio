@@ -20,9 +20,10 @@ for name in ['ai-workflows-210.json', 'workspace-210.json', 'live-202.json', 'ho
     assert not reports[name].get('errors'), name
 assert reports['live-202.json']['status'] == 'passed'
 assert reports['live-202.json']['independentStateChecks']
-assert len(reports['live-202.json']['checks']) == 11
+assert len(reports['live-202.json']['checks']) == 12
 assert reports['chrome-202.json']['status'] == 'passed'
 assert reports['ai-workflows-210.json']['scan']['searchable']
+assert reports['ai-workflows-210.json']['color']['neighborPageIdentical']
 assert reports['ai-workflows-210.json']['patch']['outsidePixelsIdentical']
 assert reports['ai-workflows-210.json']['vector']['vectorForm']
 assert reports['ai-workflows-210.json']['generatedBookmarks'] == 4

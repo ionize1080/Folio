@@ -47,5 +47,18 @@ def verify_vector(file):
         assert 'Publish' in pdf[0].get_text()
     return dict(vectorForm=True,editableSource=True,textAndPaths=True)
 
+def verify_color(file):
+    def render(path):
+        with fitz.open(path) as pdf:
+            pix=pdf[0].get_pixmap(matrix=fitz.Matrix(4,4),alpha=False)
+            pixels=np.frombuffer(pix.samples,np.uint8).reshape(pix.height,pix.width,3).astype(float)
+            return pixels,pdf[1].get_pixmap().samples,[(i[2],i[3]) for i in pdf[0].get_images(full=True)]
+    before,neighbor,_=render(root/'color-proof.pdf')
+    after,control,sizes=render(file)
+    assert neighbor==control and before.shape==after.shape and (2400,1600) in sizes
+    delta=(after-before).mean(axis=(0,1))
+    assert delta[0]>delta[2] and np.abs(after-before).mean()>2
+    return dict(fullSize=[2400,1600],meanRGBDelta=delta.round(2).tolist(),neighborPageIdentical=True)
+
 if __name__=='__main__':
-    print(json.dumps({'scan':verify_scan,'patch':verify_patch,'vector':verify_vector}[sys.argv[1]](sys.argv[2])))
+    print(json.dumps({'scan':verify_scan,'patch':verify_patch,'vector':verify_vector,'color':verify_color}[sys.argv[1]](sys.argv[2])))

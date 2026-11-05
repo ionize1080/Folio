@@ -46,9 +46,7 @@ export function installAI({
   const desktop = window.desktop;
   if (!desktop?.aiOpen) return;
   let overlay = false;
-  let overlayFrame = 0;
   const updateOverlay = () => {
-    overlayFrame = 0;
     const next = !!document.querySelector("dialog[open]:not(.large-workspace), details[open], #context-menu:not([hidden])");
     if (next !== overlay) {
       overlay = next;
@@ -57,12 +55,13 @@ export function installAI({
   };
   new MutationObserver((records) => {
     // PDF text layers and virtual bookmark rows mutate continuously while scrolling.
-    // Only menu/dialog mutations affect the native view; coalesce to one layout frame.
+    // MutationObserver already batches a turn of DOM changes.
     const relevant = records.some(r => r.type === "attributes"
       ? r.target.matches?.("dialog, details, #context-menu")
       : [...r.addedNodes, ...r.removedNodes].some(n => n.nodeType === 1 &&
           (n.matches?.("dialog, details, #context-menu") || n.querySelector?.("dialog, details, #context-menu"))));
-    if (relevant && !overlayFrame) overlayFrame = requestAnimationFrame(updateOverlay);
+    // Publish menu visibility before the browser paints the overlay, including in occluded windows.
+    if (relevant) updateOverlay();
   }).observe(document.body, {
     subtree: true,
     attributes: true,
@@ -267,6 +266,7 @@ export function installAI({
         name: S.name,
         documentId:(await desktop.tabsState()).self,
         currentPage:S.page,
+        pageBox:(await S.pdf.getPage(S.page)).view,
         pageCount: S.info.pageCount,
         bookmarkCount: S.nodes.length,
         busy: !!S.busy,

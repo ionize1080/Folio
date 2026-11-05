@@ -189,7 +189,7 @@ const errors = [],
     "Out-of-range manual pages and stale document revisions cannot be applied",
   );
   for (const language of ["en", "zh-Hans", "zh-Hant"]) {
-    await page.locator("#language-select").selectOption(language);
+    await page.evaluate(async value => (await import("./i18n.mjs")).setLanguage(value),language);
     await open();
     await page.evaluate(async () => {
       (await import("./i18n.mjs")).localizeTree(document.body);
@@ -270,7 +270,7 @@ const errors = [],
   );
 
   if (process.env.FOLIO_ACROBAT) {
-    await page.locator("#language-select").selectOption("zh-Hans");
+    await page.evaluate(async () => (await import("./i18n.mjs")).setLanguage("zh-Hans"));
     await page.evaluate(async (bytes) => {
       await window.__qa.loadPDF(
         Uint8Array.from(atob(bytes), (c) => c.charCodeAt(0)),

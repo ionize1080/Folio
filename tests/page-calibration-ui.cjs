@@ -60,7 +60,7 @@ const errors = [],
     executablePath: process.env.FOLIO_CHROMIUM || undefined,
     args: ["--no-sandbox"],
   });
-  page = await browser.newPage({ viewport: { width: 1366, height: 1000 } });
+  page = await browser.newPage({ locale:"en-US", viewport: { width: 1366, height: 1000 } });
   page.on("pageerror", (e) => errors.push(e.message));
   await page.goto(`http://127.0.0.1:${server.address().port}`);
   await page.waitForFunction(() => window.__qa);

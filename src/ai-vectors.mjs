@@ -43,7 +43,7 @@ export async function vectorTool(a,{S,rev,applyContent,approve},deadline) {
   const all=new Map(graphics.map(g=>[g.id,g]));
   for(const e of S.nativeEdits) if(e.type==="vector-graphic" && e.page===page)all.set(e.id,e);
   const old=all.get(a.id);
-  if(a.action==="list") return {revision,page,graphics:[...all.values()].map(({id,box})=>({id,box}))};
+  if(a.action==="list") return {revision,page,pageBox:(await S.pdf.getPage(page)).view,coordinates:"PDF points, bottom-left origin",graphics:[...all.values()].map(({id,box})=>({id,box}))};
   if(a.action==="read") {if(!old)throw Error("Graphic ID not found");return {id:old.id,svg:old.svg,box:old.box,revision,page};}
   if(!["create","update"].includes(a.action)||a.revision!==revision)throw Error("Get the current revision with list before creating or updating");
   if(a.action==="update" && !old)throw Error("Graphic ID not found");

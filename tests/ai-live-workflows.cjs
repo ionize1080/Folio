@@ -54,6 +54,19 @@ module.exports=async function workflows({app,host,chat,ask}){
     });
     verify("patch",await save(scan,"patched-scan.pdf"));
   }
+  if(enabled("color")){
+    const doc=await open(resolve("color-proof.pdf"));
+    await ask("给当前页的色彩校样做自然暖调。先查看整体预览，再基于预览使用暖色查找滤镜、轻微降低饱和度和一条温和的 RGB S 曲线。请用局部细节预览检查，再应用。保留原图分辨率和第二页。","folio_image",trace=>{
+      const previews=trace.filter(t=>t.name==="folio_image" && t.arguments.action==="preview");
+      assert(previews.length>=2 && previews.some(t=>t.arguments.region),'Actual visual iteration, including a cropped preview');
+      assert(previews.every(t=>Math.max(...t.dimensions)<=1200));
+    });
+    const edits=await doc.evaluate(async()=>(await import("./app.mjs")).S.nativeEdits.map(({page,adjustments})=>({page,adjustments})));
+    assert.equal(edits.length,1);assert.equal(edits[0].page,1);
+    const a=edits[0].adjustments;
+    assert(a.lookup==="warm"&&a.saturation<0&&a.curves?.length>=3,JSON.stringify(a));
+    verify("color",await save(doc,"color-proof-edited.pdf"));
+  }
   if(enabled("vector")){
     const doc=await open(resolve("field-notes.pdf"));
     await ask("在第1页嵌入一个可再编辑的矢量流程图：三个从上到下的步骤，英文标签依次为 Collect、Check、Release，用箭头相连。","folio_vector",trace=>assert(trace.some(t=>t.arguments.action==="create")));
