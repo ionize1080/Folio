@@ -305,5 +305,23 @@
     "coveragePercent": 85.15,
     "requiredCoveragePercent": 75,
     "status": "passed"
+  },
+  "browserRegression": {
+    "status": "passed",
+    "suites": [
+      "reliability",
+      "smart TOC",
+      "page calibration",
+      "native editing",
+      "IME and save/reopen",
+      "bookmark scope, all zoom modes and export"
+    ]
+  },
+  "inputDraftRegression": {
+    "status": "passed",
+    "freshProfiles": 5,
+    "windowSwitches": 105,
+    "immediateReload": true,
+    "clearedDraft": true
   }
 }

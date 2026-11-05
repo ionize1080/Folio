@@ -37,6 +37,20 @@ patch('src/shared/defaults.ts', [["provider: ModelProviderEnum.ChatboxAI,\n    m
 patch('src/renderer/components/InputBox/InputBox.tsx', [
   ['constructedMessage: preConstructedMessage.message,\n          needGenerating,','constructedMessage: await (window as any).folioCaptureMessage(preConstructedMessage.message),\n          needGenerating,'],
   ['{featureFlags.knowledgeBase && !isSmallScreen && (','<span id="folio-toolbar-slot" />\n                {featureFlags.knowledgeBase && !isSmallScreen && (']]);
+// A responsive/initialization remount can happen inside the upstream 300ms
+// debounce. Retain the latest draft synchronously and flush on page departure.
+patch('src/renderer/hooks/useMessageInput.ts', [
+  ["const DEFAULT_OPTIONS =", "const liveDrafts = new Map<string, string>()\nconst DEFAULT_OPTIONS ="],
+  ["useCallback, useEffect, useMemo", "useCallback, useLayoutEffect, useMemo"],
+  ["  const [messageInput, _setMessageInput] = useState<string>(initialMessage)\n", ""],
+  ["  const restoreDraft = useCallback(() => {\n    const draft = localStorage.getItem(draftStorageKey)\n    if (!draft) return", "  const [messageInput, _setMessageInput] = useState<string>(() => options.saveDraft ? (liveDrafts.get(draftStorageKey) ?? localStorage.getItem(draftStorageKey) ?? initialMessage) : initialMessage)\n\n  const restoreDraft = useCallback(() => {\n    const draft = liveDrafts.get(draftStorageKey) ?? localStorage.getItem(draftStorageKey) ?? initialMessage"],
+  ["  }, [draftStorageKey])", "  }, [draftStorageKey, initialMessage])"],
+  ["      _debouncedStoreDraft(message)", "      if (options.saveDraft) {\n        liveDrafts.set(draftStorageKey, message)\n        _debouncedStoreDraft(message)\n      }"],
+  ["    [_debouncedStoreDraft]", "    [_debouncedStoreDraft, draftStorageKey, options.saveDraft]"],
+  ["    localStorage.removeItem(draftStorageKey)", "    liveDrafts.set(draftStorageKey, '')\n    localStorage.removeItem(draftStorageKey)"],
+  ["  useEffect(() => {\n    if (options.saveDraft)", "  useLayoutEffect(() => {\n    if (options.saveDraft)"],
+  ["  return {\n    messageInput,", "  useLayoutEffect(() => {\n    const flush = () => _debouncedStoreDraft.flush()\n    window.addEventListener('pagehide', flush)\n    window.addEventListener('beforeunload', flush)\n    return () => {\n      flush()\n      window.removeEventListener('pagehide', flush)\n      window.removeEventListener('beforeunload', flush)\n    }\n  }, [_debouncedStoreDraft])\n\n  return {\n    messageInput,"]
+]);
 patch('src/renderer/stores/session/tools-builder.ts', [["let instructions = ''","let instructions = (window as any).folioInstructions || ''"]]);
 const toolsFile=path.join(source,'src/renderer/stores/session/tools-builder.ts');
 let toolSource=fs.readFileSync(toolsFile,'utf8');

@@ -49,6 +49,8 @@ API Key 只存入用户自己的 Chatbox 配置。发布包不包含测试 Key�
 
 ## 构建与测试
 
+输入草稿按会话即时保留在内存，磁盘写入仍采用合并延迟；输入框重新挂载、侧栏/独立窗口切换不会等待延迟保存再恢复。重载或关闭页面时立即保存尚未写入的草稿。窗口布局更新不抢键盘焦点。
+
 需要 Windows x64、Node、Python 3.12、Git 和支持 NSIS 的完整 7-Zip。先 `npm ci`、准备 Folio 原生运行时并 `git submodule update --init`。下载并解包官方 Chatbox 1.20.3 Windows 安装包，再执行：
 
 ```powershell

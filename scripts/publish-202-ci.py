@@ -24,6 +24,9 @@ assert len(reports['live-202.json']['checks']) == 4
 assert reports['chrome-202.json']['status'] == 'passed'
 assert reports['hosted-202.json']['sharedElectron']
 assert reports['hosted-202.json']['settingsReloadPersisted']
+assert reports['hosted-202.json']['draftSwitches'] >= 21
+assert reports['hosted-202.json']['draftImmediateReload']
+assert reports['hosted-202.json']['draftCleared']
 assert reports['packaged-ai.json']['tools'] == 62
 info = json.loads((root / 'dist/Folio-PDF-Studio-win-x64/BUILD-INFO.json').read_text())
 portable, source = out / (prefix + '-portable-win-x64.zip'), out / (prefix + '-source.zip')

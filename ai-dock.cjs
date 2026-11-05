@@ -43,14 +43,20 @@ class AIDock {
   send(channel, value) {if(this.view && !this.view.webContents.isDestroyed())this.view.webContents.send(channel,value)}
   state() {return {mode:this.mode, open:!!this.view && this.visible};}
   toggle() {
-    if(this.mode==='window') {this.visible=true;this.detached?.show();this.detached?.focus()}
+    if(this.mode==='window') {this.visible=true;this.detached?.show();this.detached?.focus();this.view?.webContents.focus()}
     else this.visible=!this.visible;
     this.layout();
   }
   setOverlay(hidden) {this.overlay=hidden;this.layout()}
   setMode(mode) {
     if(!['sidebar','window'].includes(mode))throw Error('Invalid display mode');
-    this.mode=mode;this.visible=true;this.layout();return this.state();
+    if(mode===this.mode && this.visible)return this.state();
+    this.mode=mode;this.visible=true;this.layout();
+    // Reparenting must leave keyboard input in the existing Chatbox view, not
+    // the new window's empty main webContents. Do this only on explicit actions;
+    // routine resize/overlay layout must never steal focus from a typed draft.
+    (this.detached || this.win).focus();this.view?.webContents.focus();
+    return this.state();
   }
   layout() {
     this.onState(this.state());
@@ -59,14 +65,16 @@ class AIDock {
     if(this.mode==='window') {
       if(!this.detached) {
         this.win.contentView.removeChildView(view);
-        const w=this.detached=new BrowserWindow({width:900,height:780,minWidth:360,minHeight:320,title:'Chatbox · Folio',autoHideMenuBar:true});
+        const w=this.detached=new BrowserWindow({show:false,width:900,height:780,minWidth:360,minHeight:320,title:'Chatbox · Folio',autoHideMenuBar:true});
         w.contentView.addChildView(view);
+        w.on('focus',()=>view.webContents.focus());
         w.on('resize',()=>this.layout());
         w.on('close',e=>{if(!this.closing){e.preventDefault();this.setMode('sidebar')}});
       }
       const [width,height]=this.detached.getContentSize();
       view.setBounds({x:0,y:0,width,height});view.setVisible(this.visible);
-      if(this.visible)this.detached.show();else this.detached.hide();
+      if(this.visible) {if(!this.detached.isVisible())this.detached.show();}
+      else if(this.detached.isVisible())this.detached.hide();
     } else {
       if(this.detached) {
         const old=this.detached;this.detached=null;

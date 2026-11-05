@@ -18,9 +18,20 @@ const {_electron:electron}=require('playwright'),path=require('node:path'),fs=re
   await chat.evaluate(async chosen=>{const s=await window.electronAPI.invoke('getSettings');s.defaultChatModel=chosen;await window.electronAPI.invoke('setStoreValue','settings',JSON.stringify(s));},chosen);
   await chat.reload();assert.deepEqual(await chat.evaluate(async()=>(await window.electronAPI.invoke('getSettings')).defaultChatModel),chosen);
   const input=chat.locator('textarea[placeholder]').first();
-  for(const mode of ['sidebar','window','sidebar']) {
-    await host.evaluate(mode=>window.desktop.aiDisplay(mode),mode);await input.fill('Focus 中文 '+mode);assert.equal(await input.inputValue(),'Focus 中文 '+mode);
+  let draft='草稿 Draft 123';await input.click();await input.fill(draft);
+  for(const [index,mode] of Array.from({length:21},(_,i)=>i%2?'window':'sidebar').entries()) {
+    await host.evaluate(mode=>window.desktop.aiDisplay(mode),mode);
+    assert.equal(await input.inputValue(),draft,'existing draft survives '+mode);
+    draft='Focus 中文 '+mode+' '+index;
+    await input.click();await input.fill(draft);assert.equal(await input.inputValue(),draft,'typing immediately after '+mode);
+    await chat.waitForFunction(mode=>document.body.dataset.folioDisplay===mode,mode);
+    await chat.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
+    assert.equal(await input.inputValue(),draft,'draft survives responsive layout');
   }
+  draft='即时重载也保留 Draft 456';await input.click();await input.fill(draft);await chat.reload();
+  await input.waitFor();assert.equal(await input.inputValue(),draft,'reload flushes unsaved debounce');
+  await input.click();await input.fill('');assert.equal(await input.inputValue(),'','delete reaches focused editor');await chat.reload();await input.waitFor();
+  assert.equal(await input.inputValue(),'','cleared draft does not return');
   await host.locator('.more-tools > summary').click();
   await host.locator('.more-tools-menu').waitFor({state:'visible'});
   assert.equal(await app.evaluate(()=>globalThis.__folioChatboxHost.view.getVisible()),false,'native view yields to dropdown');
@@ -36,7 +47,7 @@ const {_electron:electron}=require('playwright'),path=require('node:path'),fs=re
   await chat.evaluate(()=>window.folioProgress.end('test'));await chat.locator('#folio-progress').waitFor({state:'hidden'});
   await chat.waitForFunction(()=>window.folioToolsStatus().count>=8,{timeout:20000});
   await host.screenshot({path:'tests/output/hosted-202.png'});
-  const report={errors,sharedElectron:true,noSeed:true,overlay:true,progress:true,settingsReloadPersisted:true,approvalReloadSynced:true,toolCount:await chat.evaluate(()=>window.folioToolsStatus().count)};
+  const report={errors,sharedElectron:true,noSeed:true,overlay:true,progress:true,settingsReloadPersisted:true,approvalReloadSynced:true,draftSwitches:21,draftImmediateReload:true,draftCleared:true,toolCount:await chat.evaluate(()=>window.folioToolsStatus().count)};
   fs.writeFileSync('tests/output/hosted-202.json',JSON.stringify(report,null,2));assert.deepEqual(errors,[]);console.log('PASS',report);
  } finally{await app.close()}
 })().catch(e=>{console.error(e);process.exitCode=1});
