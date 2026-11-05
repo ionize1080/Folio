@@ -4579,7 +4579,7 @@ async function recoveryDialog() {
 }
 guarded(async () => {
   try {
-    if ((await recoveryList()).length) await recoveryDialog();
+    if ((!window.desktop?.offerRecovery || await window.desktop.offerRecovery()) && (await recoveryList()).length) await recoveryDialog();
   } finally {
     recoveryReady = true;
   }
@@ -4689,7 +4689,13 @@ installDocumentTabs({
   confirmClose: async () => {
     if (S.busy || largeWorkspace?.isBusy()) { toast("正在处理文档，请完成后关闭"); return false; }
     if (largeWorkspace && !await largeWorkspace.close()) return false;
-    return confirmDiscard();
+    if (!await confirmDiscard()) return false;
+    saveView();
+    clearTimeout(recoveryTimer);
+    recoveryPending.delete(S.sessionId);
+    await recoveryChain;
+    await recoveryStore(null,S.sessionId);
+    return true;
   },
 });
 // Acknowledgement follows complete renderer initialization, not process spawn.

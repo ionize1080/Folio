@@ -525,6 +525,7 @@ export function installPageImages(ctx) {
     q("#image-cancel").onclick = () => guarded(() => finish(false));
     return {
       overlay,
+      selection: () => ({page,indices:batch.length ? batch.map(o=>o.index) : chosen ? [chosen.index] : []}),
       selectInitial: () =>
         batch.length ? select(batch[0], true) : Promise.resolve(),
       finish,

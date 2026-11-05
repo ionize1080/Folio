@@ -270,7 +270,7 @@ def compose(data,edits,blocks,inspect,fragment,progress=None,*,preview=False):
         flows=sorted([e for e in es if e.get('type')=='flow' and not e.get('delete')],key=lambda e:float((e.get('model') or {}).get('layerOrder',0)))
         replace=[e for e in es if e.get('index') is not None]
         deleted_indices={e['index'] for e in replace if e.get('delete')}
-        appended=[e for e in es if e.get('index') is None and not e.get('delete') and e.get('type')!='flow']
+        appended=[e for e in es if e.get('index') is None and not e.get('delete') and e.get('type') not in ('flow','vector-graphic')]
         flow_indices=set(); flow_blobs=[]; original_patches={}; inline_flows={}; relocated_marks=set()
         if flows:
             desc=inspect(number);mapped=check_editable(page,desc)
@@ -505,6 +505,10 @@ def compose(data,edits,blocks,inspect,fragment,progress=None,*,preview=False):
             old=oldref.get_object() if oldref is not None else None
             refs=list(old) if isinstance(old,ArrayObject) else ([oldref] if oldref is not None else [])
             page[NameObject('/Contents')]=ArrayObject([writer._add_object(before),*refs,writer._add_object(end)])
+        vectors=[e for e in es if e.get('type')=='vector-graphic']
+        if vectors:
+            from vector_graphics import place
+            place(writer,page,vectors)
         if progress:progress(number)
     current=None;group=[]
     for b in blocks:

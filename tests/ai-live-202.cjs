@@ -7,11 +7,20 @@ const {configure}=require('./ai-live-support.cjs');
   const host=await app.firstWindow();await host.waitForLoadState('domcontentloaded');host.on('dialog',d=>d.accept());
   await app.evaluate(({dialog,BrowserWindow,ipcMain,app})=>{
    globalThis.aiReplies={};
-   const reply=ipcMain._invokeHandlers.get("ai-reply");ipcMain.removeHandler("ai-reply");ipcMain.handle("ai-reply",(e,v)=>{globalThis.aiReplies[v.id]=v;return reply(e,v)});
+   const reply=ipcMain._invokeHandlers.get("ai-reply");ipcMain.removeHandler("ai-reply");ipcMain.handle("ai-reply",(e,v)=>{if(v.id<0)globalThis.aiReplies[v.id]=v;
+     const item=globalThis.aiTrace?.find(t=>t.requestId===v.id);
+     if(item){
+       item.ms=Date.now()-item.started; item.error=v.error;
+       const content=v.result?.content;
+       item.images=(content||[]).filter(b=>b.type==="image").map(b=>({mime:b.mimeType,bytes:Math.floor(b.data.length*.75)}));
+       item.textBytes=Buffer.byteLength(JSON.stringify(content?content.filter(b=>b.type==="text"):v.result)||"");
+       if(item.images.length && content?.[0]?.text)try{const m=JSON.parse(content[0].text);item.dimensions=[m.width,m.height]}catch{}
+     }
+     return reply(e,v)});
    globalThis.aiTrace=[];
    const watch=wc=>{
      const send=wc.send.bind(wc);
-     wc.send=(name,...args)=>{if(name==='ai-request')globalThis.aiTrace.push(args[0].params);return send(name,...args)};
+     wc.send=(name,...args)=>{if(name==='ai-request')globalThis.aiTrace.push({...args[0].params,requestId:args[0].id,started:Date.now()});return send(name,...args)};
    };
    watch(BrowserWindow.getAllWindows()[0].webContents);app.on('web-contents-created',(_,wc)=>watch(wc));
    const original=globalThis.fetch;globalThis.headerAudits=[];
@@ -31,19 +40,24 @@ const {configure}=require('./ai-live-support.cjs');
   }
   async function ask(task,expected,verify){
    await app.evaluate(()=>{globalThis.aiTrace=[]});
+   await chat.locator('textarea[placeholder]').first().click();
+   const apiStart=await app.evaluate(()=>globalThis.headerAudits.length);
    await chat.keyboard.press('Control+n');await chat.waitForTimeout(400);
    const input=chat.locator('textarea[placeholder]').first();await input.fill(task);const start=Date.now();await input.press('Enter');
-   await chat.locator('#folio-progress').waitFor({state:'visible',timeout:15000});
+   try {await chat.locator('#folio-progress').waitFor({state:'visible',timeout:25000});}
+   catch(error){console.log('Chatbox status',await chat.evaluate(()=>({tools:window.folioToolsStatus(),input:document.querySelector('textarea[placeholder]')?.value,body:document.body.innerText.slice(-2500)})));throw error;}
    const initial=await chat.locator('#folio-progress').innerText();
    await chat.locator('#folio-progress').waitFor({state:'hidden',timeout:180000});
    const trace=await app.evaluate(()=>globalThis.aiTrace),body=await chat.locator('body').innerText();
-   fs.writeFileSync('tests/output/live-'+expected+'.txt',body);
+   const finalText=await chat.locator('.msg-content').last().locator(':scope > div > div').last().innerText().catch(()=> '');
+   fs.writeFileSync('tests/output/live-'+expected+'.txt',finalText);
    console.log(expected,JSON.stringify(trace.map(t=>({name:t.name,operation:t.arguments?.operation,action:t.arguments?.action}))),Math.round((Date.now()-start)/1000)+'s');
    assert(trace.some(t=>t.name===expected),'Natural request should select '+expected);
-   if(verify) await verify(trace,await chat.locator('.msg-content').last().locator(':scope > div').last().innerText());
+   if(verify) await verify(trace,finalText);
    else if(expected==='folio_document'){assert(trace.filter(t=>t.arguments?.action==='image').length===1,'image should not require retries');assert(trace.some(t=>JSON.stringify(t.arguments?.region)==='[0,0,1,0.5]'),'exact requested crop');assert(body.includes('Chapter 1'));}
-   checks.push({task,expected,tools:trace.map(t=>({name:t.name,operation:t.arguments?.operation,action:t.arguments?.action})),seconds:(Date.now()-start)/1000,initialProgress:initial});
+   checks.push({task,expected,apiRequests:(await app.evaluate(()=>globalThis.headerAudits.length))-apiStart,tools:trace.map(t=>({name:t.name,operation:t.arguments?.operation,action:t.arguments?.action,ms:t.ms,textBytes:t.textBytes,images:t.images,dimensions:t.dimensions,error:t.error})),seconds:(Date.now()-start)/1000,initialProgress:initial});
   }
+  if(!process.env.FOLIO_DEV_EXTRA_ONLY){
   const before=await read();
   await ask('请校准所有书签的目标位置，标题上方保留5毫米留白。明确匹配的直接处理，不确定的保留原目标并告诉我。','folio_calibrate');
   const calibrated=await read();assert(calibrated.length===before.length);
@@ -69,8 +83,10 @@ const {configure}=require('./ai-live-support.cjs');
     assert(calls.some(a=>a.documentId===first && ['text','image'].includes(a.action)),'Read the inactive PDF by ID');
     assert(body.includes('ORCHID-812') && body.includes('Field observation') && body.includes('Chapter 1') && /3/.test(body),'Both documents and correct current page');
   });
+  }
+  await require("./ai-live-workflows.cjs")({app,host,chat,ask});
   const audits=await app.evaluate(()=>globalThis.headerAudits);assert(audits.length);assert(audits.every(a=>a.bearer&&a.userAgent?.includes('ai-sdk')));
   await chat.screenshot({path:'tests/output/live-202.png'});
   fs.writeFileSync('tests/output/live-202.json',JSON.stringify({status:'passed',model,checks,headers:audits,independentStateChecks:true,errors},null,2));assert.deepEqual(errors,[]);
- } finally{try{await (await app.firstWindow()).evaluate(()=>window.desktop.setDirty(false))}catch{}await app.close()}
+ } finally{await app.evaluate(({app})=>app.exit(0)).catch(()=>{})}
 })().catch(e=>{console.error(e);process.exitCode=1});

@@ -13,6 +13,8 @@ import { generateRules } from "./generation.mjs";
 import { splitBookmarks } from "./bookmark-split.mjs";
 import { adjustWhitespace } from "./changes.mjs";
 export const catalog = {
+  "document.search": ["按字面文字检索并返回带页码的片段。",{query:"keyword"}],
+  "document.brief": ["摘要的紧凑证据，含物理页码、摘录、书签和覆盖范围。",{}],
   "document.context": ["读取当前页、选中的书签、文本、对象和页面。", {}],
   "document.describe": ["读取当前文档、页数和版本", {}],
   "document.snapshot": [
@@ -124,10 +126,11 @@ export function treeOperation(op, a, nodes, pageCount, context = {}) {
   let out = clone(nodes),
     result = {};
   const ids = new Set(a.ids || []);
+  const byId=new Map(out.map(n=>[n.id,n]));
   for (const id of ids)
-    if (!out.some((n) => n.id === id)) throw Error("书签ID不存在：" + id);
+    if (!byId.has(id)) throw Error("书签ID不存在：" + id);
   const get = (id) => {
-    const n = out.find((n) => n.id === id);
+    const n = byId.get(id);
     if (!n) throw Error("书签ID不存在");
     return n;
   };

@@ -13,15 +13,19 @@ repo, sha = os.environ['GITHUB_REPOSITORY'], os.environ['GITHUB_SHA']
 tag, prefix = 'v2.1.0', 'Folio-PDF-Studio-2.1.0'
 assert json.loads((root / 'package.json').read_text())['version'] == '2.1.0'
 reports = {}
-for name in ['workspace-210.json', 'live-202.json', 'hosted-202.json', 'chrome-202.json', 'ai-settings.json',
+for name in ['ai-workflows-210.json', 'workspace-210.json', 'live-202.json', 'hosted-202.json', 'chrome-202.json', 'ai-settings.json',
              'update-python-201.json', 'packaged-ai.json', 'v201-updater-report.json',
              'v162-health-report.json', 'package-report.json']:
     reports[name] = json.loads((root / 'tests/output' / name).read_text(encoding='utf-8'))
     assert not reports[name].get('errors'), name
 assert reports['live-202.json']['status'] == 'passed'
 assert reports['live-202.json']['independentStateChecks']
-assert len(reports['live-202.json']['checks']) == 5
+assert len(reports['live-202.json']['checks']) == 11
 assert reports['chrome-202.json']['status'] == 'passed'
+assert reports['ai-workflows-210.json']['scan']['searchable']
+assert reports['ai-workflows-210.json']['patch']['outsidePixelsIdentical']
+assert reports['ai-workflows-210.json']['vector']['vectorForm']
+assert reports['ai-workflows-210.json']['generatedBookmarks'] == 4
 assert reports['workspace-210.json']['status'] == 'passed'
 assert reports['hosted-202.json']['sharedElectron']
 assert reports['hosted-202.json']['settingsReloadPersisted']

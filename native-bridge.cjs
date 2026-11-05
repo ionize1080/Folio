@@ -179,7 +179,8 @@ class NativeBridge {
     if (
       ![
         "inspect",
-        "image-preview",
+        "vector-list", "image-replace",
+      "image-preview",
         "apply",
         "ocr",
         "layout",

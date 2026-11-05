@@ -19,6 +19,20 @@ function patch(file, replacements) {
 patch('src/shared/providers/index.ts', [["import './definitions/github-copilot'\n",'']]);
 patch('src/renderer/hooks/useOAuth.ts', [["import { isOAuthExpired, OAuthIpcChannels } from '@shared/oauth'", "import { isOAuthExpired } from '@shared/oauth'\nconst OAuthIpcChannels = {} as Record<string,string>"], ["const isDesktop = platform.type === 'desktop'",'const isDesktop = false // OAuth is not supplied by the upstream community edition']]);
 patch('src/renderer/components/chat/MessageErrTips.tsx', [["import { translateTexts } from '@/packages/translation'", "const translateTexts = async (..._args: any[]): Promise<string[]> => { throw Error('Error translation is unavailable in the upstream community source') }"], ["const showTranslateButton = language !== 'en' && errorMessage.length > 0",'const showTranslateButton = false']]);
+patch('src/renderer/routes/image-creator/index.tsx', [
+  ['setSelectedProvider(provider)', 'localStorage.setItem("folio-image-model", JSON.stringify({provider,modelId:model}))\n    setSelectedProvider(provider)']
+]);
+for (const name of ['gemini','custom-gemini']) {
+  patch('src/shared/providers/definitions/models/'+name+'.ts', [
+    ["messages: [{ role: 'user', content: params.prompt }]", "messages: [{role:'user',content:[...(params.images || []).map(img=>({type:'image' as const,image:img.imageUrl})),{type:'text',text:params.prompt}]}]"]
+  ]);
+}
+patch('src/shared/models/abstract-ai-sdk.ts', [
+  ['// images 暂时不支持', '// source-aware edits require a provider that accepts reference images'],
+  ['    const imageModel = this.getImageModel()', "    if (params.images?.length) throw Error('This provider supports generation only. Select a reference-image capable model for local edits.')\n    const imageModel = this.getImageModel()"]
+]);
+fs.copyFileSync(path.join(adapter,'image-generation.ts'),path.join(source,'src/renderer/folio-image-generation.ts'));
+changed.push('src/renderer/folio-image-generation.ts');
 // Services use a scoped Electron facade, keeping Folio lifecycle and data intact.
 for(const file of ['store-node.ts','locales.ts','adapters/sentry.ts','adapters/index.ts','analystic-node.ts','knowledge-base/db.ts','knowledge-base/remote-file-parser.ts','knowledge-base/ipc-handlers.ts','mcp/ipc-stdio-transport.ts']) {
   patch('src/main/'+file, [["from 'electron'", "from '"+(file.includes('/')?'../':'./')+"folio-electron'"]]);
@@ -81,7 +95,7 @@ patch('src/renderer/stores/session/orchestration.ts', [
 // result and native image input remain intact for subsequent model turns.
 patch('src/renderer/components/message-parts/ToolCallPartUI.tsx', [
   ['JSON.stringify(part.result, null, 2)', "JSON.stringify(part.result, (key, value) => typeof value === 'string' && ((key === 'data' && value.length > 512) || value.startsWith('data:image/')) ? '[image data omitted from text preview]' : value, 2)"]]);
-patch('src/renderer/index.tsx', [["import { SplashScreen }", "import './folio-integration'\nimport { SplashScreen }"]]);
+patch('src/renderer/index.tsx', [["import { SplashScreen }", "import './folio-integration'\nimport './folio-image-generation'\nimport { SplashScreen }"]]);
 const integration=`import {mcpController} from './packages/mcp/controller'\nimport {uiStore} from './stores/uiStore'\n`+
   ['network-renderer.js','controls.js','vision.js','progress.js'].map(n=>fs.readFileSync(path.join(adapter,n),'utf8')).join('\n')+`
 window.folioInstructions=${JSON.stringify(fs.readFileSync(path.join(adapter,'instructions.txt'),'utf8'))};

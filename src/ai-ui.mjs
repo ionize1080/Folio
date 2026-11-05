@@ -1,3 +1,5 @@
+import {installImageTools} from "./ai-images.mjs";
+import {vectorTool} from "./ai-vectors.mjs";
 import { selectBookmarkIds, calibrationPages, calibrationPlan, pageResult } from "./ai-efficient.mjs";
 import { extractTocPage } from "./smart-toc-extract.mjs";
 import { recognizeTocPages, resolveTocEntries, entriesToNodes, calibrationLines } from "./smart-toc.mjs";
@@ -6,7 +8,7 @@ import { catalog, guide, treeOperation } from "./ai-tools.mjs";
 import { ocrPage } from "./ocr-data.mjs";
 import { extractLines } from "./text-lines.mjs";
 import { matchTargets } from "./calibrate-worker.mjs";
-import { nativeRequest } from "./native-source.mjs";
+import { nativeRequest, releaseSource } from "./native-source.mjs";
 function treeWorker(data) {
   return new Promise((resolve, reject) => {
     const worker = new Worker(new URL("./ai-worker.mjs", import.meta.url), {
@@ -157,11 +159,15 @@ export function installAI({
       objectSelection:S.objectSelection?.selection() || null
     };
   }
+  const graphicsContext={S,rev,applyContent,approve:a=>auto || confirm("AI · "+S.name+" · "+a.action+"\\n"+JSON.stringify(a).slice(0,2200))};
+  const imageTool=installImageTools(graphicsContext);
   async function perform({ name, arguments: a = {} }, deadline = Infinity) {
     const timely = () => {
       if (Date.now() > deadline) throw Error("请求已过期，未应用修改");
     };
     timely();
+    if(name==="folio_image") return imageTool(a,deadline);
+    if(name==="folio_vector") return vectorTool(a,graphicsContext,deadline);
     if (name === "folio_document" && a.action === "list") {
       const {documents,activeDocumentId} = await desktop.tabsState();
       return {documents,activeDocumentId};
@@ -170,9 +176,9 @@ export function installAI({
     if (direct[name] || name === "folio_bookmarks" || name === "folio_document") {
       let op=direct[name];
       if(name==="folio_bookmarks")op="bookmark."+a.action;
-      if(name==="folio_document")op=({context:"document.context",describe:"document.describe",snapshot:"document.snapshot",toc:"document.toc",text:"page.text",ocr:"ocr.local",image:"page.image",objects:"page.objects"})[a.action];
+      if(name==="folio_document")op=({search:"document.search",brief:"document.brief",context:"document.context",describe:"document.describe",snapshot:"document.snapshot",toc:"document.toc",text:"page.text",ocr:"ocr.local",image:"page.image",objects:"page.objects"})[a.action];
       const {revision,selector,action,options,documentId,...rest}=a;
-      return perform({name:"folio_operation",arguments:{operation:op,revision,options:{...options,...rest,...(selector?{selector}:{}),...(name==="folio_calibrate"?{apply:a.apply!==false}:{}),...(name==="folio_bookmarks"&&action==="read"?{detail:a.detail||"compact"}:{})}}},deadline);
+      return perform({name:"folio_operation",arguments:{operation:op,revision,options:{...options,...rest,...(name==="folio_document"&&action==="text"&&!a.detail?{passages:true}:{}),...(selector?{selector}:{}),...(name==="folio_calibrate"?{apply:a.apply!==false}:{}),...(name==="folio_bookmarks"&&action==="read"?{detail:a.detail||"compact"}:{})}}},deadline);
     }
     if (name === "folio_ui") {
       setApproval(!auto);
@@ -208,7 +214,11 @@ export function installAI({
     }
     if (name === "folio_help") {
       if (a.operation) {
-        const operation = ({image:"page.image", "folio_document.image":"page.image", text:"page.text", toc:"document.toc", calibrate:"bookmark.calibrate", whitespace:"bookmark.whitespace"})[a.operation] || a.operation;
+        if (a.operation==="folio_image") return imageTool({action:"help"},deadline);
+        if (a.operation==="folio_vector") return {actions:["list","read","create","update"],flow:{nodes:[{id:"start",label:"Start"}],edges:[]}};
+        if(a.operation==="folio_bookmarks")return {actions:Object.keys(catalog).filter(k=>k.startsWith("bookmark.")),generate:catalog["bookmark.generate"][1]};
+        const lookup=String(a.operation).replace(/^folio_bookmarks[.:/]/,"bookmark.").replace(/^folio_document[.:/]/,"document.");
+        const operation = ({generate:"bookmark.generate",patch:"bookmark.patch",context:"document.context",brief:"document.brief",image:"page.image", "folio_document.image":"page.image", text:"page.text", toc:"document.toc", calibrate:"bookmark.calibrate", whitespace:"bookmark.whitespace"})[a.operation] || (catalog[lookup]?lookup:catalog["bookmark."+lookup]?"bookmark."+lookup:lookup);
         if (!catalog[operation]) throw Error("未知操作。使用 folio_document 的 action=describe/text/toc/ocr/image/objects/snapshot；书签使用 folio_bookmarks；或不传 operation 查询操作名。");
         return {operation,definition:catalog[operation]};
       }
@@ -223,6 +233,11 @@ export function installAI({
     const op = a.operation,
       p = {...(a.options || {})};
     if(p.selector)p.ids=selectBookmarkIds(S.nodes,p.selector,S.selected);
+    if(op==="bookmark.generate" && Array.isArray(p.rules)){
+      p.rules=p.rules.map(rule=>({enabled:true,level:1,offset:0,template:"$0",...rule}));
+      if(!p.pages && S.info?.pageCount<=100)p.pages=Array.from({length:S.info.pageCount},(_,i)=>i+1);
+      if(!p.pages)throw Error("Specify pages in batches of up to 100");
+    }
     if(op==="bookmark.calibrate" && !p.ids)p.ids=S.nodes.map(n=>n.id);
     const progress=text=>desktop.aiProgress?.(text).catch(()=>{});
     if (!Object.hasOwn(catalog, op))
@@ -258,6 +273,8 @@ export function installAI({
         revision: rev(),
       };
     const read = [
+      "document.brief",
+      "document.search",
       "document.context",
       "bookmark.read",
       "page.objects",
@@ -265,7 +282,7 @@ export function installAI({
       "page.image",
       "document.snapshot",
       ...(p.apply ? [] : ["bookmark.calibrate", "document.toc"]),
-      "ocr.local",
+      ...(p.apply ? [] : ["ocr.local"]),
     ].includes(op);
     const before = rev(),
       session = S.sessionId,
@@ -291,7 +308,7 @@ export function installAI({
       if (S.sessionId !== session || S.bytes !== bytes || rev() !== before)
         throw Error("文档已变化，结果未应用");
     };
-    if (op === "document.context") return {...currentSelection(), documentId:(await desktop.tabsState()).self, name:S.name, revision:before};
+
     if (["page.text","page.image","page.objects","ocr.local"].includes(op)) p.page ??= S.page;
     const idSet = p.ids && new Set(p.ids);
     const selectedNodes = idSet ? S.nodes.filter(n => idSet.has(n.id)) : S.nodes;
@@ -321,7 +338,12 @@ export function installAI({
       };
     }
     const localOcr = async page => {
-      if(!ocrCache.has(page)) {progress(`正在本地识别第 ${page} 页文字`);const result=await nativeRequest({command:"ocr",bytes:await S.pdf.getData(),page,profile:"v6",skipText:false});fresh();ocrCache.set(page,result);lineCache.delete(page);}
+      if(!ocrCache.has(page)) {progress(`正在本地识别第 ${page} 页文字`);const source=(S.nativeEdits.length || S.ocr.length) ? await S.pdf.getData() : S.bytes;
+        try {
+          const result=await nativeRequest({command:"ocr",bytes:source,page,profile:"v6",skipText:false});
+          fresh();ocrCache.set(page,result);lineCache.delete(page);
+        } finally { if(source!==S.bytes) await releaseSource(source); }
+      }
       return ocrCache.get(page);
     };
     const effectiveOCR=page=>{const saved=ocrPage(S.ocr,page);return saved.length?saved:(ocrCache.get(page)?.blocks||[])};
@@ -330,18 +352,58 @@ export function installAI({
       for (let i=0;i<pageList.length;i++) {
         const page=pageList[i];
         progress(`正在读取第 ${page} 页（${i+1}/${pageList.length}）`);
+        if(!lineCache.has(page) && lineCache.size>=64)lineCache.delete(lineCache.keys().next().value);
         if(!lineCache.has(page))lineCache.set(page,await extractLines(S.pdf,page,S.rotation[page]??(await S.pdf.getPage(page)).rotate,{ocr:effectiveOCR(page)}));
         out.push(...lineCache.get(page));fresh();
         if(out.length>250000)throw Error("文字行超过预算，请缩小页范围");
       }
       return out;
     };
+    if(op==="document.context"){
+      const context=currentSelection();
+      if(p.includeText) context.pageText=(await lines([context.currentPage])).map(l=>l.text).join("\n").slice(0,7000);
+      return {...context,documentId:(await desktop.tabsState()).self,name:S.name,revision:before};
+    }
+    if(op==="document.search"){
+      const query=String(p.query||"").trim().toLocaleLowerCase();
+      if(!query || query.length>200)throw Error("Supply a literal search query of 1–200 characters");
+      const start=p.offset??0, max=p.limit??12, count=S.info.pageCount;
+      if(!Number.isInteger(start)||start<0||start>=count||!Number.isInteger(max)||max<1||max>50)throw Error("Invalid search offset or limit");
+      const hits=[];let i=start;
+      for(;i<Math.min(start+100,count)&&hits.length<max;i++){
+        const content=(await lines([i+1])).map(l=>l.text).join(" ");
+        const pos=content.toLocaleLowerCase().indexOf(query);
+        if(pos>=0)hits.push({page:i+1,text:content.slice(Math.max(0,pos-160),pos+query.length+300)});
+      }
+      return {revision:before,hits,nextOffset:i<count?i:null};
+    }
+    if(op==="document.brief"){
+      const count=S.info.pageCount;
+      const picked=p.pages || [...new Set([1,Math.min(2,count),Math.min(3,count),Math.min(4,count),Math.max(1,count-1),...Array.from({length:8},(_,i)=>1+Math.round((count-1)*i/7))])].sort((a,b)=>a-b);
+      if(!picked.length || picked.length>24)throw Error("Use 1–24 evidence pages per brief");
+      const evidence=[];
+      for(const page of picked){
+        const content=(await lines([page])).map(l=>l.text).join(" ");
+        evidence.push({page,text:content.slice(0,1200),truncated:content.length>1200,needsOCR:!content.trim()});
+      }
+      return {name:S.name,revision:before,pageCount:count,coverage:{pages:picked,complete:picked.length===count&&evidence.every(e=>!e.truncated&&!e.needsOCR)},outline:S.nodes.filter(n=>!n.parent).slice(0,32).map(n=>({title:n.title,page:n.target?.page})),evidence};
+    }
     if (op === "document.snapshot") {
       if(!snapshot){const bytes = await exportPDF();fresh();snapshot=await desktop.aiSnapshot(bytes);}
       return {...snapshot, revision: before };
     }
     if (op === "page.text") {
       const all=await lines(), result=pageResult(all,p);
+      if(p.passages){
+        const grouped=new Map();let size=0,consumed=0;
+        for(const l of result.items){
+          const text=l.text.slice(0,8000);
+          if(consumed && size+text.length>14000)break;
+          if(!grouped.has(l.page))grouped.set(l.page,[]);
+          grouped.get(l.page).push(text);size+=text.length;consumed++;
+        }
+        return {revision:before,total:all.length,offset:result.offset,nextOffset:result.offset+consumed<all.length?result.offset+consumed:null,passages:[...grouped].map(([page,parts])=>({page,text:parts.join("\n")}))};
+      }
       return {revision:before,...result,items:undefined,lines:result.items.map(l=>p.detail==="full"?l:{page:l.page,text:l.text,x:l.x,y:l.y,top:l.top,bottom:l.bottom,height:l.height})};
     }
     if(op==="document.toc") {
@@ -373,6 +435,12 @@ export function installAI({
       if (!Number.isInteger(p.page) || p.page < 1 || p.page > S.info.pageCount)
         throw Error("页码无效");
       const result=await localOcr(p.page);
+      if(p.apply) {
+        if(!result.blocks?.length)return {applied:false,revision:before,blockCount:0};
+        fresh();
+        await applyContent(S.nativeEdits,[...S.ocr.filter(b=>b.page!==p.page),...result.blocks]);
+        return {applied:true,revision:rev(),page:p.page,blockCount:result.blocks.length};
+      }
       const jobId = crypto.randomUUID();
       if(ocrJobs.size>=8)ocrJobs.delete(ocrJobs.keys().next().value);
       ocrJobs.set(jobId, {
@@ -544,6 +612,7 @@ export function installAI({
     const changed = result.nodes.filter(n => JSON.stringify(n) !== JSON.stringify(S.index.get(n.id))).length
       + S.nodes.filter(n => !nextIds.has(n.id)).length;
     if(changed)commit(result.nodes);
+    if(op==="bookmark.generate")return {revision:rev(),changeCount:changed,bookmarkCount:S.nodes.length,ignored:result.ignored,conflicts:result.conflicts,examples:result.nodes.slice(-5).map(n=>({title:n.title,page:n.target?.page}))};
     const { nodes, changes, ...details } = result;
     return {
       ...details,

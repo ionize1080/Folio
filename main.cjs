@@ -176,6 +176,12 @@ app.whenReady().then(async () => {
     }).catch(() => {});
   });
   ipc("tabs-state", () => ({...tabs.snapshot(), self:tabs.entries.get(sender()).id}));
+  let offeredRecovery = false;
+  ipc("offer-recovery", () => {
+    if (offeredRecovery || sender() !== win.webContents) return false;
+    offeredRecovery = true;
+    return true;
+  });
   ipc("tabs-ready", () => tabs.ready(sender()));
   ipc("tabs-select", id => tabs.select(tabs.byId(id)));
   ipc("tabs-close", id => tabs.enqueue(() => tabs.closeOne(id)));
@@ -313,6 +319,13 @@ app.whenReady().then(async () => {
     };
   }
   ipc("open-drop", readDocument);
+  ipc("pick-image", async () => {
+    const result=await dialog.showOpenDialog(win,{properties:["openFile"],filters:[{name:"Image",extensions:["png","jpg","jpeg","webp"]}]});
+    if(result.canceled) return null;
+    const file=result.filePaths[0];
+    if((await fs.stat(file)).size>32*1024**2) throw Error("Image exceeds 32 MiB");
+    return (await fs.readFile(file)).toString("base64");
+  });
   ipc("save", (data) => fileStore.save(data));
   ipc("save-prepare", (data) => fileStore.prepare(data));
   ipc("copy-text", (text) => {

@@ -38,6 +38,15 @@ function installAIHost({ app, win, ipc, tabs, sender, requireActive }) {
     for (const t of tabs.entries.values()) t.wc.send("ai-state", {...dock.state(),auto:approvalAuto});
     dock.send("folio:approval", approvalAuto);
   });
+  ipc("generate-image", async options => {
+    const wc=dock.view?.webContents;
+    if (!wc || wc.isDestroyed()) throw Error("Open Chatbox and select an image model in Image Creator.");
+    if (typeof options.prompt !== "string" || options.prompt.length>4000 || (options.reference?.length||0)>6*1024**2)
+      throw Error("Invalid image request");
+    const result=await wc.executeJavaScript("window.folioGenerateImage("+JSON.stringify({prompt:options.prompt,reference:options.reference})+")");
+    if(typeof result!=="string" || !/^data:image\/(png|jpeg|webp);base64,/.test(result) || result.length>44*1024**2) throw Error("Invalid generated image");
+    return result.split(",")[1];
+  });
   ipc("ai-display", (mode) => dock.setMode(mode));
   ipc("ai-progress", (message) => dock.send("folio:progress", String(message).slice(0,200)));
   ipc("ai-overlay", hidden => {

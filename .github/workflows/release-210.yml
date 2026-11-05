@@ -42,6 +42,7 @@ jobs:
           doc.set_toc([[1,f'Chapter {i+1}',i+1] for i in range(8)])
           doc.save(out/'modes.pdf')
           subprocess.run(['python','tests/ai-fixtures.py'],check=True)
+          subprocess.run(['python','tests/ai-public-fixtures.py'],check=True)
       - run: npm run test:quick
       - run: node scripts/acceptance.mjs native
       - name: Build pinned Chatbox source and patched PDF MCP
@@ -61,7 +62,7 @@ jobs:
       - run: node tests/pdf-mcp-bridge.cjs
       - name: Require real Qwen through hosted Chatbox
         run: node tests/ai-live-202.cjs
-        timeout-minutes: 12
+        timeout-minutes: 30
         env:
           FOLIO_QWEN_API_KEY: ${{ secrets.FOLIO_QWEN_API_KEY }}
           FOLIO_QWEN_API_URL: ${{ secrets.FOLIO_QWEN_API_URL }}
@@ -104,6 +105,7 @@ jobs:
           path: |
             tests/output/workspace-210.json
             tests/output/workspace-210.png
+            tests/output/ai-workflows-210.json
             tests/output/live-202.json
             tests/output/hosted-202.json
             tests/output/chrome-202.json

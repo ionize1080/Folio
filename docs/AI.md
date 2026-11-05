@@ -10,7 +10,7 @@
 
 ## 按需工具
 
-Chatbox 常驻四个有明确参数的快捷工具 `folio_calibrate`、`folio_whitespace`、`folio_bookmarks`、`folio_document`，以及四个按需探索入口：`folio_help`、`folio_operation`、`pdf_help`、`pdf_operation`。已知能力直接调用；仅在缺少参数说明时查询单项帮助。每次 operation 调用必须显式传入 `operation`；查询 help 不会设置下一次操作。
+Chatbox 提供图像工具 folio_image、矢量工具 folio_vector，以及四个文档快捷工具 `folio_calibrate`、`folio_whitespace`、`folio_bookmarks`、`folio_document`，以及四个按需探索入口：`folio_help`、`folio_operation`、`pdf_help`、`pdf_operation`。已知能力直接调用；仅在缺少参数说明时查询单项帮助。每次 operation 调用必须显式传入 `operation`；查询 help 不会设置下一次操作。
 
 使用 folio_document 的 list 操作列出已打开的标签，用 documentId 指定文档。context 返回当前页、选区和选中书签。读取多个文件时请逐个指定 ID，写入时使用同一文档的 revision。
 
@@ -75,3 +75,11 @@ Chatbox 固定信息在 `integrations/chatbox/upstream.json`，依赖锁在同�
 固定社区源码未包含官方专有的 Copilot 实现、OAuth IPC、付费 sandbox/skills 及错误翻译服务；这些不可用入口不伪造为可用能力。升级先检查社区源码是否已提供实现，再移除对应兼容处理。
 
 PDF MCP 保持上游子模块提交不变，扩展在 `integrations/pdf-mcp-folio.patch`，由 `scripts/patch-pdf-mcp.py` 校验并应用；包含底层实现、注册、文档和测试，便于升级重放与向上游贡献。构建产物记录源码、依赖锁及文件哈希。升级必须重跑配置迁移、共享窗口、实际模型、批量事务、便携包和更新器测试。
+
+## 图片、扫描页和流程图
+
+在 Chatbox 中描述所需调整。folio_image 可以查看选中图像、调整色阶与 RGB 曲线、颜色平衡、滤镜、锐化、裁剪和透视。普通预览长边最多 640 像素，细节预览最多 1200 像素。模型可以拿到真实像素、亮度分位数和预览 ID，基于上一版继续微调，再应用到源分辨率。更改页面中图片的位置后可读取整页核对版面。
+
+replace 打开本地图片选择器。generate 使用在 Chatbox「图像创作」中选定的出图模型和既有配置，可将选定区域作为参考发给支持参考图的服务。区域采用原图左上角为原点的归一化坐标；局部替换按原像素尺寸合成。图像生成服务需单独配置。扫描增强后可要求本地 OCR 写入可检索文字层。
+
+folio_vector 接受独立 SVG 或有向无环流程图的节点及连线。支持基本几何形状、路径、文字、分组、渐变和裁切路径。嵌入 PDF 的图形保留矢量路径和 SVG 源码。重开文件后可按图形 ID 查看源代码、调整布局、修改元素属性或替换节点文字。已有第三方 PDF 中未保留 SVG 源码的图形使用现有对象工具处理。

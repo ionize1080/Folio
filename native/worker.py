@@ -346,6 +346,15 @@ def run(args, *, _preview=False):
  if args.get('command')=='layout':
   from story import analyze
   return analyze(Path(args['input']).read_bytes(),args.get('page',1))
+ if args.get('command')=='vector-list':
+  from pypdf import PdfReader
+  from vector_graphics import list_graphics
+  with open(args['input'],'rb') as stream:
+   pg=PdfReader(stream).pages[args['page']-1]
+   return {'graphics':list_graphics(pg)}
+ if args.get('command')=='image-replace':
+  from image_adjustments import replace_pixels
+  return replace_pixels(args)
  if args.get('command')=='image-preview':
   from image_adjustments import preview
   return preview(args)
@@ -391,11 +400,14 @@ def run(args, *, _preview=False):
    from pypdf import PdfReader
    pg=PdfReader(io.BytesIO(data)).pages[page_no-1]
    mapped=check_editable(pg,out['objects'])
-   from content import map_objects
-   from font_match import inspect_fonts
-   out['fonts']=inspect_fonts(data,page_no,out['objects'],mapped,map_objects(pg)[0])
-   from table_geometry import inspect_tables
-   out['tables']=inspect_tables(data,page_no)
+   if args.get('imagesOnly'):
+    out['objects']=[o for o in out['objects'] if o['type']=='image']
+   else:
+    from content import map_objects
+    from font_match import inspect_fonts
+    out['fonts']=inspect_fonts(data,page_no,out['objects'],mapped,map_objects(pg)[0])
+    from table_geometry import inspect_tables
+    out['tables']=inspect_tables(data,page_no)
    # PDFium object coordinates are in PDF user space; the visible editor uses
    # the CropBox's top-left origin. Keep raw signatures for write ownership.
    left,bottom,right,top=crop;old_height=out['size'][1]
