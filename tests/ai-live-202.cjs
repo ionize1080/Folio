@@ -55,7 +55,7 @@ const {configure}=require('./ai-live-support.cjs');
    console.log(expected,JSON.stringify(trace.map(t=>({name:t.name,operation:t.arguments?.operation,action:t.arguments?.action}))),Math.round((Date.now()-start)/1000)+'s');
    assert(trace.some(t=>t.name===expected),'Natural request should select '+expected);
    if(verify) await verify(trace,finalText);
-   else if(expected==='folio_document'){assert(trace.filter(t=>t.arguments?.action==='image').length===1,'image should not require retries');assert(trace.some(t=>JSON.stringify(t.arguments?.region)==='[0,0,1,0.5]'),'exact requested crop');assert(body.includes('Chapter 1'));}
+   else if(expected==='folio_document'){const renders=trace.filter(t=>t.name==='folio_render'||(t.name==='folio_document'&&t.arguments?.action==='image'));assert.equal(renders.length,1,'page image should not require retries');assert(renders[0].images?.some(i=>i.mime==='image/png'&&i.bytes>100),'actual native image returned');assert(!renders[0].error);assert.equal(JSON.stringify(renders[0].arguments?.region),'[0,0,1,0.5]','exact requested crop');assert(body.includes('Chapter 1'));}
    checks.push({task,expected,apiRequests:(await app.evaluate(()=>globalThis.headerAudits.length))-apiStart,tools:trace.map(t=>({name:t.name,operation:t.arguments?.operation,action:t.arguments?.action,ms:t.ms,textBytes:t.textBytes,images:t.images,dimensions:t.dimensions,error:t.error})),seconds:(Date.now()-start)/1000,initialProgress:initial});
   }
   if(!process.env.FOLIO_DEV_EXTRA_ONLY){
@@ -81,7 +81,7 @@ const {configure}=require('./ai-live-support.cjs');
     const calls=trace.filter(t=>t.name==='folio_document').map(t=>t.arguments);
     assert(calls.some(a=>a.action==='context'),'Read live selection');
     assert(calls.some(a=>a.action==='list'),'Enumerate open PDFs');
-    assert(calls.some(a=>a.documentId===first && ['text','image','objects','brief'].includes(a.action)),'Read the inactive PDF by ID');
+    assert(calls.some(a=>a.documentId===first && ['text','image','objects','brief'].includes(a.action))||trace.some(t=>t.name==='folio_render'&&t.arguments.documentId===first&&t.images?.length&&!t.error),'Read the inactive PDF by ID');
     assert(body.includes('ORCHID-812') && body.includes('Field observation') && body.includes('Chapter 1') && /3/.test(body),'Both documents and correct current page');
   });
   }
