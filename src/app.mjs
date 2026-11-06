@@ -2071,7 +2071,7 @@ function parseRange(text) {
 function pagesDialog() {
   modal(
     "页面操作",
-    `<label>页码范围<input id="pages-range" value="${S.page}" placeholder="1-5,8,10-12"></label><p class="hint">页码使用物理页码。提取页以当前原始文档为基础，不包含尚未另存的修改，也不复制整本书签结构。合并先保存当前编辑，再追加另一个 PDF 的页面；追加文件的书签不自动合并。</p><div class="menu-grid"><button id="pages-rotate">所选页旋转 90°</button><button id="pages-extract">提取为新 PDF</button><button id="pages-merge">在末尾追加 PDF</button><button id="page-png">导出当前页 PNG</button></div>`,
+    `<label>页码范围<input id="pages-range" value="${S.page}" placeholder="1-5,8,10-12"></label><p class="hint">页码使用物理页码。提取、合并与拆分包含当前编辑，并保留可重新定位的书签。结果另存为新文件。</p><div class="menu-grid"><button id="pages-rotate">所选页旋转 90°</button><button id="pages-extract">提取为新 PDF</button><button id="pages-merge">合并 / 拆分 PDF…</button><button id="page-png">导出当前页 PNG</button></div>`,
     [{ text: "完成", run: closeModal }],
   );
   modalCleanup = installPagePicker($("#pages-range"), { S, surface });
@@ -2090,54 +2090,15 @@ function pagesDialog() {
       const indices = parseRange($("#pages-range").value);
       setBusy(true, "正在提取页面…");
       try {
-        const bytes = await rpc("extractPages", indices);
+        const current = await rpc('save', await buildExportSnapshot(S, settings, documentSession));
+        let result;try { result=await nativeRequest({command:'document-assemble',bytes:current,parts:[{current:true,pages:indices.map(i=>i+1)}],bookmarks:true}); } finally { await releaseSource(current); }
+        const bytes=Uint8Array.from(atob(result.bytes),c=>c.charCodeAt(0));
         await writeFile("extracted.pdf", bytes, "pdf");
       } finally {
         setBusy(false);
       }
     });
-  $("#pages-merge").onclick = () =>
-    guarded(async () => {
-      await S.flowEdit?.finish?.(true);
-      await S.imageEdit?.flush?.();
-      const mergeSession = documentSession.capture();
-      const f = await choose("pdf");
-      if (!f) return;
-      documentSession.assert(mergeSession);
-      closeModal();
-      setBusy(true, "正在合并 PDF…");
-      try {
-        const current = await rpc(
-          "save",
-          await buildExportSnapshot(S, settings, documentSession),
-        );
-        documentSession.assert(mergeSession);
-        const temp = new Worker(new URL("./pdf-worker.mjs", import.meta.url), {
-          type: "module",
-        });
-        const call = (method, args) =>
-          new Promise((resolve, reject) => {
-            temp.onmessage = (e) =>
-              e.data.error
-                ? reject(Error(e.data.error))
-                : resolve(e.data.result);
-            temp.onerror = (e) => reject(Error(e.message));
-            temp.postMessage({ id: 1, method, args });
-          });
-        try {
-          await call("open", current);
-          const merged = await call("merge", new Uint8Array(f.bytes));
-          documentSession.assert(mergeSession);
-          await loadPDF(merged, S.name.replace(/\.pdf$/i, "") + "-merged.pdf");
-          setDirty();
-          toast("页面已追加，请另存 PDF；合并操作不能撤销");
-        } finally {
-          temp.terminate();
-        }
-      } finally {
-        setBusy(false);
-      }
-    });
+  $("#pages-merge").onclick = () => {closeModal();document.querySelector('#document-assembly').click();};
   $("#page-png").onclick = () =>
     guarded(async () => {
       if (S.annotations.some((a) => a.page === S.page))
@@ -4704,4 +4665,4 @@ installDocumentTabs({
 window.desktop?.updateStarted?.().catch(() => {});
 
 import {installAI} from './ai-ui.mjs';
-const aiUI=installAI({S,commit,getLargeDocument:()=>largeWorkspace,session:documentSession,applyContent:async(edits,ocr)=>{await refreshNative(edits,ocr);commit(clone(S.nodes),{nativeEdits:edits,ocr});},exportPDF:async()=>rpc('save',await buildExportSnapshot(S,settings,documentSession)),undo:()=>restoreHistory('undo'),redo:()=>restoreHistory('redo')});
+const aiUI=installAI({S,commit,writeFile,getLargeDocument:()=>largeWorkspace,session:documentSession,applyContent:async(edits,ocr)=>{await refreshNative(edits,ocr);commit(clone(S.nodes),{nativeEdits:edits,ocr});},exportPDF:async()=>rpc('save',await buildExportSnapshot(S,settings,documentSession)),undo:()=>restoreHistory('undo'),redo:()=>restoreHistory('redo')});

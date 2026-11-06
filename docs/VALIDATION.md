@@ -1,3 +1,11 @@
+# Folio PDF Studio 2.2.0 验证
+
+本版发布流程要求原生图片/矢量/文档组合测试、界面操作、Chatbox 驱动真实并行生图、保存 PDF 独立检查、完整既有回归、打包 EXE 和最终 ZIP 更新器验证全部通过后才发布。具体构建提交与结果记录在 [2.2.0 验证附件](https://github.com/ionize1080/Folio/releases/download/v2.2.0/Folio-PDF-Studio-2.2.0-validation.json)。[能力与边界](GRAPHICS-2.2.0.md)。
+
+本地开发验收已通过 284 项 Node 单元测试、原生回归和新增八组原生场景。真实千问两次图像请求时间重叠，保存文件包含两张 512 像素图像及原生 PDF 渐变，并经独立渲染查看。发布验收以 Actions 的同次构建结果为准；不代表对所有 PDF 或所有硬件均可编辑。
+
+---
+
 # Folio PDF Studio 2.1.0 发布验证
 
 Windows x64 正式包由 GitHub Actions 从提交 `12eb72559979ed87e04a89e7b7bbedae92462206` 构建并发布。核对特定 ZIP 时使用同次发布的 SHA-256 清单；验证 JSON 还记录源码提交、程序哈希和各项结果。[Windows 发布任务](https://github.com/ionize1080/Folio/actions/runs/41994404438) · [发布包验证 JSON](https://github.com/ionize1080/Folio/releases/download/v2.1.0/Folio-PDF-Studio-2.1.0-validation.json) · [SHA-256 清单](https://github.com/ionize1080/Folio/releases/download/v2.1.0/Folio-PDF-Studio-2.1.0-SHA256.txt)

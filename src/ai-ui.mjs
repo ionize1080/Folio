@@ -1,4 +1,7 @@
 import {installImageTools} from "./ai-images.mjs";
+import {installAIResize} from "./ai-resize.mjs";
+import {installGraphicsUI} from "./graphics-ui.mjs";
+import {installDocumentAssembly} from "./document-assembly-ui.mjs";
 import {vectorTool} from "./ai-vectors.mjs";
 import { selectBookmarkIds, calibrationPages, calibrationPlan, pageResult } from "./ai-efficient.mjs";
 import { extractTocPage } from "./smart-toc-extract.mjs";
@@ -42,9 +45,11 @@ export function installAI({
   exportPDF,
   applyContent,
   getLargeDocument,
+  writeFile,
 }) {
   const desktop = window.desktop;
   if (!desktop?.aiOpen) return;
+  installAIResize(desktop);
   let overlay = false;
   const updateOverlay = () => {
     const next = !!document.querySelector("dialog[open]:not(.large-workspace), details[open], #context-menu:not([hidden])");
@@ -160,11 +165,21 @@ export function installAI({
   }
   const graphicsContext={S,rev,applyContent,approve:a=>auto || confirm("AI · "+S.name+" · "+a.action+"\\n"+JSON.stringify(a).slice(0,2200))};
   const imageTool=installImageTools(graphicsContext);
+  const uiContext={...graphicsContext,approve:()=>true};
+  const uiImage=installImageTools(uiContext);
+  const enqueueUI=fn=>{const work=queue.then(fn);queue=work.catch(()=>{});return work;};
+  installGraphicsUI({...uiContext,imageTool:a=>a.action==='generate_new'?uiImage(a):enqueueUI(()=>uiImage(a)),vectorTool:a=>enqueueUI(()=>vectorTool(a,uiContext,Infinity)),applyContent:(edits,ocr)=>{const revision=rev();return enqueueUI(()=>{if(rev()!==revision)throw Error('文档已变化，请刷新');return applyContent(edits,ocr);});}});
+  const assembly=installDocumentAssembly({S,exportPDF,session,writeFile});
   async function perform({ name, arguments: a = {} }, deadline = Infinity) {
     const timely = () => {
       if (Date.now() > deadline) throw Error("请求已过期，未应用修改");
     };
     timely();
+    if(name==='folio_document'&&['merge','split'].includes(a.action)) {
+      if(!graphicsContext.approve(a))throw Error('用户拒绝操作');
+      if(a.revision!==rev())throw Error('Stale document revision');
+      return assembly(a);
+    }
     if(name==="folio_image") return imageTool(a,deadline);
     if(name==="folio_vector") return vectorTool(a,graphicsContext,deadline);
     if (name === "folio_document" && a.action === "list") {
@@ -213,8 +228,8 @@ export function installAI({
     }
     if (name === "folio_help") {
       if (a.operation) {
-        if (a.operation==="folio_image") return imageTool({action:"help"},deadline);
-        if (a.operation==="folio_vector") return {actions:["list","read","create","update"],flow:{nodes:[{id:"start",label:"Start"}],edges:[]}};
+        if (/^folio_image(?:[.:/]|$)/.test(a.operation)) return {actions:['generate_new','insert','inspect','update','move','delete','preview','apply','replace','generate'],example:{action:'update',id:'returned id',page:2,revision:'latest revision',geometry:{rotation:25,width:180,height:150},opacity:.7},adjustments:await imageTool({action:"help"},deadline)};
+        if (/^folio_vector(?:[.:/]|$)/.test(a.operation)) return {actions:["list","read","create","update","move","delete"],flow:{nodes:[{id:"start",label:"Start"}],edges:[]},geometry:'box=[x,y,width,height], rotation in degrees, opacity 0..1, targetPage for moves'};
         if(a.operation==="folio_bookmarks")return {actions:Object.keys(catalog).filter(k=>k.startsWith("bookmark.")),generate:catalog["bookmark.generate"][1]};
         const lookup=String(a.operation).replace(/^folio_bookmarks[.:/]/,"bookmark.").replace(/^folio_document[.:/]/,"document.");
         const operation = ({generate:"bookmark.generate",patch:"bookmark.patch",context:"document.context",brief:"document.brief",image:"page.image", "folio_document.image":"page.image", text:"page.text", toc:"document.toc", calibrate:"bookmark.calibrate", whitespace:"bookmark.whitespace"})[a.operation] || (catalog[lookup]?lookup:catalog["bookmark."+lookup]?"bookmark."+lookup:lookup);
@@ -624,8 +639,9 @@ export function installAI({
     };
   }
   desktop.onAIRequest(async (message) => {
-    const work = queue.then(() => perform(message.params, message.deadline));
-    queue = work.catch(() => {});
+    const independent = message.params.name === 'folio_image' && message.params.arguments?.action === 'generate_new';
+    const work = independent ? perform(message.params, message.deadline) : queue.then(() => perform(message.params, message.deadline));
+    if (!independent) queue = work.catch(() => {});
     try {
       await desktop.aiReply({ id: message.id, result: await work });
     } catch (e) {

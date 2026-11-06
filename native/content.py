@@ -77,6 +77,8 @@ def map_objects(page):
         elif op in (b'sh',b'INLINE IMAGE'):objects.append({'type':'shading' if op==b'sh' else 'image','at':i})
         if op not in TEXT and len(objects)>previous_count:
             for mark in marks:mark['objects'].extend(objects[previous_count:])
+            for obj in objects[previous_count:]:
+                obj['opacity']=float(graphics.get('/ca',1));obj['blendMode']=str(graphics.get('/BM','/Normal')).lstrip('/')
     for obj in objects:obj['clipBounds']=clipping.get(obj['at'],())
     return stream,objects
 
@@ -137,6 +139,11 @@ def check_editable(page,descriptions):
                 b['editable']=False;b['flowEditable']=False;b['reason']='此图形对象属于替代文字语义范围，保留原对象';continue
             if a.get('unmapped'):
                 b['editable']=False;b['flowEditable']=False;b['reason']='此对象无法验证内容流对应关系，保留原对象；已验证的文字可独立编辑';continue
+            # A mapped image Do can be removed or replaced independently even
+            # inside a rotated clipping path. The surrounding clip is untouched.
+            if a['type']=='image' and stream.operations[a['at']][1] in (b'Do',b'INLINE IMAGE'):
+                b['editable']=True;b.pop('reason',None)
+                b['opacity']=a.get('opacity',1);b['blendMode']=a.get('blendMode','Normal')
             b['clipBounds']=a.get('clipBounds',())
             b['flowEditable']=bool((b['editable'] or b.get('simpleText')) and a['type']=='text' and None not in b['clipBounds'])
             if a['type']=='text':
@@ -270,7 +277,7 @@ def compose(data,edits,blocks,inspect,fragment,progress=None,*,preview=False):
         flows=sorted([e for e in es if e.get('type')=='flow' and not e.get('delete')],key=lambda e:float((e.get('model') or {}).get('layerOrder',0)))
         replace=[e for e in es if e.get('index') is not None]
         deleted_indices={e['index'] for e in replace if e.get('delete')}
-        appended=[e for e in es if e.get('index') is None and not e.get('delete') and e.get('type') not in ('flow','vector-graphic')]
+        appended=[e for e in es if e.get('index') is None and not e.get('delete') and e.get('type') not in ('flow','vector-graphic','inserted-image')]
         flow_indices=set(); flow_blobs=[]; original_patches={}; inline_flows={}; relocated_marks=set()
         if flows:
             desc=inspect(number);mapped=check_editable(page,desc)
@@ -424,8 +431,11 @@ def compose(data,edits,blocks,inspect,fragment,progress=None,*,preview=False):
                 if d['signature']!=e.get('signature'):raise ValueError('对象已变化，请重新选择')
                 if not d['editable'] and not ('objectStyle' in e and d.get('styleEditable')) and not (e.get('_flowDelete') and idx in flow_indices and d.get('flowEditable')):raise ValueError(d.get('reason','此对象不能安全修改'))
                 if m['type']=='image':
-                    if stream.operations[m['at']][1]!=b'Do':raise ValueError('内联图片暂不支持替换')
                     if e.get('delete'):omit.add(m['at']);continue
+                    if stream.operations[m['at']][1]==b'INLINE IMAGE' and not e.get('imageData'):
+                        from image_adjustments import read_image
+                        picture=read_image(page,stream.operations[m['at']]);buf=io.BytesIO();picture.save(buf,format='PNG')
+                        e={**e,'imageData':base64.b64encode(buf.getvalue()).decode(),'imageFit':'stretch'}
                     ctm=[1,0,0,1,0,0];stack=[]
                     for ar,op in stream.operations[:m['at']+1]:
                         if op==b'q':stack.append(ctm[:])
@@ -434,7 +444,7 @@ def compose(data,edits,blocks,inspect,fragment,progress=None,*,preview=False):
                             a,b,c,d0,e0,f=map(float,ar);A,B,C,D,E,F=ctm
                             ctm=[A*a+C*b,B*a+D*b,A*c+C*d0,B*c+D*d0,A*e0+C*f+E,B*e0+D*f+F]
                     from image_edit import operations as image_operations
-                    after[m['at']]=image_operations(writer,page,stream.operations[m['at']],e.get('matrix',d['matrix']),ctm,e.get('crop'),e.get('imageData'),e.get('imageFit','contain'),e.get('adjustments'),e.get('_previewImage'),e.get('_previewLimit'),e.get('perspective'))
+                    after[m['at']]=image_operations(writer,page,stream.operations[m['at']],e.get('matrix',d['matrix']),ctm,e.get('crop'),e.get('imageData'),e.get('imageFit','contain'),e.get('adjustments'),e.get('_previewImage'),e.get('_previewLimit'),e.get('perspective'),e.get('opacity',d.get('opacity',1)),e.get('blendMode',d.get('blendMode','Normal')))
                     omit.add(m['at']);continue
                 if m['type']=='text' and 'objectStyle' in e and not e.get('delete'):
                     from object_style import wrappers
@@ -505,6 +515,16 @@ def compose(data,edits,blocks,inspect,fragment,progress=None,*,preview=False):
             old=oldref.get_object() if oldref is not None else None
             refs=list(old) if isinstance(old,ArrayObject) else ([oldref] if oldref is not None else [])
             page[NameObject('/Contents')]=ArrayObject([writer._add_object(before),*refs,writer._add_object(end)])
+        images=[e for e in es if e.get('type')=='inserted-image' and not e.get('delete')]
+        if images:
+            from image_edit import operations as image_operations
+            start=ContentStream(None,writer);start.operations=[([],b'q')]
+            end=ContentStream(None,writer);end.operations=[([],b'Q')]
+            for e in images:
+                end.operations.extend(image_operations(writer,page,([],b'n'),e['matrix'],[1,0,0,1,0,0],e.get('crop'),e['imageData'],e.get('imageFit','contain'),e.get('adjustments'),perspective=e.get('perspective'),opacity=e.get('opacity',1),blend_mode=e.get('blendMode','Normal')))
+            old=page.raw_get('/Contents') if '/Contents' in page else None
+            refs=list(old.get_object()) if old and isinstance(old.get_object(),ArrayObject) else ([old] if old else [])
+            page[NameObject('/Contents')]=ArrayObject([writer._add_object(start),*refs,writer._add_object(end)])
         vectors=[e for e in es if e.get('type')=='vector-graphic']
         if vectors:
             from vector_graphics import place

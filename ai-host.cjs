@@ -5,6 +5,14 @@ const net = require("node:net"),
   fs = require("node:fs"),
   { spawn } = require("node:child_process");
 function installAIHost({ app, win, ipc, tabs, sender, requireActive }) {
+  const imageConfig=new (require('./image-config.cjs').ImageConfig)(app.getPath('userData'),require('electron').safeStorage);
+  ipc('image-config-get',()=>imageConfig.public());
+  ipc('image-config-save',value=>imageConfig.save(value));
+  ipc('image-config-pick',async()=>{
+    if(!requireActive())throw Error('请先切换到此文档');
+    const r=await require('electron').dialog.showOpenDialog(win,{title:'选择图片服务 API 密钥文件',properties:['openFile'],filters:[{name:'Text',extensions:['txt']}]});
+    return r.canceled?null:r.filePaths[0];
+  });
   const pipe =
       "\\\\.\\pipe\\Folio-AI-" + crypto.randomBytes(16).toString("hex"),
     token = crypto.randomBytes(32).toString("hex"),
@@ -39,6 +47,7 @@ function installAIHost({ app, win, ipc, tabs, sender, requireActive }) {
     dock.send("folio:approval", approvalAuto);
   });
   ipc("generate-image", async options => {
+    if (imageConfig.read().protocol !== 'chatbox') return require('./image-provider.cjs').generate(options,fetch,()=>imageConfig.key(),imageConfig.read());
     const wc=dock.view?.webContents;
     if (!wc || wc.isDestroyed()) throw Error("Open Chatbox and select an image model in Image Creator.");
     if (typeof options.prompt !== "string" || options.prompt.length>4000 || (options.reference?.length||0)>6*1024**2)

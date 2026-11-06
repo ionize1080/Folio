@@ -2,9 +2,9 @@
 
 [English](README.md) · **简体中文** · [繁體中文](README.zh-Hant.md)
 
-Folio PDF Studio 2.1.0 是 Windows x64 上的本地 PDF 工作台。可以同时打开多份文档，整理长篇书签、编辑页面文字与图片，或把扫描件处理成可检索 PDF。需要模型协助时，从工具栏打开 Chatbox。
+Folio PDF Studio 2.2.0 是 Windows x64 上的本地 PDF 工作台。可以同时打开多份文档，整理长篇书签、编辑页面文字与图片，或把扫描件处理成可检索 PDF。需要模型协助时，从工具栏打开 Chatbox。
 
-[下载 Windows x64 便携包](https://github.com/ionize1080/Folio/releases/download/v2.1.0/Folio-PDF-Studio-2.1.0-portable-win-x64.zip) · [本版说明](docs/RELEASE-2.1.0.zh-Hans.md) · [AI 使用指南](docs/AI.md) · [文档索引](docs/README.md)
+[下载 Windows x64 便携包](https://github.com/ionize1080/Folio/releases/download/v2.2.0/Folio-PDF-Studio-2.2.0-portable-win-x64.zip) · [本版说明](docs/RELEASE-2.2.0.zh-Hans.md) · [AI 使用指南](docs/AI.md) · [文档索引](docs/README.md)
 
 ## 打开第一组文件
 
@@ -13,7 +13,7 @@ Folio PDF Studio 2.1.0 是 Windows x64 上的本地 PDF 工作台。可以同时
 3. 编辑后先应用，再按 Ctrl+S 写入当前 PDF。原件保护默认首次另存副本。关闭含未保存修改的普通 PDF 时，可选择保存、放弃或取消。需要保留段落结构及 OCR 校对进度时，在「更多工具 → 导入 / 导出」保存 `.folio` 工程。
 4. 打开「首选项」设置外观。明暗模式可跟随系统，内置钴蓝、青瓷、琥珀、桑葚、石墨五套配色，也可以自选重点色。界面语言默认跟随 Windows，之前手动选择的语言优先。
 
-同一发布页也提供[源码包](https://github.com/ionize1080/Folio/releases/download/v2.1.0/Folio-PDF-Studio-2.1.0-source.zip)、[校验值](https://github.com/ionize1080/Folio/releases/download/v2.1.0/Folio-PDF-Studio-2.1.0-SHA256.txt)和[验收报告](https://github.com/ionize1080/Folio/releases/download/v2.1.0/Folio-PDF-Studio-2.1.0-validation.json)。检查更新可从「关于与使用说明 → 检查更新」进入。
+同一发布页也提供[源码包](https://github.com/ionize1080/Folio/releases/download/v2.2.0/Folio-PDF-Studio-2.2.0-source.zip)、[校验值](https://github.com/ionize1080/Folio/releases/download/v2.2.0/Folio-PDF-Studio-2.2.0-SHA256.txt)和[验收报告](https://github.com/ionize1080/Folio/releases/download/v2.2.0/Folio-PDF-Studio-2.2.0-validation.json)。检查更新可从「关于与使用说明 → 检查更新」进入。
 
 ## 用 AI 阅读与编辑
 
@@ -132,7 +132,7 @@ Folio PDF Studio 2.1.0 是 Windows x64 上的本地 PDF 工作台。可以同时
 
 Folio 使用 PDF.js 渲染页面，通过本地原生引擎处理对象、排版和 OCR。Chatbox 与 Folio 共用 Electron 运行时，文档修改按文件 ID 和修订号路由到对应编辑器。详见[架构与数据流](docs/ARCHITECTURE.md)。
 
-Windows 发布任务通过了 12 个真实 Qwen 场景，并验证打包程序、多文档切换和发布 ZIP 升级。结果包含 2400 × 1600 彩色校样、扫描页 OCR、局部替图以及流程图重开编辑。[实测分析](docs/MCP-2.1.0-validation.zh-Hans.md) · [GitHub Actions](https://github.com/ionize1080/Folio/actions/runs/41994404438)
+Windows 发布任务通过了 12 个真实 Qwen 场景，并验证打包程序、多文档切换和发布 ZIP 升级。结果包含 2400 × 1600 彩色校样、扫描页 OCR、局部替图以及流程图重开编辑。[实测分析](docs/MCP-2.2.0-validation.zh-Hans.md) · [GitHub Actions](https://github.com/ionize1080/Folio/actions/runs/41994404438)
 
 ## 已知问题与适用边界
 

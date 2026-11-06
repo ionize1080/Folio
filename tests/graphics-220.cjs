@@ -1,0 +1,67 @@
+const {_electron:electron}=require('playwright'),fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
+(async()=>{
+ const app=await electron.launch({executablePath:process.env.FOLIO_EXE,args:process.env.FOLIO_EXE?[]:[path.resolve('.')],env:{...process.env,FOLIO_TEST_BACKGROUND:'1',FOLIO_TEST_PROFILE:path.resolve('tests/output/graphics-ui-'+Date.now()),FOLIO_CHATBOX_PROFILE:path.resolve('tests/output/graphics-chat-'+Date.now())},timeout:60000});
+ const checks=[],errors=[];
+ try {
+  const host=await app.firstWindow();await host.locator('#graphics-editor').waitFor();host.on('dialog',d=>d.accept());host.on('pageerror',e=>errors.push(e.message));
+  const pick=file=>app.evaluate(({dialog},file)=>{dialog.showOpenDialog=async()=>({canceled:false,filePaths:[file]})},path.resolve(file));
+  await pick('tests/output/graphics-220-source.pdf');await host.locator('[data-action="open"]').first().click();await host.waitForFunction(()=>document.querySelector('#doc-name').textContent.includes('graphics-220-source'));
+  await host.evaluate(()=>window.desktop.aiApproval(true));
+  await app.evaluate(({ipcMain})=>{globalThis.graphicsReplies={};const original=ipcMain._invokeHandlers.get('ai-reply');ipcMain.removeHandler('ai-reply');ipcMain.handle('ai-reply',(e,v)=>{if(v.id<0)globalThis.graphicsReplies[v.id]=v;return original(e,v);});});
+  let seq=0;
+  async function call(name,args,allowError=false){const id=--seq;await app.evaluate(({BrowserWindow},{id,name,args})=>BrowserWindow.getAllWindows()[0].webContents.send('ai-request',{id,deadline:Date.now()+300000,params:{name,arguments:args}}),{id,name,args});
+    await host.waitForFunction(async id=>!!(await window.desktop.tabsState())&&true,id);
+    let result;const until=Date.now()+280000;while(Date.now()<until){result=await app.evaluate((_,id)=>globalThis.graphicsReplies[id],id);if(result)break;await new Promise(r=>setTimeout(r,70));}
+    assert(result,'tool timeout');if(!allowError)assert(!result.error,result.error);return allowError?result:result.result;
+  }
+  const image=a=>call('folio_image',a),vector=a=>call('folio_vector',a);
+  const revision=async()=> (await image({action:'inspect',page:1})).revision;
+  let info=await image({action:'inspect',page:1});assert.equal(info.images.length,2);const old=info.images[0].index;
+  await image({action:'delete',page:1,index:old,revision:info.revision});
+  assert.equal((await image({action:'inspect',page:1})).images.filter(o=>o.editable).length,1);
+  await call('folio_operation',{operation:'history.undo',revision:await revision()});assert.equal((await image({action:'inspect',page:1})).images.filter(o=>o.editable).length,2);
+  checks.push('Old image deletion and undo preserve the other occurrence');
+  await pick('tests/output/replacement-patch.png');
+  let inserted=await image({action:'insert',page:1,revision:await revision(),geometry:{x:70,y:180,width:180,height:100,rotation:25}});
+  let edited=await image({action:'update',page:1,id:inserted.id,revision:inserted.revision,geometry:{x:90,y:210,width:120,height:80,rotation:-30,crop:[3,4,5,6]},opacity:.6,blendMode:'Multiply',adjustments:{contrast:12,saturation:-10}});
+  const item=(await image({action:'inspect',page:1})).inserted[0];assert.equal(item.opacity,.6);assert.equal(item.adjustments.contrast,12);
+  edited=await image({action:'move',page:1,targetPage:2,id:inserted.id,revision:edited.revision,geometry:{x:150,y:160}});
+  assert.equal((await image({action:'inspect',page:2})).inserted.length,1);
+  await image({action:'delete',page:2,id:inserted.id,revision:edited.revision});assert.equal((await image({action:'inspect',page:2})).inserted.length,0);
+  const stale=await call('folio_image',{action:'delete',page:1,index:old,revision:inserted.revision},true);assert.match(stale.error,/Stale/);
+  checks.push('Insert, crop, recolor, rotate, scale, opacity, blend, cross-page move, delete and stale-write rejection');
+  const moved=await image({action:'move',page:1,targetPage:2,index:old,revision:await revision(),geometry:{x:240,y:250,width:120,height:80,rotation:45}});
+  assert((await image({action:'inspect',page:2})).inserted.some(o=>o.id===moved.id));
+  checks.push('Old image moved with full-resolution pixels to another page');
+  const svg='<svg xmlns="http://www.w3.org/2000/svg" width="200" height="120"><defs><linearGradient id="g"><stop id="start" offset="0" stop-color="#ff0000"/><stop offset="1" stop-color="#0000ff"/></linearGradient></defs><rect id="shape" width="200" height="120" fill="url(#g)"/><line id="line" x1="10" y1="60" x2="190" y2="60" stroke="white" stroke-width="4"/></svg>';
+  let v=await vector({action:'create',page:1,revision:await revision(),svg,box:[90,70,240,140],rotation:15,opacity:.8});
+  v=await vector({action:'update',page:1,id:v.id,revision:v.revision,patches:[{id:'start',attributes:{'stop-color':'#00ff00'}},{id:'line',attributes:{'stroke-width':'8'}}],rotation:-25,box:[60,90,200,120]});
+  assert((await vector({action:'read',page:1,id:v.id})).svg.includes('#00ff00'));
+  v=await vector({action:'move',page:1,targetPage:2,id:v.id,revision:v.revision,box:[70,70,250,140]});assert.equal((await vector({action:'list',page:1})).graphics.length,0);
+  v=await vector({action:'delete',page:2,id:v.id,revision:v.revision});assert.equal((await vector({action:'list',page:2})).graphics.length,0);
+  checks.push('Native gradient and line creation, ID patches, rotation, resize, cross-page move and deletion');
+  await host.locator('#graphics-editor').click();await host.locator('.graphics-dialog [data-status]').filter({hasText:'已完成'}).waitFor();
+  await host.locator('.graphics-dialog summary').filter({hasText:'创建或编辑矢量图'}).click();await host.locator('[data-gradient]').click();await host.locator('[data-vector]').click();await host.locator('.graphics-dialog [data-status]').filter({hasText:'已完成'}).waitFor();
+  assert((await vector({action:'list',page:1})).graphics.length===1);
+  await host.locator('.graphics-dialog summary').filter({hasText:'图片生成'}).click();
+  await host.locator('[data-image-settings]').click();await host.locator('.image-settings-dialog [data-protocol]').selectOption('openai');await host.locator('.image-settings-dialog [data-endpoint]').fill('https://provider.example/v1');await host.locator('.image-settings-dialog [data-model]').fill('custom-image-test');await host.locator('.image-settings-dialog [data-key]').fill('test-only-credential');await host.locator('.image-settings-dialog [data-save]').click();
+  const config=await host.evaluate(()=>window.desktop.imageConfig());assert.equal(config.model,'custom-image-test');assert(config.hasKey);assert(!JSON.stringify(config).includes('test-only-credential'));
+  await host.locator('[data-image-settings]').click();assert.equal(await host.locator('.image-settings-dialog [data-model]').inputValue(),'custom-image-test');assert.equal(await host.locator('.image-settings-dialog [data-key]').inputValue(),'');await host.locator('.image-settings-dialog [data-close]').click();
+  checks.push('Generic image service settings persist custom endpoint/model and keep credentials hidden');
+  await host.locator('.graphics-dialog').evaluate(el=>el.scrollTop=0);
+  await host.screenshot({path:'tests/output/graphics-220-ui.png'});await host.locator('.graphics-dialog [data-close]').click();
+  await host.evaluate(()=>window.desktop.aiOpen());const chat=app.context().pages().find(p=>p.url().includes('/renderer/index.html'));await chat.waitForSelector('textarea[placeholder]');
+  await chat.locator('textarea[placeholder]').first().fill('保留草稿：调整侧栏宽度');
+  await host.locator('.ai-resize-handle').focus();const before=await host.locator('.inspector').boundingBox();await host.keyboard.press('ArrowLeft');await host.waitForTimeout(150);const after=await host.locator('.inspector').boundingBox();assert(after.width>before.width);
+  const handle=await host.locator('.ai-resize-handle').boundingBox();await host.mouse.move(handle.x+5,handle.y+80);await host.mouse.down();await host.mouse.move(handle.x-90,handle.y+80,{steps:8});await host.mouse.up();await host.waitForTimeout(200);assert((await host.locator('.inspector').boundingBox()).width>after.width+50);assert.equal(await chat.locator('textarea[placeholder]').first().inputValue(),'保留草稿：调整侧栏宽度');
+  await host.screenshot({path:'tests/output/graphics-220-sidebar.png'});
+  checks.push('Native UI gradient creation and draggable/keyboard sidebar resizing preserve Chatbox draft');
+  await host.evaluate(()=>window.desktop.aiOpen());
+  const saved=[];await app.evaluate(({dialog},dir)=>{globalThis.savedGraphics=[];dialog.showSaveDialog=async(_w,o)=>{const filePath=dir+'/'+o.defaultPath.split(/[\\/]/).pop();globalThis.savedGraphics.push(filePath);return {canceled:false,filePath};};},path.resolve('tests/output'));
+  await pick('tests/output/graphics-220-source.pdf');const merged=await call('folio_document',{action:'merge',revision:await revision()});assert.equal(merged.pageCount,4);assert(merged.saved);
+  const split=await call('folio_document',{action:'split',revision:await revision(),ranges:['1','2']});assert.equal(split.saved,2);
+  checks.push('Merge and split save actual edited snapshots through file dialogs');
+  await host.locator('#document-assembly').click();await host.locator('.assembly-dialog [data-mode]').selectOption('split');await host.locator('[data-ranges]').fill('1-2');await host.locator('.assembly-dialog [data-run]').click();await host.locator('.assembly-dialog [data-status]').filter({hasText:'已保存'}).waitFor();await host.locator('.assembly-dialog [data-close]').click();
+  assert.deepEqual(errors,[]);fs.writeFileSync('tests/output/graphics-220-ui.json',JSON.stringify({status:'passed',checks,errors},null,2));console.log('PASS',checks);
+ }finally{await app.evaluate(({app})=>app.exit(0)).catch(()=>{});}
+})().catch(e=>{console.error(e);process.exitCode=1;});

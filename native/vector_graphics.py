@@ -34,7 +34,7 @@ def objects(page):
 
 
 def list_graphics(page):
-    return [dict(id=str(form['/FolioVectorID']),svg=str(form['/FolioSVG']),box=list(map(float,form['/FolioVectorBox'])))
+    return [dict(id=str(form['/FolioVectorID']),svg=str(form['/FolioSVG']),box=list(map(float,form['/FolioVectorBox'])),rotation=float(form.get('/FolioRotation',0)),opacity=float(form.get('/FolioOpacity',1)))
             for ref in objects(page).values() for form in [ref.get_object()]
             if form.get('/FolioLayerKind')=='/Vector' and '/FolioSVG' in form]
 
@@ -50,22 +50,41 @@ def place(writer,page,edits):
         name=N('/FolioVector'+uid.replace('-',''))
         if name in xs and xs[name].get('/FolioVectorID')!=uid:
             raise ValueError('Vector resource name already in use')
+        if edit.get('delete'):
+            stream=ContentStream(page.get('/Contents'),writer)
+            stream.operations=[(a,o) for a,o in stream.operations if not(o==b'Do' and a and a[0]==name)]
+            page[N('/Contents')]=writer._add_object(stream)
+            xs.pop(name,None)
+            continue
         source=validate_svg(edit['svg'])
         x,y,w,h=map(float,edit['box'])
         if not all(math.isfinite(v) and abs(v)<=100000 for v in (x,y,w,h)) or min(w,h)<=0:
             raise ValueError('Invalid vector placement [left,bottom,width,height] in PDF points')
-        with fitz.open(stream=source.encode('utf-8'),filetype='svg') as svg:
+        from svg_gradients import prepare,restore
+        converted,markers=prepare(source)
+        with fitz.open(stream=converted.encode('utf-8'),filetype='svg') as svg:
             data=svg.convert_to_pdf()
-        vector=PdfReader(io.BytesIO(data)).pages[0]
+        # Work on a writer so alpha gradient masks can own indirect streams.
+        from pypdf import PdfWriter
+        temporary=PdfWriter();temporary.append(PdfReader(io.BytesIO(data)))
+        vector=temporary.pages[0];restore(vector,markers,temporary)
         vw,vh=float(vector.mediabox.width),float(vector.mediabox.height)
         if min(vw,vh)<=0:raise ValueError('SVG has no visible dimensions')
-        scale=min(w/vw,h/vh)
+        sx,sy=w/vw,h/vh
+        rotation=float(edit.get('rotation',0));opacity=float(edit.get('opacity',1))
+        if not math.isfinite(rotation) or not math.isfinite(opacity) or not 0<=opacity<=1:raise ValueError('Invalid rotation or opacity')
+        angle=math.radians(rotation);c,s=math.cos(angle),math.sin(angle)
+        matrix=[sx*c,sx*s,-sy*s,sy*c,x+w/2-(c*w-s*h)/2,y+h/2-(s*w+c*h)/2]
         form=DecodedStreamObject()
-        form.set_data(vector.get_contents().get_data())
+        form.set_data(b'q /FolioOpacity gs\n'+vector.get_contents().get_data()+b'\nQ')
+        resources=vector['/Resources'].clone(writer)
+        states=DictionaryObject(dict(resources.get('/ExtGState',{})))
+        states[N('/FolioOpacity')]=DictionaryObject({N('/Type'):N('/ExtGState'),N('/ca'):FloatObject(opacity),N('/CA'):FloatObject(opacity)})
+        resources[N('/ExtGState')]=states
         form.update({N('/Type'):N('/XObject'),N('/Subtype'):N('/Form'),
                      N('/BBox'):ArrayObject([FloatObject(v) for v in (0,0,vw,vh)]),
-                     N('/Matrix'):ArrayObject([FloatObject(v) for v in (scale,0,0,scale,x+(w-vw*scale)/2,y+(h-vh*scale)/2)]),
-                     N('/Resources'):vector['/Resources'].clone(writer),
+                     N('/Matrix'):ArrayObject([FloatObject(v) for v in matrix]),
+                     N('/Resources'):resources,N('/FolioRotation'):FloatObject(rotation),N('/FolioOpacity'):FloatObject(opacity),
                      N('/FolioLayerKind'):N('/Vector'),N('/FolioVectorID'):TextStringObject(uid),
                      N('/FolioSVG'):TextStringObject(source),N('/FolioVectorBox'):ArrayObject([FloatObject(v) for v in (x,y,w,h)])})
         if name not in xs:new_calls.append(([name],b'Do'))

@@ -29,21 +29,42 @@ module.exports = function ({ ipcMain, app }) {
           redirect: "error",
         });
         const reader = response.body?.getReader();
+        const verifyFinish=/\/chat\/completions(?:[?/#]|$)/.test(url) && response.headers.get('content-type')?.includes('text/event-stream');
+        const decoder=new TextDecoder();let frame='',finished=false;
+        const incomplete=()=>Error('模型连接结束，但没有收到正常完成标记。任务可能未完成，已应用的修改保留；请发送“继续”，先核对文档再处理剩余工作。');
+        const inspect=bytes=>{
+          if(!verifyFinish)return;
+          frame+=decoder.decode(bytes,{stream:true});
+          let at;
+          while((at=frame.indexOf('\n'))>=0){
+            const line=frame.slice(0,at).trim();frame=frame.slice(at+1);
+            if(!line.startsWith('data:'))continue;
+            const data=line.slice(5).trim();
+            if(data==='[DONE]'){if(!finished)throw incomplete();continue;}
+            let value;try{value=JSON.parse(data);}catch{continue;}
+            if(value.choices?.some(c=>c.finish_reason!=null))finished=true;
+            // Let the provider SDK surface its structured API error.
+            if(value.error)finished=true;
+          }
+        };
         setImmediate(async () => {
           try {
             if (reader)
               while (true) {
                 const { done, value } = await reader.read();
                 if (done) break;
+                inspect(value);
                 if (!e.sender.isDestroyed())
                   e.sender.send("folio:fetch-chunk", {
                     id,
                     data: Buffer.from(value).toString("base64"),
                   });
               }
+            if(verifyFinish&&!finished)throw incomplete();
             if (!e.sender.isDestroyed())
               e.sender.send("folio:fetch-chunk", { id, done: true });
           } catch (error) {
+            await reader?.cancel().catch(()=>{});
             if (!e.sender.isDestroyed())
               e.sender.send("folio:fetch-chunk", { id, error: error.message });
           } finally {

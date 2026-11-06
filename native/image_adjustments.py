@@ -26,6 +26,13 @@ def read_image(page, original, image_data=None):
         data = base64.b64decode(image_data,validate=True)
         if len(data)>32*1024**2: raise ValueError('替换图片限 32 MB')
         image = Image.open(io.BytesIO(data))
+    elif original[1]==b'INLINE IMAGE':
+        from content import map_objects
+        stream,_=map_objects(page);inline=[args for args,op in stream.operations if op==b'INLINE IMAGE']
+        index=next((i for i,args in enumerate(inline) if args==original[0]),None)
+        if index is None:raise ValueError('无法定位内联图片')
+        image=page.images[f'~{index}~'].image
+        validate_dimensions(*image.size)
     else:
         name = original[0][0]
         obj = page['/Resources']['/XObject'][name].get_object()
@@ -154,7 +161,7 @@ def source_image(args):
     page=reader.pages[number-1];stream,mapped=map_objects(page);index=args.get('index')
     if not isinstance(index,int) or not 0<=index<len(mapped) or mapped[index]['type']!='image':raise ValueError('图片对象编号无效')
     original=stream.operations[mapped[index]['at']]
-    if original[1]!=b'Do':raise ValueError('内联图片暂不支持调整')
+    if original[1] not in (b'Do',b'INLINE IMAGE'):raise ValueError('图片绘制操作不支持调整')
     return read_image(page,original,args.get('imageData'))
 
 

@@ -27,11 +27,9 @@ export function installNativeUI(ctx) {
   const native = async (command, options = {}) => {
     if (!window.desktop?.native)
       throw Error("此功能需要完整 Windows 桌面运行包");
-    return nativeRequest({
-      command,
-      bytes: command === "ocr" ? await S.pdf.getData() : S.bytes,
-      ...options,
-    });
+    const bytes = command === "ocr" ? await S.pdf.getData() : S.bytes;
+    try { return await nativeRequest({command,bytes,...options}); }
+    finally { if(bytes!==S.bytes) await releaseSource(bytes); }
   };
   const diffTable = (changes) =>
     changes

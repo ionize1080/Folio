@@ -3,16 +3,25 @@ import base64,io,math
 from pypdf import PdfReader
 from pypdf.generic import NameObject,DictionaryObject,FloatObject
 
-def operations(writer,page,original,matrix,ctm,crop,image_data=None,fit='contain',adjustments=None,preview_image=None,preview_limit=None,perspective=None):
+def operations(writer,page,original,matrix,ctm,crop,image_data=None,fit='contain',adjustments=None,preview_image=None,preview_limit=None,perspective=None,opacity=1,blend_mode='Normal'):
  def numbers(v,n):
   if not isinstance(v,list) or len(v)!=n or any(not isinstance(x,(int,float)) or not math.isfinite(x) for x in v):raise ValueError('图片参数无效')
   return list(map(float,v))
  matrix=numbers(matrix,6);a,b,c,d,e,f=numbers(ctm,6);det=a*d-b*c
+ if abs(matrix[0]*matrix[3]-matrix[1]*matrix[2])<1e-12:raise ValueError('图片变换不可逆')
  if abs(det)<1e-12:raise ValueError('图片变换不可逆')
  inv=[d/det,-b/det,-c/det,a/det,(c*f-d*e)/det,(b*e-a*f)/det]
  crop=numbers(crop or [0,0,0,0],4);left,top,right,bottom=[x/100 for x in crop]
  if min(crop)<0 or left+right>=.99 or top+bottom>=.99:raise ValueError('裁切后必须保留可见图片')
  draw=original
+ if not isinstance(opacity,(float,int)) or not math.isfinite(opacity) or not 0<=opacity<=1:raise ValueError('图片不透明度应为 0–1')
+ if blend_mode not in ('Normal','Multiply','Screen','Overlay','Darken','Lighten','ColorDodge','ColorBurn','HardLight','SoftLight','Difference','Exclusion','Hue','Saturation','Color','Luminosity'):raise ValueError('图片混合模式无效')
+ styling=[]
+ if opacity!=1 or blend_mode!='Normal':
+  resources=DictionaryObject(dict(page['/Resources']));states=DictionaryObject(dict(resources.get('/ExtGState',{})));j=1
+  while NameObject('/FolioImageStyle'+str(j)) in states:j+=1
+  name=NameObject('/FolioImageStyle'+str(j));states[name]=DictionaryObject({NameObject('/Type'):NameObject('/ExtGState'),NameObject('/ca'):FloatObject(opacity),NameObject('/CA'):FloatObject(opacity),NameObject('/BM'):NameObject('/'+blend_mode)})
+  resources[NameObject('/ExtGState')]=states;page[NameObject('/Resources')]=resources;styling=[([name],b'gs')]
  from image_color import neutral
  if perspective or preview_image or (adjustments is not None and not neutral(adjustments)):
   from image_adjustments import read_image, process, add_image
@@ -31,7 +40,7 @@ def operations(writer,page,original,matrix,ctm,crop,image_data=None,fit='contain
    buf=io.BytesIO();adjusted.save(buf,format='PNG');image_data=base64.b64encode(buf.getvalue()).decode()
   else:draw=add_image(writer,page,adjusted,original)
  if not image_data and not any(crop) and all(math.isclose(x,y,rel_tol=1e-6,abs_tol=1e-5) for x,y in zip(matrix,ctm)):
-  return [draw]
+  return [([],b'q'),*styling,draw,([],b'Q')]
  if image_data:
   data=base64.b64decode(image_data,validate=True)
   if len(data)>32*1024*1024:raise ValueError('替换图片限 32 MB')
@@ -57,4 +66,4 @@ def operations(writer,page,original,matrix,ctm,crop,image_data=None,fit='contain
   while NameObject('/FolioImage'+str(j)) in xs:j+=1
   name=NameObject('/FolioImage'+str(j));xs[name]=writer._add_object(form);resources[NameObject('/XObject')]=xs;page[NameObject('/Resources')]=resources;draw=([name],b'Do');doc.close()
  def vals(v):return [FloatObject(x) for x in v]
- return [([],b'q'),(vals(inv),b'cm'),(vals(matrix),b'cm'),(vals([left,bottom,1-left-right,1-top-bottom]),b're'),([],b'W'),([],b'n'),draw,([],b'Q')]
+ return [([],b'q'),*styling,(vals(inv),b'cm'),(vals(matrix),b'cm'),(vals([left,bottom,1-left-right,1-top-bottom]),b're'),([],b'W'),([],b'n'),draw,([],b'Q')]

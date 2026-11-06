@@ -78,6 +78,8 @@ for (const item of [
   "main.cjs",
   "ai-host.cjs",
   "ai-dock.cjs",
+  "image-provider.cjs",
+  "image-config.cjs",
   "document-tabs.cjs",
   "storage-budget.cjs",
   "update-manager.cjs",

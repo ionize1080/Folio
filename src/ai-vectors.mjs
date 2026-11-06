@@ -41,13 +41,22 @@ export async function vectorTool(a,{S,rev,applyContent,approve},deadline) {
   if(!approve(a)) throw Error("用户拒绝操作");
   const {graphics}=await nativeRequest({command:"vector-list",bytes:S.bytes,page});
   const all=new Map(graphics.map(g=>[g.id,g]));
-  for(const e of S.nativeEdits) if(e.type==="vector-graphic" && e.page===page)all.set(e.id,e);
+  for(const e of S.nativeEdits) if(e.type==="vector-graphic" && e.page===page){if(e.delete)all.delete(e.id);else all.set(e.id,e);}
   const old=all.get(a.id);
-  if(a.action==="list") return {revision,page,pageBox:(await S.pdf.getPage(page)).view,coordinates:"PDF points, bottom-left origin",graphics:[...all.values()].map(({id,box})=>({id,box}))};
+  if(a.action==="list") return {revision,page,pageBox:(await S.pdf.getPage(page)).view,coordinates:"PDF points, bottom-left origin",graphics:[...all.values()].map(({id,box,rotation=0,opacity=1})=>({id,box,rotation,opacity}))};
   if(a.action==="read") {if(!old)throw Error("Graphic ID not found");return {id:old.id,svg:old.svg,box:old.box,revision,page};}
-  if(!["create","update"].includes(a.action)||a.revision!==revision)throw Error("Get the current revision with list before creating or updating");
-  if(a.action==="update" && !old)throw Error("Graphic ID not found");
+  if(!["create","update","move","delete"].includes(a.action)||a.revision!==revision)throw Error("Get the current revision with list before editing");
+  if(a.action!=="create" && !old)throw Error("Graphic ID not found");
+  if(S.imageEdit?.editing||S.flowDraftDirty)throw Error('Apply or cancel the pending on-page edit first');
   const id=a.action==="create"?crypto.randomUUID():old.id;
+  const targetPage=a.targetPage??page;
+  if(!Number.isInteger(targetPage)||targetPage<1||targetPage>S.info.pageCount)throw Error('Invalid target page');
+  const base=S.nativeEdits.filter(e=>!(e.type==='vector-graphic'&&e.page===page&&e.id===id));
+  const remove={id,page,type:'vector-graphic',delete:true};
+  if(a.action==='delete') {
+    if(rev()!==revision||Date.now()>deadline)throw Error('Document changed');
+    await applyContent([...base,remove],S.ocr);return {applied:true,revision:rev(),id,page};
+  }
   let svg=a.flow?flowSVG(a.flow):a.svg??old?.svg;
   if(typeof svg!=="string"||svg.length>160000)throw Error("Supply a self-contained SVG or flow");
   if(a.patches) {
@@ -64,6 +73,6 @@ export async function vectorTool(a,{S,rev,applyContent,approve},deadline) {
   const [l,b,r,t]=(await S.pdf.getPage(page)).view;
   const box=a.box??old?.box??[l+(r-l)*.1,b+(t-b)*.35,(r-l)*.8,(t-b)*.45];
   if(rev()!==revision||Date.now()>deadline)throw Error("Document changed");
-  await applyContent([...S.nativeEdits.filter(e=>!(e.type==="vector-graphic"&&e.page===page&&e.id===id)),{id,page,type:"vector-graphic",svg,box}],S.ocr);
-  return {applied:true,id,page,box,revision:rev()};
+  await applyContent([...base.filter(e=>!(e.type==='vector-graphic'&&e.page===targetPage&&e.id===id)),...(targetPage!==page?[remove]:[]),{id,page:targetPage,type:"vector-graphic",svg,box,rotation:a.rotation??old?.rotation??0,opacity:a.opacity??old?.opacity??1}],S.ocr);
+  return {applied:true,id,page:targetPage,box,revision:rev()};
 }

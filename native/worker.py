@@ -346,12 +346,19 @@ def run(args, *, _preview=False):
  if args.get('command')=='layout':
   from story import analyze
   return analyze(Path(args['input']).read_bytes(),args.get('page',1))
+ if args.get('command')=='document-assemble':
+  from document_assembly import assemble
+  return assemble(args)
  if args.get('command')=='vector-list':
   from pypdf import PdfReader
   from vector_graphics import list_graphics
   with open(args['input'],'rb') as stream:
    pg=PdfReader(stream).pages[args['page']-1]
    return {'graphics':list_graphics(pg)}
+ if args.get('command')=='image-export':
+  from image_adjustments import source_image
+  image=source_image(args);buf=io.BytesIO();image.save(buf,format='PNG')
+  return {'imageData':base64.b64encode(buf.getvalue()).decode()}
  if args.get('command')=='image-replace':
   from image_adjustments import replace_pixels
   return replace_pixels(args)
