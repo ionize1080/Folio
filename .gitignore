@@ -16,3 +16,4 @@ release-assets/
 .ai-runtime/
 .venv-ai/
 native/engines/
+.ci-cache/

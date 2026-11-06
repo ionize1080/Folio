@@ -13,6 +13,11 @@ repo, sha = os.environ['GITHUB_REPOSITORY'], os.environ['GITHUB_SHA']
 tag, prefix = 'v2.3.0', 'Folio-PDF-Studio-2.3.0'
 assert json.loads((root / 'package.json').read_text())['version'] == '2.3.0'
 reports = {}
+suite_provenance = {}
+for suite in ['documents', 'integration', 'live']:
+    provenance = json.loads((root / 'tests/output' / ('ci-' + suite + '.json')).read_text(encoding='utf-8'))
+    assert provenance == dict(suite=suite, sourceCommit=sha, runId=os.environ['GITHUB_RUN_ID']), 'Mismatched parallel test provenance'
+    suite_provenance[suite] = provenance
 for name in ['conversion-native-report.json','conversion-scan-report.json','conversion-public-report.json','conversion-live-report.json','engineering-native-report.json','engineering-ui-report.json','workbench-ui-report.json','context-live-report.json','document-utilities-report.json', 'document-tools-ui.json', 'document-live-report.json', 'chatbox-completion-220.json', 'graphics-220-native.json', 'graphics-220-ui.json', 'graphics-220-live.json', 'ai-workflows-210.json', 'workspace-210.json', 'live-202.json', 'hosted-202.json', 'chrome-202.json', 'ai-settings.json',
              'update-python-201.json', 'packaged-ai.json', 'v201-updater-report.json',
              'v162-health-report.json', 'package-report.json']:
@@ -55,7 +60,7 @@ with zipfile.ZipFile(source) as z:
 run = f'https://github.com/{repo}/actions/runs/{os.environ["GITHUB_RUN_ID"]}'
 validation = out / (prefix + '-validation.json')
 validation.write_text(json.dumps(dict(sourceCommit=sha, windowsActionsRun=run, package=info,
-                                     reports=reports, targetWin10_21H1Tested=False),
+                                     reports=reports, parallelSuites=suite_provenance, targetWin10_21H1Tested=False),
                                  indent=2), encoding='utf-8')
 assets = [portable, source, validation]
 checksums = out / (prefix + '-SHA256.txt')
@@ -72,6 +77,7 @@ notes.append(f'Source: `{sha}`. Built, tested and published by [Windows Actions]
 notes_file = out / 'release-notes.md'
 notes_file.write_text('\n\n'.join(notes), encoding='utf-8')
 releases = json.loads(gh('api', f'repos/{repo}/releases?per_page=100'))
+assert json.loads(gh('api', f'repos/{repo}/git/ref/heads/main'))['object']['sha'] == sha, 'A newer main commit exists; publish its verified workflow instead'
 draft = next((r for r in releases if r['tag_name'] == tag), None)
 if draft:
     assert draft['draft'], 'Never replace a published release'

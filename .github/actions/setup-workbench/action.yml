@@ -1,0 +1,116 @@
+name: Prepare reproducible Windows workbench
+description: Restore pinned dependencies and optional intermediate builds without caching test profiles or credentials
+inputs:
+  ai:
+    description: Restore the pinned Chatbox and PDF MCP intermediate builds
+    default: 'false'
+  save-cache:
+    description: Only the trusted preparation job may populate reusable caches
+    default: 'false'
+  fixtures:
+    description: Generate small deterministic acceptance inputs
+    default: 'true'
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@v4
+      with:
+        node-version: '24'
+        cache: npm
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+    - shell: pwsh
+      run: npm ci
+    - uses: actions/cache/restore@v4
+      id: conversion-cache
+      with:
+        path: |
+          .ai-runtime/conversion-downloads
+          native/models/*.onnx
+        key: windows-folio-conversion-v1-${{ hashFiles('native/runtime-lock.json', 'native/models/manifest.json', 'scripts/restore-conversion*') }}
+    - shell: pwsh
+      run: |
+        python scripts/restore-conversion-python.py
+        if ($LASTEXITCODE) {exit $LASTEXITCODE}
+        ./scripts/restore-conversion.ps1
+        if ($LASTEXITCODE) {exit $LASTEXITCODE}
+        python scripts/restore-assets.py
+        if ($LASTEXITCODE) {exit $LASTEXITCODE}
+        "PYTHONUTF8=1" >> $env:GITHUB_ENV
+        "FOLIO_PYTHON=$PWD/native/runtime/python.exe" >> $env:GITHUB_ENV
+    - shell: pwsh
+      run: |
+        python -m pip install PyMuPDF==1.26.6 pypdf==6.10.0 pypdfium2==5.13.0 pikepdf==10.13.0.post1 fonttools==4.61.1 Pillow numpy
+        if ($LASTEXITCODE) {exit $LASTEXITCODE}
+        python -m pip install --target native/vendor fonttools==4.61.1
+        if ($LASTEXITCODE) {exit $LASTEXITCODE}
+        $license='native/vendor/fontTools/LICENSE'
+        if (!(Test-Path $license)) {Copy-Item -LiteralPath (Get-ChildItem 'native/vendor/fonttools-*.dist-info' -Recurse -Filter LICENSE | Select-Object -First 1).FullName -Destination $license}
+    - if: inputs.save-cache == 'true' && steps.conversion-cache.outputs.cache-hit != 'true'
+      id: conversion-budget
+      shell: pwsh
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: python scripts/ci-cache.py budget conversion
+    - if: inputs.save-cache == 'true' && steps.conversion-cache.outputs.cache-hit != 'true' && steps.conversion-budget.outputs.allowed == 'true'
+      uses: actions/cache/save@v4
+      with:
+        path: |
+          .ai-runtime/conversion-downloads
+          native/models/*.onnx
+        key: ${{ steps.conversion-cache.outputs.cache-primary-key }}
+    - if: inputs.ai == 'true'
+      id: ai-cache
+      uses: actions/cache/restore@v4
+      with:
+        path: |
+          .ai-runtime/Chatbox
+          .ai-runtime/pdf-runtime
+          .ai-runtime/chatbox-source/.git
+          .ci-cache/ai-manifest.json
+        key: windows-folio-ai-v1-${{ hashFiles('integrations/chatbox/*.*', 'integrations/pdf-mcp-requirements.lock.txt', 'integrations/pdf-mcp-folio.patch', 'integrations/pdf-server.py', 'integrations/pdf_objects.py', 'scripts/prepare-ai*.py', 'scripts/prepare-chatbox.cjs', 'scripts/build-chatbox-source.cjs', 'scripts/patch-pdf-mcp.py', 'native/runtime-lock.json') }}
+    - if: inputs.ai == 'true' && steps.ai-cache.outputs.cache-hit != 'true'
+      shell: pwsh
+      env:
+        FOLIO_BUILD_KEY: ${{ steps.ai-cache.outputs.cache-primary-key }}
+      run: |
+        python scripts/prepare-ai-ci.py
+        if ($LASTEXITCODE) {exit $LASTEXITCODE}
+        python scripts/ci-cache.py record
+        exit $LASTEXITCODE
+    - if: inputs.ai == 'true'
+      shell: pwsh
+      env:
+        FOLIO_BUILD_KEY: ${{ steps.ai-cache.outputs.cache-primary-key }}
+      run: |
+        python scripts/ci-cache.py verify
+        if ($LASTEXITCODE) {exit $LASTEXITCODE}
+        python scripts/patch-pdf-mcp.py
+        exit $LASTEXITCODE
+    - if: inputs.ai == 'true' && inputs.save-cache == 'true' && steps.ai-cache.outputs.cache-hit != 'true'
+      id: ai-budget
+      shell: pwsh
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: python scripts/ci-cache.py budget ai
+    - if: inputs.ai == 'true' && inputs.save-cache == 'true' && steps.ai-cache.outputs.cache-hit != 'true' && steps.ai-budget.outputs.allowed == 'true'
+      uses: actions/cache/save@v4
+      with:
+        path: |
+          .ai-runtime/Chatbox
+          .ai-runtime/pdf-runtime
+          .ai-runtime/chatbox-source/.git
+          .ci-cache/ai-manifest.json
+        key: ${{ steps.ai-cache.outputs.cache-primary-key }}
+    - if: inputs.fixtures == 'true'
+      shell: pwsh
+      run: |
+        python tests/ai-fixtures.py
+        if ($LASTEXITCODE) {exit $LASTEXITCODE}
+        python tests/ai-public-fixtures.py
+        if ($LASTEXITCODE) {exit $LASTEXITCODE}
+        python tests/graphics-220.py
+        if ($LASTEXITCODE) {exit $LASTEXITCODE}
+        native/runtime/python.exe tests/workbench-fixtures.py
+        exit $LASTEXITCODE

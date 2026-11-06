@@ -1,19 +1,17 @@
-name: Folio 2.3.0 verified Windows release
+name: Folio 2.3.0 parallel verified Windows release
 on:
   workflow_dispatch:
 permissions:
-  contents: write
+  contents: read
   actions: read
 concurrency:
   group: folio-230-release
-  cancel-in-progress: false
-defaults:
-  run:
-    shell: cmd
+  cancel-in-progress: true
 jobs:
-  release:
-    runs-on: windows-latest
-    timeout-minutes: 120
+  core:
+    name: Core contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
         with:
@@ -25,46 +23,67 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: npm ci
-      - name: Restore locked conversion wheels and portable engines
-        shell: pwsh
-        run: |
-          python scripts/restore-conversion-python.py
-          if ($LASTEXITCODE) {exit $LASTEXITCODE}
-          ./scripts/restore-conversion.ps1
-      - name: Set UTF-8 native runtime
-        shell: pwsh
-        run: |
-          "PYTHONUTF8=1" >> $env:GITHUB_ENV
-          "FOLIO_PYTHON=$PWD/native/runtime/python.exe" >> $env:GITHUB_ENV
-      - run: python -m pip install PyMuPDF==1.26.6 pypdf==6.10.0 pypdfium2==5.13.0 pikepdf==10.13.0.post1 fonttools==4.61.1 Pillow numpy
-      - run: python -m pip install --target native/vendor fonttools==4.61.1
-      - name: Restore pinned models and acceptance fixtures
-        shell: python
-        run: |
-          from pathlib import Path
-          import shutil, subprocess, fitz
-          license=Path('native/vendor/fontTools/LICENSE')
-          if not license.exists(): shutil.copyfile(next(Path('native/vendor').glob('fonttools-*.dist-info/**/LICENSE')),license)
-          subprocess.run(['python','scripts/restore-assets.py'],check=True)
-          out=Path('tests/output');out.mkdir(parents=True,exist_ok=True)
-          doc=fitz.open()
-          for i in range(12):doc.new_page().insert_text((60,100),f'Folio test page {i+1}',fontsize=28)
-          doc.set_toc([[1,f'Chapter {i+1}',i+1] for i in range(8)])
-          doc.save(out/'modes.pdf')
-          subprocess.run(['python','tests/ai-fixtures.py'],check=True)
-          subprocess.run(['python','tests/ai-public-fixtures.py'],check=True)
-      - run: python tests/graphics-220.py
+      - name: Require the intended public main branch
+        env:
+          PUBLIC_REPOSITORY: ${{ !github.event.repository.private }}
+        run: test "$GITHUB_REF" = refs/heads/main && test "$PUBLIC_REPOSITORY" = true
+      - run: npm ci --ignore-scripts
       - run: npm run test:quick
+      - run: python tests/ci-reports.py
+  prepare:
+    name: Prepare reusable dependencies
+    needs: core
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: ./.github/actions/setup-workbench
+        with:
+          ai: 'true'
+          fixtures: 'false'
+          save-cache: 'true'
+  documents:
+    name: Documents and native engines
+    needs: [core, prepare]
+    runs-on: windows-latest
+    timeout-minutes: 35
+    outputs:
+      reports: ${{ steps.results.outputs.reports }}
+    defaults:
+      run:
+        shell: cmd
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: ./.github/actions/setup-workbench
       - run: node scripts/acceptance.mjs native
-      - name: Verify web reading mode and document utilities
-        run: node tests/web-pdf.cjs && python tests/document-utilities.py && node tests/document-tools-ui.cjs
-      - name: Verify conversion, fonts, layers, tags and live page tracking
-        run: native\runtime\python.exe tests/conversion-native.py && native\runtime\python.exe tests/engineering-native.py && native\runtime\python.exe tests/conversion-public.py && node tests/workbench-ui.cjs && node tests/engineering-ui.cjs && node tests/conversion-scan.cjs
-        timeout-minutes: 20
-      - name: Build pinned Chatbox source and patched PDF MCP
-        run: python scripts/prepare-ai-ci.py
-      - run: .venv-ai\Scripts\python.exe -m pip install pytest pytest-cov
+      - run: node tests/web-pdf.cjs && python tests/document-utilities.py && node tests/document-tools-ui.cjs
+      - run: native\runtime\python.exe tests/conversion-native.py && native\runtime\python.exe tests/engineering-native.py && native\runtime\python.exe tests/conversion-public.py
+      - run: node tests/workbench-ui.cjs && node tests/engineering-ui.cjs && node tests/conversion-scan.cjs
+      - id: results
+        run: python scripts/ci-reports.py export documents
+  integration:
+    name: MCP and UI integration
+    needs: [core, prepare]
+    runs-on: windows-latest
+    timeout-minutes: 35
+    outputs:
+      reports: ${{ steps.results.outputs.reports }}
+    defaults:
+      run:
+        shell: cmd
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: ./.github/actions/setup-workbench
+        with:
+          ai: 'true'
+      - name: Prepare isolated MCP regression environment
+        run: python -m venv .venv-ai && .venv-ai\Scripts\python.exe -m pip install -r integrations/pdf-mcp-requirements.lock.txt pytest pytest-cov && .venv-ai\Scripts\python.exe -m pip install --no-deps integrations/pdf-mcp-upstream
       - name: Full upstream MCP regression and coverage
         shell: pwsh
         run: |
@@ -72,61 +91,84 @@ jobs:
           $env:TESSDATA_PREFIX="$PWD\.ai-runtime\pdf-runtime\tesseract\tessdata"
           .venv-ai\Scripts\python.exe -m pytest integrations/pdf-mcp-upstream/tests -q
           exit $LASTEXITCODE
-      - run: node tests/chatbox-completion-220.cjs
-      - name: Verify new metadata tool through the real API
-        run: node tests/document-live.cjs
-        timeout-minutes: 5
-        env:
-          FOLIO_QWEN_API_KEY: ${{ secrets.FOLIO_QWEN_API_KEY }}
-          FOLIO_QWEN_API_URL: ${{ secrets.FOLIO_QWEN_API_URL }}
-      - name: Real AI conversion and same-chat live context
-        run: node tests/conversion-live.cjs && node tests/context-live.cjs
+      - run: node tests/chatbox-completion-220.cjs && node tests/graphics-220.cjs && node tests/ai-settings.cjs && node tests/chrome-202.cjs
+      - run: node tests/ai-integration.cjs && node tests/ai-hosted.cjs && node tests/pdf-mcp-bridge.cjs
+      - id: results
+        run: python scripts/ci-reports.py export integration
+  live:
+    name: Real AI scenarios
+    needs: [core, prepare]
+    runs-on: windows-latest
+    timeout-minutes: 35
+    outputs:
+      reports: ${{ steps.results.outputs.reports }}
+    defaults:
+      run:
+        shell: cmd
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: ./.github/actions/setup-workbench
+        with:
+          ai: 'true'
+      - name: Real metadata, Office conversion and same-chat context
+        run: node tests/document-live.cjs && node tests/conversion-live.cjs && node tests/context-live.cjs
         timeout-minutes: 12
         env:
           FOLIO_QWEN_API_KEY: ${{ secrets.FOLIO_QWEN_API_KEY }}
           FOLIO_QWEN_API_URL: ${{ secrets.FOLIO_QWEN_API_URL }}
-      - run: node tests/graphics-220.cjs
-      - run: node tests/ai-settings.cjs
-      - run: node tests/chrome-202.cjs
-      - run: node tests/ai-integration.cjs
-      - run: node tests/ai-hosted.cjs
-      - run: node tests/pdf-mcp-bridge.cjs
-      - name: Require real Qwen through hosted Chatbox
+      - name: Real document editing workflows
         run: node tests/ai-live-202.cjs
-        timeout-minutes: 30
+        timeout-minutes: 15
         env:
           FOLIO_QWEN_API_KEY: ${{ secrets.FOLIO_QWEN_API_KEY }}
           FOLIO_QWEN_API_URL: ${{ secrets.FOLIO_QWEN_API_URL }}
-      - name: Real concurrent image generation through hosted Chatbox
-        run: node tests/graphics-live-220.cjs
+      - name: Real concurrent image generation
+        run: node tests/graphics-live-220.cjs && python tests/graphics-live-220.py
         timeout-minutes: 12
         env:
           FOLIO_QWEN_API_KEY: ${{ secrets.FOLIO_QWEN_API_KEY }}
           FOLIO_QWEN_API_URL: ${{ secrets.FOLIO_QWEN_API_URL }}
           FOLIO_IMAGE_API_KEY: ${{ secrets.FOLIO_IMAGE_API_KEY }}
-      - run: python tests/graphics-live-220.py
-      - name: Reclaim build-only files before packaging
-        shell: python
-        run: |
-          from pathlib import Path
-          import shutil
-          root=Path.cwd().resolve()
-          for rel in ['.ai-runtime/chatbox-source/node_modules','.ai-runtime/installer']:
-              target=(root/rel).resolve()
-              assert target.is_relative_to(root/'.ai-runtime') and target != root/'.ai-runtime'
-              if target.exists(): shutil.rmtree(target)
-      - run: python tests/update-python-201.py
-      - run: npm run build:win
-      - run: npm run test:package
-      - name: Exercise the packaged multi-document workspace
-        run: node tests/workspace-210.cjs
+      - id: results
+        run: python scripts/ci-reports.py export live
+  release:
+    name: Verify final package and publish
+    needs: [core, documents, integration, live]
+    runs-on: windows-latest
+    timeout-minutes: 40
+    permissions:
+      contents: write
+      actions: read
+    defaults:
+      run:
+        shell: cmd
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: ./.github/actions/setup-workbench
+        with:
+          ai: 'true'
+      - name: Verify document reports belong to this commit and run
+        run: python scripts/ci-reports.py import documents
+        env:
+          FOLIO_CI_REPORTS: ${{ needs.documents.outputs.reports }}
+      - name: Verify integration reports belong to this commit and run
+        run: python scripts/ci-reports.py import integration
+        env:
+          FOLIO_CI_REPORTS: ${{ needs.integration.outputs.reports }}
+      - name: Verify live AI reports belong to this commit and run
+        run: python scripts/ci-reports.py import live
+        env:
+          FOLIO_CI_REPORTS: ${{ needs.live.outputs.reports }}
+      - run: python tests/update-python-201.py && npm run build:win && npm run test:package
+      - name: Packaged workspace and graphics
+        run: node tests/workspace-210.cjs && node tests/graphics-220.cjs
         env:
           FOLIO_EXE: ${{ github.workspace }}\dist\Folio-PDF-Studio-win-x64\Folio.exe
-      - name: Exercise graphics and assembly in packaged executable
-        run: node tests/graphics-220.cjs
-        env:
-          FOLIO_EXE: ${{ github.workspace }}\dist\Folio-PDF-Studio-win-x64\Folio.exe
-      - name: Exercise packaged conversion, fonts and structure tools
+      - name: Packaged conversion, fonts and structure
         run: node tests/workbench-ui.cjs && node tests/engineering-ui.cjs && node tests/conversion-scan.cjs
         timeout-minutes: 15
         env:
@@ -136,45 +178,13 @@ jobs:
         env:
           FOLIO_EXE: ${{ github.workspace }}\dist\Folio-PDF-Studio-win-x64\Folio.exe
       - run: python scripts/archive-release.py deliverables
-      - name: Validate the exact release ZIP updater
+      - name: Validate exact release ZIP updater
         run: node tests/update-201.cjs
         timeout-minutes: 12
         env:
           FOLIO_EXE: ${{ github.workspace }}\dist\Folio-PDF-Studio-win-x64\Folio.exe
           FOLIO_UPDATE_ZIP: ${{ github.workspace }}\deliverables\Folio-PDF-Studio-2.3.0-portable-win-x64.zip
-      - name: Publish verified artifacts
+      - name: Publish only verified artifacts
         run: python scripts/publish-230-ci.py
         env:
           GH_TOKEN: ${{ github.token }}
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: remote-230-validation
-          path: |
-            tests/output/conversion-*-report.json
-            tests/output/engineering-*.png
-            tests/output/engineering-*-report.json
-            tests/output/context-live-report.json
-            tests/output/workbench-*.png
-            tests/output/workbench-ui-report.json
-            tests/output/chatbox-completion-220.json
-            tests/output/document-utilities-report.json
-            tests/output/document-tools-ui.json
-            tests/output/document-tools-ui.png
-            tests/output/document-live-report.json
-            tests/output/web-pdf-report.json
-            tests/output/graphics-220-*.json
-            tests/output/graphics-220-*.png
-            tests/output/workspace-210.json
-            tests/output/workspace-210.png
-            tests/output/ai-workflows-210.json
-            tests/output/live-202.json
-            tests/output/hosted-202.json
-            tests/output/chrome-202.json
-            tests/output/chrome-*.png
-            tests/output/ai-settings.json
-            tests/output/update-python-201.json
-            tests/output/package-report.json
-            tests/output/packaged-ai.json
-            tests/output/v201-updater-report.json
-            tests/output/v162-health-report.json

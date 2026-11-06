@@ -46,7 +46,13 @@ const {configure}=require('./ai-live-support.cjs');
    const input=chat.locator('textarea[placeholder]').first();await input.fill(task);const start=Date.now();
    const completed=await chat.evaluate(()=>window.folioProgress.status().completed);
    await input.press('Enter');
-   await chat.waitForFunction(n=>window.folioProgress.status().completed>n,completed,{timeout:200000});
+   try {await chat.waitForFunction(n=>window.folioProgress.status().completed>n,completed,{timeout:200000});}
+   catch(error){
+    const trace=await app.evaluate(()=>globalThis.aiTrace.map(({name,arguments:a,ms,error})=>({name,action:a?.action,operation:a?.operation,ms,error})));
+    fs.writeFileSync('tests/output/live-timeout-trace.json',JSON.stringify(trace,null,2));
+    fs.writeFileSync('tests/output/live-timeout-transcript.txt',(await chat.locator('body').innerText()).slice(-30000));
+    console.error('Timed out trace',JSON.stringify(trace));throw error;
+   }
    const initial=await chat.evaluate(()=>window.folioProgress.status().lastGeneration.firstVisible);
    assert(initial,'Native progress was displayed during the actual model request');
    const trace=await app.evaluate(()=>globalThis.aiTrace),body=await chat.locator('body').innerText();
