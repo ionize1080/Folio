@@ -49,12 +49,12 @@ const {_electron:electron}=require('playwright'),fs=require('node:fs'),path=requ
   await host.locator('[data-image-settings]').click();assert.equal(await host.locator('.image-settings-dialog [data-model]').inputValue(),'custom-image-test');assert.equal(await host.locator('.image-settings-dialog [data-key]').inputValue(),'');await host.locator('.image-settings-dialog [data-close]').click();
   checks.push('Generic image service settings persist custom endpoint/model and keep credentials hidden');
   await host.locator('.graphics-dialog').evaluate(el=>el.scrollTop=0);
-  await host.screenshot({path:'tests/output/graphics-220-ui.png'});await host.locator('.graphics-dialog [data-close]').click();
+  await require('./native-capture.cjs')(app,host,'tests/output/graphics-220-ui.png');await host.locator('.graphics-dialog [data-close]').click();
   await host.evaluate(()=>window.desktop.aiOpen());const chat=app.context().pages().find(p=>p.url().includes('/renderer/index.html'));await chat.waitForSelector('textarea[placeholder]');
   await chat.locator('textarea[placeholder]').first().fill('保留草稿：调整侧栏宽度');
   await host.locator('.ai-resize-handle').focus();const before=await host.locator('.inspector').boundingBox();await host.keyboard.press('ArrowLeft');await host.waitForTimeout(150);const after=await host.locator('.inspector').boundingBox();assert(after.width>before.width);
   const handle=await host.locator('.ai-resize-handle').boundingBox();await host.mouse.move(handle.x+5,handle.y+80);await host.mouse.down();await host.mouse.move(handle.x-90,handle.y+80,{steps:8});await host.mouse.up();await host.waitForTimeout(200);assert((await host.locator('.inspector').boundingBox()).width>after.width+50);assert.equal(await chat.locator('textarea[placeholder]').first().inputValue(),'保留草稿：调整侧栏宽度');
-  await host.screenshot({path:'tests/output/graphics-220-sidebar.png'});
+  await require('./native-capture.cjs')(app,host,'tests/output/graphics-220-sidebar.png');
   checks.push('Native UI gradient creation and draggable/keyboard sidebar resizing preserve Chatbox draft');
   await host.evaluate(()=>window.desktop.aiOpen());
   const saved=[];await app.evaluate(({dialog},dir)=>{globalThis.savedGraphics=[];dialog.showSaveDialog=async(_w,o)=>{const filePath=dir+'/'+o.defaultPath.split(/[\\/]/).pop();globalThis.savedGraphics.push(filePath);return {canceled:false,filePath};};},path.resolve('tests/output'));

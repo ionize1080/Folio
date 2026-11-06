@@ -1,4 +1,4 @@
-name: Folio 2.3.0 parallel verified Windows release
+name: Folio 2.3.0 layered parallel verified Windows release
 on:
   workflow_dispatch:
 permissions:
@@ -44,8 +44,31 @@ jobs:
           ai: 'true'
           fixtures: 'false'
           save-cache: 'true'
+  native:
+    name: Native engine regressions
+    needs: [core, prepare]
+    runs-on: windows-latest
+    timeout-minutes: 20
+    outputs:
+      reports: ${{ steps.results.outputs.reports }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: ./.github/actions/setup-workbench
+        with:
+          conversion: 'false'
+          models: 'false'
+          fixtures: 'false'
+      - run: node scripts/acceptance.mjs native
+      - shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force tests/output | Out-Null
+          '{"status":"passed","suite":"all-native-regressions"}' | Set-Content -Encoding utf8 tests/output/native-regression-report.json
+      - id: results
+        run: python scripts/ci-reports.py export native
   documents:
-    name: Documents and native engines
+    name: Conversion, conformance and document UI
     needs: [core, prepare]
     runs-on: windows-latest
     timeout-minutes: 35
@@ -59,12 +82,45 @@ jobs:
         with:
           submodules: recursive
       - uses: ./.github/actions/setup-workbench
-      - run: node scripts/acceptance.mjs native
       - run: node tests/web-pdf.cjs && python tests/document-utilities.py && node tests/document-tools-ui.cjs
       - run: native\runtime\python.exe tests/conversion-native.py && native\runtime\python.exe tests/engineering-native.py && native\runtime\python.exe tests/conversion-public.py
       - run: node tests/workbench-ui.cjs && node tests/engineering-ui.cjs && node tests/conversion-scan.cjs
       - id: results
         run: python scripts/ci-reports.py export documents
+  mcp:
+    name: MCP regression (two workers)
+    needs: [core, prepare]
+    runs-on: windows-latest
+    timeout-minutes: 20
+    outputs:
+      reports: ${{ steps.results.outputs.reports }}
+    defaults:
+      run:
+        shell: cmd
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: ./.github/actions/setup-workbench
+        with:
+          ai: 'true'
+          conversion: 'false'
+          models: 'false'
+          fixtures: 'false'
+      - run: if not exist tests\output mkdir tests\output
+      - name: Prepare isolated MCP regression environment
+        run: python -m venv .venv-ai && .venv-ai\Scripts\python.exe -m pip install -r integrations/pdf-mcp-requirements.lock.txt pytest==9.2.0 pytest-cov==7.1.0 pytest-xdist==3.8.0 && .venv-ai\Scripts\python.exe -m pip install --no-deps integrations/pdf-mcp-upstream
+      - name: Two-worker upstream MCP regression and merged coverage
+        shell: pwsh
+        run: |
+          $env:PATH="$PWD\.ai-runtime\pdf-runtime\tesseract;$env:PATH"
+          $env:TESSDATA_PREFIX="$PWD\.ai-runtime\pdf-runtime\tesseract\tessdata"
+          .venv-ai\Scripts\python.exe -m pytest integrations/pdf-mcp-upstream/tests -q -n 2 --dist loadscope --max-worker-restart=0 --cov-config=integrations/pdf-mcp-upstream/pyproject.toml --junitxml=tests/output/mcp-junit.xml --cov-report=json:tests/output/mcp-coverage.json --durations=12
+          if ($LASTEXITCODE) {exit $LASTEXITCODE}
+          python scripts/ci-mcp-report.py
+          exit $LASTEXITCODE
+      - id: results
+        run: python scripts/ci-reports.py export mcp
   integration:
     name: MCP and UI integration
     needs: [core, prepare]
@@ -82,15 +138,8 @@ jobs:
       - uses: ./.github/actions/setup-workbench
         with:
           ai: 'true'
-      - name: Prepare isolated MCP regression environment
-        run: python -m venv .venv-ai && .venv-ai\Scripts\python.exe -m pip install -r integrations/pdf-mcp-requirements.lock.txt pytest pytest-cov && .venv-ai\Scripts\python.exe -m pip install --no-deps integrations/pdf-mcp-upstream
-      - name: Full upstream MCP regression and coverage
-        shell: pwsh
-        run: |
-          $env:PATH="$PWD\.ai-runtime\pdf-runtime\tesseract;$env:PATH"
-          $env:TESSDATA_PREFIX="$PWD\.ai-runtime\pdf-runtime\tesseract\tessdata"
-          .venv-ai\Scripts\python.exe -m pytest integrations/pdf-mcp-upstream/tests -q
-          exit $LASTEXITCODE
+          conversion: 'false'
+          models: 'false'
       - run: node tests/chatbox-completion-220.cjs && node tests/graphics-220.cjs && node tests/ai-settings.cjs && node tests/chrome-202.cjs
       - run: node tests/ai-integration.cjs && node tests/ai-hosted.cjs && node tests/pdf-mcp-bridge.cjs
       - id: results
@@ -135,7 +184,7 @@ jobs:
         run: python scripts/ci-reports.py export live
   release:
     name: Verify final package and publish
-    needs: [core, documents, integration, live]
+    needs: [core, native, documents, mcp, integration, live]
     runs-on: windows-latest
     timeout-minutes: 40
     permissions:
@@ -151,6 +200,14 @@ jobs:
       - uses: ./.github/actions/setup-workbench
         with:
           ai: 'true'
+      - name: Verify native regression provenance
+        run: python scripts/ci-reports.py import native
+        env:
+          FOLIO_CI_REPORTS: ${{ needs.native.outputs.reports }}
+      - name: Verify MCP regression and merged coverage provenance
+        run: python scripts/ci-reports.py import mcp
+        env:
+          FOLIO_CI_REPORTS: ${{ needs.mcp.outputs.reports }}
       - name: Verify document reports belong to this commit and run
         run: python scripts/ci-reports.py import documents
         env:
@@ -164,16 +221,11 @@ jobs:
         env:
           FOLIO_CI_REPORTS: ${{ needs.live.outputs.reports }}
       - run: python tests/update-python-201.py && npm run build:win && npm run test:package
-      - name: Packaged workspace and graphics
-        run: node tests/workspace-210.cjs && node tests/graphics-220.cjs
-        env:
-          FOLIO_EXE: ${{ github.workspace }}\dist\Folio-PDF-Studio-win-x64\Folio.exe
-      - name: Packaged conversion, fonts and structure
-        run: node tests/workbench-ui.cjs && node tests/engineering-ui.cjs && node tests/conversion-scan.cjs
+      - name: Packaged application checks in two isolated lanes
+        run: node scripts/ci-packaged.cjs
         timeout-minutes: 15
         env:
           FOLIO_EXE: ${{ github.workspace }}\dist\Folio-PDF-Studio-win-x64\Folio.exe
-      - run: node tests/package-ai.cjs
       - run: node tests/update-health-v162.cjs
         env:
           FOLIO_EXE: ${{ github.workspace }}\dist\Folio-PDF-Studio-win-x64\Folio.exe

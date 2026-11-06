@@ -14,17 +14,24 @@ tag, prefix = 'v2.3.0', 'Folio-PDF-Studio-2.3.0'
 assert json.loads((root / 'package.json').read_text())['version'] == '2.3.0'
 reports = {}
 suite_provenance = {}
-for suite in ['documents', 'integration', 'live']:
+for suite in ['native', 'documents', 'mcp', 'integration', 'live']:
     provenance = json.loads((root / 'tests/output' / ('ci-' + suite + '.json')).read_text(encoding='utf-8'))
     assert provenance == dict(suite=suite, sourceCommit=sha, runId=os.environ['GITHUB_RUN_ID']), 'Mismatched parallel test provenance'
     suite_provenance[suite] = provenance
-for name in ['conversion-native-report.json','conversion-scan-report.json','conversion-public-report.json','conversion-live-report.json','engineering-native-report.json','engineering-ui-report.json','workbench-ui-report.json','context-live-report.json','document-utilities-report.json', 'document-tools-ui.json', 'document-live-report.json', 'chatbox-completion-220.json', 'graphics-220-native.json', 'graphics-220-ui.json', 'graphics-220-live.json', 'ai-workflows-210.json', 'workspace-210.json', 'live-202.json', 'hosted-202.json', 'chrome-202.json', 'ai-settings.json',
+for name in ['native-regression-report.json','mcp-regression-report.json','ci-packaged-report.json','conversion-native-report.json','conversion-scan-report.json','conversion-public-report.json','conversion-live-report.json','engineering-native-report.json','engineering-ui-report.json','workbench-ui-report.json','context-live-report.json','document-utilities-report.json', 'document-tools-ui.json', 'document-live-report.json', 'chatbox-completion-220.json', 'graphics-220-native.json', 'graphics-220-ui.json', 'graphics-220-live.json', 'ai-workflows-210.json', 'workspace-210.json', 'live-202.json', 'hosted-202.json', 'chrome-202.json', 'ai-settings.json',
              'update-python-201.json', 'packaged-ai.json', 'v201-updater-report.json',
              'v162-health-report.json', 'package-report.json']:
     reports[name] = json.loads((root / 'tests/output' / name).read_text(encoding='utf-8'))
     assert not reports[name].get('errors'), name
 for name in ['document-utilities-report.json', 'document-tools-ui.json', 'document-live-report.json', 'chatbox-completion-220.json', 'graphics-220-native.json','graphics-220-ui.json','graphics-220-live.json']: assert reports[name]['status']=='passed'
 for name in ['conversion-native-report.json','conversion-scan-report.json','conversion-public-report.json','conversion-live-report.json','engineering-native-report.json','engineering-ui-report.json','workbench-ui-report.json','context-live-report.json']: assert reports[name]['status']=='passed'
+assert reports['native-regression-report.json']['status'] == 'passed'
+assert reports['mcp-regression-report.json']['status'] == 'passed'
+assert reports['mcp-regression-report.json']['coverage'] >= 75
+assert reports['mcp-regression-report.json']['branchCoverage']
+packaged = reports['ci-packaged-report.json']
+assert packaged['status'] == 'passed' and len(packaged['checks']) == 6
+assert packaged['sourceCommit'] == sha and packaged['runId'] == os.environ['GITHUB_RUN_ID']
 assert reports['graphics-220-live.json']['savedPDF']['nativeShadings']>=1
 assert reports['graphics-220-live.json']['savedPDF']['images']>=2
 assert reports['live-202.json']['status'] == 'passed'

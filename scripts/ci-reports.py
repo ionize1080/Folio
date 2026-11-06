@@ -4,6 +4,8 @@ import base64, gzip, hashlib, json, os, sys
 
 ROOT = Path(__file__).resolve().parents[1]
 SUITES = {
+    'native': ['native-regression-report.json'],
+    'mcp': ['mcp-regression-report.json'],
     'documents': ['conversion-native-report.json', 'conversion-public-report.json', 'engineering-native-report.json', 'document-utilities-report.json', 'document-tools-ui.json', 'workbench-ui-report.json', 'engineering-ui-report.json', 'conversion-scan-report.json', 'graphics-220-native.json', 'web-pdf-report.json'],
     'integration': ['chatbox-completion-220.json', 'chrome-202.json', 'ai-settings.json', 'hosted-202.json'],
     'live': ['document-live-report.json', 'conversion-live-report.json', 'context-live-report.json', 'graphics-220-live.json', 'ai-workflows-210.json', 'live-202.json'],

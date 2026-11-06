@@ -1,6 +1,12 @@
 name: Prepare reproducible Windows workbench
 description: Restore pinned dependencies and optional intermediate builds without caching test profiles or credentials
 inputs:
+  conversion:
+    description: Restore Office and PDF conformance engines only where required
+    default: 'true'
+  models:
+    description: Restore local OCR models only where required
+    default: 'true'
   ai:
     description: Restore the pinned Chatbox and PDF MCP intermediate builds
     default: 'false'
@@ -22,7 +28,8 @@ runs:
         python-version: '3.12'
     - shell: pwsh
       run: npm ci
-    - uses: actions/cache/restore@v4
+    - if: inputs.conversion == 'true' || inputs.models == 'true'
+      uses: actions/cache/restore@v4
       id: conversion-cache
       with:
         path: |
@@ -33,12 +40,18 @@ runs:
       run: |
         python scripts/restore-conversion-python.py
         if ($LASTEXITCODE) {exit $LASTEXITCODE}
-        ./scripts/restore-conversion.ps1
-        if ($LASTEXITCODE) {exit $LASTEXITCODE}
-        python scripts/restore-assets.py
-        if ($LASTEXITCODE) {exit $LASTEXITCODE}
         "PYTHONUTF8=1" >> $env:GITHUB_ENV
         "FOLIO_PYTHON=$PWD/native/runtime/python.exe" >> $env:GITHUB_ENV
+    - if: inputs.conversion == 'true'
+      shell: pwsh
+      run: |
+        ./scripts/restore-conversion.ps1
+        if ($LASTEXITCODE) {exit $LASTEXITCODE}
+    - if: inputs.models == 'true'
+      shell: pwsh
+      run: |
+        python scripts/restore-assets.py
+        if ($LASTEXITCODE) {exit $LASTEXITCODE}
     - shell: pwsh
       run: |
         python -m pip install PyMuPDF==1.26.6 pypdf==6.10.0 pypdfium2==5.13.0 pikepdf==10.13.0.post1 fonttools==4.61.1 Pillow numpy
