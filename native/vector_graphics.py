@@ -8,7 +8,7 @@ from xml.etree import ElementTree as ET
 import fitz
 from pypdf import PdfReader
 from pypdf.generic import (ArrayObject, ContentStream, DecodedStreamObject, DictionaryObject,
-                           FloatObject, NameObject as N, TextStringObject)
+                           FloatObject, NameObject as N, TextStringObject, BooleanObject)
 
 TAGS = set('svg g defs path rect circle ellipse line polyline polygon text tspan title desc linearGradient radialGradient stop clipPath'.split())
 ATTRS = set('id viewBox width height x y x1 y1 x2 y2 cx cy r rx ry fx fy d points transform fill fill-rule stroke stroke-width stroke-linejoin stroke-linecap stroke-dasharray stroke-opacity fill-opacity opacity font-family font-size font-weight font-style text-anchor dx dy offset stop-color stop-opacity gradientUnits gradientTransform clip-path preserveAspectRatio'.split())
@@ -75,12 +75,18 @@ def place(writer,page,edits):
         if not math.isfinite(rotation) or not math.isfinite(opacity) or not 0<=opacity<=1:raise ValueError('Invalid rotation or opacity')
         angle=math.radians(rotation);c,s=math.cos(angle),math.sin(angle)
         matrix=[sx*c,sx*s,-sy*s,sy*c,x+w/2-(c*w-s*h)/2,y+h/2-(s*w+c*h)/2]
+        # Apply whole-object opacity to an isolated transparency group. Applying
+        # it inside the SVG stream lets child fill-opacity overwrite the value.
+        inner=DecodedStreamObject();inner.set_data(vector.get_contents().get_data())
+        inner.update({N('/Type'):N('/XObject'),N('/Subtype'):N('/Form'),
+                      N('/BBox'):ArrayObject([FloatObject(v) for v in (0,0,vw,vh)]),
+                      N('/Resources'):vector['/Resources'].clone(writer),
+                      N('/Group'):DictionaryObject({N('/S'):N('/Transparency'),N('/CS'):N('/DeviceRGB'),N('/I'):BooleanObject(True)})})
         form=DecodedStreamObject()
-        form.set_data(b'q /FolioOpacity gs\n'+vector.get_contents().get_data()+b'\nQ')
-        resources=vector['/Resources'].clone(writer)
-        states=DictionaryObject(dict(resources.get('/ExtGState',{})))
-        states[N('/FolioOpacity')]=DictionaryObject({N('/Type'):N('/ExtGState'),N('/ca'):FloatObject(opacity),N('/CA'):FloatObject(opacity)})
-        resources[N('/ExtGState')]=states
+        form.set_data(b'q /FolioOpacity gs /FolioArtwork Do Q')
+        resources=DictionaryObject({
+            N('/XObject'):DictionaryObject({N('/FolioArtwork'):writer._add_object(inner)}),
+            N('/ExtGState'):DictionaryObject({N('/FolioOpacity'):DictionaryObject({N('/Type'):N('/ExtGState'),N('/ca'):FloatObject(opacity),N('/CA'):FloatObject(opacity)})})})
         form.update({N('/Type'):N('/XObject'),N('/Subtype'):N('/Form'),
                      N('/BBox'):ArrayObject([FloatObject(v) for v in (0,0,vw,vh)]),
                      N('/Matrix'):ArrayObject([FloatObject(v) for v in matrix]),

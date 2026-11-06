@@ -40,8 +40,9 @@ with fitz.open(stream=created,filetype='pdf') as d:
     assert d[0].get_drawings()
     pix=d[0].get_pixmap();pix.save(out/'graphics-220-vector.png')
 form=next(ref.get_object() for ref in reader.pages[0]['/Resources']['/XObject'].values() if ref.get_object().get('/FolioVectorID')==uid)
-assert '/Shading' in form['/Resources'], 'Gradient must remain a native shading, not a bitmap'
-assert not any(x.get_object().get('/Subtype')=='/Image' for x in form['/Resources'].get('/XObject',{}).values())
+artwork=form['/Resources']['/XObject']['/FolioArtwork'].get_object()
+assert '/Shading' in artwork['/Resources'], 'Gradient must remain a native shading, not a bitmap'
+assert not any(x.get_object().get('/Subtype')=='/Image' for x in artwork['/Resources'].get('/XObject',{}).values())
 ok('Native vector gradient and line survive rotation, opacity, saving and source inspection')
 radial='<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100"><defs><radialGradient id="g" gradientTransform="translate(.1 0) scale(.8 1)"><stop offset="0" stop-color="#ffffff" stop-opacity="0.2"/><stop offset="0.5" stop-color="#00ff00" stop-opacity="0.7"/><stop offset="1" stop-color="#000000"/></radialGradient></defs><ellipse cx="100" cy="50" rx="95" ry="45" fill="url(#g)"/></svg>'
 rad=apply(raw,[{**v,'svg':radial,'rotation':0,'opacity':1}])
@@ -49,6 +50,13 @@ with fitz.open(stream=rad,filetype='pdf') as d:
     d[0].get_pixmap().save(out/'graphics-220-radial.png')
     assert len(set(d[0].get_pixmap().samples))>100
 ok('Radial multistop gradients retain alpha and gradient transforms')
+alpha_svg='<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><rect width="100" height="100" fill="#ff0000" fill-opacity="0.5"/></svg>'
+alpha=apply(raw,[{**v,'svg':alpha_svg,'box':[50,50,100,100],'rotation':0,'opacity':0.5}])
+with fitz.open(stream=alpha,filetype='pdf') as d:
+    color=d[0].get_pixmap().pixel(100,400)
+    assert color[0]>250 and all(185<c<197 for c in color[1:]),color
+ok('Whole-vector opacity multiplies element opacity in an isolated transparency group')
+
 transferred=apply(created,[dict(id=uid,type='vector-graphic',page=1,delete=True),{**v,'page':2,'rotation':-37,'box':[20,40,200,100],'svg':svg.replace('#ff0000','#00ff00')}])
 r=PdfReader(io.BytesIO(transferred));assert not list_graphics(r.pages[0]);assert len(list_graphics(r.pages[1]))==1
 removed=apply(transferred,[dict(id=uid,type='vector-graphic',page=2,delete=True)])
