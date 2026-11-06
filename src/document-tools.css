@@ -1,0 +1,157 @@
+.document-tools {
+  width: min(760px, calc(100vw - 40px));
+  max-height: calc(100vh - 48px);
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  color: var(--text);
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+.document-tools::backdrop {
+  background: #0005;
+  backdrop-filter: blur(3px);
+}
+.document-tools header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--line);
+}
+.document-tools header h2 {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+.document-tools header p {
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.document-tools header button {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+}
+.document-tools-body {
+  display: grid;
+  grid-template-columns: 176px 1fr;
+  max-height: calc(100vh - 240px);
+  min-height: 380px;
+  overflow: auto;
+}
+.document-tools nav {
+  padding: 12px;
+  background: var(--panel2);
+  border-right: 1px solid var(--line);
+}
+.document-tools nav h4 {
+  font-size: 11px;
+  color: var(--muted);
+  margin: 16px 10px 6px;
+  font-weight: 600;
+}
+.document-tools nav h4:first-child {
+  margin-top: 4px;
+}
+.document-tools nav button {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  text-align: left;
+  padding: 8px 10px;
+  min-height: 34px;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font-size: 12px;
+}
+.document-tools nav button[aria-pressed="true"] {
+  background: var(--selected);
+  font-weight: 600;
+  box-shadow: inset 2px 0 var(--accent);
+}
+.document-tool-detail {
+  padding: 20px 24px;
+  min-width: 0;
+}
+.document-tool-detail h3 {
+  margin: 0 0 8px;
+  font-size: 18px;
+}
+.document-tool-detail .hint {
+  line-height: 1.7;
+  margin-bottom: 20px;
+}
+.document-tool-detail input,
+.document-tool-detail select {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 34px;
+}
+.document-tool-detail label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+  font-size: 12px;
+}
+.document-tool-detail dl {
+  display: grid;
+  grid-template-columns: minmax(80px, 1fr) 2fr;
+  font-size: 12px;
+  gap: 10px;
+}
+.document-tool-detail dt {
+  color: var(--muted);
+}
+.document-tool-detail dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.document-tools footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 24px;
+  border-top: 1px solid var(--line);
+}
+.document-tools footer span {
+  color: var(--muted);
+  font-size: 12px;
+}
+.document-tools footer button {
+  min-height: 34px;
+  padding: 0 18px;
+}
+.document-tools [data-status] {
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 600px) {
+  .document-tools-body {
+    grid-template-columns: 140px 1fr;
+  }
+  .document-tool-detail {
+    padding: 16px;
+  }
+  .document-tool-detail .form-grid {
+    grid-template-columns: 1fr;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .document-tools * {
+    transition: none !important;
+  }
+}
+@media (forced-colors: active) {
+  .document-tools nav button[aria-pressed="true"] {
+    border: 1px solid Highlight;
+  }
+}

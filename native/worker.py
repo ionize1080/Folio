@@ -346,6 +346,9 @@ def run(args, *, _preview=False):
  if args.get('command')=='layout':
   from story import analyze
   return analyze(Path(args['input']).read_bytes(),args.get('page',1))
+ if args.get('command')=='document-utilities':
+  from document_utilities import process
+  return process(args)
  if args.get('command')=='document-assemble':
   from document_assembly import assemble
   return assemble(args)

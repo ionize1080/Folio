@@ -74,6 +74,9 @@ else await extract(runtime, { dir: out });
 for (const item of [
   "src",
   "node_modules/opencc-js",
+  "node_modules/@mozilla/readability",
+  "node_modules/dompurify",
+  "web-pdf.cjs",
   "assets",
   "main.cjs",
   "ai-host.cjs",

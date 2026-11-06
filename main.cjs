@@ -326,6 +326,7 @@ app.whenReady().then(async () => {
     if((await fs.stat(file)).size>32*1024**2) throw Error("Image exceeds 32 MiB");
     return (await fs.readFile(file)).toString("base64");
   });
+  ipc("web-pdf", data => require("./web-pdf.cjs").render(data));
   ipc("save", (data) => fileStore.save(data));
   ipc("save-prepare", (data) => fileStore.prepare(data));
   ipc("copy-text", (text) => {

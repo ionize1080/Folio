@@ -13,12 +13,12 @@ repo, sha = os.environ['GITHUB_REPOSITORY'], os.environ['GITHUB_SHA']
 tag, prefix = 'v2.2.0', 'Folio-PDF-Studio-2.2.0'
 assert json.loads((root / 'package.json').read_text())['version'] == '2.2.0'
 reports = {}
-for name in ['chatbox-completion-220.json', 'graphics-220-native.json', 'graphics-220-ui.json', 'graphics-220-live.json', 'ai-workflows-210.json', 'workspace-210.json', 'live-202.json', 'hosted-202.json', 'chrome-202.json', 'ai-settings.json',
+for name in ['document-utilities-report.json', 'document-tools-ui.json', 'document-live-report.json', 'chatbox-completion-220.json', 'graphics-220-native.json', 'graphics-220-ui.json', 'graphics-220-live.json', 'ai-workflows-210.json', 'workspace-210.json', 'live-202.json', 'hosted-202.json', 'chrome-202.json', 'ai-settings.json',
              'update-python-201.json', 'packaged-ai.json', 'v201-updater-report.json',
              'v162-health-report.json', 'package-report.json']:
     reports[name] = json.loads((root / 'tests/output' / name).read_text(encoding='utf-8'))
     assert not reports[name].get('errors'), name
-for name in ['chatbox-completion-220.json', 'graphics-220-native.json','graphics-220-ui.json','graphics-220-live.json']: assert reports[name]['status']=='passed'
+for name in ['document-utilities-report.json', 'document-tools-ui.json', 'document-live-report.json', 'chatbox-completion-220.json', 'graphics-220-native.json','graphics-220-ui.json','graphics-220-live.json']: assert reports[name]['status']=='passed'
 assert reports['graphics-220-live.json']['savedPDF']['nativeShadings']>=1
 assert reports['graphics-220-live.json']['savedPDF']['images']>=2
 assert reports['live-202.json']['status'] == 'passed'

@@ -1,3 +1,5 @@
+import {installDocumentUtilities} from "./document-utilities-ui.mjs";
+import {installWebPDF} from "./web-pdf-ui.mjs";
 import {installImageTools} from "./ai-images.mjs";
 import {installAIResize} from "./ai-resize.mjs";
 import {installGraphicsUI} from "./graphics-ui.mjs";
@@ -169,12 +171,16 @@ export function installAI({
   const uiImage=installImageTools(uiContext);
   const enqueueUI=fn=>{const work=queue.then(fn);queue=work.catch(()=>{});return work;};
   installGraphicsUI({...uiContext,imageTool:a=>a.action==='generate_new'?uiImage(a):enqueueUI(()=>uiImage(a)),vectorTool:a=>enqueueUI(()=>vectorTool(a,uiContext,Infinity)),applyContent:(edits,ocr)=>{const revision=rev();return enqueueUI(()=>{if(rev()!==revision)throw Error('文档已变化，请刷新');return applyContent(edits,ocr);});}});
+  const documentUtilities=installDocumentUtilities({S,exportPDF,session,writeFile});
+  const webPDF=installWebPDF({writeFile});
   const assembly=installDocumentAssembly({S,exportPDF,session,writeFile});
   async function perform({ name, arguments: a = {} }, deadline = Infinity) {
     const timely = () => {
       if (Date.now() > deadline) throw Error("请求已过期，未应用修改");
     };
     timely();
+    if(name==="folio_document_utilities"){if(!graphicsContext.approve(a))throw Error("用户拒绝操作");if(a.revision!==rev())throw Error("Stale document revision");return documentUtilities(a);}
+    if(name==="folio_web_pdf"){if(!graphicsContext.approve(a))throw Error("用户拒绝操作");return webPDF(a);}
     if(name==='folio_document'&&['merge','split'].includes(a.action)) {
       if(!graphicsContext.approve(a))throw Error('用户拒绝操作');
       if(a.revision!==rev())throw Error('Stale document revision');

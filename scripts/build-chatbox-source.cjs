@@ -88,6 +88,12 @@ fs.writeFileSync(toolsFile,toolSource);
 patch('src/renderer/stores/session/orchestration.ts', [
   ['        void persistStreamingMessage(sessionId, targetMsg)', '        await persistStreamingMessage(sessionId, targetMsg)'],
   ['    for (const part of processorState.contentParts) {', "    const interruption = (window as any).folioCompletionIssue(processorState.finishReason, controller.signal.aborted)\n    if (interruption) throw Error(interruption)\n\n    for (const part of processorState.contentParts) {"],
+  ['    const stream = model.chatStream(coreMessages, chatOptions) as AsyncGenerator<ModelStreamPart<ToolSet>>', `    const stream = (window as any).folioContinueStream({
+      model, messages: coreMessages, options: chatOptions,
+      checkpoint: async () => { await persistStreamingMessage(sessionId, targetMsg) },
+      history: async () => (window as any).folioExpandImages(await convertToModelMessages([{...targetMsg, contentParts: processorState.contentParts}], {modelSupportVision:model.isSupportVision(), preserveReasoning:settings.provider === ModelProviderEnum.DeepSeek})),
+      phase: (text: string) => (window as any).folioProgress?.phase(sessionId, text),
+    }) as AsyncGenerator<ModelStreamPart<ToolSet>>`],
   ['maxSteps: 10,', 'maxSteps: 32, // PDF tasks can require generation, edits, verification and export'],
   ['  try {\n    const dependencies', '  ;(window as any).folioProgress?.begin(sessionId)\n  try {\n    const dependencies'],
   ['    const coreMessages = await convertToModelMessages','    let coreMessages = await convertToModelMessages'],
@@ -100,7 +106,7 @@ patch('src/renderer/components/message-parts/ToolCallPartUI.tsx', [
   ['JSON.stringify(part.result, null, 2)', "JSON.stringify(part.result, (key, value) => typeof value === 'string' && ((key === 'data' && value.length > 512) || value.startsWith('data:image/')) ? '[image data omitted from text preview]' : value, 2)"]]);
 patch('src/renderer/index.tsx', [["import { SplashScreen }", "import './folio-integration'\nimport './folio-image-generation'\nimport { SplashScreen }"]]);
 const integration=`import {mcpController} from './packages/mcp/controller'\nimport {uiStore} from './stores/uiStore'\n`+
-  ['network-renderer.js','controls.js','vision.js','completion.js','progress.js'].map(n=>fs.readFileSync(path.join(adapter,n),'utf8')).join('\n')+`
+  ['network-renderer.js','controls.js','vision.js','continuation.js','completion.js','progress.js'].map(n=>fs.readFileSync(path.join(adapter,n),'utf8')).join('\n')+`
 window.folioInstructions=${JSON.stringify(fs.readFileSync(path.join(adapter,'instructions.txt'),'utf8'))};
 window.folioToolsStatus=()=>({state:mcpController.getServer('folio-pdf')?.status?.state,count:Object.keys(mcpController.getAvailableTools()).filter(n=>n.includes('folio_')||n.includes('pdf_help')).length});
 window.folioCaptureMessage=async message=>{window.folioProgress.begin('connection');try{const start=Date.now();while(!window.folioToolsStatus().count){if(Date.now()-start>15000)throw Error('Folio工具尚未连接，请稍后重试');await new Promise(r=>setTimeout(r,100));}return message;}finally{window.folioProgress.end('connection')}};
