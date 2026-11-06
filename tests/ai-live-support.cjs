@@ -12,6 +12,8 @@ function credentials(){
 }
 async function configure(chat){
  const config=credentials();
+ await chat.waitForFunction(()=>typeof window.folioSettingsReady==='function');
+ await chat.evaluate(()=>window.folioSettingsReady());
  await chat.evaluate(async({key,endpoint,model})=>{
   const s=await window.electronAPI.invoke('getSettings');s.language='zh-Hans';s.messageLayout='left';
   s.customProviders=[{id:'acceptance-qwen',name:'Qwen Test',type:'openai',isCustom:true}];
@@ -20,6 +22,7 @@ async function configure(chat){
   await window.electronAPI.invoke('setStoreValue','settings',JSON.stringify(s));
  },config);
  await chat.reload();await chat.waitForSelector('textarea[placeholder]');await chat.waitForFunction(()=>window.folioToolsStatus().count>=8,{timeout:30000});
+ await chat.evaluate(()=>window.folioSettingsReady());
  return {model:config.model};
 }
 module.exports={credentials,configure};

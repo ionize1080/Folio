@@ -1,10 +1,13 @@
 import { getModel } from '@shared/providers'
 import { createModelDependencies } from './adapters'
 import platform from './platform'
-import { settingsStore } from './stores/settingsStore'
+import { settingsStore, initSettingsStore } from './stores/settingsStore'
+
+window.folioSettingsReady = async () => { await initSettingsStore(); return true }
 
 // Source content is untrusted data. This call has no tools and returns references only.
 window.folioReviewConversion = async ({ pages, kind }) => {
+  await initSettingsStore()
   const settings = settingsStore.getState().getSettings()
   const choice = settings.defaultChatModel
   if (!choice?.provider || !choice?.model) throw Error('请先在 Chatbox 设置默认对话模型。')
