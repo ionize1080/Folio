@@ -7,7 +7,7 @@ const {_electron}=require('playwright'),path=require('node:path'),fs=require('no
  await p.locator('#document-assembly').click();await p.locator('[data-add]').click();await p.waitForFunction(()=>document.querySelectorAll('.merge-file-row').length===3);
  await p.locator('.merge-file-row').first().getByRole('button',{name:'下移',exact:true}).click();await p.locator('.merge-file-row input').first().fill('Cover image');
  assert((await p.locator('.merge-file-name').first().innerText()).includes('import.png'));
- await p.screenshot({path:'tests/output/workbench-merge.png'});await p.locator('.assembly-dialog [data-run]').click();await p.waitForFunction(()=>document.querySelector('.assembly-dialog [data-status]').textContent.includes('已保存'),{},{timeout:240000});await p.locator('.assembly-dialog [data-close]').click();
+ await p.screenshot({path:'tests/output/workbench-merge.png'});await p.locator('.assembly-dialog [data-run]').click();await p.waitForFunction(()=>{const s=document.querySelector('.assembly-dialog [data-status]').textContent;return s&&s!=='正在处理…';},{},{timeout:240000});assert.match(await p.locator('.assembly-dialog [data-status]').innerText(),/已保存/);await p.locator('.assembly-dialog [data-close]').click();
  await p.locator('[data-action="open"]').first().click();await p.waitForFunction(()=>document.querySelector('#doc-name').textContent.includes('conversion-table'));
  await p.locator('.more-tools summary').click();await p.locator('#document-utilities').click();await p.waitForFunction(()=>!document.querySelector('.document-tools [data-run]').disabled);
  for(const action of ['export-word','export-excel','compress','pdfa']){
