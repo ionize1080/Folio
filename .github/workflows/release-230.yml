@@ -26,12 +26,10 @@ jobs:
         with:
           python-version: '3.12'
       - run: npm ci
-      - name: Restore locked native runtime and portable conversion engines
+      - name: Restore locked conversion wheels and portable engines
         shell: pwsh
         run: |
-          python scripts/download-native.py
-          if ($LASTEXITCODE) {exit $LASTEXITCODE}
-          python scripts/stage-native.py
+          python scripts/restore-conversion-python.py
           if ($LASTEXITCODE) {exit $LASTEXITCODE}
           ./scripts/restore-conversion.ps1
       - name: Set UTF-8 native runtime
