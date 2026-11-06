@@ -181,16 +181,15 @@ function installAIHost({ app, win, ipc, tabs, sender, requireActive }) {
       ),
     );
     const client = new Client({ name: "Folio", version: "2.0.0" });
+    // Source acceptance must exercise the same verified portable runtime as
+    // the package, not depend on another CI group's private pytest venv.
+    const pdfRuntime = app.isPackaged
+      ? path.join(process.resourcesPath, "pdf-runtime")
+      : path.join(__dirname, ".ai-runtime", "pdf-runtime");
     await client.connect(
       new StdioClientTransport({
-        command: app.isPackaged
-          ? path.join(process.resourcesPath, "pdf-runtime", "python.exe")
-          : path.join(__dirname, ".venv-ai", "Scripts", "python.exe"),
-        args: [
-          app.isPackaged
-            ? path.join(process.resourcesPath, "pdf-runtime", "pdf-server.py")
-            : path.join(__dirname, "integrations", "pdf-server.py"),
-        ],
+        command: path.join(pdfRuntime, "python.exe"),
+        args: [path.join(pdfRuntime, "pdf-server.py")],
         stderr: "pipe",
       }),
     );
