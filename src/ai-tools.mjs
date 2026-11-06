@@ -109,7 +109,7 @@ export const catalog = {
     { page: 1, threshold: 0.95 },
   ],
   "ocr.apply": [
-    "将最近本地OCR结果与经核对的文字修正写入当前PDF，可撤销；更改文本不伪造置信度",
+    "将本地OCR任务写入PDF，可撤销。先查看review疑点图像，corrections传{index,text}确认或修正（原文相同也可）；排除用{index,excluded:true}。保留原始置信度。applied=false时按返回的review继续核对，不重复识别。",
     { jobId: "ocr-job", corrections: [{ index: 0, text: "校对文字" }] },
   ],
   "page.objects": ["读取当前页可编辑文本、图片和矢量对象", { page: 1 }],

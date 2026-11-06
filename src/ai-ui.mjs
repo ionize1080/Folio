@@ -15,7 +15,7 @@ import { extractTocPage } from "./smart-toc-extract.mjs";
 import { recognizeTocPages, resolveTocEntries, entriesToNodes, calibrationLines } from "./smart-toc.mjs";
 import { icon } from "./icons.mjs";
 import { catalog, guide, treeOperation } from "./ai-tools.mjs";
-import { ocrPage } from "./ocr-data.mjs";
+import { ocrPage, pendingOCRReview, correctOCRBlocks } from "./ocr-data.mjs";
 import { extractLines } from "./text-lines.mjs";
 import { matchTargets } from "./calibrate-worker.mjs";
 import { nativeRequest, releaseSource } from "./native-source.mjs";
@@ -465,7 +465,7 @@ export function installAI({
       if (!Number.isInteger(p.page) || p.page < 1 || p.page > S.info.pageCount)
         throw Error("页码无效");
       const result=await localOcr(p.page);
-      if(p.apply) {
+      if(p.apply && !result.blocks.some(pendingOCRReview)) {
         if(!result.blocks?.length)return {applied:false,revision:before,blockCount:0};
         fresh();
         await applyContent(S.nativeEdits,[...S.ocr.filter(b=>b.page!==p.page),...result.blocks]);
@@ -482,8 +482,10 @@ export function installAI({
         ...(p.detail==="full"?result:{page:p.page,blockCount:result.blocks.length}),
         jobId,
         threshold,
-        lowConfidence: result.blocks.map((b,index)=>({...b,index})).filter(b=>(b.confidence??b.score??0)<threshold),
-        next: "page.text可读取本次OCR的全部文字，无需先写入PDF。仅对lowConfidence使用归一化region的page.image复核；保留原始结果。",
+        applied: false,
+        review: result.blocks.map((b,index)=>({...b,index})).filter(pendingOCRReview),
+        lowConfidence: result.blocks.map((b,index)=>({...b,index})).filter(b=>(b.confidence??b.score??0)<threshold || pendingOCRReview(b)),
+        next: "尚未写入PDF。使用folio_render裁剪复核review和lowConfidence；随后folio_operation operation=ocr.apply options={jobId,corrections:[{index,text}]}，确认原文也传text；不写入的条目传{index,excluded:true}。不要重复识别或猜测参数。page.text可读取本次全部文字。",
       };
     }
     if (op === "page.objects") {
@@ -511,18 +513,11 @@ export function installAI({
       const job = ocrJobs.get(p.jobId);
       if (!job || job.revision !== before)
         throw Error("OCR任务已过期，请重新识别");
-      const blocks = structuredClone(job.blocks);
-      for (const correction of p.corrections || []) {
-        if (
-          !Number.isInteger(correction.index) ||
-          !blocks[correction.index] ||
-          typeof correction.text !== "string" ||
-          correction.text.length > 32768
-        )
-          throw Error("文字修正无效");
-        blocks[correction.index].originalText = blocks[correction.index].text;
-        blocks[correction.index].text = correction.text;
-        blocks[correction.index].reviewed = true;
+      const blocks = correctOCRBlocks(job.blocks, p.corrections);
+      const review=blocks.map((b,index)=>({...b,index})).filter(pendingOCRReview);
+      if(review.length) {
+        job.blocks = blocks;
+        return {applied:false,revision:before,jobId:p.jobId,review,next:"已保留本次校对，尚未修改PDF。请查看剩余疑点的页面图像，再使用同一jobId提交corrections:[{index,text}]（确认原文也传text），或用{index,excluded:true}明确排除条目。"};
       }
       fresh();
       const pages = new Set(blocks.map((b) => b.page));

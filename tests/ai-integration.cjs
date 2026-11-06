@@ -117,6 +117,33 @@ const { _electron: electron } = require("playwright"),
     });
     assert(r.result?.content?.[1]?.type === "image", r.error);
     console.log("image", JSON.parse(r.result.content[0].text));
+    // Force confident direction conflicts; the real native writer must accept
+    // explicit incremental review, never silently drop unresolved blocks.
+    await app.evaluate(({ipcMain})=>{
+      const native=ipcMain._invokeHandlers.get('native');
+      ipcMain.removeHandler('native');
+      ipcMain.handle('native',(event,data)=>data.command==='ocr'?{
+        page:1,blocks:['PROOFREADALPHA','PROOFREADBETA'].map((text,index)=>({
+          page:1,text,confidence:0.99,needsReview:true,reviewAccepted:false,
+          reviewReasons:['direction-conflict'],quad:[[50,150+30*index],[250,150+30*index],[250,130+30*index],[50,130+30*index]]
+        }))
+      }:native(event,data));
+    });
+    r=await call('folio_operation',{operation:'ocr.local',revision,options:{page:1,apply:true}});
+    assert(!r.error,r.error);assert.equal(r.result.applied,false);
+    assert.equal(r.result.review.length,2);assert.equal(r.result.lowConfidence.length,2);
+    const jobId=r.result.jobId;
+    r=await call('folio_operation',{operation:'ocr.apply',revision,options:{jobId,corrections:[{index:0,text:'PROOFREADALPHA'}]}});
+    assert(!r.error,r.error);assert.equal(r.result.applied,false);assert.equal(r.result.review.length,1);
+    r=await call('folio_operation',{operation:'ocr.apply',revision,options:{jobId,corrections:[{index:1,text:'PROOFREADBETA'}]}});
+    assert(r.result?.applied,r.error||JSON.stringify(r));
+    const ocrState=await page.evaluate(async()=>{
+      const {S}=await import('./app.mjs');
+      return {ocr:S.ocr,text:(await (await S.pdf.getPage(1)).getTextContent()).items.map(x=>x.str).join(' ')};
+    });
+    assert(ocrState.text.includes('PROOFREADALPHA')&&ocrState.text.includes('PROOFREADBETA'),ocrState.text);
+    assert(ocrState.ocr.every(b=>b.reviewAccepted&&b.confidence===0.99));
+    console.log('OCR incremental review accepted by real native writer');
     r = await call("pdf_help", {});
     assert(!r.error, r.error);
     console.log("upstream tools", r.result.total);
