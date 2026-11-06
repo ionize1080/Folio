@@ -106,8 +106,8 @@
       "sha256": "90005e959e1596c6e6c84c8b0ad383285b3e17011751cedd17f2ce8fcdfc86de"
     },
     {
-      "name": "pymupdf-1.26.6-cp310-abi3-win_amd64.whl",
-      "sha256": "ce02ca96ed0d1acfd00331a4d41a34c98584d034155b06fd4ec0f051718de7ba"
+      "name": "pymupdf-1.26.7-cp310-abi3-win_amd64.whl",
+      "sha256": "425b1befe40d41b72eb0fe211711c7ae334db5eb60307e9dd09066ed060cceba"
     },
     {
       "name": "rapid_layout-1.2.1-py3-none-any.whl",
@@ -152,6 +152,14 @@
     {
       "name": "termcolor-3.3.0-py3-none-any.whl",
       "sha256": "cf642efadaf0a8ebbbf4bc7a31cec2f9b5f21a9f726f4ccbb08192c9c26f43a5"
+    },
+    {
+      "name": "fonttools-4.66.1-cp312-cp312-win_amd64.whl",
+      "sha256": "261d8dc95845e751f975fe8d6075600593ee253470d46d1b84801688051b09f6"
+    },
+    {
+      "name": "brotli-1.2.0-cp312-cp312-win_amd64.whl",
+      "sha256": "b35c13ce241abdd44cb8ca70683f20c0c079728a36a996297adb5334adfc1c44"
     }
   ],
   "vcredist": [
