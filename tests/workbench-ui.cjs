@@ -1,7 +1,7 @@
 const {_electron}=require('playwright'),path=require('node:path'),fs=require('node:fs'),assert=require('node:assert/strict');
 (async()=>{let app;try{
  app=await _electron.launch({...(process.env.FOLIO_EXE?{executablePath:process.env.FOLIO_EXE,args:[]}:{args:[path.resolve('.')]}),env:{...process.env,FOLIO_TEST_BACKGROUND:'1',FOLIO_TEST_PROFILE:path.resolve('tests/output/workbench-ui-'+Date.now())},timeout:60000});
- const p=await app.firstWindow();p.setDefaultTimeout(30000);p.on('dialog',d=>d.accept());await p.waitForSelector('#document-assembly',{state:'attached'});
+ const p=await app.firstWindow();p.setDefaultTimeout(30000);p.on('dialog',d=>d.accept());await p.waitForSelector('#document-assembly',{state:'attached'});await p.evaluate(async()=>{(await import('./i18n.mjs')).setLanguage('zh-Hans');});
  await app.evaluate(({dialog},root)=>{dialog.showOpenDialog=async(_win,o)=>({canceled:false,filePaths:o.properties.includes('multiSelections')?[root+'/import.docx',root+'/import.png',root+'/conversion-table.pdf']:[root+'/conversion-table.pdf']});dialog.showSaveDialog=async()=>({canceled:false,filePath:root+'/ui-mixed-merge.pdf'});},path.resolve('tests/output'));
  await p.keyboard.press('Control+Shift+k');await p.locator('.tool-library-search input').fill('PDF');assert(await p.locator('.tool-library-grid button:visible').count()>0);await p.locator('.tool-library-search input').fill('');await p.screenshot({path:'tests/output/workbench-library.png'});
  await p.locator('#document-assembly').click();await p.locator('[data-add]').click();await p.waitForFunction(()=>document.querySelectorAll('.merge-file-row').length===3);

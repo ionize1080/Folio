@@ -28,7 +28,15 @@ const {_electron}=require('playwright'),path=require('node:path'),fs=require('no
   await chat.waitForFunction(n=>window.folioProgress.status().completed>n,before,{timeout:240000});
   const pdf=path.resolve('tests/output/live-conversion-table-pdfa.pdf');fs.writeFileSync('tests/output/conversion-live-transcript.txt',(await chat.locator('body').innerText()).slice(-18000));assert(fs.existsSync(pdf),'MCP must save PDF/A');
   const report=await host.evaluate(bytes=>window.desktop.native({command:'document-utilities',action:'validate-pdfa',bytes:new Uint8Array(bytes),options:{standard:'2b'}}),[...fs.readFileSync(pdf)]);assert(report.compliant);checks.push({mcpPdfa:true,validator:report.validator});
-  const {execFileSync}=require('node:child_process');execFileSync(process.env.FOLIO_PYTHON||path.resolve('native/runtime/python.exe'),['-c',"from openpyxl import load_workbook;from docx import Document;w=load_workbook('tests/output/live-conversion.xlsx');s=w['Page 1 Table 1'];assert s['B2'].value==1200;assert s['B3'].value=='00123';assert s['A4'].value=='=1+1' and s['A4'].data_type=='s';d=Document('tests/output/live-conversion.docx');assert any(p.style.name=='Heading 1' for p in d.paragraphs)"]);
+  for(const [action,extension] of [['export-word','docx'],['export-excel','xlsx']]){
+   const target=path.resolve('tests/output/live-mcp-conversion.'+extension);fs.rmSync(target,{force:true});
+   await app.evaluate(({dialog},target)=>{dialog.showSaveDialog=async()=>({canceled:false,filePath:target});},target);
+   const before=await chat.evaluate(()=>window.folioProgress.status().completed);
+   await chat.locator('textarea[placeholder]').first().fill('请读取当前文档 revision，调用 folio_document_utilities 的 '+action+' 操作，options={"ai":true,"layout":"faithful"}，保存当前文档。必须开启 AI 辅助复核，只执行这一个导出任务，成功后停止。');
+   await chat.locator('textarea[placeholder]').first().press('Enter');await chat.waitForFunction(n=>window.folioProgress.status().completed>n,before,{timeout:300000});
+   assert(fs.existsSync(target),'Actual AI MCP conversation must save '+extension);checks.push({mcpAIExport:action,saved:true});
+  }
+  const {execFileSync}=require('node:child_process');execFileSync(process.env.FOLIO_PYTHON||path.resolve('native/runtime/python.exe'),['-c',"from openpyxl import load_workbook;from docx import Document;w=load_workbook('tests/output/live-conversion.xlsx');s=w['Page 1 Table 1'];assert s['B2'].value==1200;assert s['B3'].value=='00123';assert s['A4'].value=='=1+1' and s['A4'].data_type=='s';d=Document('tests/output/live-conversion.docx');assert any(p.style.name=='Heading 1' for p in d.paragraphs);m=Document('tests/output/live-mcp-conversion.docx');assert any('Quarterly' in p.text for p in m.paragraphs);m=load_workbook('tests/output/live-mcp-conversion.xlsx');assert m['Page 1 Table 1']['B3'].value=='00123'"]);
   fs.writeFileSync('tests/output/conversion-live-report.json',JSON.stringify({status:'passed',model,checks},null,2));console.log('PASS real AI Word/Excel reconstruction, article typography and MCP PDF/A');
  }finally{if(app)await app.evaluate(({app})=>app.exit(0)).catch(()=>{});}
 })().catch(e=>{console.error(e);process.exitCode=1;});

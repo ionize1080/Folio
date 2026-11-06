@@ -19,6 +19,7 @@ const { _electron } = require("playwright"),
     const p = await app.firstWindow();
     p.setDefaultTimeout(60000);
     await p.waitForSelector("#document-utilities", { state: "attached" });
+    await p.evaluate(async () => (await import("./i18n.mjs")).setLanguage("en"));
     await app.evaluate(({ dialog }, file) => {
       dialog.showOpenDialog = async () => ({
         canceled: false,
@@ -38,11 +39,8 @@ const { _electron } = require("playwright"),
       () => !document.querySelector(".document-tools [data-run]").disabled,
     );
     await p.locator(".document-tools [data-run]").click();
-    await p.waitForFunction(
-      () =>
-        document.querySelector(".document-tools [data-status]").textContent ===
-        "读取完成",
-    );
+    await p.waitForSelector('.document-tools [data-result] dl dd');
+    assert.equal(await p.locator('.document-tools [data-result] dl dd').first().innerText(), '1');
     await p
       .locator('.document-tools nav [data-utility-action="metadata"]')
       .click();
