@@ -57,6 +57,11 @@ jobs:
       - run: python tests/graphics-220.py
       - run: npm run test:quick
       - run: node scripts/acceptance.mjs native
+      - name: Verify web reading mode and document utilities
+        run: node tests/web-pdf.cjs && python tests/document-utilities.py && node tests/document-tools-ui.cjs
+      - name: Verify conversion, fonts, layers, tags and live page tracking
+        run: native\runtime\python.exe tests/conversion-native.py && native\runtime\python.exe tests/engineering-native.py && native\runtime\python.exe tests/conversion-public.py && node tests/workbench-ui.cjs && node tests/engineering-ui.cjs && node tests/conversion-scan.cjs
+        timeout-minutes: 20
       - name: Build pinned Chatbox source and patched PDF MCP
         run: python scripts/prepare-ai-ci.py
       - run: .venv-ai\Scripts\python.exe -m pip install pytest pytest-cov
@@ -68,17 +73,12 @@ jobs:
           .venv-ai\Scripts\python.exe -m pytest integrations/pdf-mcp-upstream/tests -q
           exit $LASTEXITCODE
       - run: node tests/chatbox-completion-220.cjs
-      - name: Verify web reading mode and document utilities
-        run: node tests/web-pdf.cjs && python tests/document-utilities.py && node tests/document-tools-ui.cjs
       - name: Verify new metadata tool through the real API
         run: node tests/document-live.cjs
         timeout-minutes: 5
         env:
           FOLIO_QWEN_API_KEY: ${{ secrets.FOLIO_QWEN_API_KEY }}
           FOLIO_QWEN_API_URL: ${{ secrets.FOLIO_QWEN_API_URL }}
-      - name: Verify conversion, fonts, layers, tags and live page tracking
-        run: native\runtime\python.exe tests/conversion-native.py && native\runtime\python.exe tests/engineering-native.py && native\runtime\python.exe tests/conversion-public.py && node tests/workbench-ui.cjs && node tests/engineering-ui.cjs && node tests/conversion-scan.cjs
-        timeout-minutes: 20
       - name: Real AI conversion and same-chat live context
         run: node tests/conversion-live.cjs && node tests/context-live.cjs
         timeout-minutes: 12

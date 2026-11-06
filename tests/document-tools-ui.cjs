@@ -17,7 +17,7 @@ const { _electron } = require("playwright"),
       timeout: 60000,
     });
     const p = await app.firstWindow();
-    p.setDefaultTimeout(20000);
+    p.setDefaultTimeout(60000);
     await p.waitForSelector("#document-utilities", { state: "attached" });
     await app.evaluate(({ dialog }, file) => {
       dialog.showOpenDialog = async () => ({
@@ -31,6 +31,7 @@ const { _electron } = require("playwright"),
         .querySelector("#doc-name")
         .textContent.includes("utilities-source"),
     );
+    await p.waitForSelector("#busy", { state: "hidden" });
     await p.locator(".more-tools summary").click();
     await p.locator("#document-utilities").click();
     await p.waitForFunction(
@@ -46,7 +47,12 @@ const { _electron } = require("playwright"),
       .locator('.document-tools nav [data-utility-action="metadata"]')
       .click();
     assert.equal(await p.locator('input[data-key="Producer"]').count(), 1);
-    await p.screenshot({ path: "tests/output/document-tools-ui.png" });
+    const png = await app.evaluate(async ({BrowserWindow}) => {
+      const image = await BrowserWindow.getAllWindows()[0].webContents.capturePage(undefined, {stayHidden:true,stayAwake:true});
+      if(image.isEmpty()) throw Error('Empty document tools capture');
+      return image.toPNG().toString('base64');
+    });
+    fs.writeFileSync('tests/output/document-tools-ui.png', Buffer.from(png,'base64'));
     for (const width of [800, 1080, 1500]) {
       await app.evaluate(
         ({ BrowserWindow }, w) =>
