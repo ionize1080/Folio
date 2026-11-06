@@ -8,6 +8,9 @@ from openpyxl import Workbook
 from PIL import Image
 from document_utilities import process
 out=ROOT/'tests/output';out.mkdir(exist_ok=True)
+doc=fitz.open();page=doc.new_page()
+page.insert_text((60,60),'Document utility preservation benchmark')
+doc.set_toc([[1,'Chapter',1]]);doc.save(out/'utilities-source.pdf');doc.close()
 doc=fitz.open();page=doc.new_page(width=595,height=842)
 page.insert_text((50,65),'Quarterly performance',fontsize=22)
 page.insert_text((50,100),'Verified source values. Preserve leading zeroes and literal formulas.',fontsize=11)

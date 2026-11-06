@@ -6,6 +6,7 @@ const { _electron } = require("playwright"),
   let app;
   const stamp = Date.now(),
     output = path.resolve("tests/output/live-utilities-" + stamp + ".pdf");
+  assert(fs.existsSync(path.resolve('tests/output/utilities-source.pdf')), 'Run tests/workbench-fixtures.py before the independent live suite');
   try {
     app = await _electron.launch({
       args: [path.resolve(".")],
