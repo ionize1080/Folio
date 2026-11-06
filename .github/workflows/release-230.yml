@@ -128,6 +128,11 @@ jobs:
         run: node tests/graphics-220.cjs
         env:
           FOLIO_EXE: ${{ github.workspace }}\dist\Folio-PDF-Studio-win-x64\Folio.exe
+      - name: Exercise packaged conversion, fonts and structure tools
+        run: node tests/workbench-ui.cjs && node tests/engineering-ui.cjs && node tests/conversion-scan.cjs
+        timeout-minutes: 15
+        env:
+          FOLIO_EXE: ${{ github.workspace }}\dist\Folio-PDF-Studio-win-x64\Folio.exe
       - run: node tests/package-ai.cjs
       - run: node tests/update-health-v162.cjs
         env:

@@ -173,7 +173,7 @@ for (const f of [
 let nativeFiles = 0;
 async function compareNative(dir, rel = "") {
   for (const e of await fs.readdir(dir, { withFileTypes: true })) {
-    if (["__pycache__", "build-wheels"].includes(e.name)) continue;
+    if (["__pycache__", "build-wheels"].includes(e.name) || e.name.endsWith('.msi')) continue;
     const r = path.join(rel, e.name),
       src = path.join(dir, e.name);
     if (e.isDirectory()) await compareNative(src, r);

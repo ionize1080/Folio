@@ -1,6 +1,6 @@
 const {_electron}=require('playwright'),path=require('node:path'),fs=require('node:fs'),assert=require('node:assert/strict');
 (async()=>{let app;try{
- app=await _electron.launch({args:[path.resolve('.')],env:{...process.env,FOLIO_TEST_BACKGROUND:'1',FOLIO_TEST_PROFILE:path.resolve('tests/output/scan-export-'+Date.now())},timeout:60000});const p=await app.firstWindow();p.on('dialog',d=>d.accept());await p.waitForSelector('#document-utilities',{state:'attached'});
+ app=await _electron.launch({...(process.env.FOLIO_EXE?{executablePath:process.env.FOLIO_EXE,args:[]}:{args:[path.resolve('.')]}),env:{...process.env,FOLIO_TEST_BACKGROUND:'1',FOLIO_TEST_PROFILE:path.resolve('tests/output/scan-export-'+Date.now())},timeout:60000});const p=await app.firstWindow();p.on('dialog',d=>d.accept());await p.waitForSelector('#document-utilities',{state:'attached'});
  await app.evaluate(({dialog},root)=>{dialog.showOpenDialog=async()=>({canceled:false,filePaths:[root+'/conversion-scan.pdf']});dialog.showSaveDialog=async()=>({canceled:false,filePath:root+'/scan-export.docx'});},path.resolve('tests/output'));
  await p.locator('[data-action="open"]').first().click();await p.waitForFunction(()=>document.querySelector('#doc-name').textContent.includes('conversion-scan'));await p.waitForSelector('#busy',{state:'hidden'});
  await app.evaluate(({ipcMain})=>{ipcMain.removeHandler('ai-reply');ipcMain.handle('ai-reply',(_e,v)=>{globalThis.scanResult=v;});});let id=0;

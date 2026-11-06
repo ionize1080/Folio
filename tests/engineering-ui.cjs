@@ -1,6 +1,6 @@
 const {_electron}=require('playwright'),path=require('node:path'),fs=require('node:fs'),assert=require('node:assert/strict');
 (async()=>{let app;try{
- app=await _electron.launch({args:[path.resolve('.')],env:{...process.env,FOLIO_TEST_BACKGROUND:'1',FOLIO_TEST_PROFILE:path.resolve('tests/output/engineering-ui-'+Date.now())},timeout:60000});
+ app=await _electron.launch({...(process.env.FOLIO_EXE?{executablePath:process.env.FOLIO_EXE,args:[]}:{args:[path.resolve('.')]}),env:{...process.env,FOLIO_TEST_BACKGROUND:'1',FOLIO_TEST_PROFILE:path.resolve('tests/output/engineering-ui-'+Date.now())},timeout:60000});
  const p=await app.firstWindow();p.setDefaultTimeout(30000);p.on('dialog',d=>d.accept());await p.waitForSelector('#font-tools',{state:'attached'});
  await app.evaluate(({dialog},file)=>{dialog.showOpenDialog=async()=>({canceled:false,filePaths:[file]});dialog.showSaveDialog=async()=>({canceled:true});},path.resolve('tests/output/engineering-tagged-patched.pdf'));
  await p.locator('[data-action="open"]').first().click();await p.waitForFunction(()=>document.querySelector('#doc-name').textContent.includes('engineering-tagged'));
