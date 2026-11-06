@@ -80,3 +80,14 @@ test('path dimensions operate on actual segment extent, including rotation and p
  const frame=pathFrame({...path,...result}).matrix;
  for(const [i,v] of [0,100,-50,0,40,50].entries())assert(Math.abs(frame[i]-v)<1e-8);
 });
+
+import {installImageTools} from '../src/ai-images.mjs';
+test('generated assets are shared between properties panel and Chatbox without repeating generation',async()=>{
+ let generationCount=0;globalThis.window={desktop:{generateImage:async()=>{generationCount++;return 'test-pixels';}}};
+ const S={pdf:{},page:1,info:{pageCount:2},nativeEdits:[],ocr:[]};let revision='1';
+ const context={S,rev:()=>revision,approve:()=>true,applyContent:async edits=>{S.nativeEdits=edits;revision='2';}};
+ try{const panel=installImageTools(context),chat=installImageTools(context);const generated=await panel({action:'generate_new',prompt:'leaf'});
+ await chat({action:'insert',assetId:generated.results[0].assetId,page:2,revision:'1'});
+ assert.equal(generationCount,1);assert.equal(S.nativeEdits[0].imageData,'test-pixels');assert.equal(S.nativeEdits[0].page,2);
+ }finally{delete globalThis.window;}
+});

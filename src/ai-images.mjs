@@ -29,8 +29,10 @@ function mergeAdjustments(base, patch) {
   return out;
 }
 
+const assetStores = new WeakMap();
 export function installImageTools({S,rev,applyContent,approve}) {
-  const candidates = new Map(), inspections = new Map(), assets = new Map();
+  if(!assetStores.has(S))assetStores.set(S,new Map());
+  const candidates = new Map(), inspections = new Map(), assets = assetStores.get(S);
   let cacheRevision;
   return async function run(a,deadline) {
     if(a.id && a.page===undefined){const target=S.nativeEdits.find(e=>e.id===a.id&&e.type==='inserted-image'&&!e.delete);if(target)a={...a,page:target.page};}
