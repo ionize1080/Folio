@@ -4,7 +4,7 @@ const encode=bytes=>{let s='';for(let i=0;i<bytes.length;i+=32768)s+=String.from
 const decode=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
 export function installDocumentAssembly({S,exportPDF,session,writeFile}) {
   const button=document.createElement('button');button.textContent='合并 / 拆分';button.id='document-assembly';button.title='合并 PDF、按页数或页码范围拆分';
-  document.querySelector('.toolbar').append(button);
+  button.dataset.doc='';document.querySelector('.more-tools-menu').append(button);
   async function run(a) {
     if(!S.pdf||S.busy)throw Error('请先打开文档');
     const capture=session.capture();
@@ -40,7 +40,7 @@ export function installDocumentAssembly({S,exportPDF,session,writeFile}) {
     return {saved:!!saved,pageCount:result.pageCount};
     } finally { if(bytes!==S.bytes) await releaseSource(bytes); }
   }
-  button.onclick=()=>{
+  button.onclick=()=>{button.closest('details').open=false;
     if(!S.pdf||S.busy)return;
     const capture=session.capture(), dialog=document.createElement('dialog');dialog.className='assembly-dialog';
     dialog.innerHTML='<header><h2>合并与拆分 PDF</h2><button data-close aria-label="关闭">×</button></header><p>包含当前未保存的编辑，结果另存为新文件。</p><label>操作<select data-mode><option value="merge">合并 PDF</option><option value="split">拆分 PDF</option></select></label><section data-merge><ol data-files></ol><button data-add>添加 PDF…</button><p class="hint">使用上下按钮调整合并顺序。</p></section><section data-split hidden><label>每份页数<input data-every type="number" min="1" value="1"></label><label>或指定分组（分号分隔）<input data-ranges placeholder="1-3;4-6;7,9"></label></section><label class="check"><input data-bookmarks type="checkbox" checked>保留并重新定位书签</label><p data-status role="status"></p><footer><button data-run>另存结果…</button></footer>';

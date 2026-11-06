@@ -3,7 +3,7 @@ const {_electron:electron}=require('playwright'),fs=require('node:fs'),path=requ
  const app=await electron.launch({executablePath:process.env.FOLIO_EXE,args:process.env.FOLIO_EXE?[]:[path.resolve('.')],env:{...process.env,FOLIO_TEST_BACKGROUND:'1',FOLIO_TEST_PROFILE:path.resolve('tests/output/graphics-ui-'+Date.now()),FOLIO_CHATBOX_PROFILE:path.resolve('tests/output/graphics-chat-'+Date.now())},timeout:60000});
  const checks=[],errors=[];
  try {
-  const host=await app.firstWindow();await host.locator('#graphics-editor').waitFor();host.on('dialog',d=>d.accept());host.on('pageerror',e=>errors.push(e.message));
+  const host=await app.firstWindow();await host.locator('#graphics-editor').waitFor({state:'attached'});await host.evaluate(async()=>{(await import('./i18n.mjs')).setLanguage('zh-Hans')});host.on('dialog',d=>d.accept());host.on('pageerror',e=>errors.push(e.message));
   const pick=file=>app.evaluate(({dialog},file)=>{dialog.showOpenDialog=async()=>({canceled:false,filePaths:[file]})},path.resolve(file));
   await pick('tests/output/graphics-220-source.pdf');await host.locator('[data-action="open"]').first().click();await host.waitForFunction(()=>document.querySelector('#doc-name').textContent.includes('graphics-220-source'));
   await host.evaluate(()=>window.desktop.aiApproval(true));
@@ -40,7 +40,7 @@ const {_electron:electron}=require('playwright'),fs=require('node:fs'),path=requ
   v=await vector({action:'move',page:1,targetPage:2,id:v.id,revision:v.revision,box:[70,70,250,140]});assert.equal((await vector({action:'list',page:1})).graphics.length,0);
   v=await vector({action:'delete',page:2,id:v.id,revision:v.revision});assert.equal((await vector({action:'list',page:2})).graphics.length,0);
   checks.push('Native gradient and line creation, ID patches, rotation, resize, cross-page move and deletion');
-  await host.locator('#graphics-editor').click();await host.locator('.graphics-dialog [data-status]').filter({hasText:'已完成'}).waitFor();
+  await host.locator('.more-tools > summary').click();await host.locator('#graphics-editor').click();await host.locator('.graphics-dialog [data-status]').filter({hasText:'已完成'}).waitFor();
   await host.locator('.graphics-dialog summary').filter({hasText:'创建或编辑矢量图'}).click();await host.locator('[data-gradient]').click();await host.locator('[data-vector]').click();await host.locator('.graphics-dialog [data-status]').filter({hasText:'已完成'}).waitFor();
   assert((await vector({action:'list',page:1})).graphics.length===1);
   await host.locator('.graphics-dialog summary').filter({hasText:'图片生成'}).click();
@@ -61,7 +61,7 @@ const {_electron:electron}=require('playwright'),fs=require('node:fs'),path=requ
   await pick('tests/output/graphics-220-source.pdf');const merged=await call('folio_document',{action:'merge',revision:await revision()});assert.equal(merged.pageCount,4);assert(merged.saved);
   const split=await call('folio_document',{action:'split',revision:await revision(),ranges:['1','2']});assert.equal(split.saved,2);
   checks.push('Merge and split save actual edited snapshots through file dialogs');
-  await host.locator('#document-assembly').click();await host.locator('.assembly-dialog [data-mode]').selectOption('split');await host.locator('[data-ranges]').fill('1-2');await host.locator('.assembly-dialog [data-run]').click();await host.locator('.assembly-dialog [data-status]').filter({hasText:'已保存'}).waitFor();await host.locator('.assembly-dialog [data-close]').click();
+  await host.locator('.more-tools > summary').click();await host.locator('#document-assembly').click();await host.locator('.assembly-dialog [data-mode]').selectOption('split');await host.locator('[data-ranges]').fill('1-2');await host.locator('.assembly-dialog [data-run]').click();await host.locator('.assembly-dialog [data-status]').filter({hasText:'已保存'}).waitFor();await host.locator('.assembly-dialog [data-close]').click();
   assert.deepEqual(errors,[]);fs.writeFileSync('tests/output/graphics-220-ui.json',JSON.stringify({status:'passed',checks,errors},null,2));console.log('PASS',checks);
  }finally{await app.evaluate(({app})=>app.exit(0)).catch(()=>{});}
 })().catch(e=>{console.error(e);process.exitCode=1;});
