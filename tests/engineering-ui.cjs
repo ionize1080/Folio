@@ -1,6 +1,7 @@
 const {_electron}=require('playwright'),path=require('node:path'),fs=require('node:fs'),assert=require('node:assert/strict');
 (async()=>{let app;try{
  app=await _electron.launch({...(process.env.FOLIO_EXE?{executablePath:process.env.FOLIO_EXE,args:[]}:{args:[path.resolve('.')]}),env:{...process.env,FOLIO_TEST_BACKGROUND:'1',FOLIO_TEST_PROFILE:path.resolve('tests/output/engineering-ui-'+Date.now())},timeout:60000});
+ const capture=async file=>{const png=await app.evaluate(async({BrowserWindow})=>{const image=await BrowserWindow.getAllWindows()[0].webContents.capturePage(undefined,{stayHidden:true,stayAwake:true});if(image.isEmpty())throw Error('Empty UI capture');return image.toPNG().toString('base64');});fs.writeFileSync(file,Buffer.from(png,'base64'));};
  const p=await app.firstWindow();p.setDefaultTimeout(30000);p.on('dialog',d=>d.accept());await p.waitForSelector('#font-tools',{state:'attached'});
  await app.evaluate(({dialog},file)=>{dialog.showOpenDialog=async()=>({canceled:false,filePaths:[file]});dialog.showSaveDialog=async()=>({canceled:true});},path.resolve('tests/output/engineering-tagged-patched.pdf'));
  await p.locator('[data-action="open"]').first().click();await p.waitForFunction(()=>document.querySelector('#doc-name').textContent.includes('engineering-tagged'));
@@ -25,8 +26,8 @@ const {_electron}=require('playwright'),path=require('node:path'),fs=require('no
  await call('folio_operation',{operation:'history.undo',revision:applied.revision});
  await p.locator('.more-tools summary').click();await p.locator('#document-utilities').click();await p.waitForFunction(()=>!document.querySelector('.document-tools [data-run]').disabled);
  for(const action of ['layers','tags','pdfx','validate-pdfua']){await p.locator('[data-utility-action="'+action+'"]').click();if(['layers','tags'].includes(action)){await p.locator('.document-tools [data-run]').click();await p.waitForFunction(()=>!document.querySelector('.document-tools [data-run]').disabled);}
-  await p.screenshot({path:'tests/output/engineering-'+action+'.png'});assert(await p.locator('.document-tools').evaluate(e=>e.scrollWidth<=e.clientWidth));}
+  await capture('tests/output/engineering-'+action+'.png');assert(await p.locator('.document-tools').evaluate(e=>e.scrollWidth<=e.clientWidth));}
  await p.locator('.document-tools [data-close]').first().click();await p.locator('.more-tools summary').click();await p.locator('#font-tools').click();await p.locator('[data-query]').fill('DejaVu Sans');await p.waitForFunction(()=>document.querySelector('[data-fonts]').options.length>0);
- const fid=await p.locator('[data-fonts] option').first().getAttribute('value');await p.locator('[data-fonts]').selectOption(fid);await p.waitForSelector('[data-image]:not([hidden])',{timeout:60000});await p.screenshot({path:'tests/output/engineering-fonts.png'});
+ const fid=await p.locator('[data-fonts] option').first().getAttribute('value');await p.locator('[data-fonts]').selectOption(fid);await p.waitForSelector('[data-image]:not([hidden])',{timeout:60000});await capture('tests/output/engineering-fonts.png');
  fs.writeFileSync('tests/output/engineering-ui-report.json',JSON.stringify({status:'passed',livePage:second.currentPage,revisionUnchangedOnNavigation:true,selectionRectangles:selected.textSelection.rectangles.length,nativeVision:true,tools:['fonts','render','structure'],ui:['layers','tags','pdfx','pdfua','fonts']},null,2));console.log('PASS live page/selection, native MCP vision, fonts and structure UI');
 }finally{if(app)await app.evaluate(({app})=>app.exit(0)).catch(()=>{});}})().catch(e=>{console.error(e);process.exitCode=1});
