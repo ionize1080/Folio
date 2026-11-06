@@ -57,6 +57,14 @@ jobs:
           .venv-ai\Scripts\python.exe -m pytest integrations/pdf-mcp-upstream/tests -q
           exit $LASTEXITCODE
       - run: node tests/chatbox-completion-220.cjs
+      - name: Verify web reading mode and document utilities
+        run: node tests/web-pdf.cjs && python tests/document-utilities.py && node tests/document-tools-ui.cjs
+      - name: Verify new metadata tool through the real API
+        run: node tests/document-live.cjs
+        timeout-minutes: 5
+        env:
+          FOLIO_QWEN_API_KEY: ${{ secrets.FOLIO_QWEN_API_KEY }}
+          FOLIO_QWEN_API_URL: ${{ secrets.FOLIO_QWEN_API_URL }}
       - run: node tests/graphics-220.cjs
       - run: node tests/ai-settings.cjs
       - run: node tests/chrome-202.cjs
@@ -119,6 +127,11 @@ jobs:
           name: remote-220-validation
           path: |
             tests/output/chatbox-completion-220.json
+            tests/output/document-utilities-report.json
+            tests/output/document-tools-ui.json
+            tests/output/document-tools-ui.png
+            tests/output/document-live-report.json
+            tests/output/web-pdf-report.json
             tests/output/graphics-220-*.json
             tests/output/graphics-220-*.png
             tests/output/workspace-210.json

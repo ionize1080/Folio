@@ -4591,10 +4591,11 @@ document.addEventListener("keydown", (e) => {
   if (e.isComposing || e.keyCode === 229) return;
   const menu = document.querySelector(".more-tools");
   if (menu?.contains(e.target) && ["ArrowDown", "ArrowUp", "Home", "End"].includes(e.key)) {
+    if(e.target.matches('input') && ['Home','End'].includes(e.key))return;
     e.preventDefault();
     e.stopPropagation();
     menu.open = true;
-    const buttons = [...menu.querySelectorAll("button:not(:disabled)")];
+    const buttons = [...menu.querySelectorAll("button:not(:disabled):not([hidden])")];
     const at = buttons.indexOf(document.activeElement);
     const next = e.key === "Home" ? 0 : e.key === "End" ? buttons.length - 1
       : at < 0 ? (e.key === "ArrowUp" ? buttons.length - 1 : 0)
@@ -4665,4 +4666,4 @@ installDocumentTabs({
 window.desktop?.updateStarted?.().catch(() => {});
 
 import {installAI} from './ai-ui.mjs';
-const aiUI=installAI({S,commit,writeFile,getLargeDocument:()=>largeWorkspace,session:documentSession,applyContent:async(edits,ocr)=>{await refreshNative(edits,ocr);commit(clone(S.nodes),{nativeEdits:edits,ocr});},exportPDF:async()=>rpc('save',await buildExportSnapshot(S,settings,documentSession)),undo:()=>restoreHistory('undo'),redo:()=>restoreHistory('redo')});
+const aiUI=installAI({S,commit,writeFile,getViewContext:()=>surface.context(),getLargeDocument:()=>largeWorkspace,session:documentSession,applyContent:async(edits,ocr)=>{await refreshNative(edits,ocr);commit(clone(S.nodes),{nativeEdits:edits,ocr});},exportPDF:async()=>rpc('save',await buildExportSnapshot(S,settings,documentSession)),undo:()=>restoreHistory('undo'),redo:()=>restoreHistory('redo')});

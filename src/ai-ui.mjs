@@ -1,3 +1,10 @@
+import {installDocumentUtilities} from "./document-utilities-ui.mjs";
+import {installLiveContext} from './live-context.mjs';
+import {installEngineeringTools,compactUtilityResult} from './ai-engineering.mjs';
+import {installFontTools} from './font-tools-ui.mjs';
+import {installOfficeImport} from "./office-import-ui.mjs";
+import {installToolLibrary} from "./tool-library.mjs";
+import {installWebPDF} from "./web-pdf-ui.mjs";
 import {installImageTools} from "./ai-images.mjs";
 import {installAIResize} from "./ai-resize.mjs";
 import {installGraphicsUI} from "./graphics-ui.mjs";
@@ -46,6 +53,7 @@ export function installAI({
   applyContent,
   getLargeDocument,
   writeFile,
+  getViewContext,
 }) {
   const desktop = window.desktop;
   if (!desktop?.aiOpen) return;
@@ -147,19 +155,17 @@ export function installAI({
     const {id, revision} = session.capture();
     return id + "/" + revision;
   };
+  const liveContext=installLiveContext({S,view:getViewContext});
   function currentSelection() {
-    const selection = window.getSelection();
-    const pageFor = node => (node?.nodeType === 1 ? node : node?.parentElement)?.closest(".pdf-page .textLayer")?.closest("[data-page]");
-    const start = pageFor(selection?.anchorNode), end = pageFor(selection?.focusNode);
-    const text = start && end ? selection.toString() : "";
     const ids = [...S.selected];
+    const live=liveContext();
     return {
-      currentPage:S.page, pageLabel:S.labels?.[S.page-1] ?? String(S.page),
+      ...live, pageLabel:S.labels?.[live.currentPage-1] ?? String(live.currentPage),
       tool:document.querySelector("[data-select-mode][aria-pressed=true]")?.dataset.selectMode,
       selectedPageCount:S.selectedPages?.size || 0, selectedPages:[...(S.selectedPages || [])].slice(0,200),
       selectedBookmarkCount:ids.length,
       selectedBookmarks:ids.slice(0,100).map(id => S.index.get(id)).filter(Boolean).map(({id,title,target}) => ({id,title,target})),
-      textSelection:text ? {text:text.slice(0,12000),truncated:text.length>12000,anchorPage:Number(start.dataset.page),focusPage:Number(end.dataset.page)} : null,
+      textSelection:live.textSelection,
       objectSelection:S.objectSelection?.selection() || null
     };
   }
@@ -169,12 +175,21 @@ export function installAI({
   const uiImage=installImageTools(uiContext);
   const enqueueUI=fn=>{const work=queue.then(fn);queue=work.catch(()=>{});return work;};
   installGraphicsUI({...uiContext,imageTool:a=>a.action==='generate_new'?uiImage(a):enqueueUI(()=>uiImage(a)),vectorTool:a=>enqueueUI(()=>vectorTool(a,uiContext,Infinity)),applyContent:(edits,ocr)=>{const revision=rev();return enqueueUI(()=>{if(rev()!==revision)throw Error('文档已变化，请刷新');return applyContent(edits,ocr);});}});
+  const documentUtilities=installDocumentUtilities({S,exportPDF,session,writeFile});
+  const engineering=installEngineeringTools({S,exportPDF,session,writeFile,rev,approve:graphicsContext.approve,liveContext,documentUtilities,applyContent});
+  const webPDF=installWebPDF({writeFile});
+  const officeImport=installOfficeImport({writeFile});
   const assembly=installDocumentAssembly({S,exportPDF,session,writeFile});
+  installFontTools();installToolLibrary();
   async function perform({ name, arguments: a = {} }, deadline = Infinity) {
     const timely = () => {
       if (Date.now() > deadline) throw Error("请求已过期，未应用修改");
     };
     timely();
+    if(['folio_fonts','folio_render','folio_structure'].includes(name))return engineering(name,a);
+    if(name==="folio_document_utilities"){if(!graphicsContext.approve(a))throw Error("用户拒绝操作");if(a.revision!==rev())throw Error("Stale document revision");return compactUtilityResult(await documentUtilities(a));}
+    if(name==="folio_web_pdf"){if(!graphicsContext.approve(a))throw Error("用户拒绝操作");return webPDF(a);}
+    if(name==="folio_import_office"){if(!graphicsContext.approve(a))throw Error("用户拒绝操作");return officeImport();}
     if(name==='folio_document'&&['merge','split'].includes(a.action)) {
       if(!graphicsContext.approve(a))throw Error('用户拒绝操作');
       if(a.revision!==rev())throw Error('Stale document revision');
@@ -324,7 +339,7 @@ export function installAI({
         throw Error("文档已变化，结果未应用");
     };
 
-    if (["page.text","page.image","page.objects","ocr.local"].includes(op)) p.page ??= S.page;
+    if (["page.text","page.image","page.objects","ocr.local"].includes(op)) p.page ??= liveContext().currentPage;
     const idSet = p.ids && new Set(p.ids);
     const selectedNodes = idSet ? S.nodes.filter(n => idSet.has(n.id)) : S.nodes;
     const pages = p.pages || (op==="bookmark.calibrate" ? calibrationPages(selectedNodes,S.info.pageCount,p.radius??2) : (p.page !== undefined ? [p.page] : [S.page]));
@@ -518,85 +533,7 @@ export function installAI({
       ocrJobs.delete(p.jobId);
       return { applied: true, revision: rev() };
     }
-    if (op === "page.image") {
-      if (!Number.isInteger(p.page) || p.page < 1 || p.page > S.info.pageCount)
-        throw Error("页码无效");
-      const page = await S.pdf.getPage(p.page),
-        base = page.getViewport({
-          scale: 1,
-          rotation: S.rotation[p.page] ?? page.rotate,
-        });
-      const region = p.region || [0, 0, 1, 1];
-      const [x, y, w, h] = region;
-      if (
-        region.length !== 4 ||
-        region.some((n) => !Number.isFinite(n) || n < 0 || n > 1) ||
-        w <= 0 ||
-        h <= 0 ||
-        x + w > 1 ||
-        y + h > 1
-      )
-        throw Error("region须为归一化[left,top,width,height]，每项0..1，原点左上。上半页=[0,0,1,0.5]；不要使用PDF点数，整页省略region。");
-      const budgets = { classify: 960, toc: 1600, locate: 2200 };
-      const purpose = p.purpose || "classify";
-      if (!budgets[purpose]) throw Error("purpose须为classify/toc/locate");
-      const scale =
-        p.scale ??
-        Math.min(
-          3,
-          budgets[purpose] / Math.max(base.width * w, base.height * h),
-        );
-      if (!Number.isFinite(scale) || scale <= 0 || scale > 3)
-        throw Error("缩放范围大于0至3");
-      const viewport = page.getViewport({
-        scale,
-        rotation: S.rotation[p.page] ?? page.rotate,
-      });
-      const image = document.createElement("canvas");
-      image.width = Math.ceil(viewport.width * w);
-      image.height = Math.ceil(viewport.height * h);
-      if (image.width * image.height > 6000000)
-        throw Error("图像过大，请缩小区域");
-      const ox = viewport.width * x,
-        oy = viewport.height * y;
-      await page.render({
-        canvasContext: image.getContext("2d"),
-        viewport,
-        transform: [1, 0, 0, 1, -ox, -oy],
-      }).promise;
-      const origin = viewport.convertToPdfPoint(ox, oy),
-        px = viewport.convertToPdfPoint(ox + 1, oy),
-        py = viewport.convertToPdfPoint(ox, oy + 1);
-      const imageToPdf = [
-        px[0] - origin[0],
-        px[1] - origin[1],
-        py[0] - origin[0],
-        py[1] - origin[1],
-        ...origin,
-      ];
-      fresh();
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify({
-              page: p.page,
-              region,
-              purpose,
-              width: image.width,
-              height: image.height,
-              imageToPdf,
-              revision: before,
-            }),
-          },
-          {
-            type: "image",
-            mimeType: "image/png",
-            data: image.toDataURL("image/png").split(",")[1],
-          },
-        ],
-      };
-    }
+    if (op === "page.image") return engineering("folio_render",{page:p.page,region:p.region,dpi:p.scale?72*p.scale:({classify:96,toc:144,locate:216}[p.purpose||"classify"]),revision:before},true);
     if (op === "bookmark.calibrate") {
       const all=await lines(), byPage={};
       for(const l of all)(byPage[l.page]??=[]).push(l);

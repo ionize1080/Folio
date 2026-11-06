@@ -96,6 +96,11 @@ class FileStore {
         "folio",
         "csv",
         "xlsx",
+        "docx",
+        "zip",
+        "xml",
+        "ttf",
+        "otf",
       ].includes(kind)
     )
       throw Error("Invalid save request");

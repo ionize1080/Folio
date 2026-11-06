@@ -150,6 +150,7 @@ class NativeBridge {
     return p;
   }
   async run({ command, bytes, sourceHandle, ...options }, onProgress) {
+    if(command==='font-tools') return this.request({command,action:options.action,options:options.options||{}});
     if (command === "table-export")
       return this.request({
         command,
@@ -179,7 +180,7 @@ class NativeBridge {
     if (
       ![
         "inspect",
-        "vector-list", "image-replace", "image-export", "document-assemble",
+        "vector-list", "image-replace", "image-export", "document-assemble", "document-utilities",
       "image-preview",
         "apply",
         "ocr",

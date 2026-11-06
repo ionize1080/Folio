@@ -2,9 +2,9 @@
 
 [English](README.md) · [简体中文](README.zh-Hans.md) · **繁體中文**
 
-Folio PDF Studio 2.2.0 是 Windows x64 上的本機 PDF 工作台。可以同時開啟多份文件，整理長文件的書籤、編輯頁面文字與圖片，或把掃描文件處理成可檢索 PDF。需要模型協助時，從工具列開啟 Chatbox。
+Folio PDF Studio 2.3.0 是 Windows x64 上的本機 PDF 工作台。可以同時開啟多份文件，整理長文件的書籤、編輯頁面文字與圖片，或把掃描文件處理成可檢索 PDF。需要模型協助時，從工具列開啟 Chatbox。
 
-[下載 Windows x64 可攜版](https://github.com/ionize1080/Folio/releases/download/v2.2.0/Folio-PDF-Studio-2.2.0-portable-win-x64.zip) · [本版說明](docs/RELEASE-2.2.0.zh-Hant.md) · [AI 使用指南](docs/AI.zh-Hant.md) · [文件索引](docs/README.md)
+[下載 Windows x64 可攜版](https://github.com/ionize1080/Folio/releases/download/v2.3.0/Folio-PDF-Studio-2.3.0-portable-win-x64.zip) · [本版說明](docs/RELEASE-2.3.0.zh-Hant.md) · [AI 使用指南](docs/AI.zh-Hant.md) · [文件索引](docs/README.md)
 
 ## 開啟第一組檔案
 
@@ -13,7 +13,7 @@ Folio PDF Studio 2.2.0 是 Windows x64 上的本機 PDF 工作台。可以同時
 3. 編輯後先套用，再按 Ctrl+S 寫入目前 PDF。原件保護預設首次另存副本。關閉含未儲存修改的普通 PDF 時，可選擇儲存、放棄或取消。需要保留段落結構及 OCR 校對進度時，在「更多工具 → 匯入 / 匯出」儲存 `.folio` 專案。
 4. 開啟「首選項」設定外觀。明暗模式可跟隨系統，內建鈷藍、青瓷、琥珀、桑葚、石墨五套配色，也可以自選重點色。介面語言預設跟隨 Windows，之前手動選擇的語言優先。
 
-同一釋出頁也提供[原始碼包](https://github.com/ionize1080/Folio/releases/download/v2.2.0/Folio-PDF-Studio-2.2.0-source.zip)、[校驗值](https://github.com/ionize1080/Folio/releases/download/v2.2.0/Folio-PDF-Studio-2.2.0-SHA256.txt)和[驗收報告](https://github.com/ionize1080/Folio/releases/download/v2.2.0/Folio-PDF-Studio-2.2.0-validation.json)。檢查更新可從「關於與使用說明 → 檢查更新」進入。
+同一釋出頁也提供[原始碼包](https://github.com/ionize1080/Folio/releases/download/v2.3.0/Folio-PDF-Studio-2.3.0-source.zip)、[校驗值](https://github.com/ionize1080/Folio/releases/download/v2.3.0/Folio-PDF-Studio-2.3.0-SHA256.txt)和[驗收報告](https://github.com/ionize1080/Folio/releases/download/v2.3.0/Folio-PDF-Studio-2.3.0-validation.json)。檢查更新可從「關於與使用說明 → 檢查更新」進入。
 
 ## 用 AI 閱讀與編輯
 
@@ -132,7 +132,7 @@ Folio PDF Studio 2.2.0 是 Windows x64 上的本機 PDF 工作台。可以同時
 
 Folio 使用 PDF.js 渲染頁面，透過本地原生引擎處理物件、排版和 OCR。Chatbox 與 Folio 共用 Electron 執行時，文件修改按檔案 ID 和修訂號路由到對應編輯器。詳見[架構與資料流](docs/ARCHITECTURE.md)。
 
-Windows 釋出任務透過了 12 個真實 Qwen 場景，並驗證打包程式、多文件切換和釋出 ZIP 升級。結果包含 2400 × 1600 彩色校樣、掃描頁 OCR、局部換圖以及流程圖重開編輯。[實測分析](docs/MCP-2.2.0-validation.zh-Hans.md) · [GitHub Actions](https://github.com/ionize1080/Folio/actions/runs/41994404438)
+Windows 釋出任務透過了 12 個真實 Qwen 場景，並驗證打包程式、多文件切換和釋出 ZIP 升級。結果包含 2400 × 1600 彩色校樣、掃描頁 OCR、局部換圖以及流程圖重開編輯。[實測分析](docs/MCP-2.3.0-validation.zh-Hans.md) · [GitHub Actions](https://github.com/ionize1080/Folio/actions/runs/41994404438)
 
 ## 已知問題與適用邊界
 

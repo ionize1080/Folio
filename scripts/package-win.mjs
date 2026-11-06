@@ -74,6 +74,9 @@ else await extract(runtime, { dir: out });
 for (const item of [
   "src",
   "node_modules/opencc-js",
+  "node_modules/@mozilla/readability",
+  "node_modules/dompurify",
+  "web-pdf.cjs",
   "assets",
   "main.cjs",
   "ai-host.cjs",
@@ -122,7 +125,7 @@ await fs.access(path.join(root, "native/runtime/python.exe"));
 await fs.cp(path.join(root, "native"), path.join(out, "resources/native"), {
   recursive: true,
   filter: (p) =>
-    !p.includes("__pycache__") && !p.split(path.sep).includes("build-wheels"),
+    !p.includes("__pycache__") && !p.split(path.sep).includes("build-wheels") && !p.endsWith('.msi'),
 });
 for (const component of ['Chatbox','pdf-runtime']) {
   await fs.access(path.join(root,'.ai-runtime',component));

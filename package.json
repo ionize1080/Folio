@@ -1,7 +1,7 @@
 {
   "name": "folio-pdf-studio",
   "productName": "Folio PDF Studio",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "description": "Offline PDF editing, bookmark rules and OCR review for Windows",
   "type": "module",
   "main": "main.cjs",
@@ -31,6 +31,7 @@
     "resedit": "^2.0.3"
   },
   "dependencies": {
+    "@mozilla/readability": "0.6.0",
     "dompurify": "^3.4.15",
     "opencc-js": "^1.0.5"
   },
