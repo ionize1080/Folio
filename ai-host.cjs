@@ -57,6 +57,16 @@ function installAIHost({ app, win, ipc, tabs, sender, requireActive }) {
     return result.split(",")[1];
   });
   ipc("ai-display", (mode) => dock.setMode(mode));
+  const reviewConversion = async options => {
+    const wc=dock.view?.webContents;
+    if(!wc || wc.isDestroyed()) throw Error('请先打开 Chatbox 并配置默认模型，然后再次转换。');
+    const payload=JSON.stringify({pages:options.pages,kind:options.kind});
+    if(payload.length>160000 || !['office','article'].includes(options.kind)) throw Error('AI 复核内容过大，请减少页数');
+    const result=await wc.executeJavaScript('window.folioReviewConversion('+payload+')');
+    if(JSON.stringify(result).length>800000) throw Error('AI 结构报告过大');
+    return result;
+  };
+  ipc("review-conversion", reviewConversion);
   ipc("ai-progress", (message) => dock.send("folio:progress", String(message).slice(0,200)));
   ipc("ai-overlay", hidden => {
     tabs.entries.get(sender()).overlay = hidden === true;
@@ -245,5 +255,6 @@ function installAIHost({ app, win, ipc, tabs, sender, requireActive }) {
     for (const c of clients) c.destroy();
     server.close();
   });
+  return {reviewConversion};
 }
 module.exports = { installAIHost };

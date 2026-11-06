@@ -79,3 +79,15 @@ All font matching runs locally on embedded and locally installed fonts. Names ar
 对话框 HTML 净化使用随包 DOMPurify；版本由 package-lock.json 锁定。许可原文：`src/vendor/DOMPurify-LICENSE`（Apache-2.0 或 MPL-2.0 双许可，按组件原文适用）。
 
 PDF MCP source extensions are supplied as `integrations/pdf-mcp-folio.patch` (batch APIs, registry, docs and regression tests) against the pinned upstream.
+
+## 2.3 portable conversion components
+
+These unmodified components are restored from hash-pinned official distributions by `scripts/restore-conversion.ps1`. Upstream license texts remain in their portable directories and JAR metadata. Corresponding source and build instructions are available at the linked upstream version/tag; Folio integration source is included in the companion source archive.
+
+- Ghostscript 10.08.0: GNU AGPL-3.0-or-later. Source: https://github.com/ArtifexSoftware/ghostpdl/tree/gs10080 and https://github.com/ArtifexSoftware/ghostpdl-downloads/releases/tag/gs10080 . The combined Folio distribution retains its existing AGPL obligations.
+- LibreOffice 26.2.7: MPL-2.0 and upstream third-party licenses, preserved in `native/engines/libreoffice`. Source: https://download.documentfoundation.org/libreoffice/src/26.2.7/ ; build instructions: https://wiki.documentfoundation.org/Development/BuildingOnWindows . Administrative extraction does not install Office or change associations.
+- Eclipse Temurin 21.0.13+9 JRE: GPL-2.0 with Classpath Exception and bundled third-party notices in the JRE `legal` directory. Source/release: https://github.com/adoptium/temurin21-binaries/releases/tag/jdk-21.0.13%2B9 ; OpenJDK source: https://github.com/adoptium/jdk21u/tree/jdk-21.0.13%2B9 .
+- veraPDF 1.30.3: GPLv3+ / MPLv2+ dual licensing; corresponding source: https://github.com/veraPDF/veraPDF-apps/tree/v1.30.3 and https://github.com/veraPDF/veraPDF-library/tree/v1.30.3 . Dependency notices are retained inside the distributed JARs.
+- pdf2docx 0.5.13 (MIT), python-docx 1.2.0 (MIT), openpyxl 3.1.5 (MIT), markdown-it-py 4.2.0 (MIT), and dependencies: exact wheels/hashes in `native/runtime-lock.json`; licenses are copied from the official wheel metadata by `scripts/stage-native.py`. PyMuPDF's AGPL notice above still applies to the conversion stack.
+
+System fonts selected by users are not redistributed. Font embedding restrictions reported by OS/2 fsType are exposed; restricted embedding and prohibited subsetting are rejected by the engineering tool. Users remain responsible for the terms of their selected font licenses.

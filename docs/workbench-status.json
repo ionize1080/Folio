@@ -1,7 +1,41 @@
 {
-  "status": "in-progress-not-released",
-  "implemented": ["Automatic continuation at 32 tool steps with transcript checkpoints", "Revision-scoped replay deduplication, failure/no-progress guards and run budgets", "Chromium URL PDF export with original and article reading modes", "Document utility UI with categorized navigation and standard fields", "Metadata including Creator/Producer/custom keys", "Linearization", "Lossless compression levels", "AES-256 encryption with existing qpdf decryption unchanged", "Basic AcroForm creation/filling", "PNG ZIP and text export", "MCP tools for new features"],
-  "verified": ["292 unit tests", "40-step hosted Chatbox task", "No-progress loop stopped after 4 provider calls", "Native document utilities and reopened field checks", "Real Qwen metadata edit and independently reopened output", "Real W3C article PDF export and first-page visual inspection", "800/1080/1500 px document utility layout"],
-  "remaining": ["High-quality Word/Excel export and AI reconstruction with fidelity corpus", "Office/Markdown/text import conversion UI and MCP", "PDF/A conversion plus independent conformance validation", "Lossy image compression presets and detailed image parameters", "AI-assisted article refinement", "Complete practical PDF-XChange benchmark (launched and read UI, file-dialog automation unreliable)", "Whole-application UI and icon review including language coverage", "Full package checks and GitHub Actions release"],
-  "designReferences": ["https://developer.apple.com/design/human-interface-guidelines/toolbars", "https://developer.apple.com/design/human-interface-guidelines/layout", "https://developer.apple.com/design/human-interface-guidelines/icons"]
+  "status": "release-candidate-under-validation",
+  "implemented": [
+    "Automatic continuation with checkpoint, bounded retries, write replay protection and live reads",
+    "Chromium article/original URL printing with optional AI typography",
+    "Metadata, linearization, encryption, granular lossless/lossy compression, forms and image/text export",
+    "Word layout/flow export, AI source-grounded headings/tables, geometry repair and local OCR preparation",
+    "Excel source-grounded AI tables, merged cells, literal formula protection and leading-zero preservation",
+    "Office, OpenDocument, Markdown, text, CSV, HTML and common images import",
+    "Mixed-format merging with drag/reorder and source/bookmark roots",
+    "PDF/A conversion with required independent veraPDF validation",
+    "OCG creation, visibility/usage/locking/ordering and XObject assignment",
+    "Tagged structure inspection, alternative text, language, roles and sibling order; independent PDF/UA machine validation",
+    "PDF/X output with ICC profile and explicitly partial print preflight",
+    "MCP native font inspection, shaping through paragraph layout, subset/instance/cmap repair and undoable font replacement",
+    "MCP actual native page pixels, crops, DPI, temporary layer states and imageToPdf coordinates",
+    "Same-chat live page, selection rectangles and active-tab routing",
+    "Searchable categorized tools and responsive font/structure/conversion dialogs"
+  ],
+  "verified": [
+    "Native conversion and engineering corpus",
+    "Real Qwen Word/Excel, article typography and MCP PDF/A",
+    "Real same-chat page/selection/tab tracking and vision",
+    "UI fonts, layers, tags, print and 800/1500px workbench",
+    "Practical PDF-XChange Word, Excel, PDF/A and combine-file dialogs"
+  ],
+  "remaining": [
+    "Exact release package checks and GitHub Actions publication"
+  ],
+  "limitations": [
+    "PDF/X preflight is partial, not complete ISO certification",
+    "PDF/UA machine validation cannot establish semantic quality",
+    "Complex Office conversions can need manual review; known Apache POI legacy pictures.ppt import limitation",
+    "Not a claim of exhaustive commercial parity"
+  ],
+  "designReferences": [
+    "https://developer.apple.com/design/human-interface-guidelines/toolbars",
+    "https://developer.apple.com/design/human-interface-guidelines/layout",
+    "https://developer.apple.com/design/human-interface-guidelines/icons"
+  ]
 }

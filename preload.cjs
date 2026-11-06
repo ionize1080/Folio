@@ -5,6 +5,8 @@ const listen = (channel, callback) => {
   return () => ipcRenderer.removeListener(channel, fn);
 };
 contextBridge.exposeInMainWorld("desktop", {
+  reviewConversion: options => ipcRenderer.invoke("review-conversion",options),
+  mergeFiles: () => ipcRenderer.invoke("merge-files"),
   webPDF: options => ipcRenderer.invoke("web-pdf",options),
   systemLanguages: () => ipcRenderer.invoke("system-languages"),
   openDocuments: () => ipcRenderer.invoke("tabs-open"),

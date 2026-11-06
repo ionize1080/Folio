@@ -8,6 +8,12 @@ vm.runInNewContext(
   { window, Date, Map, Promise, Error },
 );
 const run = window.folioContinueStream;
+test('live context reads with the SAME revision follow page changes through normalized MCP names',async()=>{
+ let page=1,calls=0;
+ await collect(run({messages:[],options:{tools:{mcp__folio_pdf__folio_document:{execute:async()=>({revision:'unchanged',currentPage:page,reads:++calls})}}},model:{async *chatStream(_,o){
+  const args={action:'context',revision:'unchanged'};const first=await o.tools.mcp__folio_pdf__folio_document.execute(args);page=2;const second=await o.tools.mcp__folio_pdf__folio_document.execute(args);assert.equal(first.currentPage,1);assert.equal(second.currentPage,2);yield {type:'finish',finishReason:'stop'};
+ }}}));assert.equal(calls,2);
+});
 async function collect(g) {
   const out = [];
   for await (const c of g) out.push(c);

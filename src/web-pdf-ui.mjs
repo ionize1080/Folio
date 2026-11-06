@@ -1,6 +1,7 @@
 import { icon } from "./icons.mjs";
 export function installWebPDF({ writeFile }) {
   const run = async (options) => {
+    if(options.ai)await window.desktop.aiOpen();
     const result = await window.desktop.webPDF(options);
     const name =
       (result.title || "网页")
@@ -23,7 +24,7 @@ export function installWebPDF({ writeFile }) {
     const d = document.createElement("dialog");
     d.className = "assembly-dialog";
     d.innerHTML =
-      '<header><h2>网页转 PDF</h2><button data-close>×</button></header><label>网页地址<input data-url type="url" placeholder="https://…"></label><label>版式<select data-mode><option value="reader">精致阅读 · 正文与图片</option><option value="original">原网页 · 网站打印版式</option></select></label><p>阅读模式去除导航等干扰，保留正文和来源。适合文章；复杂应用页面请选择原网页。</p><div class="form-grid"><label>字号（pt）<input data-font type="number" min="9" max="20" value="12"></label><label>行距<input data-line type="number" min="1.2" max="2.4" step="0.05" value="1.75"></label><label>纸张<select data-theme><option value="paper">柔和米白</option><option value="white">纯白</option></select></label></div><p data-status role="status"></p><footer><button data-run>生成并另存…</button></footer>';
+      '<header><h2>网页转 PDF</h2><button data-close aria-label="关闭">' + icon('close') + '</button></header><label>网页地址<input data-url type="url" placeholder="https://…"></label><label>版式<select data-mode><option value="reader">精致阅读 · 正文与图片</option><option value="original">原网页 · 网站打印版式</option></select></label><p>阅读模式去除导航等干扰，保留正文和来源。适合文章；复杂应用页面请选择原网页。</p><div class="form-grid"><label>字号（pt）<input data-font type="number" min="9" max="20" value="12"></label><label>行距<input data-line type="number" min="1.2" max="2.4" step="0.05" value="1.75"></label><label>纸张<select data-theme><option value="paper">柔和米白</option><option value="white">纯白</option></select></label></div><label>排版辅助<select data-ai><option value="false">手动选择参数</option><option value="true">AI 优选阅读排版</option></select></label><p class="hint">AI 仅优化字号、行距与纸张，不改写原文；会向 Chatbox 默认服务发送文章摘录。</p><p data-status role="status"></p><footer><button data-run>生成并另存…</button></footer>';
     document.body.append(d);
     d.showModal();
     const q = (s) => d.querySelector(s);
@@ -46,6 +47,7 @@ export function installWebPDF({ writeFile }) {
       q("[data-status]").textContent = "正在渲染网页与排版…";
       try {
         const r = await run({
+          ai: q("[data-ai]").value === "true",
           url: q("[data-url]").value,
           mode: q("[data-mode]").value,
           fontSize: Number(q("[data-font]").value),

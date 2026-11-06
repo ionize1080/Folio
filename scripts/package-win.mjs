@@ -125,7 +125,7 @@ await fs.access(path.join(root, "native/runtime/python.exe"));
 await fs.cp(path.join(root, "native"), path.join(out, "resources/native"), {
   recursive: true,
   filter: (p) =>
-    !p.includes("__pycache__") && !p.split(path.sep).includes("build-wheels"),
+    !p.includes("__pycache__") && !p.split(path.sep).includes("build-wheels") && !p.endsWith('.msi'),
 });
 for (const component of ['Chatbox','pdf-runtime']) {
   await fs.access(path.join(root,'.ai-runtime',component));

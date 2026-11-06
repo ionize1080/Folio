@@ -640,6 +640,15 @@ export class PageSurface {
     this.s.currentText = e.content;
     this.onActive(e);
   }
+  context() {
+    const {host}=this,x=host.scrollLeft,y=host.scrollTop,w=host.clientWidth,h=host.clientHeight;
+    const visible=this.boxes.map(b=>{
+      const left=Math.max(x,b.x),top=Math.max(y,b.y),right=Math.min(x+w,b.x+b.w),bottom=Math.min(y+h,b.y+b.h);
+      return {page:b.page,region:[(left-b.x)/b.w,(top-b.y)/b.h,(right-left)/b.w,(bottom-top)/b.h],area:Math.max(0,right-left)*Math.max(0,bottom-top)};
+    }).filter(b=>b.area>0).sort((a,b)=>b.area-a.area);
+    return {currentPage:this.s.flowEdit?.editing?this.s.flowEdit.page:visible[0]?.page||this.s.page,
+      visiblePages:visible.slice(0,16).map(({area,...rest})=>rest),zoom:this.s.scale,layout:this.layout};
+  }
   async go(page, target = null, history = true) {
     if (!this.s.pdf) return;
     const nav = ++this.navigation;

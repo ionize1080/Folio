@@ -150,6 +150,7 @@ class NativeBridge {
     return p;
   }
   async run({ command, bytes, sourceHandle, ...options }, onProgress) {
+    if(command==='font-tools') return this.request({command,action:options.action,options:options.options||{}});
     if (command === "table-export")
       return this.request({
         command,

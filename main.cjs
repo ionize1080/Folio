@@ -162,7 +162,7 @@ app.whenReady().then(async () => {
   tabs = new DocumentTabs(win, editorOptions, configureEditor, readDocument);
   const requireActive = () => sender() === tabs.active.wc;
   Menu.setApplicationMenu(null);
-  require("./ai-host.cjs").installAIHost({app, win, ipc, tabs, sender, requireActive});
+  const aiHost = require("./ai-host.cjs").installAIHost({app, win, ipc, tabs, sender, requireActive});
   let closing = false;
   win.on("close", e => {
     if (allowClose || ![...tabs.entries.values()].some(t => t.dirty || t.busy)) return;
@@ -279,6 +279,7 @@ app.whenReady().then(async () => {
     const exts =
       kind === "pdf"
         ? ["pdf", "folio"]
+        : kind === "office" ? ["doc","docx","xls","xlsx","ppt","pptx","odt","ods","odp","rtf","txt","csv","md","html"]
         : kind === "json"
           ? ["json"]
           : ["txt", "tsv"];
@@ -326,7 +327,15 @@ app.whenReady().then(async () => {
     if((await fs.stat(file)).size>32*1024**2) throw Error("Image exceeds 32 MiB");
     return (await fs.readFile(file)).toString("base64");
   });
-  ipc("web-pdf", data => require("./web-pdf.cjs").render(data));
+  ipc("web-pdf", data => require("./web-pdf.cjs").render(data, aiHost.reviewConversion));
+  ipc("merge-files", async () => {
+    const r=await dialog.showOpenDialog(win,{properties:['openFile','multiSelections'],filters:[{name:'Documents and images',extensions:['pdf','doc','docx','xls','xlsx','ppt','pptx','odt','ods','odp','rtf','txt','csv','md','html','png','jpg','jpeg','webp','bmp','tif','tiff','gif']}]});
+    if(r.canceled)return [];
+    if(r.filePaths.length>100)throw Error('每批最多 100 个文件');
+    let total=0;const files=[];
+    for(const file of r.filePaths){total+=(await fs.stat(file)).size;if(total>100*1024**2)throw Error('本批输入超过 100 MB');files.push({name:path.basename(file),bytes:await fs.readFile(file)});}
+    return files;
+  });
   ipc("save", (data) => fileStore.save(data));
   ipc("save-prepare", (data) => fileStore.prepare(data));
   ipc("copy-text", (text) => {

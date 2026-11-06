@@ -1,4 +1,5 @@
 import { getModel } from '@shared/providers'
+import './folio-conversion-review'
 import { createModelDependencies } from './adapters'
 import platform from './platform'
 import { settingsStore } from './stores/settingsStore'

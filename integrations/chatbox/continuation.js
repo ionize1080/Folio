@@ -49,7 +49,16 @@ window.folioContinueStream = async function* ({
               const key = stable([name, args]);
               // Revision-scoped writes can be replayed safely using their original result.
               // Reads remain live; a newly requested revision is a distinct operation.
-              const revision = args?.revision ?? args?.options?.revision;
+              const toolName=name.replace(/^mcp__.*?__/, ""),action=args?.action,operation=args?.operation;
+              const readOnly=toolName==='folio_render'||(toolName==='folio_fonts'&&action!=='apply')||
+                (toolName==='folio_document'&&!['merge','split','ocr'].includes(action))||
+                (toolName==='folio_bookmarks'&&action==='read')||
+                (toolName==='folio_image'&&['inspect','preview','help'].includes(action))||
+                (toolName==='folio_vector'&&['list','read'].includes(action))||
+                (toolName==='folio_structure'&&(['validate-pdfua','preflight-pdfx'].includes(action)||(['layers','tags'].includes(action)&&(!args.options?.operation||args.options.operation==='inspect'))))||
+                (toolName==='folio_document_utilities'&&['inspect','forms','conversion-plan','validate-pdfa'].includes(action))||
+                (toolName==='folio_operation'&&['document.context','document.describe','document.brief','document.search','page.text','page.image','page.objects'].includes(operation));
+              const revision = !readOnly&&(args?.revision ?? args?.options?.revision);
               if (revision && results.has(key)) {
                 const count = (replays.get(key) || 0) + 1;
                 replays.set(key, count);

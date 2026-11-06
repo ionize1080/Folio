@@ -2,7 +2,7 @@ const sources = new WeakMap();
 export async function nativeRequest(data) {
   if (!window.desktop?.native) throw Error("此功能需要完整桌面运行包");
   if (
-    !data.bytes ||
+    !data.bytes || data.bytes.length < 5 ||
     !window.desktop.registerSource ||
     ![
       "inspect",

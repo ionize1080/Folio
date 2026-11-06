@@ -4,6 +4,29 @@ import base64,io,json,zipfile
 def process(args):
  import pikepdf
  action=args.get('action');options=args.get('options') or {}
+ if action in ('layers','tags','render-page'):
+  from pdf_structure import layers,tags,render
+  return {'layers':layers,'tags':tags,'render-page':render}[action](args)
+ if action in ('pdfx','preflight-pdfx'):
+  from pdf_print import process as print_process
+  return print_process(args)
+ if action=='validate-pdfua':
+  from conversion_engines import validate
+  standard=options.get('standard','ua1')
+  if standard not in ('ua1','ua2'):raise ValueError('支持 PDF/UA-1 或 PDF/UA-2')
+  return {**validate(args['input'],standard),'humanReviewRequired':True,'note':'机器检查不判断阅读顺序和替代文字的语义质量。'}
+ if action=='compress' and options.get('preset','lossless')!='lossless':
+  from image_compression import process as compress
+  return compress(args)
+ if action in ('pdfa','validate-pdfa'):
+  from conversion_engines import pdfa
+  return pdfa(args)
+ if action=='import-office':
+  from conversion_engines import office
+  return office(args)
+ if action in ('conversion-plan','export-word','export-excel'):
+  from office_export import process as convert
+  return convert(args)
  if action in ('inspect','metadata','linearize','compress','encrypt'):
   with pikepdf.open(args['input'],password=options.get('password','')) as pdf:
    info={'pages':len(pdf.pages),'metadata':{str(k).lstrip('/'):str(v) for k,v in pdf.docinfo.items()},'encrypted':pdf.is_encrypted,'linearized':pdf.is_linearized}

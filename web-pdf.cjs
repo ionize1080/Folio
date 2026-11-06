@@ -25,7 +25,7 @@ function validate(options = {}) {
   if (!["paper", "white"].includes(theme)) throw Error("无效主题");
   return { url: url.href, mode, fontSize, lineHeight, theme };
 }
-async function render(options) {
+async function render(options, review) {
   const o = validate(options),
     partition = "folio-web-" + require("node:crypto").randomUUID();
   const ses = session.fromPartition(partition);
@@ -77,6 +77,12 @@ async function render(options) {
             throw Error("未识别到足够正文，请使用原网页模式");
           if (article.content.length > 8 * 1024 * 1024)
             throw Error("网页正文过大");
+          if(options.ai === true){
+            if(!review)throw Error('AI 排版服务未就绪');
+            const choice=await review({kind:'article',pages:{title:article.title,excerpt:article.textContent.slice(0,8000)}});
+            if(!Number.isFinite(choice.fontSize)||choice.fontSize<10||choice.fontSize>14||!Number.isFinite(choice.lineHeight)||choice.lineHeight<1.5||choice.lineHeight>2||!['paper','white'].includes(choice.theme))throw Error('AI 排版参数无效');
+            Object.assign(o,{fontSize:choice.fontSize,lineHeight:choice.lineHeight,theme:choice.theme});
+          }
           target = make();
           await target.loadURL("about:blank");
           title = article.title || title;
@@ -111,7 +117,7 @@ async function render(options) {
       new Promise((_, reject) => {
         timer = setTimeout(
           () => reject(Error("网页生成超过 60 秒，请稍后重试")),
-          60000,
+          options.ai === true ? 240000 : 60000,
         );
       }),
     ]);

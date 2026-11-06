@@ -314,6 +314,9 @@ def run(args, *, _preview=False):
  if args.get('command')=='font-recommend':
   from font_similarity import recommend
   return {'fonts':recommend(args.get('fontKey'),str(args.get('missing',''))[:100000],str(args.get('sample',''))[:500])}
+ if args.get('command')=='font-tools':
+  from font_tools import process
+  return process(args)
  if args.get('command')=='font-catalog':
   from system_fonts import list_fonts
   return list_fonts()
