@@ -1,5 +1,14 @@
 {
-  "status": "release-candidate-under-validation",
+  "status": "released-with-documented-limitations",
+  "release": {
+    "version": "2.3.0",
+    "url": "https://github.com/ionize1080/Folio/releases/tag/v2.3.0",
+    "publishedAt": "2026-11-06T17:59:49Z",
+    "sourceCommit": "5984385d846673ae7e2626f7762b9ce59209ceb8",
+    "actionsRun": "https://github.com/ionize1080/Folio/actions/runs/42262611856",
+    "validationReport": "https://github.com/ionize1080/Folio/releases/download/v2.3.0/Folio-PDF-Studio-2.3.0-validation.json",
+    "publicAssetDigestsVerified": true
+  },
   "implemented": [
     "Automatic continuation with checkpoint, bounded retries, write replay protection and live reads",
     "Chromium article/original URL printing with optional AI typography",
@@ -22,16 +31,20 @@
     "Real Qwen Word/Excel, article typography and MCP PDF/A",
     "Real same-chat page/selection/tab tracking and vision",
     "UI fonts, layers, tags, print and 800/1500px workbench",
-    "Practical PDF-XChange Word, Excel, PDF/A and combine-file dialogs"
+    "Practical PDF-XChange Word, Excel, PDF/A and combine-file dialogs",
+    "Five independent Windows acceptance suites on the exact release commit",
+    "MCP regression: 529 passed, 13 skipped, merged line and branch coverage 81.522% with two workers",
+    "Six final packaged application checks in two isolated lanes",
+    "Exact release ZIP updater, preserved user profile and matching executable/application hashes",
+    "Public stable GitHub Actions release with all four asset digests verified"
   ],
-  "remaining": [
-    "Exact release package checks and GitHub Actions publication"
-  ],
+  "remaining": [],
   "limitations": [
     "PDF/X preflight is partial, not complete ISO certification",
     "PDF/UA machine validation cannot establish semantic quality",
     "Complex Office conversions can need manual review; known Apache POI legacy pictures.ppt import limitation",
-    "Not a claim of exhaustive commercial parity"
+    "Not a claim of exhaustive commercial parity",
+    "The exact Windows 10 21H1 target was not tested; Windows acceptance used standard hosted runners"
   ],
   "designReferences": [
     "https://developer.apple.com/design/human-interface-guidelines/toolbars",
