@@ -1,5 +1,6 @@
 const path=require('node:path'),fs=require('node:fs'),assert=require('node:assert/strict');
 (async()=>{const {app,page}=await require('./creative-harness.cjs')();const checks=[];try{
+  await page.evaluate(async()=>(await import('./i18n.mjs')).setLanguage('zh-Hans'));
   const output=path.resolve('tests/output');let savePath=path.join(output,'organizer-ui.pdf');
   async function pick(file){await app.evaluate(({dialog},file)=>{dialog.showOpenDialog=async()=>({canceled:false,filePaths:[file]});},path.resolve(file));}
   async function target(file){savePath=path.join(output,file);await app.evaluate(({dialog},file)=>{dialog.showSaveDialog=async()=>({canceled:false,filePath:file});},savePath);}
@@ -33,7 +34,8 @@ const path=require('node:path'),fs=require('node:fs'),assert=require('node:asser
   for(const kind of ['word','excel']){
     await target('office-ui.'+(kind==='word'?'docx':'xlsx'));await page.locator(`[data-ribbon-command=export-${kind}]`).click();
     const form=page.locator('.document-tools');assert.equal(await form.locator('[data-key=ai]').inputValue(),'false');await form.locator('[data-run]').click();
-    await page.waitForFunction(()=>document.querySelector('.document-tools [data-status]')?.textContent.includes('已保存'),null,{timeout:120000});
+    await page.waitForFunction(()=>!document.querySelector('.document-tools [data-run]').disabled,null,{timeout:120000});
+    assert.match(await form.locator('[data-status]').innerText(),/已保存/);
     assert(fs.readFileSync(savePath).subarray(0,2).equals(Buffer.from('PK')));await form.locator('[data-close]').click();
   }
   checks.push('Visible Word and Excel ribbon commands produce local Office files');

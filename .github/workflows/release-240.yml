@@ -222,7 +222,7 @@ jobs:
 
         $env:TESSDATA_PREFIX="$PWD\.ai-runtime\pdf-runtime\tesseract\tessdata"
 
-        .venv-ai\Scripts\python.exe -m pytest integrations/pdf-mcp-upstream/tests -q -n 2 --dist loadscope --max-worker-restart=0 --cov-config=integrations/pdf-mcp-upstream/pyproject.toml
+        .venv-ai\Scripts\python.exe -m pytest integrations/pdf-mcp-upstream/tests -p scripts.mcp_test_isolation -q -n 2 --dist loadscope --max-worker-restart=0 --cov-config=integrations/pdf-mcp-upstream/pyproject.toml
         --junitxml=tests/output/mcp-junit.xml --cov-report=json:tests/output/mcp-coverage.json --durations=12
 
         if ($LASTEXITCODE) {exit $LASTEXITCODE}
