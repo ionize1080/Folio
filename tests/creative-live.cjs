@@ -20,8 +20,8 @@ const fs=require('node:fs'),path=require('node:path'),assert=require('node:asser
   const model=await require('./ai-live-support.cjs').configure(chat);await host.evaluate(()=>window.desktop.aiApproval(true));
   async function ask(name,prompt){
    const start=Date.now(),completed=await chat.evaluate(()=>window.folioProgress.status().completed),first=await app.evaluate(()=>globalThis.creativeTrace.length);
-   await chat.locator('textarea[placeholder]').first().fill(prompt);await chat.locator('textarea[placeholder]').first().press('Enter');
-   try{await chat.waitForFunction(n=>window.folioProgress.status().completed>n,completed,{timeout:600000});}
+   try{await require('./ai-live-support.cjs').send(chat,prompt);await chat.waitForFunction(n=>window.folioProgress.status().completed>n,completed,{timeout:600000});}
+   catch(error){console.error('Qwen acceptance stalled',name,JSON.stringify(await app.evaluate(()=>({apiRequests:globalThis.creativeApi.length,tools:globalThis.creativeTrace.map(t=>({name:t.name,action:t.arguments?.action,completed:t.completed,error:t.error}))}))),(await chat.locator('body').innerText()).slice(-3000));throw error;}
    finally{fs.writeFileSync(path.join(out,'creative-live-'+name+'.txt'),await chat.locator('body').innerText());fs.writeFileSync(path.join(out,'creative-live-trace.json'),JSON.stringify(await app.evaluate(()=>globalThis.creativeTrace),null,2));}
    const trace=(await app.evaluate(()=>globalThis.creativeTrace)).slice(first);assert(trace.some(t=>t.completed&&!t.error),'Real model must complete actual tools');
    console.log('Qwen',name,Math.round((Date.now()-start)/1000)+'s',trace.map(t=>t.name+':'+(t.arguments.action||'organize')+(t.error?' ERROR':'')));

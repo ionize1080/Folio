@@ -65,7 +65,16 @@ patch(homePath, [[homeSource.slice(start,end), `
 `]]);
 patch('src/renderer/components/InputBox/InputBox.tsx', [
   ['{currentSessionId && <CompactionStatus', '<div id="folio-progress-slot" style={{display:"contents"}} />\n          {currentSessionId && <CompactionStatus'],
-  ['constructedMessage: preConstructedMessage.message,\n          needGenerating,','constructedMessage: await (window as any).folioCaptureMessage(preConstructedMessage.message),\n          needGenerating,'],
+  ['        // Use the already constructed message\n        if (!preConstructedMessage.message) {\n          console.error(\'No constructed message available\')\n          return\n        }', `        // Build from the submitted draft; a passive preview effect may still hold the previous text.
+        const submittedMessage = sessionHelpers.constructUserMessage(
+          inputRef.current?.value ?? messageInput,
+          pictureKeys,
+          preConstructedMessage.preprocessedFiles,
+          preConstructedMessage.preprocessedLinks
+        )`],
+  ['          preConstructedMessage.message.contentParts.find', '          submittedMessage.contentParts.find'],
+  ['constructedMessage: preConstructedMessage.message,\n          needGenerating,','constructedMessage: await (window as any).folioCaptureMessage(submittedMessage),\n          needGenerating,'],
+  ['                onClick={generating ? onStopGenerating : () => handleSubmit()}', '                aria-label={generating ? t(\'Stop\') : t(\'Send\')}\n                data-folio-send\n                onClick={generating ? onStopGenerating : () => handleSubmit()}'],
   ['{featureFlags.knowledgeBase && !isSmallScreen && (','<span id="folio-toolbar-slot" />\n                {featureFlags.knowledgeBase && !isSmallScreen && (']]);
 // A responsive/initialization remount can happen inside the upstream 300ms
 // debounce. Retain the latest draft synchronously and flush on page departure.
