@@ -17,3 +17,8 @@ release-assets/
 .venv-ai/
 native/engines/
 .ci-cache/
+.creative-downloads/
+.creative-runtime/
+.creative-sources/
+.creative-web/
+.creative-toolchain/

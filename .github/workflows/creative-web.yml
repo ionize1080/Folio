@@ -1,0 +1,39 @@
+name: Build embedded Folio editors
+on:
+  workflow_dispatch:
+  workflow_call:
+  push:
+    branches: [feat/creative-studio]
+    paths: ['integrations/creative/**', 'scripts/*-creative.py', '.github/workflows/creative-web.yml']
+permissions:
+  contents: read
+concurrency:
+  group: creative-web-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  build:
+    name: Embedded ${{ matrix.kind }} engine
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    strategy:
+      fail-fast: false
+      matrix:
+        kind: [photo, vector]
+    env:
+      CARGO_BUILD_JOBS: 3
+      CARGO_NET_GIT_FETCH_WITH_CLI: 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Rust toolchain
+        run: rustup toolchain install 1.95.0 --profile minimal --target wasm32-unknown-unknown && rustup default 1.95.0
+      - name: Build from pinned source
+        run: python scripts/build-creative.py ${{ matrix.kind }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: creative-${{ matrix.kind }}
+          path: .creative-web/${{ matrix.kind }}/
+          if-no-files-found: error
+          retention-days: 7

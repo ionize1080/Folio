@@ -1,0 +1,5 @@
+{
+  "rust": "1.95.0",
+  "photo": {"repository":"https://github.com/storytold/photocraft.git","revision":"efb7ebd0c0dab1fc108ee4642aa47c22694271a8","version":"0.21.0","package":"photocraft-web"},
+  "vector": {"repository":"https://github.com/storytold/vectorcraft.git","revision":"654749c16eb20b6d3182a96defb66e11d1a9649a","version":"0.22.0","package":"vectorcraft-web"}
+}
