@@ -5,6 +5,7 @@ const listen = (channel, callback) => {
   return () => ipcRenderer.removeListener(channel, fn);
 };
 contextBridge.exposeInMainWorld("desktop", {
+  creativeStudio: options => ipcRenderer.invoke('creative-studio',options),
   reviewConversion: options => ipcRenderer.invoke("review-conversion",options),
   mergeFiles: () => ipcRenderer.invoke("merge-files"),
   webPDF: options => ipcRenderer.invoke("web-pdf",options),

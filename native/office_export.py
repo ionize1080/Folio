@@ -92,7 +92,7 @@ def excel(plan, review, path, options):
     from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
     from openpyxl.comments import Comment
     from openpyxl.utils import get_column_letter
-    wb=Workbook();wb.remove(wb.active);count=0;text_sheets=0;assigned=0;total=sum(len(p['words']) for p in plan['pages'])
+    wb=Workbook();wb.remove(wb.active);count=0;text_sheets=0;assigned=set();total=sum(len(p['words']) for p in plan['pages'])
     audit=wb.create_sheet('Source');audit.append(['Page','Token','Original text','Left','Top','Right','Bottom'])
     for p in plan['pages']:
         words={w['id']:w for w in p['words']}
@@ -121,7 +121,7 @@ def excel(plan, review, path, options):
                 rs=data.get('rowSpan',1);cs=data.get('colSpan',1)
                 if rs>1 or cs>1:ws.merge_cells(start_row=cell.row,start_column=cell.column,end_row=cell.row+rs-1,end_column=cell.column+cs-1)
             if fallback:text_sheets+=1
-            else:assigned+=len(seen);count+=1
+            else:assigned.update((p['page'],token) for token in seen);count+=1
             for row in ws:
                 for cell in row:
                     cell.alignment=Alignment(vertical='top',wrap_text=True)
@@ -134,7 +134,7 @@ def excel(plan, review, path, options):
             ws.print_options.horizontalCentered=True;ws.print_title_rows='1:1'
     audit.freeze_panes='A2';audit.auto_filter.ref=audit.dimensions;audit.column_dimensions['C'].width=60
     wb.active=1 if len(wb.worksheets)>1 else 0;wb.save(path)
-    return {'tables':count,'textSheets':text_sheets,'sheets':count+text_sheets,'sourceTokens':total,'tableTokens':assigned,'sourceCoverage':1.0,'sourceSheet':'Source'}
+    return {'tables':count,'textSheets':text_sheets,'sheets':count+text_sheets,'sourceTokens':total,'tableTokens':len(assigned),'sourceCoverage':1.0,'evidenceCoverage':1.0,'tableAssignmentCoverage':len(assigned)/total if total else 0,'unassignedTokens':total-len(assigned),'sourceSheet':'Source','coverageMeaning':'Evidence coverage measures preserved source tokens, not cell assignment accuracy.'}
 
 def all_paragraphs(doc):
     yield from doc.paragraphs

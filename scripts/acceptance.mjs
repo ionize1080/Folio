@@ -1,13 +1,17 @@
-import { readFileSync, readdirSync } from "node:fs";
+import { readFileSync, readdirSync, mkdirSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 const manifest = JSON.parse(
   readFileSync(new URL("./acceptance.json", import.meta.url)),
 );
 const mode = process.argv[2] || "quick";
 const stages = mode === "full" ? ["quick", "native", "browser"] : [mode];
+const shard=process.env.FOLIO_TEST_SHARD?.match(/^([1-9]\d*)\/([1-9]\d*)$/);
+if(process.env.FOLIO_TEST_SHARD&&(!shard||+shard[1]>+shard[2]||+shard[2]>32))throw Error('FOLIO_TEST_SHARD must be index/count, 1–32');
 for (const stage of stages) {
   if (!manifest[stage]) throw Error("Unknown acceptance stage: " + stage);
-  for (const item of manifest[stage]) {
+  const cases=manifest[stage].filter((_,i)=>!shard||i % +shard[2]===+shard[1]-1),checks=[];
+  for (const item of cases) {
+    const started=Date.now();
     console.log("Acceptance:", item.capability);
     const command =
       item.runtime === "node"
@@ -34,6 +38,10 @@ for (const stage of stages) {
     }
     const p = spawnSync(command, args, { stdio: "inherit" });
     if (p.error) throw p.error;
-    if (p.status !== 0) process.exit(p.status || 1);
+    checks.push({capability:item.capability,args:item.args,status:p.status===0?'passed':'failed',elapsedMs:Date.now()-started});
   }
+  mkdirSync('tests/output',{recursive:true});
+  const report={status:checks.every(c=>c.status==='passed')?'passed':'failed',stage,shard:shard?+shard[1]:1,shards:shard?+shard[2]:1,totalCases:manifest[stage].length,checks};
+  writeFileSync(`tests/output/${stage}${shard?'-'+shard[1]:''}-regression-report.json`,JSON.stringify(report,null,2));
+  if(report.status!=='passed')process.exitCode=1;
 }

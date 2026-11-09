@@ -4,7 +4,9 @@
 
 A local-first PDF workspace for Windows x64, built for **long-document bookmarks, in-page text and image editing, OCR review, and optional Chatbox AI assistance**. The portable package includes its runtime, fonts and models. No separate Python or Node.js installation is needed.
 
-[Download the Windows x64 portable ZIP](https://github.com/ionize1080/Folio/releases/download/v2.3.0/Folio-PDF-Studio-2.3.0-portable-win-x64.zip) · [2.3.0 release notes](docs/RELEASE-2.3.0.md) · [AI user guide](docs/AI.en.md) · [Documentation](docs/README.md)
+Version 2.4 adds [integrated raster/vector workspaces](docs/CREATIVE-STUDIO.md), a compact categorized ribbon, thumbnail page organization and direct Word/Excel export. Artwork editors support PDF reference backgrounds, high zoom and shared human/AI control. PDF stores final artwork; `.folio` preserves editable sources and layers.
+
+[Download the Windows x64 portable ZIP](https://github.com/ionize1080/Folio/releases/download/v2.4.0/Folio-PDF-Studio-2.4.0-portable-win-x64.zip) · [2.4.0 release notes](docs/RELEASE-2.4.0.md) · [AI user guide](docs/AI.en.md) · [Documentation](docs/README.md)
 
 ## Open your first documents
 
@@ -13,7 +15,7 @@ A local-first PDF workspace for Windows x64, built for **long-document bookmarks
 3. Apply the edit, then choose **Save** to write the current PDF. With original-file protection enabled, the first save prompts for a copy. Closing an ordinary PDF with pending changes offers Save, Discard or Cancel. For continued work on paragraph structure or reviewed OCR, choose **More tools → Import / Export → Save .folio project**.
 4. Open **Preferences** to choose Cobalt, Celadon, Amber, Mulberry, Graphite or a custom accent. Appearance supports system, light and dark modes. Interface language follows Windows by default. An explicit language choice takes precedence.
 
-The release also includes a [source archive](https://github.com/ionize1080/Folio/releases/download/v2.3.0/Folio-PDF-Studio-2.3.0-source.zip), [checksums](https://github.com/ionize1080/Folio/releases/download/v2.3.0/Folio-PDF-Studio-2.3.0-SHA256.txt) and a [validation report](https://github.com/ionize1080/Folio/releases/download/v2.3.0/Folio-PDF-Studio-2.3.0-validation.json). For an installed copy, use **About → Check for updates**.
+The release also includes a [source archive](https://github.com/ionize1080/Folio/releases/download/v2.4.0/Folio-PDF-Studio-2.4.0-source.zip), [checksums](https://github.com/ionize1080/Folio/releases/download/v2.4.0/Folio-PDF-Studio-2.4.0-SHA256.txt) and a [validation report](https://github.com/ionize1080/Folio/releases/download/v2.4.0/Folio-PDF-Studio-2.4.0-validation.json). For an installed copy, use **About → Check for updates**.
 
 ## Work with Chatbox
 
@@ -65,7 +67,7 @@ Choose **Edit image**, then click a page image. Changes preview in place and app
 
 Levels provide input/output handles, channels, numeric controls and samplers. Curves provide points, pencil drawing, smoothing, grids and on-image adjustment. Crop on the page using ratios, guides, rotation, straightening and perspective correction. Enter confirms; Esc cancels. Crop can be reset before saving.
 
-Hand, text and object-selection tools support box selection, Ctrl/Shift modifiers and batch edits. Replacement images support contain, fill and stretch. Algorithms are Folio's independent implementation, not Photoshop's proprietary engine; RGB processing uses 8-bit RGB.
+Hand, text and object-selection tools support box selection, Ctrl/Shift modifiers and batch edits. Replacement images support contain, fill and stretch. The quick image-adjustment path uses 8-bit RGB; the integrated artwork workspace also supports 16/32-bit source documents and color-managed workflows.
 
 ### Offline OCR
 
@@ -128,7 +130,7 @@ The original PDF remains the session baseline. Content is composed, bookmark pro
 
 The Windows build uses Node.js 24, Python 3.12, pinned native resources and the Chatbox source integration. The release workflow verifies the packaged executable and exercises the exact portable ZIP in an update. The published validation report includes 12 real Qwen tasks, with independent checks on saved PDFs. Live testing of a separate image-generation provider remains open.
 
-[Developer setup and test commands](docs/DEVELOPMENT.md) · [Windows release run](https://github.com/ionize1080/Folio/actions/runs/41994404438) · [Verification scope](docs/VALIDATION.md) · [Locale contributions](docs/LOCALIZATION.md)
+[Developer setup and test commands](docs/DEVELOPMENT.md) · [Earlier Windows release run](https://github.com/ionize1080/Folio/actions/runs/41994404438) · [Verification scope](docs/VALIDATION.md) · [Locale contributions](docs/LOCALIZATION.md)
 
 ## Scope for further work
 

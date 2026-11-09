@@ -151,6 +151,8 @@ def vision_result(image, args, size):
 
 
 def source_image(args):
+    if args.get('imageData') and args.get('index') is None:
+        return read_image(None,None,args['imageData'])
     from pathlib import Path
     from pypdf import PdfReader
     from content import map_objects

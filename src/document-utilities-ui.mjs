@@ -67,7 +67,7 @@ export function installDocumentUtilities({ S, exportPDF, session, writeFile }) {
       if (!r.bytes) return r;
       const data = Uint8Array.from(atob(r.bytes), (c) => c.charCodeAt(0));
       const saved = await writeFile(
-        S.name.replace(/\.pdf$/i, "") + "-" + a.action + "." + r.extension,
+        a.filename || S.name.replace(/\.pdf$/i, "") + "-" + a.action + "." + r.extension,
         data,
         r.extension,
       );
@@ -82,7 +82,7 @@ export function installDocumentUtilities({ S, exportPDF, session, writeFile }) {
   b.dataset.doc = "";
   b.innerHTML = icon("file") + "文档工具";
   document.querySelector(".more-tools-menu").append(b);
-  b.onclick = async () => {
+  const open = async (initialAction='inspect') => {
     b.closest("details").open = false;
     if (!S.pdf) return;
     const d = document.createElement("dialog");
@@ -132,6 +132,7 @@ export function installDocumentUtilities({ S, exportPDF, session, writeFile }) {
     const selectAction = (a) => {
       if (busy) return;
       action = a;
+      q('[data-run]').textContent=a==='export-word'?'导出 Word…':a==='export-excel'?'导出 Excel…':'继续…';
       q("[data-title]").textContent = actions.find((x) => x[1] === a)[2];
       q("[data-status]").textContent = "";
       q("[data-result]").replaceChildren();
@@ -256,7 +257,7 @@ export function installDocumentUtilities({ S, exportPDF, session, writeFile }) {
         q('[data-fields]').innerHTML='<label>归档标准<select data-key="standard"><option value="2b">PDF/A-2b · 推荐</option><option value="1b">PDF/A-1b · 传统归档</option><option value="3b">PDF/A-3b</option></select></label>';
       }
       if(['export-word','export-excel'].includes(a)){
-        q('[data-fields]').innerHTML='<label>转换方式<select data-key="ai"><option value="true">AI 结构复核 · 推荐</option><option value="false">本地转换</option></select></label><p class="hint">AI 模式使用 Chatbox 默认模型，会将所选页文字和坐标发送给您配置的服务。</p><label>页码范围<input data-key="pages" placeholder="全部，或 1-3,5"></label>'+(a==='export-word'?'<label>版式<select data-key="layout"><option value="faithful">保留页面布局</option><option value="flow">流动文本 · 易于编辑</option></select></label>':'<label>数据类型<select data-key="numeric"><option value="true">识别简单数值与百分比</option><option value="false">全部保留为文本</option></select></label>');
+        q('[data-fields]').innerHTML='<label>转换方式<select data-key="ai"><option value="false">本地转换 · 无需 Office</option><option value="true">AI 辅助复核结构</option></select></label><p class="hint">直接生成 DOCX / XLSX，无需安装 Word、Excel 或 LibreOffice。可选 AI 复核会发送所选页文字和坐标到您配置的服务。</p><label>页码范围<input data-key="pages" placeholder="全部，或 1-3,5"></label>'+(a==='export-word'?'<label>版式<select data-key="layout"><option value="faithful">保留页面布局</option><option value="flow">流动文本 · 易于编辑</option></select></label>':'<label>数据类型<select data-key="numeric"><option value="true">识别简单数值与百分比</option><option value="false">全部保留为文本</option></select></label>');
       }
     };
     let group;
@@ -274,7 +275,7 @@ export function installDocumentUtilities({ S, exportPDF, session, writeFile }) {
       button.onclick = () => selectAction(a);
       q("nav").append(button);
     }
-    selectAction("inspect");
+    selectAction(initialAction);
     q("[data-run]").onclick = async () => {
       if (busy) return;
       busy = true;
@@ -348,7 +349,7 @@ export function installDocumentUtilities({ S, exportPDF, session, writeFile }) {
         if(r.metrics||r.validation||'compliant' in r||r.warnings){
           const detail=document.createElement('p');detail.className='conversion-report';
           const v=r.validation||r;
-          detail.textContent=[v.validator?`${v.standard} · ${v.compliant===null?(v.preflightPassed?'所列预检项通过 · 非完整合规验证':'预检发现问题'):v.compliant?'验证通过':'未通过'} · ${v.validator}`:'',r.metrics?.textCoverage!==undefined?`原文字符覆盖：${(r.metrics.textCoverage*100).toFixed(1)}%`:'',r.metrics?.tables?`工作表：${r.metrics.tables} · 原文依据已保留`:'',...(r.warnings||[])].filter(Boolean).join('\n');
+          detail.textContent=[v.validator?`${v.standard} · ${v.compliant===null?(v.preflightPassed?'所列预检项通过 · 非完整合规验证':'预检发现问题'):v.compliant?'验证通过':'未通过'} · ${v.validator}`:'',r.metrics?.textCoverage!==undefined?`原文字符覆盖：${(r.metrics.textCoverage*100).toFixed(1)}%`:'',r.metrics?.evidenceCoverage!==undefined?`原文依据保留：${(r.metrics.evidenceCoverage*100).toFixed(1)}% · 归入表格：${(r.metrics.tableAssignmentCoverage*100).toFixed(1)}% · 表格外文字：${r.metrics.unassignedTokens} 项（见 Source 页；保留率不代表单元格正确率）`:'',...(r.warnings||[])].filter(Boolean).join('\n');
           q('[data-result]').append(detail);
         }
         if (action === "inspect") {
@@ -386,6 +387,7 @@ export function installDocumentUtilities({ S, exportPDF, session, writeFile }) {
         q("[data-run]").disabled = false;
       }
     };
+    if(['export-word','export-excel'].includes(initialAction))return;
     busy = true;
     q("[data-run]").disabled = true;
     try {
@@ -402,5 +404,9 @@ export function installDocumentUtilities({ S, exportPDF, session, writeFile }) {
       q("[data-run]").disabled = false;
     }
   };
+  b.onclick=()=>open();
+  for(const [action,label,symbol] of [['export-word','导出 Word','word'],['export-excel','导出 Excel','excel']]){
+    const shortcut=document.createElement('button');shortcut.id=action;shortcut.dataset.doc='';shortcut.innerHTML=icon(symbol)+label;shortcut.onclick=()=>open(action);document.querySelector('.more-tools-menu').append(shortcut);
+  }
   return run;
 }

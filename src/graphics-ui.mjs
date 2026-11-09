@@ -1,8 +1,9 @@
+import {icon} from './icons.mjs';
 import {nativeRequest} from './native-source.mjs';
 import {placement,pathFrame,pathPlacement} from './graphic-geometry.mjs';
 import {imageSettings} from './image-settings-ui.mjs';
 export function installGraphicsUI({S,rev,applyContent,imageTool,vectorTool}) {
-  const button=document.createElement('button');button.id='graphics-editor';button.textContent='图片 / 矢量图';button.title='插入图片、生成图像、编辑线条和渐变';button.dataset.doc='';document.querySelector('.more-tools-menu').append(button);
+  const button=document.createElement('button');button.id='graphics-editor';button.innerHTML=icon('shapes')+'快速图形';button.title='插入图片、生成图像、编辑线条和渐变';button.dataset.doc='';document.querySelector('.more-tools-menu').append(button);
   button.onclick=async()=>{button.closest('details').open=false;
     if(!S.pdf||S.busy)return;
     const dialog=document.createElement('dialog');dialog.className='graphics-dialog';

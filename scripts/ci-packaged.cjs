@@ -1,5 +1,5 @@
 const fs=require('node:fs'),path=require('node:path'),{spawn}=require('node:child_process');
-const lanes=[['tests/workspace-210.cjs','tests/graphics-220.cjs','tests/package-ai.cjs'],['tests/workbench-ui.cjs','tests/engineering-ui.cjs','tests/conversion-scan.cjs']];
+const lanes=[['tests/workspace-210.cjs','tests/graphics-220.cjs','tests/package-ai.cjs','tests/creative-engines.cjs','tests/creative-embedded.cjs'],['tests/workbench-ui.cjs','tests/engineering-ui.cjs','tests/conversion-scan.cjs','tests/creative-ui.cjs','tests/organizer-ui.cjs']];
 async function runLanes(groups,execute){
   if(!Array.isArray(groups)||groups.length<1||groups.length>2)throw Error('At most two isolated application lanes are allowed');
   const rows=[];
@@ -16,7 +16,8 @@ function execute(task,lane){return new Promise((resolve,reject)=>{
   const log=fs.openSync(file,'w');
   const child=spawn(process.execPath,[task],{env:process.env,windowsHide:true,stdio:['ignore',log,log]});
   fs.closeSync(log);let timedOut=false,launchError;
-  const timer=setTimeout(()=>{timedOut=true;if(process.platform==='win32'&&child.pid)spawn('taskkill.exe',['/PID',String(child.pid),'/T','/F'],{windowsHide:true,stdio:'ignore'});else child.kill();},360000);
+  const timeout=task==='tests/creative-embedded.cjs'?600000:360000;
+  const timer=setTimeout(()=>{timedOut=true;if(process.platform==='win32'&&child.pid)spawn('taskkill.exe',['/PID',String(child.pid),'/T','/F'],{windowsHide:true,stdio:'ignore'});else child.kill();},timeout);
   child.on('error',e=>{launchError=e;});
   child.on('close',code=>{clearTimeout(timer);const ok=!launchError&&!timedOut&&code===0;
     console.log((ok?'PASS ':'FAIL ')+task+' (lane '+lane+')');

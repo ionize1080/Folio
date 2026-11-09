@@ -4,11 +4,13 @@ export function placement(value={}, base=[200,0,0,200,72,72]) {
   let matrix=value.matrix ? [...value.matrix] : [...base];
   if(!Array.isArray(matrix)||matrix.length!==6||!matrix.every(Number.isFinite))throw Error('Invalid image matrix');
   if(['width','height','rotation','flipX','flipY'].some(k=>value[k]!==undefined)) {
-    const width=value.width??Math.hypot(matrix[0],matrix[1]),height=value.height??Math.hypot(matrix[2],matrix[3]);
-    const angle=(value.rotation??Math.atan2(matrix[1],matrix[0])*180/Math.PI)*Math.PI/180;
+    const oldWidth=Math.hypot(matrix[0],matrix[1]),oldHeight=Math.hypot(matrix[2],matrix[3]);
+    const width=value.width??oldWidth,height=value.height??oldHeight;
+    const angle=value.rotation===undefined?0:value.rotation*Math.PI/180-Math.atan2(matrix[1],matrix[0]);
     if(![width,height,angle].every(Number.isFinite)||width<=0||height<=0)throw Error('Invalid size or rotation');
-    const sx=value.flipX?-1:1,sy=value.flipY?-1:1;
-    matrix=[width*Math.cos(angle)*sx,width*Math.sin(angle)*sx,-height*Math.sin(angle)*sy,height*Math.cos(angle)*sy,matrix[4],matrix[5]];
+    const sx=width/oldWidth*(value.flipX?-1:1),sy=height/oldHeight*(value.flipY?-1:1),c=Math.cos(angle),s=Math.sin(angle),[a,b,u,v,x,y]=matrix;
+    // Resize existing axes; keep shear and handedness unless explicitly changed.
+    matrix=[(a*c-b*s)*sx,(a*s+b*c)*sx,(u*c-v*s)*sy,(u*s+v*c)*sy,x,y];
   }
   if(value.x!==undefined)matrix[4]=value.x;
   if(value.y!==undefined)matrix[5]=value.y;

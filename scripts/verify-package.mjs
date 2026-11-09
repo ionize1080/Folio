@@ -58,6 +58,14 @@ assert(
 for (const f of [
   "ai-host.cjs",
   "ai-dock.cjs",
+  "creative-studio.cjs",
+  "src/creative-embedded.mjs",
+  "src/creative-ui.mjs",
+  "src/creative-tools.mjs",
+  "src/creative-background.mjs",
+  "src/creative-menus.mjs",
+  "src/page-organizer.mjs",
+  "src/ribbon.css",
   "storage-budget.cjs",
   "src/ai-ui.mjs",
   "src/ai-tools.mjs",
@@ -229,6 +237,8 @@ for (const f of [
   "story.py",
   "type1_restore.py",
   "image_edit.py",
+  "creative_graphics.py",
+  "page_organization.py",
   "table_render.py",
   "table_geometry.py",
   "vendor/fontTools/__init__.py",
@@ -266,6 +276,14 @@ for (const name of ["pdf-server.py", "pdf_objects.py"])
     `stale PDF adapter ${name}`,
   );
 assert.equal(await fs.stat(path.join(out, "resources/ChatboxRuntime")).catch(()=>null), null, "No duplicate Electron runtime");
+const creativeLock=JSON.parse(await fs.readFile(path.join(root,'integrations/creative/source-lock.json'),'utf8'));
+for(const kind of ['photo','vector']){
+  const dir=path.join(out,'resources/creative',kind),build=JSON.parse(await fs.readFile(path.join(dir,'build.json'),'utf8'));
+  assert.equal(build.revision,creativeLock[kind].revision,'Pinned editing engine revision');
+  assert.equal(build.sourceFingerprint,JSON.parse(await fs.readFile(path.join(root,'.creative-web',kind,'build.json'),'utf8')).sourceFingerprint);
+  for(const [file,hash] of Object.entries(build.files))assert.equal(createHash('sha256').update(await fs.readFile(path.join(dir,file))).digest('hex'),hash,'Editing engine integrity: '+kind+'/'+file);
+  for(const file of ['engine_bg.wasm','engine.js','index.html','licenses/Folio.md','licenses/LICENSE-MIT','licenses/LICENSE-APACHE','fonts/manifest.txt'])await fs.access(path.join(dir,file));
+}
 const pdfProvenance=JSON.parse(await fs.readFile(path.join(out,"resources/pdf-runtime/provenance.json"),"utf8"));
 assert.equal(pdfProvenance.pdfMcpCommit,"9d66cca073f664a8c97d4984b5d9d61d68d4ba30");
 assert.equal(pdfProvenance.folioPatchSha256,createHash("sha256").update(await fs.readFile(path.join(root,"integrations/pdf-mcp-folio.patch"))).digest("hex"));

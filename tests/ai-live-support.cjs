@@ -16,6 +16,7 @@ async function configure(chat){
  await chat.evaluate(()=>window.folioSettingsReady());
  await chat.evaluate(async({key,endpoint,model})=>{
   const s=await window.electronAPI.invoke('getSettings');s.language='zh-Hans';s.messageLayout='left';
+  delete s.maxTokens;delete s.maxContextSize;delete s.maxContextMessageCount;
   s.customProviders=[{id:'acceptance-qwen',name:'Qwen Test',type:'openai',isCustom:true}];
   s.providers={...s.providers,'acceptance-qwen':{apiKey:key,apiHost:endpoint.replace(/\/chat\/completions\/?$/,''),apiPath:'/chat/completions',models:[{modelId:model,capabilities:['vision','tool_use']}],useProxy:false}};
   s.defaultChatModel={provider:'acceptance-qwen',model};

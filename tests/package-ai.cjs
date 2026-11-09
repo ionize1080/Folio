@@ -72,7 +72,7 @@ const { _electron: electron } = require("playwright"),
     const list = await page.evaluate(() =>
       window.desktop.aiPdf({ action: "list" }),
     );
-    assert.equal(list.tools.length, 62);
+    assert.equal(list.tools.length, 64);
     const result = await page.evaluate(
       (file) =>
         window.desktop.aiPdf({
@@ -137,7 +137,7 @@ const { _electron: electron } = require("playwright"),
       ),
     );
     console.log(
-      "PASS packaged Chatbox, 62 stdio tools, portable PDF rendering, 2GB budget, zero TCP listeners",
+      "PASS packaged Chatbox, 64 stdio tools, portable PDF rendering, 2GB budget, zero TCP listeners",
     );
   } finally {
     await app.close().catch(() => {});

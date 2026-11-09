@@ -99,7 +99,7 @@ export function unzipStored(bytes) {
       throw Error("工程 ZIP 资源格式不支持");
     const name = dec.decode(bytes.subarray(at + 46, at + 46 + nl));
     if (
-      !/^(source\.pdf|state\.json|manifest\.json|assets\/[a-f0-9]{64}\.(pdf|json))$/.test(
+      !/^(source\.pdf|state\.json|manifest\.json|assets\/[a-f0-9]{64}\.(pdf|json|image|bin|pcraft|vectorcraft))$/.test(
         name,
       ) ||
       files.has(name)

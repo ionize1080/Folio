@@ -1,6 +1,9 @@
 name: Prepare reproducible Windows workbench
 description: Restore pinned dependencies and optional intermediate builds without caching test profiles or credentials
 inputs:
+  creative:
+    description: Download the two pinned editing engines built by this workflow
+    default: 'false'
   conversion:
     description: Restore Office and PDF conformance engines only where required
     default: 'true'
@@ -127,3 +130,16 @@ runs:
         if ($LASTEXITCODE) {exit $LASTEXITCODE}
         native/runtime/python.exe tests/workbench-fixtures.py
         exit $LASTEXITCODE
+    - if: inputs.creative == 'true'
+      uses: actions/download-artifact@v4
+      with:
+        name: creative-photo
+        path: .creative-web/photo
+    - if: inputs.creative == 'true'
+      uses: actions/download-artifact@v4
+      with:
+        name: creative-vector
+        path: .creative-web/vector
+    - if: inputs.creative == 'true'
+      shell: pwsh
+      run: python scripts/verify-creative.py

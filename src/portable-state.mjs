@@ -30,8 +30,11 @@ export async function packState(state) {
   for (const edit of state.nativeEdits || []) {
     let result = packed.get(edit);
     if (!result) {
-      const { fragment, ink, ...small } = edit,
+      const { fragment, ink, sourceData, pdfData, imageData, ...small } = edit,
         files = [];
+      for(const [key,value,extension] of [['sourceData',sourceData,edit.sourceExtension||'bin'],['pdfData',pdfData,'pdf'],['imageData',imageData,'image']]){
+        if(value){const data=fromBase64(value),id='assets/'+await digest(data)+'.'+extension;small[key+'Asset']=id;files.push([id,data]);}
+      }
       if (fragment) {
         const data = fromBase64(fragment),
           id = "assets/" + (await digest(data)) + ".pdf";
@@ -106,7 +109,8 @@ export function unpackState(state, assets) {
     if (!edit || typeof edit !== "object" || Array.isArray(edit))
       throw Error("工程内容编辑无效");
     check(edit);
-    const { fragmentAsset, inkAsset, ...out } = edit;
+    const { fragmentAsset, inkAsset, sourceDataAsset, pdfDataAsset, imageDataAsset, ...out } = edit;
+    for(const [key,id] of [['sourceData',sourceDataAsset],['pdfData',pdfDataAsset],['imageData',imageDataAsset]])if(id){const data=assets.get(id);if(!data)throw Error('工程缺少创作资源');out[key]=toBase64(data);}
     if (fragmentAsset) {
       const data = assets.get(fragmentAsset);
       if (!data) throw Error("工程缺少文字编辑资源");

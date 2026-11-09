@@ -19,7 +19,7 @@ const fs = require("fs"),
   );
   try {
     const { tools } = await c.listTools();
-    assert.equal(tools.length, 62);
+    assert.equal(tools.length, 64);
     const source = path.resolve("tests/output/modes.pdf"),
       hash = () =>
         crypto
@@ -109,7 +109,7 @@ const fs = require("fs"),
     assert(denied.isError);
     assert.equal(hash(), before);
     console.log(
-      "PASS 62 tools, outline, raw object, attachment, labels, links, source protection",
+      "PASS 64 tools, outline, raw object, attachment, labels, links, source protection",
     );
   } finally {
     await c.close();
