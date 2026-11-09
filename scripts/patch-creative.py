@@ -36,9 +36,9 @@ def patch(kind, source):
         replace('crates/ui-egui/src/canvas.rs','let gpu_ok = crate::gpu_canvas::gpu_view_ok(flip, view.rotation, aspect);','let gpu_ok = !crate::folio_backdrop::active(ctx) && crate::gpu_canvas::gpu_view_ok(flip, view.rotation, aspect);')
         replace('crates/ui-egui/src/canvas.rs','let beyond = draw_beyond_canvas(app, painter, &xf, idx, output);','crate::folio_backdrop::paint(painter, |p| xf.to_screen(p[0], p[1]), None);\n    let beyond = draw_beyond_canvas(app, painter, &xf, idx, output);')
         replace('crates/ui-egui/src/canvas/paint.rs','    match checker {\n        Some((checker_id, square)) if !opaque || tex.is_none() => {','    if !crate::folio_backdrop::active(painter.ctx()) { match checker {\n        Some((checker_id, square)) if !opaque || tex.is_none() => {')
-        replace('crates/ui-egui/src/canvas/paint.rs','    if let Some(tex) = tex {\n        if rotated {','    }\n    if let Some(tex) = tex {\n        if rotated {')
+        replace('crates/ui-egui/src/canvas/paint.rs','    if let Some(tex) = tex {\n        if rotated {','    } // Folio reference replaces the checkerboard.\n    if let Some(tex) = tex {\n        if rotated {')
         replace('crates/ui-egui/src/canvas/paint.rs','    match checker {\n        Some((checker_id, square)) => {','    if !crate::folio_backdrop::paint(painter, |p| xf.to_screen(p[0], p[1]), Some(pts)) { match checker {\n        Some((checker_id, square)) => {')
-        replace('crates/ui-egui/src/canvas/paint.rs','    quad(tex, [pos2(0.0, 0.0),','    }\n    quad(tex, [pos2(0.0, 0.0),')
+        replace('crates/ui-egui/src/canvas/paint.rs','    quad(tex, [pos2(0.0, 0.0),','    } // Folio reference replaces the detail tile background.\n    quad(tex, [pos2(0.0, 0.0),')
         replace('crates/ui-egui/src/control/dispatch.rs','"ui.menu.list" => {','''"folio.menu" => {
             let lang = crate::i18n::current();
             let items: Vec<_> = crate::menus::menu_items(app).into_iter().map(|item| {
@@ -79,7 +79,7 @@ def patch(kind, source):
             ok(json!(items))
         }
         "ui.menu.list" => ok(serde_json::to_value(crate::menus::menu_entries(app)).unwrap_or_default()),''')
-    replace(dispatch,'"folio.menu" => {','"folio.backdrop" => match crate::folio_backdrop::configure(ctx, p) { Ok(v) => ok(v), Err(e) => err(e) },\n        "folio.menu" => {')
+    replace(dispatch,'"folio.menu" => {','"folio.backdrop" => match crate::folio_backdrop::configure(ctx, &req.params) { Ok(v) => ok(v), Err(e) => err(e) },\n        "folio.menu" => {')
     if kind=='photo':
         web='apps/photocraft-web'
         for name,origin in [('api.rs','photo-api.rs'),('saved_files.rs','saved_files.rs')]:
