@@ -1900,8 +1900,8 @@ function generateDialog() {
     $("#modal-body").removeEventListener("input", invalidate);
   };
 }
-function saveProject(){return
-    guarded(async () => {
+function saveProject(){
+  return guarded(async () => {
       if (!S.pdf) return;
       await S.flowEdit?.flush();
       await S.imageEdit?.flush();

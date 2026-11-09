@@ -19,7 +19,10 @@ const fs = require("fs"),
   );
   try {
     const { tools } = await c.listTools();
-    assert.equal(tools.length, 64);
+    assert.equal(tools.length, 62);
+    const names=tools.map(t=>t.name);
+    assert.equal(new Set(names).size,names.length);
+    for(const name of ['read_pdf_batch','edit_pdf_batch','pdf_object_operation'])assert(names.includes(name),name);
     const source = path.resolve("tests/output/modes.pdf"),
       hash = () =>
         crypto
@@ -109,7 +112,7 @@ const fs = require("fs"),
     assert(denied.isError);
     assert.equal(hash(), before);
     console.log(
-      "PASS 64 tools, outline, raw object, attachment, labels, links, source protection",
+      "PASS 62 PDF tools, outline, raw object, attachment, labels, links, source protection",
     );
   } finally {
     await c.close();

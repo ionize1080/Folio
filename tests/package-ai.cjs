@@ -72,7 +72,14 @@ const { _electron: electron } = require("playwright"),
     const list = await page.evaluate(() =>
       window.desktop.aiPdf({ action: "list" }),
     );
-    assert.equal(list.tools.length, 64);
+    assert.equal(list.tools.length, 62);
+    const pdfToolNames=list.tools.map(t=>t.name).sort();
+    assert.equal(new Set(pdfToolNames).size,pdfToolNames.length);
+    for(const name of ['read_pdf_batch','edit_pdf_batch','pdf_object_operation'])assert(pdfToolNames.includes(name),name);
+    const resources=await app.evaluate(()=>process.resourcesPath);
+    const workspaceTools=require(path.join(resources,'Chatbox','tool-schema.cjs')).map(t=>t.name).sort();
+    assert.deepEqual(workspaceTools,require('../integrations/chatbox/tool-schema.cjs').map(t=>t.name).sort());
+    for(const name of ['folio_studio','folio_organize'])assert(workspaceTools.includes(name),name);
     const result = await page.evaluate(
       (file) =>
         window.desktop.aiPdf({
@@ -122,6 +129,8 @@ const { _electron: electron } = require("playwright"),
         {
           version: require("../package.json").version,
           tools: list.tools.length,
+          pdfToolNames,
+          workspaceTools,
           defaultLimitMB: budget.limitMB,
           listeners: [],
           harnessListeners,
@@ -137,7 +146,7 @@ const { _electron: electron } = require("playwright"),
       ),
     );
     console.log(
-      "PASS packaged Chatbox, 64 stdio tools, portable PDF rendering, 2GB budget, zero TCP listeners",
+      "PASS packaged Chatbox, 62 PDF tools and complete workspace tools, portable PDF rendering, 2GB budget, zero TCP listeners",
     );
   } finally {
     await app.close().catch(() => {});

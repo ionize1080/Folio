@@ -153,7 +153,6 @@ jobs:
         models: 'true'
         creative: 'false'
         fixtures: 'true'
-    - run: python tests/document-utilities.py
     - run: native\runtime\python.exe tests/conversion-native.py
     - run: native\runtime\python.exe tests/engineering-native.py
     - run: native\runtime\python.exe tests/conversion-public.py
@@ -183,6 +182,7 @@ jobs:
         creative: 'false'
         fixtures: 'true'
     - run: node tests/web-pdf.cjs
+    - run: python tests/document-utilities.py
     - run: node tests/document-tools-ui.cjs
     - run: native\runtime\python.exe tests/engineering-native.py
     - run: node tests/workbench-ui.cjs

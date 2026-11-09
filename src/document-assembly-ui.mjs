@@ -4,7 +4,7 @@ import {pageRange} from './generation.mjs';
 const encode=bytes=>{let s='';for(let i=0;i<bytes.length;i+=32768)s+=String.fromCharCode(...bytes.subarray(i,i+32768));return btoa(s);};
 const decode=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
 export function installDocumentAssembly({S,exportPDF,session,writeFile}) {
-  const button=document.createElement('button');button.innerHTML=icon('pages')+'合并 / 拆分';button.id='document-assembly';button.title='多格式合并、自由排序、书签整合与拆分';
+  const button=document.createElement('button');button.innerHTML=icon('merge-pages')+'合并 / 拆分';button.id='document-assembly';button.title='多格式合并、自由排序、书签整合与拆分';
   document.querySelector('.more-tools-menu').append(button);
   async function run(a) {
     if(S.busy)throw Error('正在处理文档');if(a.action==='split'&&!S.pdf)throw Error('请先打开文档');

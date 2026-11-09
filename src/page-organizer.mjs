@@ -3,7 +3,7 @@ import {icon} from './icons.mjs';
 import {nativeRequest,releaseSource} from './native-source.mjs';
 import {toBase64,fromBase64} from './portable-state.mjs';
 export function installPageOrganizer({S,session,run,exportPDF}){
-  const button=document.createElement('button');button.id='page-organizer';button.dataset.doc='';button.innerHTML=icon('pages')+'组织页面';button.title='缩略图多选、拖动排序、插入、删除、提取与替换';document.querySelector('.more-tools-menu').append(button);
+  const button=document.createElement('button');button.id='page-organizer';button.dataset.doc='';button.innerHTML=icon('page-grid')+'组织页面';button.title='缩略图多选、拖动排序、插入、删除、提取与替换';document.querySelector('.more-tools-menu').append(button);
   button.onclick=async()=>{
     button.closest('details')?.removeAttribute('open');if(!S.pdf||S.busy)return;
     const capture=session.capture(),d=document.createElement('dialog');d.className='organizer-dialog';d.setAttribute('aria-label','组织页面');

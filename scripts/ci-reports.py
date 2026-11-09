@@ -5,8 +5,8 @@ import base64, gzip, hashlib, json, os, sys
 ROOT = Path(__file__).resolve().parents[1]
 SUITES = {
     **{'native'+str(n):['native-'+str(n)+'-regression-report.json'] for n in range(1,4)},
-    'docengine':['conversion-native-report.json','conversion-public-report.json','engineering-native-report.json','document-utilities-report.json','graphics-220-native.json'],
-    'docui':['document-tools-ui.json','workbench-ui-report.json','engineering-ui-report.json','conversion-scan-report.json','web-pdf-report.json'],
+    'docengine':['conversion-native-report.json','conversion-public-report.json','engineering-native-report.json','graphics-220-native.json'],
+    'docui':['document-utilities-report.json','document-tools-ui.json','workbench-ui-report.json','engineering-ui-report.json','conversion-scan-report.json','web-pdf-report.json'],
     'ui':['chatbox-completion-220.json','chrome-202.json','ai-settings.json'],
     'ai':['hosted-202.json'],
     'creative':['creative-engines.json','creative-embedded.json'],
