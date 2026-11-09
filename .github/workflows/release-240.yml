@@ -310,7 +310,7 @@ jobs:
         submodules: recursive
     - uses: ./.github/actions/setup-workbench
       with:
-        ai: 'false'
+        ai: 'true'
         conversion: 'false'
         models: 'false'
         creative: 'true'

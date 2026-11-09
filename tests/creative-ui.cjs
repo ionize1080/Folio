@@ -30,7 +30,7 @@ const {_electron:electron}=require('playwright'),fs=require('node:fs'),path=requ
   }
   await host.locator('[data-ribbon-command="export-word"]').click();assert(await host.locator('.document-tools [data-run]').isVisible());assert.equal(await host.locator('.document-tools [data-key="ai"]').inputValue(),'false');await host.keyboard.press('Escape');
   for(const width of [800,1280,1500]){
-   await app.evaluate(({BrowserWindow},w)=>BrowserWindow.getAllWindows()[0].setSize(w,900),width);
+   await app.evaluate(({BrowserWindow},w)=>{const win=BrowserWindow.getAllWindows()[0];win.setMinimumSize(780,600);win.setSize(w,900)},width);
    await host.locator('#ribbon-tab-photo').click();
    const layout=await host.evaluate(()=>{const h=document.querySelector('.appbar').getBoundingClientRect(),ai=document.querySelector('.folio-ai-open').getBoundingClientRect();const buttons=[...document.querySelectorAll('.ribbon-tabs button')].map(b=>b.getBoundingClientRect());return {height:h.height,ai:{x:ai.x,right:ai.right,width:ai.width},viewport:innerWidth,overlap:buttons.some((b,i)=>i&&b.left<buttons[i-1].right)};});
    assert(layout.height<=114);assert(layout.ai.width>30&&layout.ai.x>=0&&layout.ai.right<=layout.viewport);assert(!layout.overlap);

@@ -27,10 +27,16 @@ export function installCreativeUI({S,run,rev,studio}){
     const s=embedded.get(id),compact=embedded.mount.clientWidth<700;
     if(s.compactLayout===compact)return;
     const ui=await run({action:'request',sessionId:id,method:'ui.inspect'});
-    const collapsed=s.kind==='photo'?!ui.panels.dock:ui.ui.dock_collapsed;
-    if(compact)s.restoreInspector=!collapsed;
-    if((compact&&!collapsed)||(!compact&&s.restoreInspector&&collapsed)){
-      await run(s.kind==='photo'?{action:'request',sessionId:id,method:'ui.set',params:{panels:{dock:!compact}}}:{action:'execute',sessionId:id,command:'window.collapseDock',params:{collapsed:compact}});
+    if(s.kind==='photo'){
+      const columns=[];const collect=n=>{if(!n||typeof n!=='object')return;if(n.Dock){columns.push(...n.Dock.columns);return;}Object.values(n).forEach(collect);};collect(ui.docking?.layout.root);
+      if(compact)s.restoreInspector=columns.filter(c=>!c.iconic).map(c=>c.groups[0]?.panels[0]).filter(Boolean);
+      for(const panel of s.restoreInspector||[]){
+        const column=columns.find(c=>c.groups.some(g=>g.panels.includes(panel)));
+        if(column&&column.iconic!==compact)await run({action:'execute',sessionId:id,command:'window.panel.iconic',params:{panel,iconic:compact}});
+      }
+    }else{
+      const collapsed=ui.ui.dock_collapsed;if(compact)s.restoreInspector=!collapsed;
+      if((compact&&!collapsed)||(!compact&&s.restoreInspector&&collapsed))await run({action:'execute',sessionId:id,command:'window.collapseDock',params:{collapsed:compact}});
     }
     s.compactLayout=compact;
   }
@@ -92,7 +98,13 @@ export function installCreativeUI({S,run,rev,studio}){
     const format=d.querySelector('select');format.onchange=()=>d.querySelector('[data-quality]').hidden=!['jpg','webp'].includes(format.value);format.onchange();d.querySelector('input').oninput=e=>d.querySelector('output').value=e.target.value;
     d.onclose=()=>{if(d.returnValue==='export')perform(async()=>{const r=await run({action:'export',sessionId:current,format:format.value,options:['jpg','webp'].includes(format.value)?{quality:Number(d.querySelector('input').value)}:{}});status(r.saved?'作品已导出':'已取消导出');})();d.remove();};document.body.append(d);d.showModal();
   };
-  new ResizeObserver(()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(()=>{if(current&&!busy&&document.body.classList.contains('studio-active')){const id=current,s=embedded.sessions.get(id);if(s)perform(async()=>{await adaptLayout(id);if(s.viewMode)await run({action:'view',sessionId:id,options:s.viewMode});})();}},180);}).observe(embedded.mount);
+  const scheduleLayout=()=>{clearTimeout(resizeTimer);resizeTimer=setTimeout(()=>{
+    if(!current||!document.body.classList.contains('studio-active'))return;
+    if(busy){scheduleLayout();return;}
+    const id=current,s=embedded.sessions.get(id);
+    if(s)perform(async()=>{await adaptLayout(id);if(s.viewMode)await run({action:'view',sessionId:id,options:s.viewMode});})();
+  },180);};
+  new ResizeObserver(scheduleLayout).observe(embedded.mount);
   // A read-only refresh must never swallow a click on a view control.
   let polling=false;
   setInterval(async()=>{if(!current||busy||polling||!document.body.classList.contains('studio-active'))return;polling=true;try{await run({action:'view',sessionId:current});}catch{}finally{polling=false;}},2000);

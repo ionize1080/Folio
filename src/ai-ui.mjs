@@ -65,12 +65,14 @@ export function installAI({
   installAIResize(desktop);
   let overlay = false;
   const updateOverlay = () => {
-    const next = !!document.querySelector("dialog[open]:not(.large-workspace), details[open], #context-menu:not([hidden])");
+    const next = !!document.querySelector("dialog[open]:not(.large-workspace), details[open], [popover]:popover-open, #context-menu:not([hidden])");
     if (next !== overlay) {
       overlay = next;
       desktop.aiOverlay(next);
     }
   };
+  document.addEventListener('beforetoggle',e=>{if(e.target.matches?.('[popover]')&&e.newState==='open'){overlay=true;desktop.aiOverlay(true);}},true);
+  document.addEventListener('toggle',e=>{if(e.target.matches?.('[popover]'))updateOverlay();},true);
   new MutationObserver((records) => {
     // PDF text layers and virtual bookmark rows mutate continuously while scrolling.
     // MutationObserver already batches a turn of DOM changes.
