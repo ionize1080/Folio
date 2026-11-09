@@ -4929,7 +4929,7 @@ html[lang="en"] .adjust-tools, html[lang="en"] .pe-object-tools, html[lang="en"]
 .appbar .brand { grid-area:brand; }
 .appbar .doc-tab { grid-area:document; max-width:none; min-width:0; display:flex; }
 .appbar .app-actions { grid-area:actions; margin-left:0; }
-.appbar > .toolbar, html[lang="en"] .appbar > .toolbar {
+.appbar:not([data-ribbon]) > .toolbar {
  grid-area:commands; width:100%; height:auto; min-height:36px;
  flex-wrap:nowrap; justify-content:flex-start; order:initial;
 }

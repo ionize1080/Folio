@@ -21,6 +21,15 @@ const {_electron:electron}=require('playwright'),path=require('node:path'),fs=re
    });
    assert(!geometry.overflow,JSON.stringify({language,width,dark,geometry}));
    geometry.rects.forEach(r=>assert(r.x>=0&&r.right<=geometry.width&&r.h===32,JSON.stringify({language,width,dark,r})));
+   const ribbon=await p.evaluate(()=>{
+    const tabs=document.querySelector('.ribbon-tab-row').getBoundingClientRect(),commands=document.querySelector('#ribbon-home').getBoundingClientRect();
+    const summary=document.querySelector('.more-tools > summary'),r=summary.getBoundingClientRect();
+    return {tabsBottom:tabs.bottom,commandsTop:commands.top,moreClickable:summary.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2))};
+   });
+   assert(ribbon.commandsTop>=ribbon.tabsBottom&&ribbon.moreClickable,JSON.stringify({language,width,dark,ribbon}));
+   await p.locator('.more-tools > summary').click();
+   await p.locator('.more-tools-menu').waitFor({state:'visible'});
+   await p.keyboard.press('Escape');
    await p.locator('.more-tools > summary').focus();await p.keyboard.press('ArrowDown');
    await p.locator('.more-tools-menu').waitFor({state:'visible'});
    const menu=await p.locator('.more-tools-menu').evaluate(e=>{const r=e.getBoundingClientRect();return {x:r.x,right:r.right,bottom:r.bottom,viewport:innerWidth,height:innerHeight,clipped:e.scrollWidth>e.clientWidth,focus:e.contains(document.activeElement)}});

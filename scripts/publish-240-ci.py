@@ -62,7 +62,9 @@ assert reports['hosted-202.json']['settingsReloadPersisted']
 assert reports['hosted-202.json']['draftSwitches'] >= 21
 assert reports['hosted-202.json']['draftImmediateReload']
 assert reports['hosted-202.json']['draftCleared']
-assert reports['packaged-ai.json']['tools'] == 64
+assert reports['packaged-ai.json']['tools'] == 62
+assert len(set(reports['packaged-ai.json']['pdfToolNames'])) == 62
+assert {'folio_studio','folio_organize'} <= set(reports['packaged-ai.json']['workspaceTools'])
 info = json.loads((root / 'dist/Folio-PDF-Studio-win-x64/BUILD-INFO.json').read_text())
 portable, source = out / (prefix + '-portable-win-x64.zip'), out / (prefix + '-source.zip')
 with zipfile.ZipFile(portable) as z:

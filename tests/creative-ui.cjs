@@ -2,6 +2,7 @@ const {_electron:electron}=require('playwright'),fs=require('node:fs'),path=requ
 (async()=>{
  const app=await electron.launch({executablePath:process.env.FOLIO_EXE,args:process.env.FOLIO_EXE?[]:[path.resolve('.')],env:{...process.env,FOLIO_TEST_BACKGROUND:'1',FOLIO_TEST_PROFILE:path.resolve('tests/output/creative-ui-'+Date.now()),FOLIO_CHATBOX_PROFILE:path.resolve('tests/output/creative-chat-'+Date.now())},timeout:60000});
  const checks=[],errors=[];
+ const projectPath=path.resolve('tests/output/creative-project-'+Date.now()+'.folio');
  try {
   const host=await app.firstWindow();await host.locator('#ribbon-tab-photo').waitFor();host.on('dialog',d=>d.accept());host.on('pageerror',e=>errors.push(e.message));await host.evaluate(async()=>{(await import('./i18n.mjs')).setLanguage('zh-Hans')});
   await app.evaluate(({dialog},root)=>{dialog.showOpenDialog=async()=>({canceled:false,filePaths:[root+'/creative-source.pdf']});dialog.showSaveDialog=async(_w,o)=>({canceled:false,filePath:root+'/'+pathBasename(o.defaultPath)});function pathBasename(p){return p.split(/[\\/]/).pop();}},path.resolve('tests/output'));
@@ -39,11 +40,24 @@ const {_electron:electron}=require('playwright'),fs=require('node:fs'),path=requ
   await host.locator('[data-ribbon-command="photo-studio"]').click();await host.waitForFunction(()=>!document.querySelector('.creative-dialog [data-open]').disabled);assert(await host.locator('.creative-dialog [data-import]').isVisible());await require('./native-capture.cjs')(app,host,'tests/output/creative-dialog.png');await host.keyboard.press('Escape');
   await host.keyboard.press('Control+F1');assert((await host.locator('.appbar').boundingBox()).height<=72);await host.keyboard.press('Control+F1');
   checks.push('Compact ribbon, independent visible AI, direct offline Word export, creative import and responsive widths 800/1280/1500');
-  await host.locator('#ribbon-tab-home').click();await host.locator('.more-tools > summary').click();await host.locator('[data-action="exchange"]').click();await host.locator('#export-project').click();await host.waitForTimeout(800);assert(fs.existsSync('tests/output/creative-source.folio'));
+  await app.evaluate(({dialog},file)=>{dialog.showSaveDialog=async()=>({canceled:false,filePath:file})},projectPath);
+  await host.locator('#ribbon-tab-export').click();await host.locator('[data-ribbon-command="save-project"]').click();
+  const saveDeadline=Date.now()+30000;
+  while(!fs.existsSync(projectPath)&&Date.now()<saveDeadline)await new Promise(r=>setTimeout(r,100));
+  assert(fs.existsSync(projectPath),'Saving from the Export ribbon creates a new project file');
   await host.keyboard.press('Escape');
   await studio({action:'close',sessionId:photo.sessionId});await studio({action:'close',sessionId:vector.sessionId});
   const {decodeProject}=await import('../src/project.mjs');
-  const project=await decodeProject(new Uint8Array(fs.readFileSync('tests/output/creative-source.folio')));assert(project.state.nativeEdits.filter(e=>e.type==='studio-graphic'&&!e.delete).every(e=>e.sourceData));
+  const project=await decodeProject(new Uint8Array(fs.readFileSync(projectPath)));
+  const artwork=project.state.nativeEdits.filter(e=>e.type==='studio-graphic'&&!e.delete);
+  assert(artwork.length>=2&&artwork.every(e=>e.sourceData),'Saved project contains both raster and vector editable source');
+  await app.evaluate(({dialog},file)=>{dialog.showOpenDialog=async()=>({canceled:false,filePaths:[file]})},projectPath);
+  const previousSession=await host.evaluate(async()=>(await import('./app.mjs')).S.sessionId);
+  await host.locator('#ribbon-tab-home').click();await host.locator('[data-action="open"]').first().click();
+  await host.waitForFunction(async previous=>{const {S}=await import('./app.mjs');return S.sessionId!==previous&&S.nativeEdits.some(e=>e.type==='studio-graphic'&&e.sourceData)},previousSession);
+  await host.locator('#busy').waitFor({state:'hidden'});
+  const reopened=await studio({action:'objects',page:1});
+  assert(reopened.objects.filter(o=>o.target==='studio').length>=2,JSON.stringify(reopened.objects));
   checks.push('Portable .folio project contains reusable native sources for every studio edit');
   assert.deepEqual(errors,[]);fs.writeFileSync('tests/output/creative-ui.json',JSON.stringify({status:'passed',checks},null,2));console.log('PASS creative UI',checks);
  }finally{await app.evaluate(({app})=>app.exit(0)).catch(()=>{});}
