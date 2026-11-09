@@ -9,6 +9,44 @@ def patch(kind, source):
         if new in text:return
         if text.count(old)!=1:raise RuntimeError(f'{name}: expected one patch anchor, got {text.count(old)}')
         p.write_text(text.replace(old,new),encoding='utf-8',newline='\n')
+    # Folio owns navigation, document naming, menus and zoom. Keep the native
+    # canvas, contextual tool options and inspectors, not a second application shell.
+    if kind=='photo':
+        replace('crates/ui-egui/src/app/frame.rs','panels::title_bar(self, ui);','// Folio supplies the application menu and title.')
+        replace('crates/ui-egui/src/app/frame.rs','panels::status_bar(self, ui);','// Folio supplies zoom and document status.')
+        replace('crates/ui-egui/src/canvas/tabs.rs','if !app.ui.view.hides_tabs() || opening {','if (n > 1 && !app.ui.view.hides_tabs()) || opening {')
+        replace('crates/ui-egui/src/panels/options_bar.rs','(false, false) => 42.0,','(false, false) => 36.0,')
+        replace('crates/ui-egui/src/theme.rs','accent: Color32::from_rgb(108, 92, 231),','accent: Color32::from_rgb(82, 103, 219),')
+        replace('crates/ui-egui/src/theme.rs','accent_soft: Color32::from_rgba_unmultiplied(108, 92, 231, 36),','accent_soft: Color32::from_rgba_unmultiplied(82, 103, 219, 24),')
+        replace('crates/ui-egui/src/theme.rs','accent_border: Color32::from_rgba_unmultiplied(108, 92, 231, 120),','accent_border: Color32::from_rgba_unmultiplied(82, 103, 219, 80),')
+        replace('crates/ui-egui/src/theme.rs','accent_text: Color32::from_rgb(80, 64, 200),','accent_text: Color32::from_rgb(65, 85, 190),')
+        replace('crates/ui-egui/src/control/dispatch.rs','"ui.menu.list" => {','''"folio.menu" => {
+            let lang = crate::i18n::current();
+            let items: Vec<_> = crate::menus::menu_items(app).into_iter().map(|item| {
+                json!({"id": item.id, "label": crate::i18n::tr_id(lang, &item.id, &item.label),
+                    "path": item.path, "displayPath": item.path.iter().map(|s| crate::i18n::tr(lang, s)).collect::<Vec<_>>(),
+                    "enabled": item.enabled && crate::menus::modal_allows(app, &item.id),
+                    "checked": item.checked, "shortcut": item.shortcut})
+            }).collect();
+            ok(json!(items))
+        }
+        "ui.menu.list" => {''')
+    else:
+        replace('crates/ui-egui/src/app.rs','chrome::app_bar(self, ui);','// Folio supplies the application menu and title.')
+        replace('crates/ui-egui/src/app.rs','chrome::status_bar(self, ui);','// Folio supplies zoom and document status.')
+        replace('crates/ui-egui/src/app.rs','chrome::hint_bar(self, ui);','widgets::set_menu_floor(&ctx, ctx.content_rect().bottom());')
+        replace('crates/ui-egui/src/app.rs','if self.ui.screen_mode < 3 {\n            chrome::doc_tabs(self, ui);','if self.ui.screen_mode < 3 && self.session.documents().len() > 1 {\n            chrome::doc_tabs(self, ui);')
+        replace('crates/ui-egui/src/control.rs','"ui.menu.list" => ok(serde_json::to_value(crate::menus::menu_entries(app)).unwrap_or_default()),','''"folio.menu" => {
+            let lang = crate::i18n::current();
+            let items: Vec<_> = crate::menus::menu_entries(app).into_iter().map(|item| {
+                let id = item.command.as_deref().unwrap_or("");
+                json!({"id": id, "label": crate::i18n::tr_id(lang, id, &item.label),
+                    "path": item.path, "displayPath": item.path.iter().map(|s| crate::i18n::tr(lang, s)).collect::<Vec<_>>(),
+                    "enabled": item.enabled, "params": item.params, "shortcut": item.shortcut})
+            }).collect();
+            ok(json!(items))
+        }
+        "ui.menu.list" => ok(serde_json::to_value(crate::menus::menu_entries(app)).unwrap_or_default()),''')
     if kind=='photo':
         web='apps/photocraft-web'
         for name,origin in [('api.rs','photo-api.rs'),('saved_files.rs','saved_files.rs')]:

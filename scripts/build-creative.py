@@ -3,6 +3,11 @@ import argparse,hashlib,json,os,runpy,shutil,subprocess,tomllib
 from pathlib import Path
 
 ROOT=Path(__file__).resolve().parents[1]
+
+def source_fingerprint():
+    names=['scripts/build-creative.py','scripts/patch-creative.py']
+    names += [p.relative_to(ROOT).as_posix() for p in (ROOT/'integrations/creative').rglob('*') if p.is_file()]
+    return hashlib.sha256(b''.join(n.encode()+b'\0'+(ROOT/n).read_bytes().replace(b'\r\n',b'\n')+b'\0' for n in sorted(names))).hexdigest()
 def run(*args,cwd=None):subprocess.run([str(a) for a in args],cwd=cwd or ROOT,check=True)
 def build(kind,skip_build=False):
     lock=json.loads((ROOT/'integrations/creative/source-lock.json').read_text());spec=lock[kind]
@@ -36,13 +41,18 @@ def build(kind,skip_build=False):
     shutil.copy2(ROOT/'integrations/creative/NOTICES.md',notices/'Folio.md')
     # The app already ships these redistributable fonts; the editor uses the same files.
     fonts=out/'fonts';fonts.mkdir(exist_ok=True)
-    for name in ['NotoSansSC.ttf','DejaVuSans.ttf']:
-        if (ROOT/'native/fonts'/name).exists():shutil.copy2(ROOT/'native/fonts'/name,fonts/name)
-    (fonts/'manifest.txt').write_text('Noto Sans SC | Regular | fonts/NotoSansSC.ttf | zh-Hans,zh-Hant,ja | OFL-1.1\nDejaVu Sans | Regular | fonts/DejaVuSans.ttf | latin | Bitstream-Vera\n',encoding='utf-8')
+    rows=[]
+    for source_name,name,family,scripts,license_id,license_file in [
+        ('NotoSansSC-variable.ttf','NotoSansSC.ttf','Noto Sans SC','Hans,Hant,Jpan','OFL-1.1','OFL.txt'),
+        ('DejaVuSans.ttf','DejaVuSans.ttf','DejaVu Sans','Latn,Grek,Cyrl','Bitstream-Vera','DejaVu-LICENSE.txt')]:
+        shutil.copy2(ROOT/'native/fonts'/source_name,fonts/name)
+        digest=hashlib.sha256((fonts/name).read_bytes()).hexdigest()
+        rows.append(f'{family} | Regular | fonts/{name} | {scripts} | {license_id} | licenses/{license_file} | {digest} | Folio font bundle')
+    (fonts/'manifest.txt').write_text('\n'.join(rows)+'\n',encoding='utf-8')
     for file in (ROOT/'native/fonts').glob('*'):
         if file.is_file() and file.suffix.lower() not in ['.ttf','.otf']:shutil.copy2(file,notices/file.name)
     files={str(p.relative_to(out)).replace('\\','/'):hashlib.sha256(p.read_bytes()).hexdigest() for p in out.rglob('*') if p.is_file() and p.name!='build.json'}
-    (out/'build.json').write_text(json.dumps({'kind':kind,**spec,'files':files},indent=2),encoding='utf-8')
+    (out/'build.json').write_text(json.dumps({'kind':kind,**spec,'sourceFingerprint':source_fingerprint(),'files':files},indent=2),encoding='utf-8')
     print(json.dumps({'kind':kind,'files':len(files),'wasmBytes':(out/'engine_bg.wasm').stat().st_size}))
 
 if __name__=='__main__':

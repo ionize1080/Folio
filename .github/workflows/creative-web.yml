@@ -27,9 +27,16 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - uses: actions/cache@v4
+        id: engine-cache
+        with:
+          path: .creative-web/${{ matrix.kind }}
+          key: folio-wasm-${{ matrix.kind }}-${{ hashFiles('scripts/build-creative.py', 'scripts/patch-creative.py', 'integrations/creative/**', 'native/fonts/**') }}
       - name: Rust toolchain
+        if: steps.engine-cache.outputs.cache-hit != 'true'
         run: rustup toolchain install 1.95.0 --profile minimal --target wasm32-unknown-unknown && rustup default 1.95.0
       - name: Build from pinned source
+        if: steps.engine-cache.outputs.cache-hit != 'true'
         run: python scripts/build-creative.py ${{ matrix.kind }}
       - uses: actions/upload-artifact@v4
         with:
