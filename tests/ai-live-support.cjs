@@ -26,4 +26,11 @@ async function configure(chat){
  await chat.evaluate(()=>window.folioSettingsReady());
  return {model:config.model};
 }
-module.exports={credentials,configure};
+async function send(chat,text){
+ const input=chat.locator('textarea[placeholder]').first();
+ await input.fill(text);
+ await chat.locator('[data-folio-send]:enabled').waitFor();
+ await input.press('Enter');
+ await chat.waitForFunction(()=>document.querySelector('textarea[placeholder]')?.value==='',null,{timeout:15000});
+}
+module.exports={credentials,configure,send};
