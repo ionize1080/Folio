@@ -6,7 +6,9 @@ ROOT=Path(__file__).resolve().parents[1]
 def patch(kind, source):
     def replace(name, old, new):
         p=source/name; text=p.read_text(encoding='utf-8')
-        if new in text:return
+        # Some replacements retain the old anchor inside a larger handler. Others
+        # insert text that also legitimately occurs elsewhere in the original file.
+        if new in text and (old in new or old not in text):return
         if text.count(old)!=1:raise RuntimeError(f'{name}: expected one patch anchor, got {text.count(old)}')
         p.write_text(text.replace(old,new),encoding='utf-8',newline='\n')
     # Folio owns navigation, document naming, menus and zoom. Keep the native
