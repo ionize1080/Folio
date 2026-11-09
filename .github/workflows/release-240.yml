@@ -349,6 +349,34 @@ jobs:
     - run: native\runtime\python.exe tests/page-organization.py && node tests/organizer-ui.cjs
     - id: results
       run: python scripts/ci-reports.py export creativeui
+  creativelive:
+    name: Real Qwen artwork and page organization
+    needs: [core, prepare, engines]
+    runs-on: windows-latest
+    timeout-minutes: 45
+    outputs:
+      reports: ${{ steps.results.outputs.reports }}
+    defaults:
+      run:
+        shell: cmd
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    - uses: ./.github/actions/setup-workbench
+      with:
+        ai: 'true'
+        conversion: 'false'
+        models: 'false'
+        creative: 'true'
+        fixtures: 'false'
+    - run: native\runtime\python.exe tests/creative-native.py
+    - run: node tests/creative-live.cjs
+      env:
+        FOLIO_QWEN_API_KEY: ${{ secrets.FOLIO_QWEN_API_KEY }}
+        FOLIO_QWEN_API_URL: ${{ secrets.FOLIO_QWEN_API_URL }}
+    - id: results
+      run: python scripts/ci-reports.py export creativelive
   livecontext:
     name: Real Qwen metadata, Office and same-chat context
     needs:
@@ -458,6 +486,7 @@ jobs:
     - ai
     - creative
     - creativeui
+    - creativelive
     - livecontext
     - liveedit
     - liveimage
@@ -517,6 +546,10 @@ jobs:
       run: python scripts/ci-reports.py import creativeui
       env:
         FOLIO_CI_REPORTS: ${{ needs.creativeui.outputs.reports }}
+    - name: Verify creativelive test provenance
+      run: python scripts/ci-reports.py import creativelive
+      env:
+        FOLIO_CI_REPORTS: ${{ needs.creativelive.outputs.reports }}
     - name: Verify livecontext test provenance
       run: python scripts/ci-reports.py import livecontext
       env:

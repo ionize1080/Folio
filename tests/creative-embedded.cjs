@@ -55,7 +55,7 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
     await request({action:'show'});await page.waitForFunction(()=>document.body.classList.contains('studio-active'));assert.equal((await request({action:'preview'})).content[0].data,after.content[0].data,'Returning to PDF must not discard editor state');
     await app.evaluate(({BrowserWindow})=>{const w=BrowserWindow.getAllWindows()[0];w.setMinimumSize(780,600);w.setSize(800,850);});
     await page.locator('.folio-ai-open').click();await page.waitForFunction(()=>document.body.classList.contains('ai-sidebar-open'));await page.waitForTimeout(2500);
-    await page.waitForFunction(()=>!document.querySelector('.studio-workspace').classList.contains('studio-busy'));
+    await page.waitForFunction(()=>document.querySelector('.studio-frame:not(.studio-parked)')?.dataset.compact==='true');
     state=await request({action:'request',method:'ui.inspect'});assert(kind==='photo'?JSON.stringify(state.docking.layout).includes('"iconic":true'):state.ui.dock_collapsed,'Narrow editor collapses the inspector to preserve canvas space');
     assert(state.canvasRect[2]>250,'AI sidebar must leave a useful canvas');
     const toolbar=await page.locator('.studio-toolbar').evaluate(e=>({width:e.clientWidth,scroll:e.scrollWidth}));assert(toolbar.scroll<=toolbar.width);
@@ -65,7 +65,7 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
     assert.equal(await app.evaluate(()=>globalThis.__folioChatboxHost.view.getVisible()),true,'AI view returns after closing the popover');
     await require('./native-capture.cjs')(app,page,`tests/output/embedded-${kind}-narrow.png`);
     await page.locator('.folio-ai-open').click();await page.waitForFunction(()=>!document.body.classList.contains('ai-sidebar-open'));await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].setSize(1400,900));await page.waitForTimeout(2500);
-    await page.waitForFunction(()=>!document.querySelector('.studio-workspace').classList.contains('studio-busy'));
+    await page.waitForFunction(()=>document.querySelector('.studio-frame:not(.studio-parked)')?.dataset.compact==='false');
     state=await request({action:'request',method:'ui.inspect'});assert(kind==='photo'?!JSON.stringify(state.docking.layout).includes('"iconic":true'):!state.ui.dock_collapsed,'Wide editor restores the previous inspector');
     await request({action:'close'});checks.push({kind,maxZoom:limits,embedded:true,viewModes:true,manualToolGesture:true,statePreserved:true,nativeMenuDialog:true,pdfReference:true,viewOnlyExports:true,placementUnchanged:true});
   }

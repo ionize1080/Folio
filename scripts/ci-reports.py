@@ -10,6 +10,7 @@ SUITES = {
     'ui':['chatbox-completion-220.json','chrome-202.json','ai-settings.json'],
     'ai':['hosted-202.json'],
     'creative':['creative-engines.json','creative-embedded.json'],
+    'creativelive':['creative-live.json'],
     'creativeui':['creative-ui.json','organizer-ui.json'],
     'livecontext':['document-live-report.json','conversion-live-report.json','context-live-report.json'],
     'liveedit':['ai-workflows-210.json','live-202.json'],

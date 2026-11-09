@@ -14,7 +14,7 @@ tag, prefix = 'v2.4.0', 'Folio-PDF-Studio-2.4.0'
 assert json.loads((root / 'package.json').read_text())['version'] == '2.4.0'
 reports = {}
 suite_provenance = {}
-for suite in ['native1','native2','native3','docengine','docui','mcp','ui','ai','creative','creativeui','livecontext','liveedit','liveimage']:
+for suite in ['native1','native2','native3','docengine','docui','mcp','ui','ai','creative','creativeui','creativelive','livecontext','liveedit','liveimage']:
     provenance = json.loads((root / 'tests/output' / ('ci-' + suite + '.json')).read_text(encoding='utf-8'))
     assert provenance == dict(suite=suite, sourceCommit=sha, runId=os.environ['GITHUB_RUN_ID']), 'Mismatched parallel test provenance'
     suite_provenance[suite] = provenance
@@ -25,7 +25,7 @@ for i,r in enumerate(native_reports,1):
     assert [c['capability'] for c in r['checks']]==[c['capability'] for n,c in enumerate(manifest) if n%3==i-1]
     assert all(c['status']=='passed' for c in r['checks'])
 (root/'tests/output/native-regression-report.json').write_text(json.dumps({'status':'passed','shards':native_reports}))
-for name in ['creative-engines.json','creative-embedded.json','creative-ui.json','organizer-ui.json','native-regression-report.json','mcp-regression-report.json','ci-packaged-report.json','conversion-native-report.json','conversion-scan-report.json','conversion-public-report.json','conversion-live-report.json','engineering-native-report.json','engineering-ui-report.json','workbench-ui-report.json','context-live-report.json','document-utilities-report.json', 'document-tools-ui.json', 'document-live-report.json', 'chatbox-completion-220.json', 'graphics-220-native.json', 'graphics-220-ui.json', 'graphics-220-live.json', 'ai-workflows-210.json', 'workspace-210.json', 'live-202.json', 'hosted-202.json', 'chrome-202.json', 'ai-settings.json',
+for name in ['creative-live.json','creative-engines.json','creative-embedded.json','creative-ui.json','organizer-ui.json','native-regression-report.json','mcp-regression-report.json','ci-packaged-report.json','conversion-native-report.json','conversion-scan-report.json','conversion-public-report.json','conversion-live-report.json','engineering-native-report.json','engineering-ui-report.json','workbench-ui-report.json','context-live-report.json','document-utilities-report.json', 'document-tools-ui.json', 'document-live-report.json', 'chatbox-completion-220.json', 'graphics-220-native.json', 'graphics-220-ui.json', 'graphics-220-live.json', 'ai-workflows-210.json', 'workspace-210.json', 'live-202.json', 'hosted-202.json', 'chrome-202.json', 'ai-settings.json',
              'update-python-201.json', 'packaged-ai.json', 'v201-updater-report.json',
              'v162-health-report.json', 'package-report.json']:
     reports[name] = json.loads((root / 'tests/output' / name).read_text(encoding='utf-8'))
@@ -36,8 +36,10 @@ assert reports['native-regression-report.json']['status'] == 'passed'
 assert reports['mcp-regression-report.json']['status'] == 'passed'
 assert reports['mcp-regression-report.json']['coverage'] >= 75
 assert reports['mcp-regression-report.json']['branchCoverage']
-for name in ['creative-engines.json','creative-embedded.json','creative-ui.json','organizer-ui.json']:
+for name in ['creative-live.json','creative-engines.json','creative-embedded.json','creative-ui.json','organizer-ui.json']:
     assert reports[name]['status']=='passed' and reports[name]['checks'], name
+assert reports['creative-live.json']['apiRequests']>=5 and reports['creative-live.json']['outputTokenLimit'] is None
+assert reports['creative-live.json']['placementUnchanged'] and reports['creative-live.json']['independent']['organizedPixelsExact']
 packaged = reports['ci-packaged-report.json']
 assert packaged['status'] == 'passed' and len(packaged['checks']) == 10
 assert {c['task'] for c in packaged['checks']} == {'tests/workspace-210.cjs','tests/graphics-220.cjs','tests/package-ai.cjs','tests/creative-engines.cjs','tests/creative-embedded.cjs','tests/workbench-ui.cjs','tests/engineering-ui.cjs','tests/conversion-scan.cjs','tests/creative-ui.cjs','tests/organizer-ui.cjs'}

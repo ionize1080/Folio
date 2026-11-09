@@ -6,6 +6,6 @@
 - PDF saves final artwork; `.folio` keeps editable sources, layers and masks. Replacement preserves the original object paint order, including earlier quick-vector artwork.
 - Thumbnail organization supports multiselect, drag reorder, insert/delete/extract/replace, copy, rotate/reverse, split, crop/resize and page marks.
 - Direct Word/Excel export defaults to local processing without LibreOffice. The full package retains Office-import conversion engines. Qwen live-context ordering is corrected, and AI receives the active artwork session.
-- Thirteen independent acceptance suites and two engine builds run in parallel. The final executable is tested again before Actions publishes the release.
+- Fourteen independent acceptance suites and two engine builds run in parallel, including real Qwen artwork and page-organization workflows without an added output token limit. The final executable is tested again before Actions publishes the release.
 
 See [the workspace guide](https://github.com/ionize1080/Folio/blob/main/docs/CREATIVE-STUDIO.md). Format/effect compatibility follows the integrated engines; this release does not claim complete Adobe application parity.

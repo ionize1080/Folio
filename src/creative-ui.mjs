@@ -38,7 +38,7 @@ export function installCreativeUI({S,run,rev,studio}){
       const collapsed=ui.ui.dock_collapsed;if(compact)s.restoreInspector=!collapsed;
       if((compact&&!collapsed)||(!compact&&s.restoreInspector&&collapsed))await run({action:'execute',sessionId:id,command:'window.collapseDock',params:{collapsed:compact}});
     }
-    s.compactLayout=compact;
+    s.compactLayout=compact;s.frame.dataset.compact=String(compact);
   }
   async function show(id){
     const s=embedded.get(id),info=studio.sessions.get(id);if(!info)return;
