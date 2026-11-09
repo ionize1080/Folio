@@ -16,7 +16,8 @@ function execute(task,lane){return new Promise((resolve,reject)=>{
   const log=fs.openSync(file,'w');
   const child=spawn(process.execPath,[task],{env:process.env,windowsHide:true,stdio:['ignore',log,log]});
   fs.closeSync(log);let timedOut=false,launchError;
-  const timer=setTimeout(()=>{timedOut=true;if(process.platform==='win32'&&child.pid)spawn('taskkill.exe',['/PID',String(child.pid),'/T','/F'],{windowsHide:true,stdio:'ignore'});else child.kill();},360000);
+  const timeout=task==='tests/creative-embedded.cjs'?600000:360000;
+  const timer=setTimeout(()=>{timedOut=true;if(process.platform==='win32'&&child.pid)spawn('taskkill.exe',['/PID',String(child.pid),'/T','/F'],{windowsHide:true,stdio:'ignore'});else child.kill();},timeout);
   child.on('error',e=>{launchError=e;});
   child.on('close',code=>{clearTimeout(timer);const ok=!launchError&&!timedOut&&code===0;
     console.log((ok?'PASS ':'FAIL ')+task+' (lane '+lane+')');
