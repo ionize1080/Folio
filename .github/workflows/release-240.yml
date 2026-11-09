@@ -341,7 +341,7 @@ jobs:
       with:
         ai: 'false'
         conversion: 'false'
-        models: 'false'
+        models: 'true'
         creative: 'true'
         fixtures: 'true'
     - run: native\runtime\python.exe tests/creative-native.py
