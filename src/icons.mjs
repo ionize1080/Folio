@@ -1,4 +1,6 @@
 const paths = {
+  'page-grid': 'M3 3h7v8H3z M14 3h7v8h-7z M3 15h7v6H3z M14 15h7v6h-7z',
+  'merge-pages': 'M3 3h6v7H3z M15 3h6v7h-6z M6 12v3h12v-3 M12 15v6 M9 18l3 3 3-3',
   back: 'M14 5l-7 7 7 7 M7 12h14',
   'chevron-right': 'm9 6 6 6-6 6',
   minus: 'M5 12h14',
