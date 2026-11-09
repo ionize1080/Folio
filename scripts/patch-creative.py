@@ -13,6 +13,17 @@ def patch(kind, source):
         p.write_text(text.replace(old,new),encoding='utf-8',newline='\n')
     # Folio owns navigation, document naming, menus and zoom. Keep the native
     # canvas, contextual tool options and inspectors, not a second application shell.
+    (source/'crates/ui-egui/src/folio_backdrop.rs').write_bytes((ROOT/'integrations/creative/folio_backdrop.rs').read_bytes())
+    replace('crates/ui-egui/src/lib.rs','mod canvas;', 'mod canvas;\nmod folio_backdrop;')
+    if kind=='vector':
+        replace('crates/ui-egui/Cargo.toml','log = { workspace = true }','log = { workspace = true }\nbase64 = "0.23"')
+        p=source/'Cargo.lock';text=p.read_text(encoding='utf-8')
+        start=text.index('name = "vectorcraft-ui-egui"');end=text.index('[[package]]',start)
+        section=text[start:end]
+        if ' "base64 0.23.1",' not in section:
+            text=text[:start]+section.replace('dependencies = [','dependencies = [\n "base64 0.23.1",')+text[end:]
+            p.write_text(text,encoding='utf-8',newline='\n')
+    dispatch='crates/ui-egui/src/control/dispatch.rs' if kind=='photo' else 'crates/ui-egui/src/control.rs'
     if kind=='photo':
         replace('crates/ui-egui/src/app/frame.rs','panels::title_bar(self, ui);','// Folio supplies the application menu and title.')
         replace('crates/ui-egui/src/app/frame.rs','panels::status_bar(self, ui);','// Folio supplies zoom and document status.')
@@ -22,6 +33,12 @@ def patch(kind, source):
         replace('crates/ui-egui/src/theme.rs','accent_soft: Color32::from_rgba_unmultiplied(108, 92, 231, 36),','accent_soft: Color32::from_rgba_unmultiplied(82, 103, 219, 24),')
         replace('crates/ui-egui/src/theme.rs','accent_border: Color32::from_rgba_unmultiplied(108, 92, 231, 120),','accent_border: Color32::from_rgba_unmultiplied(82, 103, 219, 80),')
         replace('crates/ui-egui/src/theme.rs','accent_text: Color32::from_rgb(80, 64, 200),','accent_text: Color32::from_rgb(65, 85, 190),')
+        replace('crates/ui-egui/src/canvas.rs','let gpu_ok = crate::gpu_canvas::gpu_view_ok(flip, view.rotation, aspect);','let gpu_ok = !crate::folio_backdrop::active(ctx) && crate::gpu_canvas::gpu_view_ok(flip, view.rotation, aspect);')
+        replace('crates/ui-egui/src/canvas.rs','let beyond = draw_beyond_canvas(app, painter, &xf, idx, output);','crate::folio_backdrop::paint(painter, |p| xf.to_screen(p[0], p[1]), None);\n    let beyond = draw_beyond_canvas(app, painter, &xf, idx, output);')
+        replace('crates/ui-egui/src/canvas/paint.rs','    match checker {\n        Some((checker_id, square)) if !opaque || tex.is_none() => {','    if !crate::folio_backdrop::active(painter.ctx()) { match checker {\n        Some((checker_id, square)) if !opaque || tex.is_none() => {')
+        replace('crates/ui-egui/src/canvas/paint.rs','    if let Some(tex) = tex {\n        if rotated {','    }\n    if let Some(tex) = tex {\n        if rotated {')
+        replace('crates/ui-egui/src/canvas/paint.rs','    match checker {\n        Some((checker_id, square)) => {','    if !crate::folio_backdrop::paint(painter, |p| xf.to_screen(p[0], p[1]), Some(pts)) { match checker {\n        Some((checker_id, square)) => {')
+        replace('crates/ui-egui/src/canvas/paint.rs','    quad(tex, [pos2(0.0, 0.0),','    }\n    quad(tex, [pos2(0.0, 0.0),')
         replace('crates/ui-egui/src/control/dispatch.rs','"ui.menu.list" => {','''"folio.menu" => {
             let lang = crate::i18n::current();
             let items: Vec<_> = crate::menus::menu_items(app).into_iter().map(|item| {
@@ -34,6 +51,7 @@ def patch(kind, source):
         }
         "ui.menu.list" => {''')
     else:
+        replace('crates/ui-egui/src/canvas.rs','    paint_paper(app, st, ui, &painter, &xf, rect, (&t, app.outline_view()));','    paint_paper(app, st, ui, &painter, &xf, rect, (&t, app.outline_view()));\n    crate::folio_backdrop::paint(&painter, |p| xf.to_screen(Point::new(p[0] as f64, p[1] as f64)), None);')
         replace('crates/ui-egui/src/app.rs','chrome::app_bar(self, ui);','// Folio supplies the application menu and title.')
         replace('crates/ui-egui/src/app.rs','chrome::status_bar(self, ui);','// Folio supplies zoom and document status.')
         replace('crates/ui-egui/src/app.rs','chrome::hint_bar(self, ui);','widgets::set_menu_floor(&ctx, ctx.content_rect().bottom());')
@@ -61,6 +79,7 @@ def patch(kind, source):
             ok(json!(items))
         }
         "ui.menu.list" => ok(serde_json::to_value(crate::menus::menu_entries(app)).unwrap_or_default()),''')
+    replace(dispatch,'"folio.menu" => {','"folio.backdrop" => match crate::folio_backdrop::configure(ctx, p) { Ok(v) => ok(v), Err(e) => err(e) },\n        "folio.menu" => {')
     if kind=='photo':
         web='apps/photocraft-web'
         for name,origin in [('api.rs','photo-api.rs'),('saved_files.rs','saved_files.rs')]:
