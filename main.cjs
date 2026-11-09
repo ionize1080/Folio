@@ -95,6 +95,17 @@ function ipc(name, fn) {
     return editorCall.run(e.sender, () => fn(...args));
   });
 }
+const {readCreativeAsset}=require('./creative-studio.cjs');
+const creativeRoot=app.isPackaged?path.join(process.resourcesPath,'creative'):path.join(__dirname,'.creative-web');
+ipc('creative-studio',async a=>{
+  const owner=sender();
+  if(a.action!=='asset')throw Error('编辑命令应由 Folio 内的画布执行');
+  if(a.pick){
+    const r=await dialog.showOpenDialog(BrowserWindow.fromWebContents(owner),{properties:['openFile'],filters:[{name:a.kind==='photo'?'图像与图层工程':'矢量与图形工程',extensions:a.kind==='photo'?['pcraft','psd','psb','png','jpg','jpeg','webp','tif','tiff','exr','hdr','bmp']:['vectorcraft','svg','svgz','pdf','ai','eps','dxf','png','jpg','webp']}]});
+    if(r.canceled)return {cancelled:true};a={...a,path:r.filePaths[0]};
+  }
+  return readCreativeAsset(a.path);
+});
 app.setName("Folio PDF Studio");
 app.setAppUserModelId("studio.folio.pdf");
 app.whenReady().then(async () => {
@@ -102,13 +113,16 @@ app.whenReady().then(async () => {
   protocol.handle("folio", (request) => {
     const url = new URL(request.url);
     if (url.host !== "app") return new Response("", { status: 403 });
-    let file;
+    let file,base=root;
     try {
-      file = path.resolve(root, "." + decodeURIComponent(url.pathname));
+      const pathname=decodeURIComponent(url.pathname);
+      if(pathname.startsWith('/creative/')){
+        base=creativeRoot;file=path.resolve(base,'.'+pathname.slice('/creative'.length));
+      }else file = path.resolve(root, "." + pathname);
     } catch {
       return new Response("", { status: 400 });
     }
-    if (!file.startsWith(root + path.sep))
+    if (!file.startsWith(base + path.sep))
       return new Response("", { status: 403 });
     return net.fetch(pathToFileURL(file).href);
   });

@@ -361,9 +361,33 @@ def run(args, *, _preview=False):
   with open(args['input'],'rb') as stream:
    pg=PdfReader(stream).pages[args['page']-1]
    return {'graphics':list_graphics(pg)}
+ if args.get('command')=='studio-list':
+  from pypdf import PdfReader
+  from creative_graphics import inspect as studio_inspect
+  with open(args['input'],'rb') as stream:
+   return {'graphics':studio_inspect(PdfReader(stream).pages[args['page']-1],args.get('id'))}
+ if args.get('command')=='studio-reference':
+  from creative_graphics import reference
+  return reference(Path(args['input']).read_bytes() if 'input' in args else base64.b64decode(args['bytes']),args['page'],args.get('maxSide',1600))
+ if args.get('command')=='studio-raster':
+  import fitz
+  with fitz.open(stream=base64.b64decode(args['pdfData']),filetype='pdf') as doc:
+   return {'imageData':base64.b64encode(doc[0].get_pixmap(matrix=fitz.Matrix(2,2),alpha=True).tobytes('png')).decode()}
  if args.get('command')=='image-export':
-  from image_adjustments import source_image
-  image=source_image(args);buf=io.BytesIO();image.save(buf,format='PNG')
+  from image_adjustments import source_image, process, bounded
+  image=process(source_image(args),args.get('adjustments') or {})
+  if args.get('perspective'):
+   from image_geometry import rectify
+   image=rectify(image,args['perspective'])
+  if args.get('crop'):
+   from PIL import Image, ImageDraw
+   l,t,r,b=[bounded(v,0,99,'crop')/100 for v in args['crop']]
+   if l+r>=1 or t+b>=1:raise ValueError('裁剪范围无效')
+   image=image.convert('RGBA');mask=Image.new('L',image.size,0)
+   ImageDraw.Draw(mask).rectangle((round(l*image.width),round(t*image.height),round((1-r)*image.width)-1,round((1-b)*image.height)-1),fill=255)
+   from PIL import ImageChops
+   image.putalpha(ImageChops.multiply(image.getchannel('A'),mask))
+  buf=io.BytesIO();image.save(buf,format='PNG')
   return {'imageData':base64.b64encode(buf.getvalue()).decode()}
  if args.get('command')=='image-replace':
   from image_adjustments import replace_pixels

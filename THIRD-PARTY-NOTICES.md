@@ -93,3 +93,7 @@ These unmodified components are restored from hash-pinned official distributions
 System fonts selected by users are not redistributed. Font embedding restrictions reported by OS/2 fsType are exposed; restricted embedding and prohibited subsetting are rejected by the engineering tool. Users remain responsible for the terms of their selected font licenses.
 
 The conversion runtime additionally bundles FontTools 4.66.1 (MIT, with included external notices) and Brotli 1.2.0 (MIT) for font engineering and compressed font decoding. Their licenses are copied under `native/licenses` and included in the runtime distribution metadata.
+
+## Embedded artwork engines (2.4)
+
+PhotoCraft 0.21.0 and VectorCraft 0.22.0, copyright their contributors, are built from the exact Git commits in `integrations/creative/source-lock.json` under MIT OR Apache-2.0. Folio's source adaptations, control bridge and reference-canvas implementation are in `integrations/creative` and `scripts/patch-creative.py`. Reproduction instructions: `docs/CREATIVE-STUDIO.md`. The installed `resources/creative/{photo,vector}/licenses` directories retain upstream licenses, notices and font licenses. `build.json` records the pinned revision, adaptation fingerprint and every distributed asset hash. No third-party desktop application or second Electron runtime is included for artwork editing.

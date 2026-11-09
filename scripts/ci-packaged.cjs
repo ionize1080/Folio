@@ -1,5 +1,5 @@
 const fs=require('node:fs'),path=require('node:path'),{spawn}=require('node:child_process');
-const lanes=[['tests/workspace-210.cjs','tests/graphics-220.cjs','tests/package-ai.cjs'],['tests/workbench-ui.cjs','tests/engineering-ui.cjs','tests/conversion-scan.cjs']];
+const lanes=[['tests/workspace-210.cjs','tests/graphics-220.cjs','tests/package-ai.cjs','tests/creative-engines.cjs','tests/creative-embedded.cjs'],['tests/workbench-ui.cjs','tests/engineering-ui.cjs','tests/conversion-scan.cjs','tests/creative-ui.cjs','tests/organizer-ui.cjs']];
 async function runLanes(groups,execute){
   if(!Array.isArray(groups)||groups.length<1||groups.length>2)throw Error('At most two isolated application lanes are allowed');
   const rows=[];

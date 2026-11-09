@@ -4,7 +4,7 @@ export function installToolLibrary(){
  const buttons=[...menu.querySelectorAll('button')];
  const search=document.createElement('label');search.className='tool-library-search';search.innerHTML=icon('search')+'<input type="search" placeholder="查找工具…" aria-label="查找工具">';
  const grid=document.createElement('div');grid.className='tool-library-grid';
- const groups=[['创建与转换',['office-import','web-pdf','document-assembly','document-utilities','save-as','exchange']],['编辑与优化',['pages','edit-content','table-structure','page-diff','decrypt','metadata','font-tools']],['书签与自动化',['ocr-preview','calibrate','calibrate-pages','whitespace','batch','recover']]];
+ const groups=[['创建与转换',['export-word','export-excel','save-project','office-import','web-pdf','document-assembly','document-utilities','save-as','exchange']],['编辑与优化',['page-organizer','pages','edit-content','table-structure','page-diff','decrypt','metadata','font-tools']],['书签与自动化',['ocr-preview','calibrate','calibrate-pages','whitespace','batch','recover']]];
  const used=new Set();
  for(const [name,ids] of groups){
    const section=document.createElement('section');const h=document.createElement('h3');h.textContent=name;section.append(h);

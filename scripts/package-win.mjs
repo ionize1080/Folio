@@ -17,6 +17,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const pkg = JSON.parse(
   await fs.readFile(path.join(root, "package.json"), "utf8"),
 );
+execFileSync(process.env.FOLIO_PYTHON || (process.platform==='win32'?'python':'python3'), ['scripts/verify-creative.py'], {cwd:root,stdio:'inherit'});
 const version = pkg.devDependencies.electron;
 const base = process.env.FOLIO_RUNTIME_BASE;
 let runtime, hash;
@@ -81,6 +82,7 @@ for (const item of [
   "main.cjs",
   "ai-host.cjs",
   "ai-dock.cjs",
+  "creative-studio.cjs",
   "image-provider.cjs",
   "image-config.cjs",
   "document-tabs.cjs",
@@ -132,6 +134,10 @@ for (const component of ['Chatbox','pdf-runtime']) {
   await fs.cp(path.join(root,'.ai-runtime',component),path.join(out,'resources',component),{recursive:true,filter:p=>!p.includes('__pycache__')&&!p.includes('__editable__')});
 }
 // Chatbox shares the host Electron main process and Chromium runtime.
+for(const kind of ['photo','vector']){
+  await fs.access(path.join(root,'.creative-web',kind,'build.json'));
+  await fs.cp(path.join(root,'.creative-web',kind),path.join(out,'resources/creative',kind),{recursive:true});
+}
 await asar.createPackage(stage, path.join(out, "resources", "app.asar"));
 await fs.rm(path.join(out, "resources", "default_app.asar"), { force: true });
 const exe = PE.NtExecutable.from(

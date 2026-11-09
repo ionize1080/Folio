@@ -277,7 +277,7 @@ def compose(data,edits,blocks,inspect,fragment,progress=None,*,preview=False):
         flows=sorted([e for e in es if e.get('type')=='flow' and not e.get('delete')],key=lambda e:float((e.get('model') or {}).get('layerOrder',0)))
         replace=[e for e in es if e.get('index') is not None]
         deleted_indices={e['index'] for e in replace if e.get('delete')}
-        appended=[e for e in es if e.get('index') is None and not e.get('delete') and e.get('type') not in ('flow','vector-graphic','inserted-image')]
+        appended=[e for e in es if e.get('index') is None and not e.get('delete') and e.get('type') not in ('flow','vector-graphic','inserted-image','studio-graphic')]
         flow_indices=set(); flow_blobs=[]; original_patches={}; inline_flows={}; relocated_marks=set()
         if flows:
             desc=inspect(number);mapped=check_editable(page,desc)
@@ -430,6 +430,13 @@ def compose(data,edits,blocks,inspect,fragment,progress=None,*,preview=False):
                 used.add(idx);d=desc[idx];m=mapped[idx]
                 if d['signature']!=e.get('signature'):raise ValueError('对象已变化，请重新选择')
                 if not d['editable'] and not ('objectStyle' in e and d.get('styleEditable')) and not (e.get('_flowDelete') and idx in flow_indices and d.get('flowEditable')):raise ValueError(d.get('reason','此对象不能安全修改'))
+                if e.get('type')=='studio-graphic' and not e.get('delete'):
+                    from creative_graphics import replace_operations
+                    after[m['at']]=replace_operations(writer,page,e,stream,m['at'])
+                    if m['type']=='image':omit.add(m['at'])
+                    elif m['type']=='path':stream.operations[m['at']]=([],b'n')
+                    else:raise ValueError('Studio replacement expects an image or path')
+                    continue
                 if m['type']=='image':
                     if e.get('delete'):omit.add(m['at']);continue
                     if stream.operations[m['at']][1]==b'INLINE IMAGE' and not e.get('imageData'):
@@ -529,6 +536,10 @@ def compose(data,edits,blocks,inspect,fragment,progress=None,*,preview=False):
         if vectors:
             from vector_graphics import place
             place(writer,page,vectors)
+        studio=[e for e in es if e.get('type')=='studio-graphic' and e.get('index') is None]
+        if studio:
+            from creative_graphics import place as place_studio
+            place_studio(writer,page,studio)
         if progress:progress(number)
     current=None;group=[]
     for b in blocks:

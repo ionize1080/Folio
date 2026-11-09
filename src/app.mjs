@@ -1900,13 +1900,7 @@ function generateDialog() {
     $("#modal-body").removeEventListener("input", invalidate);
   };
 }
-function exchangeDialog() {
-  modal(
-    "导入 / 导出与工作工程",
-    `<p>JSON 包含层级、颜色、字形和跳转参数。TXT 适合在 Excel 或文本编辑器中整理。</p><div class="callout">跨文件导入时，原始动作字典不会复制。可解析的本地目标会转为显式目标；不可解析的动作会提示并定位第 1 页。PDF-XChange 专用书签交换格式暂未实现。</div><div class="menu-grid"><button id="export-json">导出 Folio JSON</button><button id="export-txt">导出目录 TXT</button><button id="export-html">导出书签 HTML</button><button id="import-json">导入 Folio JSON</button><button id="import-txt">导入目录 TXT</button><button id="export-project">保存工作工程 .folio</button></div><p class="hint">工作工程包含原 PDF、已应用修改、OCR 校对与流式段落结构，可通过“打开”继续编辑。PDF 用于交付，工程用于续编；工程保留原始内容与修改记录。</p>`,
-    [{ text: "完成", run: closeModal }],
-  );
-  $("#export-project").onclick = () =>
+function saveProject(){return
     guarded(async () => {
       if (!S.pdf) return;
       await S.flowEdit?.flush();
@@ -1917,6 +1911,14 @@ function exchangeDialog() {
         "folio",
       );
     });
+}
+function exchangeDialog() {
+  modal(
+    "导入 / 导出与工作工程",
+    `<p>JSON 包含层级、颜色、字形和跳转参数。TXT 适合在 Excel 或文本编辑器中整理。</p><div class="callout">跨文件导入时，原始动作字典不会复制。可解析的本地目标会转为显式目标；不可解析的动作会提示并定位第 1 页。PDF-XChange 专用书签交换格式暂未实现。</div><div class="menu-grid"><button id="export-json">导出 Folio JSON</button><button id="export-txt">导出目录 TXT</button><button id="export-html">导出书签 HTML</button><button id="import-json">导入 Folio JSON</button><button id="import-txt">导入目录 TXT</button><button id="export-project">保存工作工程 .folio</button></div><p class="hint">工作工程包含原 PDF、已应用修改、OCR 校对与流式段落结构，可通过“打开”继续编辑。PDF 用于交付，工程用于续编；工程保留原始内容与修改记录。</p>`,
+    [{ text: "完成", run: closeModal }],
+  );
+  $("#export-project").onclick = saveProject;
   $("#export-json").onclick = () =>
     guarded(async () => {
       await writeFile(
@@ -4666,4 +4668,4 @@ installDocumentTabs({
 window.desktop?.updateStarted?.().catch(() => {});
 
 import {installAI} from './ai-ui.mjs';
-const aiUI=installAI({S,commit,writeFile,getViewContext:()=>surface.context(),getLargeDocument:()=>largeWorkspace,session:documentSession,applyContent:async(edits,ocr)=>{await refreshNative(edits,ocr);commit(clone(S.nodes),{nativeEdits:edits,ocr});},exportPDF:async()=>rpc('save',await buildExportSnapshot(S,settings,documentSession)),undo:()=>restoreHistory('undo'),redo:()=>restoreHistory('redo')});
+const aiUI=installAI({S,commit,writeFile,saveProject,getViewContext:()=>surface.context(),getLargeDocument:()=>largeWorkspace,session:documentSession,applyContent:async(edits,ocr)=>{await refreshNative(edits,ocr);commit(clone(S.nodes),{nativeEdits:edits,ocr});},exportPDF:async()=>rpc('save',await buildExportSnapshot(S,settings,documentSession)),undo:()=>restoreHistory('undo'),redo:()=>restoreHistory('redo')});

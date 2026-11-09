@@ -11,7 +11,7 @@ export async function nativeRequest(data) {
       "apply",
       "flow-background",
       "table-render",
-      "vector-list", "image-replace", "image-export", "document-assemble",
+      "vector-list", "studio-list", "studio-reference", "image-replace", "image-export", "document-assemble",
       "image-preview",
     ].includes(data.command)
   )

@@ -1,4 +1,8 @@
 import {installDocumentUtilities} from "./document-utilities-ui.mjs";
+import {installCreativeTools} from './creative-tools.mjs';
+import {installCreativeUI} from './creative-ui.mjs';
+import {installRibbon} from './ribbon.mjs';
+import {installPageOrganizer} from './page-organizer.mjs';
 import {installLiveContext} from './live-context.mjs';
 import {installEngineeringTools,compactUtilityResult} from './ai-engineering.mjs';
 import {installFontTools} from './font-tools-ui.mjs';
@@ -53,6 +57,7 @@ export function installAI({
   applyContent,
   getLargeDocument,
   writeFile,
+  saveProject,
   getViewContext,
 }) {
   const desktop = window.desktop;
@@ -143,7 +148,8 @@ export function installAI({
   });
   let lastBounds = "";
   const dockBounds = () => {
-    const r = document.querySelector(".inspector").getBoundingClientRect();
+    const dock=document.body.classList.contains('studio-active')?document.querySelector('.studio-ai-dock'):document.querySelector('.inspector');
+    const r = dock.getBoundingClientRect();
     const key = [r.x, r.y, r.width, r.height].join(",");
     if (key === lastBounds) return;
     lastBounds = key;
@@ -159,7 +165,9 @@ export function installAI({
   function currentSelection() {
     const ids = [...S.selected];
     const live=liveContext();
+    const active=document.body.classList.contains('studio-active')&&studio.embedded.sessions.get(studio.embedded.activeId);
     return {
+      creativeEditor:active?{sessionId:active.id,kind:active.kind,title:active.title,dimensions:active.dimensions,background:active.background||{mode:'checker'},tool:'folio_studio',usage:'Use this sessionId for inspect, commands, execute and preview. View/background changes do not move artwork in the PDF; apply is the explicit PDF write.'}:null,
       ...live, pageLabel:S.labels?.[live.currentPage-1] ?? String(live.currentPage),
       tool:document.querySelector("[data-select-mode][aria-pressed=true]")?.dataset.selectMode,
       selectedPageCount:S.selectedPages?.size || 0, selectedPages:[...(S.selectedPages || [])].slice(0,200),
@@ -176,16 +184,24 @@ export function installAI({
   const enqueueUI=fn=>{const work=queue.then(fn);queue=work.catch(()=>{});return work;};
   installGraphicsUI({...uiContext,imageTool:a=>a.action==='generate_new'?uiImage(a):enqueueUI(()=>uiImage(a)),vectorTool:a=>enqueueUI(()=>vectorTool(a,uiContext,Infinity)),applyContent:(edits,ocr)=>{const revision=rev();return enqueueUI(()=>{if(rev()!==revision)throw Error('文档已变化，请刷新');return applyContent(edits,ocr);});}});
   const documentUtilities=installDocumentUtilities({S,exportPDF,session,writeFile});
+  installPageOrganizer({S,session,run:documentUtilities,exportPDF});
+  const studio=installCreativeTools({...uiContext,writeFile,exportPDF});
+  installCreativeUI({S,rev,studio,run:a=>enqueueUI(()=>studio(a))});
+  new ResizeObserver(dockBounds).observe(document.querySelector('.studio-ai-dock'));
+  window.addEventListener('folio-studio-visibility',()=>requestAnimationFrame(dockBounds));
   const engineering=installEngineeringTools({S,exportPDF,session,writeFile,rev,approve:graphicsContext.approve,liveContext,documentUtilities,applyContent});
   const webPDF=installWebPDF({writeFile});
   const officeImport=installOfficeImport({writeFile});
   const assembly=installDocumentAssembly({S,exportPDF,session,writeFile});
-  installFontTools();installToolLibrary();
+  const projectButton=document.createElement('button');projectButton.id='save-project';projectButton.dataset.doc='';projectButton.innerHTML=icon('layers')+'保存工程';projectButton.title='保存 .folio · 保留完整图层与可编辑源文件';projectButton.onclick=saveProject;document.querySelector('.more-tools-menu').append(projectButton);
+  installFontTools();installToolLibrary();installRibbon();
   async function perform({ name, arguments: a = {} }, deadline = Infinity) {
     const timely = () => {
       if (Date.now() > deadline) throw Error("请求已过期，未应用修改");
     };
     timely();
+    if(name==='folio_studio'){if(!graphicsContext.approve(a))throw Error('用户取消操作');return studio({...a,...(a.action==='open'?{visible:a.visible===true}:{})});}
+    if(name==='folio_organize'){if(a.revision!==rev())throw Error('请获取最新文档修订');if(!graphicsContext.approve(a))throw Error('用户取消操作');return documentUtilities({action:'organize-pages',options:a.options});}
     if(['folio_fonts','folio_render','folio_structure'].includes(name))return engineering(name,a);
     if(name==="folio_document_utilities"){if(!graphicsContext.approve(a))throw Error("用户拒绝操作");if(a.revision!==rev())throw Error("Stale document revision");return compactUtilityResult(await documentUtilities(a));}
     if(name==="folio_web_pdf"){if(!graphicsContext.approve(a))throw Error("用户拒绝操作");return webPDF(a);}

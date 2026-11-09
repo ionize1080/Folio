@@ -4,6 +4,16 @@ import base64, gzip, hashlib, json, os, sys
 
 ROOT = Path(__file__).resolve().parents[1]
 SUITES = {
+    **{'native'+str(n):['native-'+str(n)+'-regression-report.json'] for n in range(1,4)},
+    'docengine':['conversion-native-report.json','conversion-public-report.json','engineering-native-report.json','document-utilities-report.json','graphics-220-native.json'],
+    'docui':['document-tools-ui.json','workbench-ui-report.json','engineering-ui-report.json','conversion-scan-report.json','web-pdf-report.json'],
+    'ui':['chatbox-completion-220.json','chrome-202.json','ai-settings.json'],
+    'ai':['hosted-202.json'],
+    'creative':['creative-engines.json','creative-embedded.json'],
+    'creativeui':['creative-ui.json','organizer-ui.json'],
+    'livecontext':['document-live-report.json','conversion-live-report.json','context-live-report.json'],
+    'liveedit':['ai-workflows-210.json','live-202.json'],
+    'liveimage':['graphics-220-live.json'],
     'native': ['native-regression-report.json'],
     'mcp': ['mcp-regression-report.json'],
     'documents': ['conversion-native-report.json', 'conversion-public-report.json', 'engineering-native-report.json', 'document-utilities-report.json', 'document-tools-ui.json', 'workbench-ui-report.json', 'engineering-ui-report.json', 'conversion-scan-report.json', 'graphics-220-native.json', 'web-pdf-report.json'],
@@ -19,7 +29,7 @@ def valid(name, value):
 def pack(suite, directory, sha, run_id):
     reports = {}
     for name in SUITES[suite]:
-        value = json.loads((directory / name).read_text(encoding='utf-8'))
+        value = json.loads((directory / name).read_text(encoding='utf-8-sig'))
         if not valid(name, value):
             raise ValueError('Failed report: ' + name)
         reports[name] = value

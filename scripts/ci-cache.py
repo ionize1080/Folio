@@ -24,7 +24,7 @@ def main():
         provenance=json.loads((ROOT/'.ai-runtime/pdf-runtime/provenance.json').read_text())
         assert provenance['folioPatchSha256']==hashlib.sha256((ROOT/'integrations/pdf-mcp-folio.patch').read_bytes()).hexdigest()
     elif action=='budget':
-        paths=AI if sys.argv[2]=='ai' else ['.ai-runtime/conversion-downloads','native/models']
+        paths=AI if sys.argv[2]=='ai' else ['.creative-web/'+sys.argv[2].removeprefix('creative-')] if sys.argv[2] in ['creative-photo','creative-vector'] else ['.ai-runtime/conversion-downloads','native/models']
         size=sum(p.stat().st_size for p in files(paths))
         usage=json.loads(subprocess.check_output(['gh','api',f"repos/{os.environ['GITHUB_REPOSITORY']}/actions/cache/usage"],text=True))['active_caches_size_in_bytes']
         allowed=size<=4*1024**3 and usage+size<=8*1024**3

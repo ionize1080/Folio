@@ -3,187 +3,286 @@
     {
       "capability": "all unit contracts",
       "runtime": "node",
-      "args": ["--test"],
+      "args": [
+        "--test"
+      ],
       "unitGlob": true
     },
     {
       "capability": "source archive and release transport",
       "runtime": "python",
-      "args": ["-m", "unittest", "discover", "-s", "tests", "-p", "*_test.py"]
+      "args": [
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "tests",
+        "-p",
+        "*_test.py"
+      ]
+    },
+    {
+      "capability": "Qwen multimodal and tool-turn live context",
+      "runtime": "node",
+      "args": [
+        "tests/qwen-context.cjs"
+      ]
     }
   ],
   "native": [
     {
       "capability": "native-font corrections preserve exact word boundaries",
       "runtime": "python",
-      "args": ["tests/editor-patch-semantics-v190.py"]
+      "args": [
+        "tests/editor-patch-semantics-v190.py"
+      ]
     },
     {
       "capability": "CFF, ligatures, rotations, UTF-16 and real font cache",
       "runtime": "python",
-      "args": ["tests/editor-p6.py"]
+      "args": [
+        "tests/editor-p6.py"
+      ]
     },
     {
       "capability": "ligature save and reopen",
       "runtime": "python",
-      "args": ["tests/editor-ligature-v180.py"]
+      "args": [
+        "tests/editor-ligature-v180.py"
+      ]
     },
     {
       "capability": "CJK punctuation spacing and negative advance boundaries",
       "runtime": "python",
-      "args": ["tests/editor-spacing-v190.py"]
+      "args": [
+        "tests/editor-spacing-v190.py"
+      ]
     },
     {
       "capability": "reopened paragraph growth preserves original clipping",
       "runtime": "python",
-      "args": ["tests/editor-clip-reopen-v190.py"]
+      "args": [
+        "tests/editor-clip-reopen-v190.py"
+      ]
     },
     {
       "capability": "soft and hard wrapping through a second edit and save",
       "runtime": "python",
-      "args": ["tests/reopen-editing-v190.py"]
+      "args": [
+        "tests/reopen-editing-v190.py"
+      ]
     },
     {
       "capability": "CJK reflow extraction without repeated text",
       "runtime": "python",
-      "args": ["tests/editor-semantics-v190.py"]
+      "args": [
+        "tests/editor-semantics-v190.py"
+      ]
     },
     {
       "capability": "clipping, replacement roundtrip and decode budgets",
       "runtime": "python",
-      "args": ["tests/reliability-v172.py"]
+      "args": [
+        "tests/reliability-v172.py"
+      ]
     },
     {
       "capability": "shared forms, fonts, semantics and crop origins",
       "runtime": "python",
-      "args": ["tests/editor-p7.py"]
+      "args": [
+        "tests/editor-p7.py"
+      ]
     },
     {
       "capability": "images, alpha and page isolation",
       "runtime": "python",
-      "args": ["tests/editor-p8.py"]
+      "args": [
+        "tests/editor-p8.py"
+      ]
     },
     {
       "capability": "text semantics and inline-image reopen",
       "runtime": "python",
-      "args": ["tests/editor-v190.py"]
+      "args": [
+        "tests/editor-v190.py"
+      ]
     },
     {
       "capability": "legacy embedded TrueType programs",
-      "args": ["tests/font-legacy-v191.py"],
+      "args": [
+        "tests/font-legacy-v191.py"
+      ],
       "runtime": "python"
     },
     {
       "capability": "sampled outline matching preserves rankings",
-      "args": ["tests/font-similarity-v191.py"],
+      "args": [
+        "tests/font-similarity-v191.py"
+      ],
       "runtime": "python"
     },
     {
       "capability": "source spacing and valid negative word spacing",
-      "args": ["tests/font-word-spacing-v191.py"],
+      "args": [
+        "tests/font-word-spacing-v191.py"
+      ],
       "runtime": "python"
     },
     {
       "capability": "source baselines during soft-wrap insertion and deletion",
-      "args": ["tests/original-wrap-v191.py"],
+      "args": [
+        "tests/original-wrap-v191.py"
+      ],
       "runtime": "python"
     },
     {
       "capability": "tagged paragraph replacement retains structure through two saves",
-      "args": ["tests/tagged-edit-v191.py"],
+      "args": [
+        "tests/tagged-edit-v191.py"
+      ],
       "runtime": "python"
     },
     {
       "capability": "table fills are not ruling lines",
-      "args": ["tests/table-geometry-v191.py"],
+      "args": [
+        "tests/table-geometry-v191.py"
+      ],
       "runtime": "python"
     },
     {
       "capability": "subpixel clipping permits editable reopen but rejects actual clipping",
-      "args": ["tests/clip-tolerance-v191.py"],
+      "args": [
+        "tests/clip-tolerance-v191.py"
+      ],
       "runtime": "python"
     },
     {
       "capability": "retained watermark overlap and original paint order",
       "runtime": "python",
-      "args": ["tests/watermark-edit-v191.py"]
+      "args": [
+        "tests/watermark-edit-v191.py"
+      ]
     },
     {
       "capability": "independent phonetic anchors stay attached on save",
       "runtime": "python",
-      "args": ["tests/ruby-anchors-v191.py"]
+      "args": [
+        "tests/ruby-anchors-v191.py"
+      ]
     },
     {
       "capability": "tagged preview preserves semantic context and matches saved page",
       "runtime": "python",
-      "args": ["tests/preview-tags-v191.py"]
+      "args": [
+        "tests/preview-tags-v191.py"
+      ]
     },
     {
       "capability": "compressed TrueType metrics and recovered subsets survive repeated saves",
       "runtime": "python",
-      "args": ["tests/font-metrics-v191.py"]
+      "args": [
+        "tests/font-metrics-v191.py"
+      ]
     },
     {
       "capability": "intrinsic embedded font styles survive missing PDF hints and repeated saves",
       "runtime": "python",
-      "args": ["tests/font-style-v191.py"]
+      "args": [
+        "tests/font-style-v191.py"
+      ]
     },
     {
       "capability": "shared font caches publish complete files across concurrent workers",
       "runtime": "python",
-      "args": ["tests/font-cache-atomic-v191.py"]
+      "args": [
+        "tests/font-cache-atomic-v191.py"
+      ]
     },
     {
       "capability": "independent engines detect collapsed Chinese glyph positions",
       "runtime": "python",
-      "args": ["tests/ui-glyph-verification-v191.py"]
+      "args": [
+        "tests/ui-glyph-verification-v191.py"
+      ]
     },
     {
       "capability": "independent saved-font audit detects retained glyph style changes",
       "runtime": "python",
-      "args": ["tests/ui-style-verification-v191.py"]
+      "args": [
+        "tests/ui-style-verification-v191.py"
+      ]
+    },
+    {
+      "capability": "Studio placement, reference plane and source-free PDF",
+      "runtime": "python",
+      "args": [
+        "tests/creative-native.py"
+      ]
+    },
+    {
+      "capability": "Page organization links, outlines, crop and marks",
+      "runtime": "python",
+      "args": [
+        "tests/page-organization.py"
+      ]
     }
   ],
   "browser": [
     {
       "capability": "table and OCR fixture",
       "runtime": "python",
-      "args": ["tests/fixture-v9.py"]
+      "args": [
+        "tests/fixture-v9.py"
+      ]
     },
     {
       "capability": "multipage fixture",
       "runtime": "python",
-      "args": ["tests/fixture-v10.py"]
+      "args": [
+        "tests/fixture-v10.py"
+      ]
     },
     {
       "capability": "transaction failures, export roundtrip, keyboard and locales",
       "runtime": "node",
-      "args": ["tests/reliability-v172-ui.cjs"]
+      "args": [
+        "tests/reliability-v172-ui.cjs"
+      ]
     },
     {
       "capability": "smart TOC extraction and save/reopen",
       "runtime": "node",
-      "args": ["tests/smart-toc-ui.cjs"]
+      "args": [
+        "tests/smart-toc-ui.cjs"
+      ]
     },
     {
       "capability": "independent page calibration",
       "runtime": "node",
-      "args": ["tests/page-calibration-ui.cjs"]
+      "args": [
+        "tests/page-calibration-ui.cjs"
+      ]
     },
     {
       "capability": "editing and bookmark fixtures",
       "runtime": "python",
-      "args": ["tests/editor-v190.py"]
+      "args": [
+        "tests/editor-v190.py"
+      ]
     },
     {
       "capability": "visual caret, composition, bookmark zoom and HTML export",
       "runtime": "node",
-      "args": ["tests/ui-v190.cjs"]
+      "args": [
+        "tests/ui-v190.cjs"
+      ]
     },
     {
       "capability": "bookmark scope, IME, eight zoom modes and saved hierarchy",
       "runtime": "node",
-      "args": ["tests/bookmarks-v190-ui.cjs"]
+      "args": [
+        "tests/bookmarks-v190-ui.cjs"
+      ]
     }
   ]
 }

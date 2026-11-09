@@ -8,7 +8,7 @@ export function installAIResize(desktop) {
     const max=Math.max(280,Math.min(1000,innerWidth-180));
     width=Math.max(280,Math.min(max,width));
     document.body.style.setProperty('--ai-width',width+'px');
-    const r=document.querySelector('.inspector').getBoundingClientRect();
+    const r=(document.body.classList.contains('studio-active')?document.querySelector('.studio-ai-dock'):document.querySelector('.inspector')).getBoundingClientRect();
     Object.assign(handle.style,{left:(r.left-5)+'px',top:r.top+'px',height:r.height+'px'});
     handle.setAttribute('aria-valuemin','280');handle.setAttribute('aria-valuemax',String(max));handle.setAttribute('aria-valuenow',String(Math.round(width)));
     if(save)localStorage.setItem('folio-ai-width',String(width));
@@ -22,5 +22,6 @@ export function installAIResize(desktop) {
   new ResizeObserver(()=>layout()).observe(document.querySelector('main'));
   new ResizeObserver(()=>layout()).observe(document.querySelector('.inspector'));
   window.addEventListener('resize',()=>layout());layout();
+  window.addEventListener('folio-studio-visibility',()=>requestAnimationFrame(layout));
   window.addEventListener('storage',e=>{if(e.key==='folio-ai-width'){width=Number(e.newValue)||480;layout();}});
 }

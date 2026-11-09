@@ -7,6 +7,7 @@ on:
     paths: ['integrations/creative/**', 'scripts/*-creative.py', '.github/workflows/creative-web.yml']
 permissions:
   contents: read
+  actions: read
 concurrency:
   group: creative-web-${{ github.ref }}
   cancel-in-progress: true
@@ -27,7 +28,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - uses: actions/cache@v4
+      - uses: actions/cache/restore@v4
         id: engine-cache
         with:
           path: .creative-web/${{ matrix.kind }}
@@ -38,6 +39,19 @@ jobs:
       - name: Build from pinned source
         if: steps.engine-cache.outputs.cache-hit != 'true'
         run: python scripts/build-creative.py ${{ matrix.kind }}
+      - name: Verify source and asset integrity
+        run: python scripts/verify-creative.py ${{ matrix.kind }}
+      - name: Check optional cache budget
+        if: steps.engine-cache.outputs.cache-hit != 'true'
+        id: cache-budget
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python scripts/ci-cache.py budget creative-${{ matrix.kind }}
+      - uses: actions/cache/save@v4
+        if: steps.engine-cache.outputs.cache-hit != 'true' && steps.cache-budget.outputs.allowed == 'true'
+        with:
+          path: .creative-web/${{ matrix.kind }}
+          key: ${{ steps.engine-cache.outputs.cache-primary-key }}
       - uses: actions/upload-artifact@v4
         with:
           name: creative-${{ matrix.kind }}

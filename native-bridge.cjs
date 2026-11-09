@@ -177,10 +177,11 @@ class NativeBridge {
         sample: options.sample,
       });
     }
+    if(command==='studio-raster'&&typeof options.pdfData==='string')return this.request({command,pdfData:options.pdfData});
     if (
       ![
         "inspect",
-        "vector-list", "image-replace", "image-export", "document-assemble", "document-utilities",
+        "vector-list", "studio-list", "studio-reference", "image-replace", "image-export", "document-assemble", "document-utilities",
       "image-preview",
         "apply",
         "ocr",

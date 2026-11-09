@@ -4,6 +4,9 @@ import base64,io,json,zipfile
 def process(args):
  import pikepdf
  action=args.get('action');options=args.get('options') or {}
+ if action=='organize-pages':
+  from page_organization import process as organize
+  return organize(args)
  if action in ('layers','tags','render-page'):
   from pdf_structure import layers,tags,render
   return {'layers':layers,'tags':tags,'render-page':render}[action](args)
