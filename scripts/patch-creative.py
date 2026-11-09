@@ -36,6 +36,18 @@ def patch(kind, source):
         replace('crates/ui-egui/src/app.rs','chrome::status_bar(self, ui);','// Folio supplies zoom and document status.')
         replace('crates/ui-egui/src/app.rs','chrome::hint_bar(self, ui);','widgets::set_menu_floor(&ctx, ctx.content_rect().bottom());')
         replace('crates/ui-egui/src/app.rs','if self.ui.screen_mode < 3 {\n            chrome::doc_tabs(self, ui);','if self.ui.screen_mode < 3 && self.session.documents().len() > 1 {\n            chrome::doc_tabs(self, ui);')
+        replace('crates/ui-egui/src/control.rs','"engine.commands" => ok(all_commands(app)),','''"folio.menu.invoke" => {
+            let Some(id) = s("id") else { return err("missing menu id") };
+            let params = p.get("params").cloned().unwrap_or(Value::Null);
+            let Some(item) = crate::menus::menu_entries(app).into_iter().find(|item|
+                item.command.as_deref() == Some(id) && item.params == params) else { return err("menu item not found") };
+            if !item.enabled || app.ui.dialog.is_some() { return err("menu item is unavailable") }
+            let (command, params) = crate::menus::click_target(&item.label, id, &item.params);
+            crate::menus::invoke_from_system_menu(app, ctx, &command, params);
+            ctx.request_repaint();
+            ok(json!({"invoked": id, "dialog": app.ui.dialog.as_ref().map(|d| &d.kind)}))
+        }
+        "engine.commands" => ok(all_commands(app)),''')
         replace('crates/ui-egui/src/control.rs','"ui.menu.list" => ok(serde_json::to_value(crate::menus::menu_entries(app)).unwrap_or_default()),','''"folio.menu" => {
             let lang = crate::i18n::current();
             let items: Vec<_> = crate::menus::menu_entries(app).into_iter().map(|item| {
