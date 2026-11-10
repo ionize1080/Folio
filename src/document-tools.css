@@ -212,3 +212,12 @@
 .blank-pages-dialog footer{display:flex;gap:8px;justify-content:flex-end;padding-top:12px;border-top:1px solid var(--line);}
 .blank-pages-dialog footer button{min-height:36px;padding-inline:18px;}
 @media(max-height:720px){.blank-pages-dialog{padding:18px;}.blank-pages-dialog fieldset{padding:12px;margin-bottom:12px;}.blank-pages-dialog .form-grid{gap:10px 16px;}.blank-page-preview{min-height:48px;padding:8px;}.blank-pages-dialog header{margin-bottom:12px;}}
+
+/* Both columns scroll within a bounded grid; header and actions stay reachable. */
+.document-tools[open]{display:flex;flex-direction:column;height:min(780px,calc(100dvh - 32px));max-height:calc(100dvh - 32px);overflow:hidden;box-sizing:border-box;}
+.document-tools>header,.document-tools>footer{flex:none;}
+.document-tools-body{flex:1;min-height:0;max-height:none;grid-template-rows:minmax(0,1fr);overflow:hidden;}
+.document-tools nav,.document-tool-detail{min-height:0;overflow:auto;overscroll-behavior:contain;scrollbar-gutter:stable;}
+.document-tools nav{position:static;}
+.document-tools nav button{justify-content:flex-start;}
+@media(max-height:600px){.document-tools header{padding:12px 20px}.document-tools footer{padding:10px 20px}.document-tool-detail{padding:16px 20px}}

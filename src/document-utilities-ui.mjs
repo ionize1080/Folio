@@ -6,20 +6,20 @@ const actions = [
   ["文档", "metadata", "属性与元数据", "settings"],
   ["优化", "linearize", "快速 Web 查看", "link"],
   ["优化", "compress", "缩小文件", "rules"],
-  ["优化", "pdfa", "PDF/A 归档", "file"],
-  ["优化", "validate-pdfa", "验证 PDF/A", "check"],
-  ["印刷", "pdfx", "PDF/X 印刷", "file"],
-  ["印刷", "preflight-pdfx", "印刷预检", "check"],
+  ["优化", "pdfa", "PDF/A 归档", "archive"],
+  ["优化", "validate-pdfa", "验证 PDF/A", "archive-check"],
+  ["印刷", "pdfx", "PDF/X 印刷", "print"],
+  ["印刷", "preflight-pdfx", "印刷预检", "print-check"],
   ["结构", "layers", "图层", "pages"],
   ["结构", "tags", "标签与阅读顺序", "text-lines"],
-  ["结构", "validate-pdfua", "验证无障碍", "check"],
+  ["结构", "validate-pdfua", "验证无障碍", "accessibility"],
   ["保护", "encrypt", "密码加密", "unlock"],
   ["表单", "forms", "查看字段", "table"],
   ["表单", "fill", "填写表单", "text-box"],
-  ["表单", "create-form", "创建字段", "text-box"],
+  ["表单", "create-form", "创建字段", "field-add"],
   ["导出", "export-images", "导出图片", "image-box"],
-  ["导出", "export-word", "导出 Word", "text-lines"],
-  ["导出", "export-excel", "导出 Excel", "table"],
+  ["导出", "export-word", "导出 Word", "word"],
+  ["导出", "export-excel", "导出 Excel", "excel"],
   ["导出", "export-text", "导出文本", "text-lines"],
 ];
 export function installDocumentUtilities({ S, exportPDF, session, writeFile }) {
@@ -39,7 +39,9 @@ export function installDocumentUtilities({ S, exportPDF, session, writeFile }) {
           const blocks=[];
           for(const page of scans){session.assert(capture);const r=await nativeRequest({command:'ocr',bytes,page:page.page,profile:'v6',skipText:false});blocks.push(...r.blocks);}
           session.assert(capture);
-          if(blocks.length){const r=await nativeRequest({command:'apply',bytes,edits:[],ocr:blocks});bytes=new Uint8Array(r.bytes);sources.add(bytes);plan=await nativeRequest({command:'document-utilities',bytes,action:'conversion-plan',options});options.ocrPages=scans.map(p=>p.page);}
+          if(blocks.length){
+            if(options.skipOCRReview)for(const block of blocks)if(block.needsReview)block.reviewSkipped=true;
+            const r=await nativeRequest({command:'apply',bytes,edits:[],ocr:blocks});bytes=new Uint8Array(r.bytes);sources.add(bytes);plan=await nativeRequest({command:'document-utilities',bytes,action:'conversion-plan',options});options.ocrPages=scans.map(p=>p.page);}
           const uncertain=blocks.filter(b=>(b.confidence??b.score??0)<.95).length;
           ocrWarnings.push(`已本地识别 ${scans.length} 页扫描件；${uncertain} 个文本块需复核，OCR 置信度不等于准确率。`);
         }
@@ -164,7 +166,9 @@ export function installDocumentUtilities({ S, exportPDF, session, writeFile }) {
       }[a];
       q("[data-run]").textContent = ["inspect", "forms", "validate-pdfa","layers","tags","preflight-pdfx","validate-pdfua"].includes(a)
         ? "读取信息"
-        : "另存结果…";
+        : a === "export-word" ? "导出 Word…" : a === "export-excel" ? "导出 Excel…" : "另存结果…";
+      q('.document-tool-detail').scrollTop=0;
+      q('nav [aria-pressed=true]')?.scrollIntoView({block:'nearest'});
       structureFields(a,q('[data-fields]'));
       if (a === "metadata") {
         const g = grid();
@@ -257,7 +261,7 @@ export function installDocumentUtilities({ S, exportPDF, session, writeFile }) {
         q('[data-fields]').innerHTML='<label>归档标准<select data-key="standard"><option value="2b">PDF/A-2b · 推荐</option><option value="1b">PDF/A-1b · 传统归档</option><option value="3b">PDF/A-3b</option></select></label>';
       }
       if(['export-word','export-excel'].includes(a)){
-        q('[data-fields]').innerHTML='<label>转换方式<select data-key="ai"><option value="false">本地转换 · 无需 Office</option><option value="true">AI 辅助复核结构</option></select></label><p class="hint">直接生成 DOCX / XLSX，无需安装 Word、Excel 或 LibreOffice。可选 AI 复核会发送所选页文字和坐标到您配置的服务。</p><label>页码范围<input data-key="pages" placeholder="全部，或 1-3,5"></label>'+(a==='export-word'?'<label>版式<select data-key="layout"><option value="faithful">保留页面布局</option><option value="flow">流动文本 · 易于编辑</option></select></label>':'<label>数据类型<select data-key="numeric"><option value="true">识别简单数值与百分比</option><option value="false">全部保留为文本</option></select></label>');
+        q('[data-fields]').innerHTML='<label>转换方式<select data-key="ai"><option value="false">本地转换 · 无需 Office</option><option value="true">AI 辅助复核结构</option></select></label><p class="hint">直接生成 DOCX / XLSX，无需安装 Word、Excel 或 LibreOffice。可选 AI 复核会发送所选页文字和坐标到您配置的服务。</p><label>扫描文字处理<select data-key="ocr-policy"><option value="review">识别并检查疑点</option><option value="skip-review">识别并跳过疑点确认（仅本次导出）</option><option value="skip">跳过 OCR，仅导出已有文字</option></select></label><p class="hint">跳过确认会保留识别文字，可能包含错字；跳过 OCR 时扫描页可能没有可编辑文字。</p><label>页码范围<input data-key="pages" placeholder="全部，或 1-3,5"></label>'+(a==='export-word'?'<label>版式<select data-key="layout"><option value="faithful">保留页面布局</option><option value="flow">流动文本 · 易于编辑</option></select></label>':'<label>数据类型<select data-key="numeric"><option value="true">识别简单数值与百分比</option><option value="false">全部保留为文本</option></select></label>');
       }
     };
     let group;
@@ -335,7 +339,7 @@ export function installDocumentUtilities({ S, exportPDF, session, writeFile }) {
         if (action === "export-images") options.dpi = Number(get("dpi"));
         if(['pdfa','validate-pdfa'].includes(action))options.standard=get('standard');
         if(['export-word','export-excel'].includes(action)){
-          options.ai=get('ai')==='true'; options.layout=get('layout')||'faithful';options.numeric=get('numeric')!=='false';
+          options.ocr=get('ocr-policy')!=='skip';options.skipOCRReview=get('ocr-policy')==='skip-review';options.ai=get('ai')==='true'; options.layout=get('layout')||'faithful';options.numeric=get('numeric')!=='false';
           const range=get('pages')?.trim();
           if(range){options.pages=[];for(const piece of range.split(',')){const match=piece.trim().match(/^(\d+)(?:-(\d+))?$/);if(!match)throw Error('页码格式示例：1-3,5');const first=Number(match[1]),last=Number(match[2]||match[1]);if(last<first||last-first>99)throw Error('单次最多 100 页');for(let p=first;p<=last;p++)options.pages.push(p);}}
         }

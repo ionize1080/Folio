@@ -1,4 +1,11 @@
 const paths = {
+  archive: 'M4 3h16v5H4z M6 8v13h12V8 M10 12h4',
+  print: 'M7 8V3h10v5 M7 17H3V9h18v8h-4 M7 14h10v7H7z M17 11h1',
+  'archive-check': 'M3 3h16v5H3z M5 8v13h7 M9 12h4 M14 18l3 3 5-7',
+  'print-check': 'M7 8V3h10v5 M7 17H3V9h18v4 M7 14h5v7H7z M15 18l2 2 5-6',
+  accessibility: 'M12 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4 M3 8l9 2 9-2 M12 10v5 M7 22l5-7 5 7',
+  'field-add': 'M4 5h16v14H4z M8 12h8 M12 8v8',
+
   expand: 'M9 3H3v6 M15 3h6v6 M3 15v6h6 M21 15v6h-6 M8 8h8v8H8z',
   crop: 'M8 3v13h13 M3 8h13v13',
   'page-grid': 'M3 3h7v8H3z M14 3h7v8h-7z M3 15h7v6H3z M14 15h7v6h-7z',
@@ -67,7 +74,7 @@ const paths = {
   search: "M21 21l-5-5 M18 10a8 8 0 1 0-16 0 8 8 0 0 0 16 0",
   plus: "M12 5v14 M5 12h14",
   disclose: "m9 6 6 6-6 6",
-  chevron: "m7 10 5 5 5-5",
+  chevron: "m6 9 6 6 6-6",
   bookmark: "M6 3h12v19l-6-4-6 4z",
   branch: "M6 3v13a3 3 0 0 0 3 3h10 M6 7h13 M16 4l3 3-3 3 M16 16l3 3-3 3",
   copy: "M8 8h12v13H8z M4 16H2V2h12v2",
@@ -82,7 +89,8 @@ const paths = {
   sun: "M12 2v2 M12 20v2 M2 12h2 M20 12h2 M5 5l1 1 M18 18l1 1 M5 19l1-1 M18 6l1-1 M17 12a5 5 0 1 0-10 0 5 5 0 0 0 10 0",
 };
 export function icon(name) {
-  return `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="${paths[name] || paths.bookmark}"/></svg>`;
+  const key=Object.hasOwn(paths,name)?name:"bookmark";
+  return `<svg data-symbol="${key}" viewBox="0 0 24 24" aria-hidden="true"><path d="${paths[key]}"/></svg>`;
 }
 export function icons(root = document) {
   root

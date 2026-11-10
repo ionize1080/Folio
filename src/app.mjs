@@ -413,13 +413,15 @@ async function confirmDialog(title, text, yes = "继续") {
     modalCleanup = () => resolve(false);
   });
 }
-async function confirmDiscard() {
+async function confirmDiscard(closing = false) {
   try {
     await S.flowEdit?.finish(true);
     await S.imageEdit?.finish(true);
   } catch (e) {
-    error(e);
-    return false;
+    if(!closing){error(e);return false;}
+    const discard=await confirmDialog("结束当前编辑", "当前编辑无法应用。放弃本次调整并继续关闭？已应用的修改仍可在下一步保存。", "放弃本次调整");
+    if(!discard)return false;
+    S.flowEdit?.destroy();await S.imageEdit?.finish(false);
   }
   if (!S.dirty) return true;
   return new Promise((resolve) => {
@@ -948,6 +950,9 @@ function rebuild() {
   const visible = [],
     hidden = new Set(),
     q = filterActive();
+  $(".filter-actions").hidden = !q;
+  $("#clear-filter").hidden = !q;
+  $("#bookmark-filter-settings").dataset.active = String(!!(S.filterPage || S.filterRegex || S.filterCase));
   let allowed;
   if (q) {
     requestFilter();
@@ -3793,6 +3798,17 @@ $("#filter").oncompositionend = () => {
   updateFilter();
 };
 $("#filter-page").oninput = updateFilter;
+const bookmarkFilterSettings = $("#bookmark-filter-settings");
+document.addEventListener("pointerdown", event => {
+  if (!bookmarkFilterSettings.contains(event.target)) bookmarkFilterSettings.open = false;
+});
+bookmarkFilterSettings.addEventListener("keydown", event => {
+  if (event.key === "Escape") {
+    event.preventDefault(); event.stopPropagation();
+    bookmarkFilterSettings.open = false;
+    bookmarkFilterSettings.querySelector("summary").focus();
+  }
+});
 for (const [id, field] of [
   ["filter-regex", "filterRegex"],
   ["filter-case", "filterCase"],
@@ -4639,7 +4655,7 @@ installDocumentTabs({
   confirmClose: async () => {
     if (S.busy || largeWorkspace?.isBusy()) { toast("正在处理文档，请完成后关闭"); return false; }
     if (largeWorkspace && !await largeWorkspace.close()) return false;
-    if (!await confirmDiscard()) return false;
+    if (!await confirmDiscard(true)) return false;
     saveView();
     clearTimeout(recoveryTimer);
     recoveryPending.delete(S.sessionId);
@@ -4654,4 +4670,4 @@ installDocumentTabs({
 window.desktop?.updateStarted?.().catch(() => {});
 
 import {installAI} from './ai-ui.mjs';
-const aiUI=installAI({S,commit,writeFile,saveProject,getViewContext:()=>surface.context(),getLargeDocument:()=>largeWorkspace,session:documentSession,applyContent:async(edits,ocr)=>{await refreshNative(edits,ocr);commit(clone(S.nodes),{nativeEdits:edits,ocr});},exportPDF:async()=>rpc('save',await buildExportSnapshot(S,settings,documentSession)),undo:()=>restoreHistory('undo'),redo:()=>restoreHistory('redo')});
+const aiUI=installAI({S,surface,commit,writeFile,saveProject,getViewContext:()=>surface.context(),getLargeDocument:()=>largeWorkspace,session:documentSession,applyContent:async(edits,ocr)=>{await refreshNative(edits,ocr);commit(clone(S.nodes),{nativeEdits:edits,ocr});},exportPDF:async()=>rpc('save',await buildExportSnapshot(S,settings,documentSession)),undo:()=>restoreHistory('undo'),redo:()=>restoreHistory('redo')});

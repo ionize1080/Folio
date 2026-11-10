@@ -7,20 +7,21 @@
       http-equiv="Content-Security-Policy"
       content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' blob: data:; connect-src 'self' blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'none'"
     />
-    <title>Folio PDF Studio 2.5.0</title>
+    <title>Folio PDF Studio 2.5.1</title>
     <link rel="stylesheet" href="style.css" />
     <link rel="stylesheet" href="vendor/pdf_viewer.css" />
     <link rel="stylesheet" href="chrome.css" />
     <link rel="stylesheet" href="controls.css" />
     <link rel="stylesheet" href="document-tools.css" />
     <link rel="stylesheet" href="ribbon.css" />
+    <link rel="stylesheet" href="refinements.css" />
   </head>
   <body>
     <header class="appbar">
       <div class="brand">
         <img class="logo" src="brand.svg" alt="Folio">
         <div>Folio <b>PDF Studio</b></div>
-        <span class="version">2.5.0</span>
+        <span class="version">2.5.1</span>
       </div>
       <div class="doc-tab">
         <i data-icon="file"></i><span id="doc-name">未打开文档</span
@@ -162,20 +163,27 @@
             id="filter"
             placeholder="筛选书签标题…"
             aria-label="筛选书签"
-          /><button id="filter-regex" aria-pressed="false" title="正则表达式">
-            .*</button
-          ><button id="filter-case" aria-pressed="false" title="区分大小写">
-            Aa</button
-          ><button id="clear-filter" title="清空筛选">×</button>
-        </div>
+          /><button id="clear-filter" title="清空筛选" aria-label="清空筛选"><i data-icon="close"></i></button>
+          <details id="bookmark-filter-settings">
+          <summary title="筛选条件" aria-label="筛选条件"><i data-icon="sliders"></i></summary>
         <div class="filter-options">
+          <label for="filter-page">页码</label>
           <input
             id="filter-page"
             type="number"
             min="1"
-            placeholder="页码"
+            placeholder="全部"
             aria-label="筛选物理页码"
-          /><button id="filter-select" disabled>选中匹配项</button
+          />
+          <div class="filter-matching" role="group" aria-label="匹配方式">
+            <button id="filter-regex" aria-pressed="false" title="正则表达式" aria-label="正则表达式">.*</button>
+            <button id="filter-case" aria-pressed="false" title="区分大小写" aria-label="区分大小写">Aa</button>
+          </div>
+        </div>
+          </details>
+        </div>
+        <div class="filter-actions" hidden>
+          <button id="filter-select" disabled>选中匹配项</button
           ><button id="filter-batch" disabled>批量处理</button>
         </div>
         <div id="filter-status" class="filter-status" role="status"></div>
@@ -459,7 +467,7 @@
     <dialog aria-labelledby="modal-title" id="modal">
       <div class="modal-header">
         <div>
-          <span class="eyebrow" id="modal-kicker">FOLIO 2.5.0</span>
+          <span class="eyebrow" id="modal-kicker">FOLIO 2.5.1</span>
           <h2 id="modal-title"></h2>
         </div>
         <button id="modal-close" aria-label="关闭">×</button>

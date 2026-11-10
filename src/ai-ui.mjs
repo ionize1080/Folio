@@ -49,6 +49,7 @@ function treeWorker(data) {
 }
 export function installAI({
   S,
+  surface,
   commit,
   undo,
   redo,
@@ -188,7 +189,7 @@ export function installAI({
   const documentUtilities=installDocumentUtilities({S,exportPDF,session,writeFile});
   installPageOrganizer({S,session,run:documentUtilities,exportPDF});
   const studio=installCreativeTools({...uiContext,writeFile,exportPDF});
-  installCreativeUI({S,rev,studio,run:a=>enqueueUI(()=>studio(a))});
+  installCreativeUI({S,surface,rev,studio,run:a=>enqueueUI(()=>studio(a))});
   new ResizeObserver(dockBounds).observe(document.querySelector('.studio-ai-dock'));
   window.addEventListener('folio-studio-visibility',()=>requestAnimationFrame(dockBounds));
   const engineering=installEngineeringTools({S,exportPDF,session,writeFile,rev,approve:graphicsContext.approve,liveContext,documentUtilities,applyContent});

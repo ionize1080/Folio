@@ -9,6 +9,7 @@ const {
   net,
   session,
   Menu,
+  screen,
 } = require("electron");
 const path = require("node:path"),
   fs = require("node:fs/promises"),
@@ -137,12 +138,13 @@ app.whenReady().then(async () => {
       sandbox: true,
       webSecurity: true,
   };
+  const availableScreen=screen.getPrimaryDisplay().workAreaSize;
   win = new BrowserWindow({
     show: process.env.FOLIO_TEST_BACKGROUND !== "1",
-    width: 1500,
-    height: 970,
-    minWidth: 1080,
-    minHeight: 720,
+    width: Math.min(1500,availableScreen.width),
+    height: Math.min(970,availableScreen.height),
+    minWidth: Math.min(800,availableScreen.width),
+    minHeight: Math.min(520,availableScreen.height),
     backgroundColor: "#f4f6fa",
     title: "Folio PDF Studio",
     autoHideMenuBar: true,
@@ -159,6 +161,9 @@ app.whenReady().then(async () => {
   }
   function configureEditor(wc) {
     wc.setWindowOpenHandler(() => ({ action: "deny" }));
+    // Folio has already confirmed every dirty document before setting allowClose.
+    // Nested artwork editors must not veto that explicit save/discard decision.
+    wc.on("will-prevent-unload", event => { if (allowClose) event.preventDefault(); });
     wc.on("will-navigate", e => e.preventDefault());
     sources.set(wc, new Set());
     const clear = () => {
@@ -178,17 +183,24 @@ app.whenReady().then(async () => {
   const requireActive = () => sender() === tabs.active.wc;
   Menu.setApplicationMenu(null);
   const aiHost = require("./ai-host.cjs").installAIHost({app, win, ipc, tabs, sender, requireActive});
-  let closing = false;
+  let closing = false, closeStarted = 0, closeFallback = false;
   win.on("close", e => {
-    if (allowClose || ![...tabs.entries.values()].some(t => t.dirty || t.busy)) return;
+    if (allowClose) return;
+    if (![...tabs.entries.values()].some(t => t.dirty || t.busy)) { allowClose = true; return; }
     e.preventDefault();
-    if (closing) return;
-    closing = true;
+    if (closing) {
+      if(Date.now()-closeStarted>8000&&!closeFallback){
+        closeFallback=true;
+        void dialog.showMessageBox(win,{type:'warning',message:'关闭仍在等待文档响应',detail:'可以继续等待。强制退出会丢失尚未保存的修改；已保存文件不会改变。',buttons:['继续等待','强制退出'],defaultId:0,cancelId:0,noLink:true}).then(({response})=>{if(response===1&&!win.isDestroyed()){allowClose=true;win.destroy();app.quit();}}).finally(()=>{closeFallback=false;});
+      }
+      return;
+    }
+    closing = true;closeStarted=Date.now();
     tabs.enqueue(async () => {
       try {
         if (await tabs.confirmWindow()) { allowClose = true; win.close(); }
       } finally { closing = false; }
-    }).catch(() => {});
+    }).catch(error => { if(!win.isDestroyed()) void dialog.showMessageBox(win,{type:"error",message:"无法完成关闭",detail:error.message,buttons:["返回文档"]}); });
   });
   ipc("tabs-state", () => ({...tabs.snapshot(), self:tabs.entries.get(sender()).id}));
   let offeredRecovery = false;

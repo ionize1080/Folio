@@ -115,7 +115,7 @@ export function installCreativeTools({S,rev,applyContent,writeFile,approve,expor
         if(s.documentKey&&s.documentKey!==documentKey())throw Error('请切回作品所属的 PDF');
         if(options.refresh||!e.reference||e.reference.revision!==rev()){
           const revision=rev(),bytes=await exportPDF();let page;
-          try{page=await nativeRequest({command:'studio-reference',bytes,page:s.page,maxSide:1600});}finally{await releaseSource(bytes);}
+          try{page=await nativeRequest({command:'studio-reference',bytes,page:s.page,maxSide:2048});}finally{await releaseSource(bytes);}
           if(revision!==rev())throw Error('PDF 已变化，请重新载入页面背景');
           options.reference={...page,revision};
         }

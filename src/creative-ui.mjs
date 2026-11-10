@@ -1,13 +1,15 @@
+import {editPlacementOnPage} from './studio-placement-ui.mjs';
 import {icon} from './icons.mjs';
 import {installCreativeMenus} from './creative-menus.mjs';
 import {artworkOption,objectLabel,objectThumbnails} from './creative-picker.mjs';
-export function installCreativeUI({S,run,rev,studio}){
+export function installCreativeUI({S,surface,run,rev,studio}){
   const embedded=studio.embedded,root=document.createElement('section');root.className='studio-workspace';root.setAttribute('aria-label','创作工作区');
   root.innerHTML=`<div class="studio-toolbar" role="toolbar" aria-label="作品编辑"><div class="studio-history"><button data-history="edit.undo" title="撤销 Ctrl+Z" aria-label="撤销">${icon('undo')}</button><button data-history="edit.redo" title="重做 Ctrl+Shift+Z" aria-label="重做">${icon('redo')}</button></div><nav class="studio-menus" aria-label="作品工具分类"></nav><button data-all-tools title="搜索全部编辑工具" aria-expanded="false">${icon('search')}<span>全部工具</span></button><div class="studio-spacer"></div><div class="studio-view-control"><button data-zoom-toggle aria-label="缩放与视图" aria-expanded="false"><span data-zoom-label>100%</span>${icon('chevron')}</button><div class="studio-view-popover" popover="auto"><h3>画布视图</h3><div class="studio-scale-row"><button data-zoom-out title="缩小" aria-label="缩小">${icon('minus')}</button><label class="studio-percent"><input data-percent type="number" step="any" min="0.01" value="100" aria-label="缩放百分比"><span>%</span></label><button data-zoom-in title="放大" aria-label="放大">${icon('plus')}</button></div><select data-view aria-label="画布视图"><option value="fit">适合窗口</option><option value="width">适合宽度</option><option value="height">适合高度</option><option value="fill">填满视区</option><option value="selection">聚焦选中对象</option><option value="actual">实际大小</option><option value="center">居中</option><option value="center-x">水平居中</option><option value="center-y">垂直居中</option><option value="custom">自定义比例</option></select><p>滚轮缩放 · 空格拖动画布</p></div></div><details class="studio-placement"><summary title="在 PDF 中的位置与尺寸" aria-label="放置设置">${icon('sliders')}</summary><div><p>PDF 中的尺寸与位置</p><div class="form-grid"><label>左边距 pt<input data-x type="number"></label><label>底边距 pt<input data-y type="number"></label><label>宽度 pt<input data-width type="number" min=".01"></label><label>高度 pt<input data-height type="number" min=".01"></label><label>旋转 °<input data-angle type="number" value="0"></label></div></div></details><button data-export title="独立导出作品">${icon('export')}<span>导出</span></button><button data-apply class="primary" title="将最终作品应用到 PDF；保存 .folio 工程可保留图层">应用到 PDF</button></div><p class="studio-status" role="status" hidden></p>`;
   const stage=document.createElement('div');stage.className='studio-stage';const aiDock=document.createElement('aside');aiDock.className='studio-ai-dock';aiDock.setAttribute('aria-label','AI 助手');stage.append(embedded.mount,aiDock);root.insertBefore(stage,root.lastElementChild);document.body.append(root);
   const identity=document.createElement('div');identity.className='studio-identity';identity.innerHTML=`<button data-return title="返回 PDF，保留编辑画布" aria-label="返回 PDF">${icon('back')}</button><span class="studio-document-kind"></span><select data-sessions aria-label="当前编辑作品"></select><span class="studio-document-meta"></span>`;document.querySelector('.appbar').append(identity);
   const q=s=>root.querySelector(s)||identity.querySelector(s);
   const navigation=document.createElement('div');navigation.className='studio-navigation';navigation.innerHTML=`<button data-pan aria-label="平移画布" title="平移画布 · 也可按住空格拖动">${icon('hand')}</button><button data-fit title="适合作品" aria-label="适合作品">${icon('expand')}</button><button data-canvas-size title="画布大小" aria-label="画布大小">${icon('crop')}</button>`;q('.studio-view-control').before(navigation);
+  q('.studio-placement>div').insertAdjacentHTML('beforeend','<label class="check"><input data-lock-ratio type="checkbox" checked>锁定宽高比</label><button data-on-page>在 PDF 上拖动调整…</button>');
   q('.studio-placement summary').insertAdjacentHTML('beforeend','<span>位置与尺寸</span>');
   const background=document.createElement('section');background.className='studio-background';background.setAttribute('aria-label','画布背景');
   background.innerHTML=`<h4>画布背景</h4><label>显示<select data-background-mode><option value="checker">透明网格</option><option value="solid">纯色</option><option value="pdf">PDF 页面</option></select></label><label data-background-color-label>底色<input type="color" data-background-color value="#eef0f3" aria-label="画布底色"></label><label data-background-strength-label>叠加强度<span><input type="range" data-background-strength min="0" max="100" value="60" aria-label="PDF 背景叠加强度"><output>60%</output></span></label><button data-background-refresh>更新 PDF 背景</button><p>背景随作品同步缩放，仅用于编辑参考。</p>`;
@@ -22,7 +24,8 @@ export function installCreativeUI({S,run,rev,studio}){
     q('[data-background-color-label]').hidden=b.mode==='checker';q('[data-background-strength-label]').hidden=b.mode!=='pdf';q('[data-background-refresh]').hidden=b.mode!=='pdf';q('[data-background-mode] option[value=pdf]').disabled=!S.pdf;
   };
   const status=message=>{const p=q('.studio-status');p.textContent=message;p.hidden=!message;clearTimeout(statusTimer);if(message)statusTimer=setTimeout(()=>p.hidden=true,7000);};
-  const perform=fn=>async()=>{if(busy)return;busy=true;root.classList.add('studio-busy');try{await fn();}catch(e){status(e.message);}finally{busy=false;root.classList.remove('studio-busy');q('[data-apply]').disabled=!S.pdf;}};
+  let uiWork=Promise.resolve();
+  const perform=fn=>()=>{const work=uiWork.then(async()=>{busy=true;root.classList.add('studio-busy');try{await fn();}catch(e){status(e.message);}finally{busy=false;root.classList.remove('studio-busy');q('[data-apply]').disabled=!S.pdf;}});uiWork=work.catch(()=>{});return work;};
   const updateSessions=()=>{const select=q('[data-sessions]');select.replaceChildren();for(const s of availableSessions())select.add(artworkOption(s.title|| (s.kind==='photo'?'未命名图像':'未命名矢量图'),s.id,s.thumbnail));if(current)select.value=current;};
   const park=()=>{document.body.classList.remove('studio-active');root.setAttribute('aria-hidden','true');q('.studio-view-popover').hidePopover();q('.studio-placement').open=false;for(const s of embedded.sessions.values())s.frame.classList.add('studio-parked');window.dispatchEvent(new Event('folio-studio-visibility'));};
   const openMenu=installCreativeMenus({root,session:id=>embedded.get(id),request:run,onError:status});
@@ -50,7 +53,7 @@ export function installCreativeUI({S,run,rev,studio}){
     current=id;embedded.activeId=id;updateSessions();document.body.classList.add('studio-active');root.removeAttribute('aria-hidden');
     window.dispatchEvent(new Event('folio-studio-visibility'));
     for(const item of embedded.sessions.values())item.frame.classList.toggle('studio-parked',item.id!==id);
-    placementFields.clear();const [x,y,w,h]=info.box,angle=info.matrix?Math.atan2(info.matrix[1],info.matrix[0])*180/Math.PI:0;
+    placementFields.clear();placementRatio=info.box[2]/info.box[3];const [x,y,w,h]=info.box,angle=info.matrix?Math.atan2(info.matrix[1],info.matrix[0])*180/Math.PI:0;
     for(const [k,v] of Object.entries({x,y,width:w,height:h,angle}))q(`[data-${k}]`).value=Number(v.toFixed(4));
     updateBackground();
     q('[data-percent]').max=s.kind==='photo'?12800:64000;q('[data-apply]').disabled=!S.pdf;q('.studio-placement').hidden=!S.pdf;
@@ -101,7 +104,14 @@ export function installCreativeUI({S,run,rev,studio}){
   q('[data-background-color]').onchange=()=>setBackground(false);
   q('[data-background-strength]').oninput=()=>{background.querySelector('output').value=q('[data-background-strength]').value+'%';setBackground(false);};
   q('[data-background-refresh]').onclick=()=>setBackground(true);
-  q('.studio-placement').oninput=e=>{for(const k of ['x','y','width','height','angle'])if(e.target.hasAttribute('data-'+k))placementFields.add(k);};
+  let placementRatio=1;
+  q('[data-lock-ratio]').onchange=()=>{placementRatio=Number(q('[data-width]').value)/Number(q('[data-height]').value);};
+  q('[data-on-page]').onclick=perform(async()=>{
+    const id=current;await run({action:'apply',sessionId:id,revision:rev(),geometry:geometry()});park();
+    try{await editPlacementOnPage({S,surface,info:studio.sessions.get(id),apply:matrix=>run({action:'apply',sessionId:id,revision:rev(),geometry:{matrix}}),done:()=>show(id)});}catch(error){await show(id);throw error;}
+  });
+  q('.studio-placement').oninput=e=>{
+    if(q('[data-lock-ratio]').checked&&(e.target.matches('[data-width],[data-height]'))){const width=e.target.matches('[data-width]'),other=width?'height':'width',v=Number(e.target.value);if(v>0){q(`[data-${other}]`).value=Number((width?v/placementRatio:v*placementRatio).toFixed(4));placementFields.add(other);}}for(const k of ['x','y','width','height','angle'])if(e.target.hasAttribute('data-'+k))placementFields.add(k);};
   q('.studio-placement').onchange=()=>{if(embedded.get(current).background?.mode==='pdf')setBackground(false);};
   q('[data-apply]').onclick=perform(async()=>{
     await run({action:'apply',sessionId:current,revision:rev(),geometry:geometry()});placementFields.clear();status('已应用到 PDF，可撤销。保存 .folio 可继续编辑图层。');
