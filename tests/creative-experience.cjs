@@ -2,6 +2,10 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
 (async()=>{
   const {app,page,call}=await require('./creative-harness.cjs')(),checks=[];
   try{
+    // Exercise the hosted Windows runner's compact layout on developer machines
+    // too: optional document metadata is intentionally hidden at this width.
+    await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].setContentSize(1000,720));
+    await page.waitForFunction(()=>innerWidth<=1100);
     await page.evaluate(async()=>{(await import('./i18n.mjs')).setLanguage('zh-Hans')});
     await app.evaluate(({dialog},file)=>{dialog.showOpenDialog=async()=>({canceled:false,filePaths:[file]});},path.resolve('tests/output/creative-source.pdf'));
     await page.locator('[data-action=open]').first().click();await page.waitForFunction(()=>document.querySelector('#doc-name').textContent.includes('creative-source'));await page.locator('#busy').waitFor({state:'hidden'});
@@ -30,7 +34,9 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
       const buttons=page.locator('.studio-menus button');
       await buttons.nth(0).click();await page.waitForSelector('.studio-command-popover:popover-open');
       await buttons.nth(1).click();await page.waitForFunction(()=>document.querySelectorAll('.studio-menus button')[1]?.getAttribute('aria-expanded')==='true');assert.equal(await buttons.nth(0).getAttribute('aria-expanded'),'false');assert.equal(await buttons.nth(1).getAttribute('aria-expanded'),'true');
-      await page.locator('.studio-document-meta').click();assert.equal(await buttons.nth(1).getAttribute('aria-expanded'),'false');
+      assert(await page.locator('.studio-document-meta').isHidden(),'This regression must exercise the compact layout');
+      // The toolbar's empty padding remains visible and has no click action.
+      await page.locator('.studio-toolbar').click({position:{x:2,y:2}});assert.equal(await buttons.nth(1).getAttribute('aria-expanded'),'false');
       await buttons.nth(2).click();await page.waitForSelector('.studio-command-popover:popover-open');
       await page.locator('.studio-frame:not(.studio-parked)').evaluate(e=>e.contentWindow.focus());await page.waitForTimeout(100);
       assert.equal(await buttons.nth(2).getAttribute('aria-expanded'),'false','Iframe focus dismisses menu and its highlighted anchor');
@@ -45,7 +51,9 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
       // A transparent artwork must reveal the reference plane, not an opaque
       // shadow rectangle left over from the engine's old checkerboard paint.
       await request({action:'background',options:{mode:'solid',color:'#cfe0f2'}});await page.waitForTimeout(150);
-      const center=await page.locator('.studio-frame:not(.studio-parked)').evaluate(e=>{const b=e.getBoundingClientRect();return {x:Math.round(b.x+b.width*.35),y:Math.round(b.y+b.height*.55),width:2,height:2}});
+      const canvas=(await request({action:'request',method:'ui.inspect'})).canvasRect;
+      assert(canvas?.length===4&&canvas.every(Number.isFinite)&&canvas[2]>0&&canvas[3]>0,'The editor exposes its actual canvas viewport');
+      const center=await page.locator('.studio-frame:not(.studio-parked)').evaluate((e,[x,y,w,h])=>{const b=e.getBoundingClientRect();return {x:Math.round(b.x+x+w/2),y:Math.round(b.y+y+h/2),width:2,height:2}},canvas);
       await app.evaluate(async({BrowserWindow},rect)=>{await BrowserWindow.getAllWindows()[0].webContents.capturePage(rect,{stayHidden:true,stayAwake:true});},center);await page.waitForTimeout(150);
       const pixel=await app.evaluate(async({BrowserWindow},rect)=>[...(await BrowserWindow.getAllWindows()[0].webContents.capturePage(rect,{stayHidden:true,stayAwake:true})).toBitmap().subarray(0,4)],center);
       for(const [i,value] of [242,224,207].entries())assert(Math.abs(pixel[i]-value)<=4,`${kind}: transparent artwork must reveal its reference background (${pixel})`);
