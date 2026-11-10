@@ -1,5 +1,5 @@
 name: Folio 2.5.1 parallel verified Windows release
-# Verify the compact bookmark area and quiet selection with separate keyboard focus.
+# Verify bookmark selection with real light/dark palettes and separate keyboard focus.
 'on':
   workflow_dispatch: null
   push:

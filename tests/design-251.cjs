@@ -8,7 +8,7 @@ const path=require('node:path'),fs=require('node:fs'),assert=require('node:asser
   for(const lang of ['zh-Hans','zh-Hant','en'])for(const dark of [false,true])for(const size of [[800,520],[1280,850]]){
    console.log('Checking',lang,dark,size);
    await app.evaluate(({BrowserWindow},size)=>BrowserWindow.getAllWindows()[0].setSize(...size),size);
-   await page.evaluate(async({lang,dark})=>{(await import('./i18n.mjs')).setLanguage(lang);document.body.classList.toggle('dark',dark);},{lang,dark});
+   await page.evaluate(async({lang,dark})=>{(await import('./i18n.mjs')).setLanguage(lang);(await import('./appearance.mjs')).applyAppearance({theme:dark?'dark':'light',palette:'cobalt'});},{lang,dark});
    await page.locator('#ribbon-tab-export').click();await page.locator('[data-ribbon-command=export-word]').click();
    for(const action of ['export-word','export-excel','pdfa','metadata']){
     await page.locator(`[data-utility-action=${action}]`).click();
