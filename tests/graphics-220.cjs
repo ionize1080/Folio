@@ -3,10 +3,11 @@ const {_electron:electron}=require('playwright'),fs=require('node:fs'),path=requ
  const app=await electron.launch({executablePath:process.env.FOLIO_EXE,args:process.env.FOLIO_EXE?[]:[path.resolve('.')],env:{...process.env,FOLIO_TEST_BACKGROUND:'1',FOLIO_TEST_PROFILE:path.resolve('tests/output/graphics-ui-'+Date.now()),FOLIO_CHATBOX_PROFILE:path.resolve('tests/output/graphics-chat-'+Date.now())},timeout:60000});
  const checks=[],errors=[];
  try {
-  const host=await app.firstWindow();await host.locator('#graphics-editor').waitFor({state:'attached'});await host.evaluate(async()=>{(await import('./i18n.mjs')).setLanguage('zh-Hans')});host.on('dialog',d=>d.accept());host.on('pageerror',e=>errors.push(e.message));
+  const host=await app.firstWindow();await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].setSize(1024,728));await host.locator('#graphics-editor').waitFor({state:'attached'});await host.evaluate(async()=>{(await import('./i18n.mjs')).setLanguage('zh-Hans')});host.on('dialog',d=>d.accept());host.on('pageerror',e=>errors.push(e.message));
   const pick=file=>app.evaluate(({dialog},file)=>{dialog.showOpenDialog=async()=>({canceled:false,filePaths:[file]})},path.resolve(file));
   await pick('tests/output/graphics-220-source.pdf');await host.locator('[data-action="open"]').first().click();await host.waitForFunction(()=>document.querySelector('#doc-name').textContent.includes('graphics-220-source'));
-  await host.waitForFunction(async()=>{const {S}=await import('./app.mjs');return !!S.pdf&&!S.busy;});
+  await host.locator('#busy').waitFor({state:'hidden'});
+  assert(await host.evaluate(async()=>{const {S}=await import('./app.mjs');return !!S.pdf&&!S.busy;}),'The document must finish loading before graphics requests');
   await host.evaluate(()=>window.desktop.aiApproval(true));
   await app.evaluate(({ipcMain})=>{globalThis.graphicsReplies={};const original=ipcMain._invokeHandlers.get('ai-reply');ipcMain.removeHandler('ai-reply');ipcMain.handle('ai-reply',(e,v)=>{if(v.id<0)globalThis.graphicsReplies[v.id]=v;return original(e,v);});});
   let seq=0;
