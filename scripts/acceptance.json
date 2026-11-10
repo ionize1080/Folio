@@ -250,10 +250,10 @@
   ],
   "browser": [
     {
-      "capability": "table and OCR fixture",
+      "capability": "table, image and OCR transaction fixtures",
       "runtime": "python",
       "args": [
-        "tests/fixture-v9.py"
+        "tests/reliability-v172.py"
       ]
     },
     {
