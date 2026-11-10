@@ -1,4 +1,5 @@
 name: Folio 2.5.1 parallel verified Windows release
+# Verify compact filtering, queued zoom choices and loaded-document graphics operations.
 'on':
   workflow_dispatch: null
   push:

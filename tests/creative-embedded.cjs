@@ -1,5 +1,6 @@
 const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
 (async()=>{const {app,page,call}=await require('./creative-harness.cjs')();const checks=[];try{
+  await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].setSize(1024,728));
   await app.evaluate(({dialog},file)=>{dialog.showOpenDialog=async()=>({canceled:false,filePaths:[file]});},path.resolve('tests/output/creative-source.pdf'));
   await page.locator('[data-action=open]').first().click();await page.waitForFunction(()=>document.querySelector('#doc-name').textContent.includes('creative-source'));await page.locator('#busy').waitFor({state:'hidden'});
   for(const kind of ['photo','vector']){
@@ -12,8 +13,8 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('n
     let r=await request({action:'view',options:{mode:'zoom',percent:limits}});assert(Math.abs(r.percent-limits)<1);
     for(const mode of ['fit','width','height','center-x','center-y','actual']){
       if(!await page.locator('.studio-view-popover').evaluate(e=>e.matches(':popover-open')))await page.locator('[data-zoom-toggle]').click();
-      await page.locator('.studio-toolbar [data-view]').selectOption(mode);await page.waitForTimeout(300);
-      r=await request({action:'view'});assert(r.percent>0&&r.percent<=limits);if(mode==='actual')assert(Math.abs(r.percent-100)<.01);
+      await page.locator('.studio-toolbar [data-view]').selectOption(mode);await page.waitForFunction(()=>!document.querySelector('.studio-workspace').classList.contains('studio-busy'));
+      r=await request({action:'view'});assert(r.percent>0&&r.percent<=limits);if(mode==='actual')assert(Math.abs(r.percent-100)<.01,JSON.stringify({kind,mode,r}));
     }
     const before=await request({action:'preview'});
     if(kind==='photo'){

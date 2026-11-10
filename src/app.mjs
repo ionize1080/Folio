@@ -3802,6 +3802,9 @@ const bookmarkFilterSettings = $("#bookmark-filter-settings");
 document.addEventListener("pointerdown", event => {
   if (!bookmarkFilterSettings.contains(event.target)) bookmarkFilterSettings.open = false;
 });
+document.addEventListener("focusin", event => {
+  if (!bookmarkFilterSettings.contains(event.target)) bookmarkFilterSettings.open = false;
+});
 bookmarkFilterSettings.addEventListener("keydown", event => {
   if (event.key === "Escape") {
     event.preventDefault(); event.stopPropagation();

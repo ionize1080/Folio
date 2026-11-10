@@ -67,7 +67,7 @@ export function installCreativeUI({S,surface,run,rev,studio}){
     await run({action:'view',sessionId:id,options:s.viewMode|| (s.shown?{}:{mode:'fit'})});s.shown=true;s.frame.contentWindow.focus();
   }
   S.openCreativeStudio=async options=>{const result=await run({action:'open',...options});if(!result.cancelled){await show(result.sessionId);if(result.warnings?.length)status(result.warnings.join('\n'));}return result;};
-  q('[data-return]').onclick=park;q('[data-sessions]').onchange=perform(()=>show(q('[data-sessions]').value));
+  q('[data-return]').onclick=park;q('[data-sessions]').onchange=()=>{const id=q('[data-sessions]').value;return perform(()=>show(id))();};
   document.addEventListener('click',e=>{const tab=e.target.closest('.ribbon-tabs button');if(tab&&!['photo','vector'].includes(tab.dataset.category))park();});
   embedded.addEventListener('show',e=>perform(()=>show(e.detail.sessionId))());
   embedded.addEventListener('closed',e=>{if(current===e.detail.sessionId){current=null;park();}updateSessions();});
@@ -80,8 +80,8 @@ export function installCreativeUI({S,surface,run,rev,studio}){
   const viewPopover=q('.studio-view-popover'),zoomToggle=q('[data-zoom-toggle]');
   zoomToggle.onclick=()=>{const b=zoomToggle.getBoundingClientRect();viewPopover.style.left=Math.min(b.left,innerWidth-260)+'px';viewPopover.style.top=(b.bottom+6)+'px';viewPopover.togglePopover();};
   viewPopover.addEventListener('toggle',()=>zoomToggle.setAttribute('aria-expanded',String(viewPopover.matches(':popover-open'))));
-  q('[data-view]').onchange=perform(async()=>{const mode=q('[data-view]').value;if(mode==='custom'){q('[data-percent]').focus();q('[data-percent]').select();return;}if(mode==='page')await run({action:'background',sessionId:current,options:{mode:'pdf',geometry:geometry()}});await run({action:'view',sessionId:current,options:{mode}});});
-  q('[data-percent]').onchange=perform(()=>run({action:'view',sessionId:current,options:{mode:'zoom',percent:Number(q('[data-percent]').value)}}));
+  q('[data-view]').onchange=()=>{const mode=q('[data-view]').value,id=current,placement=geometry();return perform(async()=>{if(mode==='custom'){q('[data-percent]').focus();q('[data-percent]').select();return;}if(mode==='page')await run({action:'background',sessionId:id,options:{mode:'pdf',geometry:placement}});await run({action:'view',sessionId:id,options:{mode}});})();};
+  q('[data-percent]').onchange=()=>{const percent=Number(q('[data-percent]').value),id=current;return perform(()=>run({action:'view',sessionId:id,options:{mode:'zoom',percent}}))();};
   for(const mode of ['in','out'])q(`[data-zoom-${mode}]`).onclick=perform(()=>run({action:'view',sessionId:current,options:{mode}}));
   q('[data-fit]').onclick=perform(()=>run({action:'view',sessionId:current,options:{mode:'fit'}}));
   q('[data-pan]').onclick=perform(async()=>{const s=embedded.get(current);await run({action:'request',sessionId:current,method:s.kind==='photo'?'ui.set':'ui.tool.select',params:{tool:'hand'}});s.frame.contentWindow.focus();});
