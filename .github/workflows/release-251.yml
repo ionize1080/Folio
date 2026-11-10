@@ -1,5 +1,5 @@
 name: Folio 2.5.1 parallel verified Windows release
-# Verify bookmark selection with real light/dark palettes and separate keyboard focus.
+# Use native hidden-window capture while retaining all layout and interaction assertions.
 'on':
   workflow_dispatch: null
   push:

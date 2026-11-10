@@ -19,7 +19,7 @@ const path=require('node:path'),fs=require('node:fs'),assert=require('node:asser
     });
     assert(g.bottom<=g.screen+1&&g.footer<=g.screen+1,JSON.stringify({lang,dark,size,g}));assert(g.horizontal<=1);assert(g.active);assert(g.icons<1);
    }
-   if(lang==='zh-Hans'&&size[0]===800)await page.screenshot({path:`tests/output/design-251-${dark?'dark':'light'}.png`});
+   if(lang==='zh-Hans'&&size[0]===800)await require('./native-capture.cjs')(app,page,`tests/output/design-251-${dark?'dark':'light'}.png`);
    await page.locator('.document-tools [data-close]').click();
    const metrics=await page.evaluate(()=>{
     const selectors=['#zoom','#layout','.view-options summary','.more-tools summary'];
@@ -54,20 +54,20 @@ const path=require('node:path'),fs=require('node:fs'),assert=require('node:asser
    assert.equal(await page.locator('.tree-row.filter-match').count(),0);
    await options();await page.locator('#filter-case').click();
    await page.waitForFunction(()=>!document.querySelector('#filter-select').disabled);
-   if(lang==='zh-Hans'&&size[0]===800)await page.locator('.filter-wrap').locator('..').screenshot({path:`tests/output/design-251-bookmarks-${dark?'dark':'light'}.png`});
+   if(lang==='zh-Hans'&&size[0]===800)await require('./native-capture.cjs')(app,page,`tests/output/design-251-window-bookmarks-${dark?'dark':'light'}.png`);
    const filterBounds=await page.locator('.filter-actions').evaluate(e=>({width:e.scrollWidth-e.clientWidth,button:[...e.children].map(b=>b.getBoundingClientRect().height)}));
    assert(filterBounds.width<=1);assert(filterBounds.button.every(h=>h>=30));
    await page.locator('#clear-filter').click();
    await page.locator('.filter-actions').waitFor({state:'hidden'});
    assert.equal(await page.locator('#bookmark-filter-settings').getAttribute('open'),null);
    }
-   if(lang==='zh-Hans'&&size[0]===800)await page.locator('.filter-wrap').locator('..').screenshot({path:`tests/output/design-251-bookmarks-idle-${dark?'dark':'light'}.png`});
+   if(lang==='zh-Hans'&&size[0]===800)await require('./native-capture.cjs')(app,page,`tests/output/design-251-window-bookmarks-idle-${dark?'dark':'light'}.png`);
    checks.push({lang,dark,width:size[0],height:size[1],actions:4,arrowGap:8});
   }
   await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].webContents.setZoomFactor(1.25));
   await page.locator('[data-action=settings]').click();await page.locator('#modal[open]').waitFor();
   const bounds=await page.locator('#modal').evaluate(e=>({bottom:e.getBoundingClientRect().bottom,screen:innerHeight,overflow:e.scrollWidth-e.clientWidth}));assert(bounds.bottom<=bounds.screen+1&&bounds.overflow<=1);
-  await page.screenshot({path:'tests/output/design-251-settings.png'});
+  await require('./native-capture.cjs')(app,page,'tests/output/design-251-settings.png');
   fs.writeFileSync('tests/output/design-251.json',JSON.stringify({status:'passed',checks,settingsAt125Percent:true},null,2));console.log('PASS 48 dialog layouts, three languages, both themes, uniform arrow gaps and enlarged settings');
  }finally{await app.evaluate(({app})=>app.exit(0)).catch(()=>{});}
 })().catch(e=>{console.error(e);process.exitCode=1;});
