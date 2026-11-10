@@ -355,7 +355,7 @@ h2 span {
 }
 .tree-row.selected {
   background: var(--accent-soft);
-  box-shadow: inset 2px 0 var(--accent);
+  box-shadow: none;
 }
 .tree-row.drop-before {
   border-top: 2px solid var(--accent);

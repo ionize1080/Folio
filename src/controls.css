@@ -23,7 +23,7 @@ button:focus-visible,summary:focus-visible,input:focus-visible,select:focus-visi
 body .rules-view-tabs button[aria-pressed=true],body .page-edit-bar button[aria-pressed=true]{
   color:var(--accent);background:var(--selected);box-shadow:inset 0 0 0 1px var(--selected-line);font-weight:600;
 }
-.tree-row.selected,#tree:focus-within .tree-row.selected {background:var(--selected);box-shadow:inset 3px 0 var(--accent);}
+.tree-row.selected,#tree:focus-within .tree-row.selected {background:var(--selected);box-shadow:none;}
 .tree-row.selected .bm,.tree-row.selected .page {color:var(--accent);}
 .tree-row .toggle svg {width:14px;height:14px;stroke-width:2;}
 body select:not([multiple]):not([size]) {

@@ -75,7 +75,7 @@ body.dark .selection-toolbar button[aria-pressed="true"], .page-edit-bar button[
 .viewer-toolbar #page-number { font-variant-numeric:tabular-nums; }
 .tree-row { border-radius:4px; }
 .tree-row.selected { background:var(--selected); box-shadow:none; }
-#tree:focus-within .tree-row.selected { box-shadow:inset 2px 0 var(--accent); }
+#tree:focus-within .tree-row.selected { box-shadow:none; }
 .tree-row .page { font-variant-numeric:tabular-nums; }
 .rule-nav-item[aria-current="true"], body.dark .rule-nav-item[aria-current="true"],
 .rules-view-tabs button[aria-pressed="true"], .split-dialog .split-tabs [aria-pressed="true"],

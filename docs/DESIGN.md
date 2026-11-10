@@ -4,7 +4,7 @@
 
 Preferences separates **appearance** (system, light or dark) from **palette** (Cobalt, Celadon, Amber, Mulberry, Graphite or a custom accent). In the default light theme, Cobalt is `#165DDB` with white button text, a contrast ratio of 5.80:1. In dark appearance the accent is `#85AEFF` with a dark foreground. Custom choices go through the same foreground-contrast calculation. Selection fills and borders are mixed in OKLab. PDF page colors, bookmark styling written to the document and image adjustments belong to the document.
 
-Selected tools use a tinted fill, outline and stronger label weight. A selected bookmark row also has a leading indicator. The focused control has a separate visible outline. These cues help distinguish “this tool is on” from “the keyboard will act here.” [Apple HIG on color](https://developer.apple.com/design/human-interface-guidelines/color) · [Apple HIG on accessibility](https://developer.apple.com/design/human-interface-guidelines/accessibility)
+Selected tools use a tinted fill, outline and stronger label weight. Selected bookmarks use a quiet full-row tint with 6 px rounded corners; no leading stripe. Keyboard navigation adds a subtle perimeter to the active row. The focused control has a separate visible outline. Following the [Lists and tables](https://developer.apple.com/design/human-interface-guidelines/lists-and-tables) guidance, selection stays visible without competing with bookmark content. These cues help distinguish “this tool is on” from “the keyboard will act here.” [Apple HIG on color](https://developer.apple.com/design/human-interface-guidelines/color) · [Apple HIG on accessibility](https://developer.apple.com/design/human-interface-guidelines/accessibility)
 
 ## Controls and layout
 

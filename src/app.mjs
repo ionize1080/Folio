@@ -1042,7 +1042,10 @@ function renderTree() {
   const active = document.getElementById(
     "tree-node-" + (S.activeId || S.selected.values().next().value),
   );
-  if (active) $("#tree").setAttribute("aria-activedescendant", active.id);
+  if (active) {
+    active.classList.add("keyboard-current");
+    $("#tree").setAttribute("aria-activedescendant", active.id);
+  }
   else $("#tree").removeAttribute("aria-activedescendant");
 }
 function selectNode(id, event = {}) {

@@ -1,5 +1,5 @@
 name: Folio 2.5.1 parallel verified Windows release
-# Verify compact filtering and queued zoom; await the actual document loading indicator.
+# Verify the compact bookmark area and quiet selection with separate keyboard focus.
 'on':
   workflow_dispatch: null
   push:

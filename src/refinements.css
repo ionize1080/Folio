@@ -97,3 +97,10 @@ body #bookmark-filter-settings>summary:hover {background:var(--hover);}
 body #bookmark-filter-settings:is([open],[data-active=true])>summary {background:var(--accent-soft);color:var(--accent);}
 body #bookmark-filter-settings .filter-options {position:absolute;z-index:30;top:calc(100% + 6px);left:-1px;right:-1px;margin:0;padding:10px;background:var(--panel);border:1px solid var(--line);border-radius:8px;box-shadow:var(--shadow);}
 body .filter-actions[hidden],body #clear-filter[hidden] {display:none;}
+
+/* Selection is a quiet full-row tint; only keyboard focus adds a perimeter. */
+body .tree-row {border-radius:6px;}
+#tree:focus-visible .tree-row.keyboard-current {outline:2px solid var(--selected-line);outline-offset:-2px;}
+@media (forced-colors:active) {
+  #tree:focus-visible .tree-row.keyboard-current {outline-color:Highlight;}
+}

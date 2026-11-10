@@ -26,8 +26,13 @@ const path=require('node:path'),fs=require('node:fs'),assert=require('node:asser
     return selectors.map(s=>{const e=document.querySelector(s);return {s,gap:getComputedStyle(e).gap,arrow:getComputedStyle(e,e.matches('select')?'::picker-icon':'::before').width};});
    });
    for(const m of metrics)assert.equal(m.gap,'8px',JSON.stringify(m));
+   await page.locator('.tree-row').first().click();
+   const selection=await page.locator('.tree-row.selected').first().evaluate(e=>({shadow:getComputedStyle(e).boxShadow,radius:getComputedStyle(e).borderRadius}));
+   assert.equal(selection.shadow,'none');assert.equal(selection.radius,'6px');
 
    if(lang==='zh-Hans'&&size[0]===800&&!dark){
+   await page.locator('#tree').focus();await page.keyboard.press('ArrowDown');
+   assert.equal(await page.locator('.tree-row.keyboard-current').evaluate(e=>getComputedStyle(e).outlineStyle),'solid');
    console.log('Filtering First');
    await page.locator('#filter').fill('First');
    await page.waitForFunction(()=>!document.querySelector('#filter-select').disabled);
