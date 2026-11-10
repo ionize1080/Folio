@@ -25,6 +25,7 @@ function installAIHost({ app, win, ipc, tabs, sender, requireActive }) {
   const dock = new (require("./ai-dock.cjs").AIDock)({
     app,
     win,
+    imageConfig,
     onState: (state) => {
       if (!win.isDestroyed()) for (const t of tabs.entries.values()) t.wc.send("ai-state", {...state,auto:approvalAuto});
     },

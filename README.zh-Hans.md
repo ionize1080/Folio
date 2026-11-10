@@ -2,11 +2,11 @@
 
 [English](README.md) · **简体中文** · [繁體中文](README.zh-Hant.md)
 
-Folio PDF Studio 2.4.0 是 Windows x64 上的本地 PDF 工作台。可以同时打开多份文档，整理长篇书签、编辑页面文字与图片，或把扫描件处理成可检索 PDF。需要模型协助时，从工具栏打开 Chatbox。
+Folio PDF Studio 2.5.0 是 Windows x64 上的本地 PDF 工作台。可以同时打开多份文档，整理长篇书签、编辑页面文字与图片，或把扫描件处理成可检索 PDF。需要模型协助时，从工具栏打开 Chatbox。
 
-本版新增[深度集成的图像与矢量工作室](docs/CREATIVE-STUDIO.md)、精简分类工具栏、缩略图页面组织，以及直接可见的 Word/Excel 导出。支持 PDF 参考背景、高倍率缩放和人工／AI 共用画布。PDF 保存最终结果，`.folio` 保存可继续编辑的图层与源文件。
+本版改进[图像与矢量工作室](docs/CREATIVE-STUDIO.md)、图片方向与裁剪、段落编辑速度、空白页插入和显式生图服务设置。两个工作室默认使用 PDF 参考背景，并提供缩略图选择与直接画布控制。PDF 保存最终结果，`.folio` 保存可继续编辑的图层与源文件。
 
-[下载 Windows x64 便携包](https://github.com/ionize1080/Folio/releases/download/v2.4.0/Folio-PDF-Studio-2.4.0-portable-win-x64.zip) · [本版说明](docs/RELEASE-2.4.0.zh-Hans.md) · [AI 使用指南](docs/AI.md) · [文档索引](docs/README.md)
+[下载 Windows x64 便携包](https://github.com/ionize1080/Folio/releases/download/v2.5.0/Folio-PDF-Studio-2.5.0-portable-win-x64.zip) · [本版说明](docs/RELEASE-2.5.0.zh-Hans.md) · [AI 使用指南](docs/AI.md) · [文档索引](docs/README.md)
 
 ## 打开第一组文件
 
@@ -15,14 +15,14 @@ Folio PDF Studio 2.4.0 是 Windows x64 上的本地 PDF 工作台。可以同时
 3. 编辑后先应用，再按 Ctrl+S 写入当前 PDF。原件保护默认首次另存副本。关闭含未保存修改的普通 PDF 时，可选择保存、放弃或取消。需要保留段落结构及 OCR 校对进度时，在「更多工具 → 导入 / 导出」保存 `.folio` 工程。
 4. 打开「首选项」设置外观。明暗模式可跟随系统，内置钴蓝、青瓷、琥珀、桑葚、石墨五套配色，也可以自选重点色。界面语言默认跟随 Windows，之前手动选择的语言优先。
 
-同一发布页也提供[源码包](https://github.com/ionize1080/Folio/releases/download/v2.4.0/Folio-PDF-Studio-2.4.0-source.zip)、[校验值](https://github.com/ionize1080/Folio/releases/download/v2.4.0/Folio-PDF-Studio-2.4.0-SHA256.txt)和[验收报告](https://github.com/ionize1080/Folio/releases/download/v2.4.0/Folio-PDF-Studio-2.4.0-validation.json)。检查更新可从「关于与使用说明 → 检查更新」进入。
+同一发布页也提供[源码包](https://github.com/ionize1080/Folio/releases/download/v2.5.0/Folio-PDF-Studio-2.5.0-source.zip)、[校验值](https://github.com/ionize1080/Folio/releases/download/v2.5.0/Folio-PDF-Studio-2.5.0-SHA256.txt)和[验收报告](https://github.com/ionize1080/Folio/releases/download/v2.5.0/Folio-PDF-Studio-2.5.0-validation.json)。检查更新可从「关于与使用说明 → 检查更新」进入。
 
 ## 用 AI 阅读与编辑
 
 - **对照文档**。选中一段正文或书签，问“这段话是什么意思？另一份打开的文件怎样表述？请分别标注页码。”Chatbox 可以读取当前页和选区，也可以按文件名查阅后台标签。
 - **改图或增强扫描件**。选中图片，要求先预览暖色滤镜或 RGB 曲线，再用局部细节复核。换图时可以选本地图片并指定区域。需要可搜索的扫描件时，同时要求加入本地 OCR 文字层。
 - **插入流程图**。说明要放在哪页、有哪些节点、怎样连接。保存并重开 PDF 后，仍可修改 Folio 嵌入的 SVG 元素或流程图节点。
-- **模型配置**。在 Chatbox 设置中配置服务商和模型。预览像素需要支持视觉输入的模型。使用生成图片或局部重绘时，还需在 Chatbox 图像创作中选择出图模型。独立出图服务的线上效果仍待验证。
+- **模型配置**。在 Chatbox 设置中配置服务商和模型。预览像素需要支持视觉输入的模型。使用生成图片或局部重绘时，在 **Chatbox 设置 → 生图模型提供方** 单独配置地址、密钥和生图模型，再使用测试按钮检查实际预览。Qwen 生图与参考图编辑已经实际接口验证。
 
 ## 快捷键
 

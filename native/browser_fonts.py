@@ -72,4 +72,8 @@ def opentype(blob,mapping=None):
     cff.otFont=fb.font;fb.font.sfntVersion='OTTO'
     fb.font['CFF ']=newTable('CFF ');fb.font['CFF '].cff=cff
     fb.font['head'].macStyle=(1 if bold else 0)|(2 if italic else 0)
+    # This wrapper is derived data. Wall-clock timestamps made identical PDF
+    # fonts acquire a new key on every inspection, defeating font reuse.
+    fb.font.recalcTimestamp=False
+    fb.font['head'].created=fb.font['head'].modified=2082844800
     out=io.BytesIO();fb.save(out);return out.getvalue()

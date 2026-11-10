@@ -150,20 +150,26 @@ def vision_result(image, args, size):
                 luminanceP01P50P99=percentiles,mimeType=mime,data=base64.b64encode(data.getvalue()).decode())
 
 
-def source_image(args):
-    if args.get('imageData') and args.get('index') is None:
-        return read_image(None,None,args['imageData'])
+def source_object(args):
+    """Resolve one image using the same instance-local source as inspection."""
     from pathlib import Path
     from pypdf import PdfReader
     from content import map_objects
-    from form_compat import reopen
+    from inspection_source import inspection_source
     raw=Path(args['input']).read_bytes() if 'input' in args else base64.b64decode(args['bytes'])
-    number=args.get('page',1);data=reopen(raw,[number]);reader=PdfReader(io.BytesIO(data))
-    if not isinstance(number,int) or not 1<=number<=len(reader.pages):raise ValueError('页码无效')
+    data,number=inspection_source(raw,args.get('page',1));reader=PdfReader(io.BytesIO(data))
     page=reader.pages[number-1];stream,mapped=map_objects(page);index=args.get('index')
     if not isinstance(index,int) or not 0<=index<len(mapped) or mapped[index]['type']!='image':raise ValueError('图片对象编号无效')
-    original=stream.operations[mapped[index]['at']]
+    at=mapped[index]['at'];original=stream.operations[at]
     if original[1] not in (b'Do',b'INLINE IMAGE'):raise ValueError('图片绘制操作不支持调整')
+    return page,stream,at
+
+
+def source_image(args):
+    if args.get('imageData') and args.get('index') is None:
+        return read_image(None,None,args['imageData'])
+    page,stream,at=source_object(args)
+    original=stream.operations[at]
     return read_image(page,original,args.get('imageData'))
 
 

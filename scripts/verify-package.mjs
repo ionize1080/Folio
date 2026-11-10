@@ -8,8 +8,10 @@ import * as PE from "pe-library";
 import * as RE from "resedit";
 const require = createRequire(import.meta.url),
   asar = require("@electron/asar");
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".."),
-  out = path.join(root, "dist/Folio-PDF-Studio-win-x64");
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const packageName = process.env.FOLIO_PACKAGE_NAME || "Folio-PDF-Studio-win-x64";
+assert(/^[a-zA-Z0-9_-]{1,100}$/.test(packageName), "Invalid package output directory name");
+const out = path.join(root, "dist", packageName);
 assert(
   !(await fs.readdir(out)).some((name) => name.startsWith(".Folio.exe.")),
   "runtime staging file included in package",
@@ -64,7 +66,12 @@ for (const f of [
   "src/creative-tools.mjs",
   "src/creative-background.mjs",
   "src/creative-menus.mjs",
+  "src/creative-picker.mjs",
   "src/page-organizer.mjs",
+  "src/page-organization-geometry.mjs",
+  "src/blank-pages.mjs",
+  "src/blank-pages-ui.mjs",
+  "src/page-inspection-cache.mjs",
   "src/ribbon.css",
   "storage-budget.cjs",
   "src/ai-ui.mjs",
@@ -118,9 +125,27 @@ for (const f of [
   "src/recovery.mjs",
   "src/app.mjs",
   "src/pdf-core.mjs",
+  "src/pdf-loading.mjs",
   "src/model.mjs",
   "src/vendor/pdf.mjs",
   "src/vendor/pdf.worker.mjs",
+  "src/vendor/wasm/openjpeg.wasm",
+  "src/vendor/wasm/openjpeg_nowasm_fallback.js",
+  "src/vendor/wasm/jbig2.wasm",
+  "src/vendor/wasm/qcms_bg.wasm",
+  "src/vendor/cmaps/Adobe-GB1-UCS2.bcmap",
+  "src/vendor/cmaps/Adobe-CNS1-UCS2.bcmap",
+  "src/vendor/cmaps/Adobe-Japan1-UCS2.bcmap",
+  "src/vendor/cmaps/Adobe-Korea1-UCS2.bcmap",
+  "src/vendor/cmaps/UniGB-UCS2-H.bcmap",
+  "src/vendor/cmaps/UniCNS-UCS2-H.bcmap",
+  "src/vendor/cmaps/UniJIS-UCS2-H.bcmap",
+  "src/vendor/cmaps/UniKS-UCS2-H.bcmap",
+  "src/vendor/standard_fonts/FoxitDingbats.pfb",
+  "src/vendor/standard_fonts/FoxitFixed.pfb",
+  "src/vendor/standard_fonts/FoxitSerif.pfb",
+  "src/vendor/standard_fonts/FoxitSymbol.pfb",
+  "src/vendor/standard_fonts/LiberationSans-Regular.ttf",
   "src/vendor/pdf-lib.js",
   "src/line-geometry.mjs",
   "src/bookmark-split.mjs",

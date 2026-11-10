@@ -19,7 +19,7 @@ const path=require('node:path'),fs=require('node:fs'),assert=require('node:asser
   await tiles.nth(0).click();await tiles.nth(2).click({modifiers:['Shift']});assert.equal(await dialog.locator('[aria-selected=true]').count(),3);
   await dialog.locator('[data-org=copy]').click();assert.equal(await tiles.count(),6);await dialog.locator('[data-org=undo]').click();assert.equal(await tiles.count(),3);await dialog.locator('[data-org=redo]').click();assert.equal(await tiles.count(),6);
   await dialog.locator('[data-org=delete]').click();assert.equal(await tiles.count(),3);checks.push('Range selection, copy, delete, undo and redo');
-  await tiles.nth(0).click();await dialog.locator('[data-org=blank]').click();assert.equal(await tiles.count(),4);assert.match(await tiles.nth(1).innerText(),/空白/);
+  await tiles.nth(0).click();await dialog.locator('[data-org=blank]').click();await page.locator('.blank-pages-dialog [data-insert]').click();assert.equal(await tiles.count(),4);assert.match(await tiles.nth(1).innerText(),/空白/);
   await page.waitForFunction(()=>document.querySelector('.organizer-page[data-position="2"] canvas').height>document.querySelector('.organizer-page[data-position="2"] canvas').width);
   await dialog.locator('[data-org=delete]').click();assert.equal(await tiles.count(),3);
   await tiles.nth(2).click();await tiles.nth(2).dragTo(tiles.nth(0),{targetPosition:{x:5,y:50}});assert.match(await tiles.nth(0).getAttribute('aria-label'),/来源第 3 页/);

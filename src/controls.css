@@ -7,6 +7,10 @@ body, body.dark {
   --control-edge:color-mix(in oklab,var(--text) 52%,var(--panel));
 }
 body.dark { --selected:color-mix(in oklab,var(--accent) 19%,var(--panel)); }
+/* The same host faces are installed in both embedded drawing engines. */
+:root {font-family:"Segoe UI","Microsoft YaHei UI","Folio UI",sans-serif;}
+html[lang="zh-Hant"] {font-family:"Segoe UI","Microsoft JhengHei UI","Folio UI",sans-serif;}
+input[type=number],output,.studio-document-meta {font-variant-numeric:tabular-nums;}
 button.primary, body.dark button.primary {background:var(--accent);color:var(--on-accent) !important;}
 button.primary:enabled:hover {background:var(--accent);filter:brightness(.94);}
 button:focus-visible,summary:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{
@@ -31,6 +35,24 @@ body select:not([multiple]):not([size]) {
 body.dark select:not([multiple]):not([size]) {
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='m4 6 4 4 4-4' stroke='%23bbc4cf' stroke-width='1.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
 }
+/* Customizable native selects retain keyboard/type-ahead semantics while their
+   popup shares the application's spacing, colors and alignment. */
+@supports (appearance:base-select) {
+  body select:not([multiple]):not([size]),body select:not([multiple]):not([size])::picker(select){appearance:base-select;}
+  body select:not([multiple]):not([size]){display:flex;background-image:none;padding-right:10px;align-items:center;justify-content:space-between;gap:6px;white-space:nowrap;}
+  body.dark select:not([multiple]):not([size]){background-image:none;}
+  select::picker-icon{width:12px;height:12px;font-size:12px;line-height:1;color:var(--muted);transition:transform .12s;flex:none;margin-inline-start:auto;}
+  select:open::picker-icon{transform:rotate(180deg);}
+  select::picker(select){border:1px solid var(--line);border-radius:9px;background:var(--panel);color:var(--text);box-shadow:0 8px 28px #18284024;padding:5px;max-height:min(360px,60vh);overflow:auto;}
+  select option{display:flex;gap:10px;align-items:center;min-height:32px;padding:7px 10px;border-radius:5px;white-space:normal;}
+  select option:hover,select option:focus{background:var(--hover,var(--panel2));}
+  select option:checked{background:var(--accent-soft);color:var(--accent);}
+  select option::checkmark{order:1;margin-left:auto;}
+  select option:disabled{opacity:.45;}
+  body .viewer-toolbar #zoom,body .viewer-toolbar #layout{field-sizing:content;width:auto;max-width:none;min-width:64px;flex:none;}
+}
+.image-panel-scroll .adjust-tools>select{flex:1 0 108px;min-width:108px;white-space:nowrap;}
+.image-panel-scroll .adjust-tools>button{flex:1 0 auto;white-space:nowrap;}
 details > summary {list-style:none;cursor:pointer;}
 details > summary::-webkit-details-marker {display:none;}
 details:not(.more-tools) > summary::before {content:"";display:inline-block;width:6px;height:6px;border:solid currentColor;border-width:0 1.5px 1.5px 0;transform:rotate(-45deg);vertical-align:3px;margin:0 9px 0 3px;}

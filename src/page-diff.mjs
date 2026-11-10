@@ -1,3 +1,4 @@
+import { pdfLoadingOptions } from './pdf-loading.mjs';
 export async function pageDiff({
   S,
   source,
@@ -41,8 +42,8 @@ export async function pageDiff({
       .sort((a, b) => a - b);
   for (const bytes of [source, output]) {
     const d = await pdfjs.getDocument({
+      ...pdfLoadingOptions,
       data: bytes.slice(),
-      isEvalSupported: false,
       useSystemFonts: true,
     }).promise;
     if (closed) {

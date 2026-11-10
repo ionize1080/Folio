@@ -1,0 +1,641 @@
+name: Folio 2.5.0 parallel verified Windows release
+'on':
+  workflow_dispatch: null
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: folio-250-release
+  cancel-in-progress: true
+jobs:
+  core:
+    name: Core contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    - uses: actions/setup-node@v4
+      with:
+        node-version: '24'
+        cache: npm
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+    - name: Require the intended public main branch
+      env:
+        PUBLIC_REPOSITORY: ${{ !github.event.repository.private }}
+      run: test "$GITHUB_REF" = refs/heads/main && test "$PUBLIC_REPOSITORY" = true
+    - run: npm ci --ignore-scripts
+    - run: npm run test:quick
+    - run: python tests/ci-reports.py
+  prepare:
+    name: Prepare reusable dependencies
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    - uses: ./.github/actions/setup-workbench
+      with:
+        ai: 'true'
+        fixtures: 'false'
+        save-cache: 'true'
+  engines:
+    name: Build embedded engines
+    uses: ./.github/workflows/creative-web.yml
+  native1:
+    name: Native engine regressions 1/3
+    needs:
+    - core
+    - prepare
+    runs-on: windows-latest
+    timeout-minutes: 30
+    outputs:
+      reports: ${{ steps.results.outputs.reports }}
+    defaults:
+      run:
+        shell: cmd
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    - uses: ./.github/actions/setup-workbench
+      with:
+        ai: 'false'
+        conversion: 'false'
+        models: 'false'
+        creative: 'false'
+        fixtures: 'false'
+    - run: node scripts/acceptance.mjs native
+      env:
+        FOLIO_TEST_SHARD: 1/3
+    - id: results
+      run: python scripts/ci-reports.py export native1
+  native2:
+    name: Native engine regressions 2/3
+    needs:
+    - core
+    - prepare
+    runs-on: windows-latest
+    timeout-minutes: 30
+    outputs:
+      reports: ${{ steps.results.outputs.reports }}
+    defaults:
+      run:
+        shell: cmd
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    - uses: ./.github/actions/setup-workbench
+      with:
+        ai: 'false'
+        conversion: 'false'
+        models: 'false'
+        creative: 'false'
+        fixtures: 'false'
+    - run: node scripts/acceptance.mjs native
+      env:
+        FOLIO_TEST_SHARD: 2/3
+    - id: results
+      run: python scripts/ci-reports.py export native2
+  native3:
+    name: Native engine regressions 3/3
+    needs:
+    - core
+    - prepare
+    runs-on: windows-latest
+    timeout-minutes: 30
+    outputs:
+      reports: ${{ steps.results.outputs.reports }}
+    defaults:
+      run:
+        shell: cmd
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    - uses: ./.github/actions/setup-workbench
+      with:
+        ai: 'false'
+        conversion: 'false'
+        models: 'false'
+        creative: 'false'
+        fixtures: 'false'
+    - run: node scripts/acceptance.mjs native
+      env:
+        FOLIO_TEST_SHARD: 3/3
+    - id: results
+      run: python scripts/ci-reports.py export native3
+  docengine:
+    name: Office, document structure and conformance
+    needs:
+    - core
+    - prepare
+    runs-on: windows-latest
+    timeout-minutes: 30
+    outputs:
+      reports: ${{ steps.results.outputs.reports }}
+    defaults:
+      run:
+        shell: cmd
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    - uses: ./.github/actions/setup-workbench
+      with:
+        ai: 'false'
+        conversion: 'true'
+        models: 'true'
+        creative: 'false'
+        fixtures: 'true'
+    - run: native\runtime\python.exe tests/conversion-native.py
+    - run: native\runtime\python.exe tests/engineering-native.py
+    - run: native\runtime\python.exe tests/conversion-public.py
+    - id: results
+      run: python scripts/ci-reports.py export docengine
+  docui:
+    name: Document conversion user interfaces
+    needs:
+    - core
+    - prepare
+    runs-on: windows-latest
+    timeout-minutes: 30
+    outputs:
+      reports: ${{ steps.results.outputs.reports }}
+    defaults:
+      run:
+        shell: cmd
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    - uses: ./.github/actions/setup-workbench
+      with:
+        ai: 'false'
+        conversion: 'true'
+        models: 'true'
+        creative: 'false'
+        fixtures: 'true'
+    - run: node tests/web-pdf.cjs
+    - run: python tests/document-utilities.py
+    - run: node tests/document-tools-ui.cjs
+    - run: native\runtime\python.exe tests/engineering-native.py
+    - run: node tests/workbench-ui.cjs
+    - run: node tests/engineering-ui.cjs
+    - run: node tests/conversion-scan.cjs
+    - id: results
+      run: python scripts/ci-reports.py export docui
+  mcp:
+    name: MCP regression (two workers)
+    needs:
+    - core
+    - prepare
+    runs-on: windows-latest
+    timeout-minutes: 20
+    outputs:
+      reports: ${{ steps.results.outputs.reports }}
+    defaults:
+      run:
+        shell: cmd
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    - uses: ./.github/actions/setup-workbench
+      with:
+        ai: 'true'
+        conversion: 'false'
+        models: 'false'
+        fixtures: 'false'
+    - run: if not exist tests\output mkdir tests\output
+    - name: Prepare isolated MCP regression environment
+      run: python -m venv .venv-ai && .venv-ai\Scripts\python.exe -m pip install -r integrations/pdf-mcp-requirements.lock.txt pytest==9.2.0 pytest-cov==7.1.0 pytest-xdist==3.8.0 &&
+        .venv-ai\Scripts\python.exe -m pip install --no-deps integrations/pdf-mcp-upstream
+    - name: Two-worker upstream MCP regression and merged coverage
+      shell: pwsh
+      run: '$env:PATH="$PWD\.ai-runtime\pdf-runtime\tesseract;$env:PATH"
+
+        $env:TESSDATA_PREFIX="$PWD\.ai-runtime\pdf-runtime\tesseract\tessdata"
+
+        .venv-ai\Scripts\python.exe -m pytest integrations/pdf-mcp-upstream/tests -p scripts.mcp_test_isolation -q -n 2 --dist loadscope --max-worker-restart=0 --cov-config=integrations/pdf-mcp-upstream/pyproject.toml
+        --junitxml=tests/output/mcp-junit.xml --cov-report=json:tests/output/mcp-coverage.json --durations=12
+
+        if ($LASTEXITCODE) {exit $LASTEXITCODE}
+
+        python scripts/ci-mcp-report.py
+
+        exit $LASTEXITCODE
+
+        '
+    - id: results
+      run: python scripts/ci-reports.py export mcp
+  ui:
+    name: Shared AI interface and compact application chrome
+    needs:
+    - core
+    - prepare
+    runs-on: windows-latest
+    timeout-minutes: 40
+    outputs:
+      reports: ${{ steps.results.outputs.reports }}
+    defaults:
+      run:
+        shell: cmd
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    - uses: ./.github/actions/setup-workbench
+      with:
+        ai: 'true'
+        conversion: 'false'
+        models: 'false'
+        creative: 'false'
+        fixtures: 'true'
+    - run: node tests/chatbox-completion-220.cjs
+    - run: node tests/graphics-220.cjs
+    - run: node tests/ai-settings.cjs
+    - run: node tests/chrome-202.cjs
+    - name: Browser editing, bookmarks and navigation regressions
+      shell: pwsh
+      run: |
+        $chrome = Join-Path $env:ProgramFiles 'Google\Chrome\Application\chrome.exe'
+        if (!(Test-Path -LiteralPath $chrome)) { throw 'The Windows runner must provide Google Chrome' }
+        $env:FOLIO_CHROMIUM = $chrome
+        node scripts/acceptance.mjs browser
+        exit $LASTEXITCODE
+    - id: results
+      run: python scripts/ci-reports.py export ui
+  ai:
+    name: MCP transport and hosted AI integration
+    needs:
+    - core
+    - prepare
+    runs-on: windows-latest
+    timeout-minutes: 30
+    outputs:
+      reports: ${{ steps.results.outputs.reports }}
+    defaults:
+      run:
+        shell: cmd
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    - uses: ./.github/actions/setup-workbench
+      with:
+        ai: 'true'
+        conversion: 'false'
+        models: 'false'
+        creative: 'false'
+        fixtures: 'true'
+    - run: node tests/ai-integration.cjs
+    - run: node tests/ai-hosted.cjs
+    - run: node tests/pdf-mcp-bridge.cjs
+    - id: results
+      run: python scripts/ci-reports.py export ai
+  creative:
+    name: Native artwork commands, canvas and reference alignment
+    needs:
+    - core
+    - prepare
+    - engines
+    runs-on: windows-latest
+    timeout-minutes: 30
+    outputs:
+      reports: ${{ steps.results.outputs.reports }}
+    defaults:
+      run:
+        shell: cmd
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    - uses: ./.github/actions/setup-workbench
+      with:
+        ai: 'true'
+        conversion: 'false'
+        models: 'false'
+        creative: 'true'
+        fixtures: 'false'
+    - run: native\runtime\python.exe tests/creative-native.py
+    - run: node tests/creative-engines.cjs
+    - run: node tests/creative-embedded.cjs
+    - id: results
+      run: python scripts/ci-reports.py export creative
+  creativeui:
+    name: Artwork projects, page thumbnails and Office exports
+    needs:
+    - core
+    - prepare
+    - engines
+    runs-on: windows-latest
+    timeout-minutes: 30
+    outputs:
+      reports: ${{ steps.results.outputs.reports }}
+    defaults:
+      run:
+        shell: cmd
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    - uses: ./.github/actions/setup-workbench
+      with:
+        ai: 'false'
+        conversion: 'false'
+        models: 'true'
+        creative: 'true'
+        fixtures: 'true'
+    - run: native\runtime\python.exe tests/creative-native.py
+    - run: node tests/creative-ui.cjs
+    - run: node tests/creative-experience.cjs
+    - run: native\runtime\python.exe tests/page-organization.py && node tests/organizer-ui.cjs
+    - id: results
+      run: python scripts/ci-reports.py export creativeui
+  creativelive:
+    name: Real Qwen artwork and page organization
+    needs: [core, prepare, engines]
+    runs-on: windows-latest
+    timeout-minutes: 45
+    outputs:
+      reports: ${{ steps.results.outputs.reports }}
+    defaults:
+      run:
+        shell: cmd
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    - uses: ./.github/actions/setup-workbench
+      with:
+        ai: 'true'
+        conversion: 'false'
+        models: 'false'
+        creative: 'true'
+        fixtures: 'false'
+    - run: native\runtime\python.exe tests/creative-native.py
+    - run: node tests/creative-live.cjs
+      env:
+        FOLIO_QWEN_API_KEY: ${{ secrets.FOLIO_QWEN_API_KEY }}
+        FOLIO_QWEN_API_URL: ${{ secrets.FOLIO_QWEN_API_URL }}
+    - id: results
+      run: python scripts/ci-reports.py export creativelive
+  livecontext:
+    name: Real Qwen metadata, Office and same-chat context
+    needs:
+    - core
+    - prepare
+    runs-on: windows-latest
+    timeout-minutes: 30
+    outputs:
+      reports: ${{ steps.results.outputs.reports }}
+    defaults:
+      run:
+        shell: cmd
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    - uses: ./.github/actions/setup-workbench
+      with:
+        ai: 'true'
+        conversion: 'true'
+        models: 'true'
+        creative: 'false'
+        fixtures: 'true'
+    - run: native\runtime\python.exe tests/engineering-native.py
+      env: &id001
+        FOLIO_QWEN_API_KEY: ${{ secrets.FOLIO_QWEN_API_KEY }}
+        FOLIO_QWEN_API_URL: ${{ secrets.FOLIO_QWEN_API_URL }}
+    - run: node tests/document-live.cjs
+      env: *id001
+    - run: node tests/conversion-live.cjs
+      env: *id001
+    - run: node tests/context-live.cjs
+      env: *id001
+    - run: native\runtime\python.exe tests/workflow-250-fixture.py
+    - run: node tests/workflow-250.cjs --live
+      env: *id001
+    - run: native\runtime\python.exe tests/workflow-250-verify.py --live
+    - id: results
+      run: python scripts/ci-reports.py export livecontext
+  liveedit:
+    name: Real AI document editing workflows
+    needs:
+    - core
+    - prepare
+    runs-on: windows-latest
+    timeout-minutes: 30
+    outputs:
+      reports: ${{ steps.results.outputs.reports }}
+    defaults:
+      run:
+        shell: cmd
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    - uses: ./.github/actions/setup-workbench
+      with:
+        ai: 'true'
+        conversion: 'false'
+        models: 'true'
+        creative: 'false'
+        fixtures: 'true'
+    - run: node tests/ai-live-202.cjs
+      env: *id001
+    - id: results
+      run: python scripts/ci-reports.py export liveedit
+  liveimage:
+    name: Real concurrent image generation
+    needs:
+    - core
+    - prepare
+    runs-on: windows-latest
+    timeout-minutes: 30
+    outputs:
+      reports: ${{ steps.results.outputs.reports }}
+    defaults:
+      run:
+        shell: cmd
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    - uses: ./.github/actions/setup-workbench
+      with:
+        ai: 'true'
+        conversion: 'false'
+        models: 'false'
+        creative: 'false'
+        fixtures: 'true'
+    - run: node tests/graphics-live-220.cjs
+      env: &id002
+        FOLIO_QWEN_API_KEY: ${{ secrets.FOLIO_QWEN_API_KEY }}
+        FOLIO_QWEN_API_URL: ${{ secrets.FOLIO_QWEN_API_URL }}
+        FOLIO_IMAGE_API_KEY: ${{ secrets.FOLIO_IMAGE_API_KEY }}
+    - run: node tests/image-provider-settings.cjs --live
+      env: *id002
+    - run: python tests/graphics-live-220.py
+      env: *id002
+    - id: results
+      run: python scripts/ci-reports.py export liveimage
+  workflow:
+    name: Editing, blank pages and provider settings
+    needs: [core, prepare]
+    runs-on: windows-latest
+    timeout-minutes: 25
+    outputs:
+      reports: ${{ steps.results.outputs.reports }}
+    defaults:
+      run:
+        shell: cmd
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    - uses: ./.github/actions/setup-workbench
+      with:
+        ai: 'true'
+        conversion: 'false'
+        models: 'false'
+        creative: 'false'
+        fixtures: 'false'
+    - run: native\runtime\python.exe tests/workflow-250-fixture.py
+    - run: node tests/workflow-250.cjs
+    - run: native\runtime\python.exe tests/workflow-250-verify.py
+    - run: node tests/image-provider-settings.cjs
+    - run: node tests/organizer-geometry.cjs
+    - run: native\runtime\python.exe tests/image-studio-geometry.py
+    - run: node tests/image-studio-ui.cjs
+    - run: native\runtime\python.exe tests/pdf-loading-fixtures.py
+    # windows-latest supplies Google Chrome; the test launches its own headless
+    # instance and records the version in the commit-bound workflow report.
+    - name: Verify JPX edit backgrounds and thumbnails in Chrome
+      run: node tests/pdf-loading.cjs
+    - id: results
+      run: python scripts/ci-reports.py export workflow
+  release:
+    name: Verify final package and publish
+    needs:
+    - core
+    - engines
+    - native1
+    - native2
+    - native3
+    - docengine
+    - docui
+    - mcp
+    - ui
+    - ai
+    - creative
+    - creativeui
+    - creativelive
+    - livecontext
+    - liveedit
+    - liveimage
+    - workflow
+    runs-on: windows-latest
+    timeout-minutes: 55
+    permissions:
+      contents: write
+      actions: read
+    defaults:
+      run:
+        shell: cmd
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    - uses: ./.github/actions/setup-workbench
+      with:
+        ai: 'true'
+        creative: 'true'
+    - name: Verify workflow regression provenance
+      run: python scripts/ci-reports.py import workflow
+      env:
+        FOLIO_CI_REPORTS: ${{ needs.workflow.outputs.reports }}
+    - name: Verify native1 test provenance
+      run: python scripts/ci-reports.py import native1
+      env:
+        FOLIO_CI_REPORTS: ${{ needs.native1.outputs.reports }}
+    - name: Verify native2 test provenance
+      run: python scripts/ci-reports.py import native2
+      env:
+        FOLIO_CI_REPORTS: ${{ needs.native2.outputs.reports }}
+    - name: Verify native3 test provenance
+      run: python scripts/ci-reports.py import native3
+      env:
+        FOLIO_CI_REPORTS: ${{ needs.native3.outputs.reports }}
+    - name: Verify docengine test provenance
+      run: python scripts/ci-reports.py import docengine
+      env:
+        FOLIO_CI_REPORTS: ${{ needs.docengine.outputs.reports }}
+    - name: Verify docui test provenance
+      run: python scripts/ci-reports.py import docui
+      env:
+        FOLIO_CI_REPORTS: ${{ needs.docui.outputs.reports }}
+    - name: Verify mcp test provenance
+      run: python scripts/ci-reports.py import mcp
+      env:
+        FOLIO_CI_REPORTS: ${{ needs.mcp.outputs.reports }}
+    - name: Verify ui test provenance
+      run: python scripts/ci-reports.py import ui
+      env:
+        FOLIO_CI_REPORTS: ${{ needs.ui.outputs.reports }}
+    - name: Verify ai test provenance
+      run: python scripts/ci-reports.py import ai
+      env:
+        FOLIO_CI_REPORTS: ${{ needs.ai.outputs.reports }}
+    - name: Verify creative test provenance
+      run: python scripts/ci-reports.py import creative
+      env:
+        FOLIO_CI_REPORTS: ${{ needs.creative.outputs.reports }}
+    - name: Verify creativeui test provenance
+      run: python scripts/ci-reports.py import creativeui
+      env:
+        FOLIO_CI_REPORTS: ${{ needs.creativeui.outputs.reports }}
+    - name: Verify creativelive test provenance
+      run: python scripts/ci-reports.py import creativelive
+      env:
+        FOLIO_CI_REPORTS: ${{ needs.creativelive.outputs.reports }}
+    - name: Verify livecontext test provenance
+      run: python scripts/ci-reports.py import livecontext
+      env:
+        FOLIO_CI_REPORTS: ${{ needs.livecontext.outputs.reports }}
+    - name: Verify liveedit test provenance
+      run: python scripts/ci-reports.py import liveedit
+      env:
+        FOLIO_CI_REPORTS: ${{ needs.liveedit.outputs.reports }}
+    - name: Verify liveimage test provenance
+      run: python scripts/ci-reports.py import liveimage
+      env:
+        FOLIO_CI_REPORTS: ${{ needs.liveimage.outputs.reports }}
+    - run: native\runtime\python.exe tests/creative-native.py && native\runtime\python.exe tests/page-organization.py
+    - run: native\runtime\python.exe tests/workflow-250-fixture.py && native\runtime\python.exe tests/image-studio-geometry.py && native\runtime\python.exe tests/pdf-loading-fixtures.py
+    - run: python tests/update-python-201.py && npm run build:win && npm run test:package
+    - name: Packaged application checks in two isolated lanes
+      run: node scripts/ci-packaged.cjs
+      timeout-minutes: 25
+      env:
+        FOLIO_EXE: ${{ github.workspace }}\dist\Folio-PDF-Studio-win-x64\Folio.exe
+    - run: node tests/update-health-v162.cjs
+      env:
+        FOLIO_EXE: ${{ github.workspace }}\dist\Folio-PDF-Studio-win-x64\Folio.exe
+    - run: python scripts/archive-release.py deliverables
+    - name: Validate exact release ZIP updater
+      run: node tests/update-201.cjs
+      timeout-minutes: 12
+      env:
+        FOLIO_EXE: ${{ github.workspace }}\dist\Folio-PDF-Studio-win-x64\Folio.exe
+        FOLIO_UPDATE_ZIP: ${{ github.workspace }}\deliverables\Folio-PDF-Studio-2.5.0-portable-win-x64.zip
+    - name: Publish only verified artifacts
+      run: python scripts/publish-250-ci.py
+      env:
+        GH_TOKEN: ${{ github.token }}

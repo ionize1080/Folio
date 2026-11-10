@@ -14,3 +14,7 @@ Selected tools use a tinted fill, outline and stronger label weight. A selected 
 - Menus fit the viewport and scroll vertically. Escape dismisses the overflow menu and returns focus. Chatbox yields its native view while a Folio menu or modal needs the space. Model progress occupies its own row above the composer.
 
 Implementation is split between [palette and contrast calculations](../src/appearance.mjs), [shared controls](../src/controls.css), [desktop layout](../src/chrome.css) and [tab interaction](../src/document-tabs.mjs). The UI suite checks three languages at 1080, 1250 and 1500 px widths in both light and dark modes. Separate hosted-view tests check overlay visibility and composer geometry. [Release validation](VALIDATION.md)
+
+## 2.5 studio and insertion review
+
+Both embedded editors use the host language and native UI font families. Menus distinguish keyboard focus, active tools and currently open popovers; switching or dismissing a popover clears the previous anchor. Shared select styling provides checkmarks, aligned rows, visible focus and bounded scrolling while retaining native keyboard semantics. Blank-page insertion groups page size and destination, with a live page silhouette. The provider settings are reachable from both Chatbox layouts. See [the workflow review and evidence](WORKFLOW-2.5.0.md).

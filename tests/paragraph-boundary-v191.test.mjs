@@ -133,6 +133,27 @@ test("short textbook dialogue and repeated first-line indents remain independent
   assert.equal(result[3].sources.length, 2);
 });
 
+test("decimal section titles retain independent ownership from their definition", () => {
+  const result = models([
+    row(0, "3.9 农村资金互助社", 100, 180, 15, 70),
+    row(1, "经中国银行业监督管理机构批准，由乡镇、行政村农民", 128, 400, 15, 100),
+    row(2, "和农村小企业自愿入股组成，为社员提供存款、贷款等服务。", 156, 400, 15, 70),
+  ]);
+  assert.equal(result.length, 2);
+  assert.equal(result[0].text, "3.9 农村资金互助社");
+  assert.deepEqual(result[0].sources.map(s => s.index), [0]);
+  assert.deepEqual(result[1].sources.map(s => s.index), [1, 2]);
+});
+
+test("decimal values without section-title spacing remain part of prose", () => {
+  const result = models([
+    row(0, "年度总量增加到预期水平，带动相关产业投资", 100),
+    row(1, "3.9亿元并形成持续增长的业务规模。", 118, 350),
+  ]);
+  assert.equal(result.length, 1);
+  assert.equal(result[0].sources.length, 2);
+});
+
 test("diamond exercise items split at each marker while retaining their physical continuation lines", () => {
   const result = models([
     row(0, "◇ 这是第一个独立练习项目，其说明需要折行", 100, 300, 13, 80),

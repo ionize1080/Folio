@@ -53,7 +53,7 @@ const errors = [],
           u.pathname === "/__flow"
             ? await layout.render(data)
             : await bridge.run(data);
-        if (result.bytes) result.bytes = Array.from(result.bytes);
+        if (result.bytes instanceof Uint8Array) result.bytes = Array.from(result.bytes);
         body = JSON.stringify(result);
       } else {
         const p = path.resolve(
@@ -71,7 +71,7 @@ const errors = [],
           body = Buffer.concat([
             body,
             Buffer.from(
-              "\nwindow.__qa={S,surface,loadPDF,savePDF,actions,closeModal,commit,selectNode,renameInline,settings,applySettings,refreshNative,rpc,documentSession,scheduleRecovery};",
+              "\nwindow.__qa={S,surface,loadPDF,savePDF,actions,closeModal,commit,selectNode,renameInline,settings,applySettings,refreshNative,rpc,documentSession,scheduleRecovery,writeFile,buildExportSnapshot};",
             ),
           ]);
         type =
@@ -100,7 +100,7 @@ const errors = [],
       });
       const v = await r.json();
       if (v.error) throw Error(v.error);
-      if (v.bytes) v.bytes = new Uint8Array(v.bytes);
+      if (Array.isArray(v.bytes)) v.bytes = new Uint8Array(v.bytes);
       return v;
     };
     window.desktop = {
@@ -220,28 +220,33 @@ const errors = [],
     await q.refreshNative(q.S.nativeEdits, ocr);
     q.commit(q.S.nodes, { ocr });
   });
-  // Append uses the same applied bytes even after a save in this still-open session.
+  // Assembly uses the same applied bytes even after a save in this still-open session.
   await page.evaluate(async () => {
+    const q = window.__qa;
+    const { installDocumentAssembly } = await import('./document-assembly-ui.mjs');
+    installDocumentAssembly({S:q.S,session:q.documentSession,writeFile:q.writeFile,
+      exportPDF:async()=>q.rpc('save',await q.buildExportSnapshot(q.S,q.settings,q.documentSession))});
     window.__saved = [];
     window.desktop.save = async (d) => {
       window.__saved.push(Array.from(d.bytes));
       return { name: "copy.pdf", working: true, handle: "test" };
     };
     await window.__qa.savePDF(false, true);
-    window.desktop.open = async () => ({
+    window.desktop.mergeFiles = async () => [{
       name: "append.pdf",
       bytes: window.__qa.S.bytes.slice(),
-    });
+    }];
   });
   await action("pages");
   await page.locator("#pages-merge").click();
+  await page.locator('.assembly-dialog [data-add]').click();
+  await page.waitForFunction(() => document.querySelectorAll('.assembly-dialog .merge-file-row').length === 2);
+  await page.locator('.assembly-dialog [data-run]').click();
   await page.waitForFunction(
-    () => window.__qa.S.info.pageCount === 6 && !window.__qa.S.busy,
+    () => window.__saved.length === 2 && !document.querySelector('.assembly-dialog [data-run]').disabled,
   );
-  assert.equal(
-    (await page.evaluate(() => window.__qa.savePDF(false, true))).status,
-    "saved",
-  );
+  assert.equal(await page.evaluate(()=>window.__qa.S.info.pageCount),3,'Assembly saves a new PDF without replacing the edited source');
+  await page.locator('.assembly-dialog [data-close]').click();
   await page.evaluate(async () => {
     const q = window.__qa;
     const b = new Uint8Array(window.__saved.at(-1));
@@ -274,7 +279,7 @@ const errors = [],
   );
   assert.equal(verified.status, 0, verified.stderr + verified.stdout);
   checks.push(
-    "Real native table and OCR edits -> same-session save -> append -> save -> cold reopen retain applied content",
+    "Real native table and OCR edits -> same-session save -> assembly dialog -> separate merged save -> cold reopen retain applied content",
   );
   checks.push(
     "Same-color same-width table checkmark is pixel-identical after cell edit, append and PDF reopen",

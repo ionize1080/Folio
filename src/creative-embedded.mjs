@@ -1,6 +1,7 @@
 import {fromBase64,toBase64} from './portable-state.mjs';
 import {viewPlan} from './creative-view.mjs';
 import {referenceQuad,artworkBounds} from './creative-background.mjs';
+import {t} from './i18n.mjs';
 
 const delay=ms=>new Promise(r=>setTimeout(r,ms));
 const imageResult=data=>({content:[{type:'image',mimeType:'image/png',data}]});
@@ -13,8 +14,19 @@ export class EmbeddedStudio extends EventTarget {
     });observer.observe(document.body,{attributes:true,attributeFilter:['class']});observer.observe(document.documentElement,{attributes:true,attributeFilter:['lang']});
   }
   async appearance(s){
+    s.frame.title='Folio '+t(s.kind==='photo'?'图像工作室':'矢量工作室');s.frame.contentDocument.documentElement.lang=document.documentElement.lang||'en';
     await s.api.execute('prefs.set',s.kind==='photo'?{path:'interface.language',value:document.documentElement.lang||'en'}:{key:'interfaceLanguage',value:document.documentElement.lang||'en'});
+    await this.interfaceFonts(s);
     const dark=document.body.classList.contains('dark');return s.api.request('ui.set',s.kind==='photo'?{theme:dark?'studio':'studioLight'}:{brightness:dark?'dark':'light'});
+  }
+  async interfaceFonts(s){
+    const language=document.documentElement.lang||'en',key=language==='zh-Hant'?'zh-Hant':'zh-Hans';
+    if(s.fontLanguage===key)return;
+    this.fonts??=new Map();
+    if(!this.fonts.has(key))this.fonts.set(key,window.desktop.creativeStudio({action:'ui-fonts',language}));
+    const fonts=await this.fonts.get(key);
+    if(fonts.fonts.length)await s.api.request('folio.fonts',fonts);
+    s.fontLanguage=key;
   }
   notify(type,detail){this.dispatchEvent(new CustomEvent(type,{detail}));}
   get(id){const s=this.sessions.get(id);if(!s)throw Error('编辑会话已关闭，请重新打开');return s;}
@@ -22,9 +34,9 @@ export class EmbeddedStudio extends EventTarget {
     const kind=a.kind||'photo';if(!['photo','vector'].includes(kind))throw Error('未知编辑类型');
     let asset=a;
     if(a.path||a.pick){asset={...a,...await window.desktop.creativeStudio({action:'asset',kind,path:a.path,pick:a.pick})};if(asset.cancelled)return asset;}
-    const id=crypto.randomUUID(),frame=document.createElement('iframe');frame.className='studio-frame studio-parked';frame.title=kind==='photo'?'Folio 图像编辑画布':'Folio 矢量编辑画布';
+    const id=crypto.randomUUID(),frame=document.createElement('iframe');frame.className='studio-frame studio-parked';frame.title='Folio '+t(kind==='photo'?'图像工作室':'矢量工作室');
     frame.setAttribute('allow','clipboard-read; clipboard-write');frame.src=`./creative/${kind}/index.html?webgl&lang=${document.documentElement.lang}`;
-    const s={id,kind,frame,queue:Promise.resolve(),closed:false,viewMode:null,title:asset.name||a.settings?.name||(kind==='photo'?'未命名图像':'未命名矢量图')};this.sessions.set(id,s);this.mount.append(frame);
+    const s={id,kind,frame,queue:Promise.resolve(),closed:false,viewMode:null,title:asset.name||a.settings?.name||t(kind==='photo'?'未命名图像':'未命名矢量图')};this.sessions.set(id,s);this.mount.append(frame);
     try{
       const deadline=Date.now()+120000;
       while(Date.now()<deadline){
@@ -45,13 +57,14 @@ export class EmbeddedStudio extends EventTarget {
         }else return click.call(this);
       };
       const language=document.documentElement.lang||'en';
+      frame.contentDocument.documentElement.lang=language;
       await s.api.execute('prefs.set',kind==='photo'?{path:'interface.language',value:language}:{key:'interfaceLanguage',value:language});
       if(asset.data){
         const name=asset.name||'Artwork.'+(asset.extension||'png');
         if(kind==='photo'){
           s.api.putFile(name,new Uint8Array(fromBase64(asset.data)));await s.api.request('app.open',{path:name});
         }else await s.api.execute('document.open',{name,dataBase64:asset.data});
-      }else await s.api.execute('file.new',{name:s.title,width:1200,height:800,...a.settings});
+      }else await s.api.execute('file.new',{name:s.title,width:1200,height:800,...(kind==='photo'?{background:'transparent'}:{}),...a.settings});
       if(kind==='photo'){
         await s.api.execute('prefs.set',{path:'interface.showCanvasDots',value:false});
         await s.api.request('ui.set',{theme:document.body.classList.contains('dark')?'studio':'studioLight',dockWidth:260,panels:{properties:false},fit:true});
@@ -59,6 +72,7 @@ export class EmbeddedStudio extends EventTarget {
         await s.api.execute('prefs.set',{key:'uiAccent',value:'blue'});
         await s.api.request('ui.set',{brightness:document.body.classList.contains('dark')?'dark':'light'});await s.api.execute('view.fitArtboard',{});
       }
+      await this.interfaceFonts(s);
       const state=await this.inspect(s),d=state.document;
       s.dimensions=kind==='photo'?[d.width,d.height]:[d.artboards?.[0]?.width||1200,d.artboards?.[0]?.height||800];
       this.notify('opened',{sessionId:id,kind});

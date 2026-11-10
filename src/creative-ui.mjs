@@ -1,16 +1,20 @@
 import {icon} from './icons.mjs';
 import {installCreativeMenus} from './creative-menus.mjs';
+import {artworkOption,objectLabel,objectThumbnails} from './creative-picker.mjs';
 export function installCreativeUI({S,run,rev,studio}){
   const embedded=studio.embedded,root=document.createElement('section');root.className='studio-workspace';root.setAttribute('aria-label','创作工作区');
   root.innerHTML=`<div class="studio-toolbar" role="toolbar" aria-label="作品编辑"><div class="studio-history"><button data-history="edit.undo" title="撤销 Ctrl+Z" aria-label="撤销">${icon('undo')}</button><button data-history="edit.redo" title="重做 Ctrl+Shift+Z" aria-label="重做">${icon('redo')}</button></div><nav class="studio-menus" aria-label="作品工具分类"></nav><button data-all-tools title="搜索全部编辑工具" aria-expanded="false">${icon('search')}<span>全部工具</span></button><div class="studio-spacer"></div><div class="studio-view-control"><button data-zoom-toggle aria-label="缩放与视图" aria-expanded="false"><span data-zoom-label>100%</span>${icon('chevron')}</button><div class="studio-view-popover" popover="auto"><h3>画布视图</h3><div class="studio-scale-row"><button data-zoom-out title="缩小" aria-label="缩小">${icon('minus')}</button><label class="studio-percent"><input data-percent type="number" step="any" min="0.01" value="100" aria-label="缩放百分比"><span>%</span></label><button data-zoom-in title="放大" aria-label="放大">${icon('plus')}</button></div><select data-view aria-label="画布视图"><option value="fit">适合窗口</option><option value="width">适合宽度</option><option value="height">适合高度</option><option value="fill">填满视区</option><option value="selection">聚焦选中对象</option><option value="actual">实际大小</option><option value="center">居中</option><option value="center-x">水平居中</option><option value="center-y">垂直居中</option><option value="custom">自定义比例</option></select><p>滚轮缩放 · 空格拖动画布</p></div></div><details class="studio-placement"><summary title="在 PDF 中的位置与尺寸" aria-label="放置设置">${icon('sliders')}</summary><div><p>PDF 中的尺寸与位置</p><div class="form-grid"><label>左边距 pt<input data-x type="number"></label><label>底边距 pt<input data-y type="number"></label><label>宽度 pt<input data-width type="number" min=".01"></label><label>高度 pt<input data-height type="number" min=".01"></label><label>旋转 °<input data-angle type="number" value="0"></label></div></div></details><button data-export title="独立导出作品">${icon('export')}<span>导出</span></button><button data-apply class="primary" title="将最终作品应用到 PDF；保存 .folio 工程可保留图层">应用到 PDF</button></div><p class="studio-status" role="status" hidden></p>`;
   const stage=document.createElement('div');stage.className='studio-stage';const aiDock=document.createElement('aside');aiDock.className='studio-ai-dock';aiDock.setAttribute('aria-label','AI 助手');stage.append(embedded.mount,aiDock);root.insertBefore(stage,root.lastElementChild);document.body.append(root);
   const identity=document.createElement('div');identity.className='studio-identity';identity.innerHTML=`<button data-return title="返回 PDF，保留编辑画布" aria-label="返回 PDF">${icon('back')}</button><span class="studio-document-kind"></span><select data-sessions aria-label="当前编辑作品"></select><span class="studio-document-meta"></span>`;document.querySelector('.appbar').append(identity);
   const q=s=>root.querySelector(s)||identity.querySelector(s);
+  const navigation=document.createElement('div');navigation.className='studio-navigation';navigation.innerHTML=`<button data-pan aria-label="平移画布" title="平移画布 · 也可按住空格拖动">${icon('hand')}</button><button data-fit title="适合作品" aria-label="适合作品">${icon('expand')}</button><button data-canvas-size title="画布大小" aria-label="画布大小">${icon('crop')}</button>`;q('.studio-view-control').before(navigation);
+  q('.studio-placement summary').insertAdjacentHTML('beforeend','<span>位置与尺寸</span>');
   const background=document.createElement('section');background.className='studio-background';background.setAttribute('aria-label','画布背景');
   background.innerHTML=`<h4>画布背景</h4><label>显示<select data-background-mode><option value="checker">透明网格</option><option value="solid">纯色</option><option value="pdf">PDF 页面</option></select></label><label data-background-color-label>底色<input type="color" data-background-color value="#eef0f3" aria-label="画布底色"></label><label data-background-strength-label>叠加强度<span><input type="range" data-background-strength min="0" max="100" value="60" aria-label="PDF 背景叠加强度"><output>60%</output></span></label><button data-background-refresh>更新 PDF 背景</button><p>背景随作品同步缩放，仅用于编辑参考。</p>`;
   q('.studio-view-popover').append(background);
   q('[data-view] option[value=fit]').textContent='适合作品';q('[data-view]').add(new Option('适合 PDF 页面','page'),1);
   let current=null,busy=false,resizeTimer,statusTimer,backgroundWork=null,nextBackground=null;const placementFields=new Set();
+  const availableSessions=()=>{const revision=rev(),documentKey=revision.slice(0,revision.lastIndexOf('/'));return [...embedded.sessions.values()].filter(s=>{const owner=studio.sessions.get(s.id)?.documentKey;return !owner||owner===documentKey;});};
   const geometry=()=>Object.fromEntries([...placementFields].map(k=>[k==='angle'?'rotation':k,Number(q(`[data-${k}]`).value)]));
   const updateBackground=()=>{
     const b=current&&embedded.get(current).background||{mode:'checker',color:'#eef0f3',opacity:.6};
@@ -19,7 +23,7 @@ export function installCreativeUI({S,run,rev,studio}){
   };
   const status=message=>{const p=q('.studio-status');p.textContent=message;p.hidden=!message;clearTimeout(statusTimer);if(message)statusTimer=setTimeout(()=>p.hidden=true,7000);};
   const perform=fn=>async()=>{if(busy)return;busy=true;root.classList.add('studio-busy');try{await fn();}catch(e){status(e.message);}finally{busy=false;root.classList.remove('studio-busy');q('[data-apply]').disabled=!S.pdf;}};
-  const updateSessions=()=>{const select=q('[data-sessions]');select.replaceChildren();for(const s of embedded.sessions.values())select.add(new Option(s.title|| (s.kind==='photo'?'未命名图像':'未命名矢量图'),s.id));if(current)select.value=current;};
+  const updateSessions=()=>{const select=q('[data-sessions]');select.replaceChildren();for(const s of availableSessions())select.add(artworkOption(s.title|| (s.kind==='photo'?'未命名图像':'未命名矢量图'),s.id,s.thumbnail));if(current)select.value=current;};
   const park=()=>{document.body.classList.remove('studio-active');root.setAttribute('aria-hidden','true');q('.studio-view-popover').hidePopover();q('.studio-placement').open=false;for(const s of embedded.sessions.values())s.frame.classList.add('studio-parked');window.dispatchEvent(new Event('folio-studio-visibility'));};
   const openMenu=installCreativeMenus({root,session:id=>embedded.get(id),request:run,onError:status});
   const menuDefinitions={photo:[['调整',['Image','Adjustments']],['图层',['Layer']],['选择',['Select']],['滤镜',['Filter']],['文字',['Type']]],vector:[['对象',['Object']],['路径',['Object','Path']],['选择',['Select']],['效果',['Effect']],['文字',['Type']]]};
@@ -42,10 +46,11 @@ export function installCreativeUI({S,run,rev,studio}){
   }
   async function show(id){
     const s=embedded.get(id),info=studio.sessions.get(id);if(!info)return;
+    if(!availableSessions().some(item=>item.id===id))throw Error('请切回作品所属的 PDF');
     current=id;embedded.activeId=id;updateSessions();document.body.classList.add('studio-active');root.removeAttribute('aria-hidden');
     window.dispatchEvent(new Event('folio-studio-visibility'));
     for(const item of embedded.sessions.values())item.frame.classList.toggle('studio-parked',item.id!==id);
-    placementFields.clear();const [x,y,w,h]=info.box,angle=info.target?.matrix?Math.atan2(info.target.matrix[1],info.target.matrix[0])*180/Math.PI:0;
+    placementFields.clear();const [x,y,w,h]=info.box,angle=info.matrix?Math.atan2(info.matrix[1],info.matrix[0])*180/Math.PI:0;
     for(const [k,v] of Object.entries({x,y,width:w,height:h,angle}))q(`[data-${k}]`).value=Number(v.toFixed(4));
     updateBackground();
     q('[data-percent]').max=s.kind==='photo'?12800:64000;q('[data-apply]').disabled=!S.pdf;q('.studio-placement').hidden=!S.pdf;
@@ -55,8 +60,10 @@ export function installCreativeUI({S,run,rev,studio}){
     status('');
     await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
     await adaptLayout(id);
+    if(!s.background&&S.pdf){try{await run({action:'background',sessionId:id,options:{mode:'pdf'}});updateBackground();}catch(e){status(e.message);}}
     await run({action:'view',sessionId:id,options:s.viewMode|| (s.shown?{}:{mode:'fit'})});s.shown=true;s.frame.contentWindow.focus();
   }
+  S.openCreativeStudio=async options=>{const result=await run({action:'open',...options});if(!result.cancelled){await show(result.sessionId);if(result.warnings?.length)status(result.warnings.join('\n'));}return result;};
   q('[data-return]').onclick=park;q('[data-sessions]').onchange=perform(()=>show(q('[data-sessions]').value));
   document.addEventListener('click',e=>{const tab=e.target.closest('.ribbon-tabs button');if(tab&&!['photo','vector'].includes(tab.dataset.category))park();});
   embedded.addEventListener('show',e=>perform(()=>show(e.detail.sessionId))());
@@ -73,6 +80,13 @@ export function installCreativeUI({S,run,rev,studio}){
   q('[data-view]').onchange=perform(async()=>{const mode=q('[data-view]').value;if(mode==='custom'){q('[data-percent]').focus();q('[data-percent]').select();return;}if(mode==='page')await run({action:'background',sessionId:current,options:{mode:'pdf',geometry:geometry()}});await run({action:'view',sessionId:current,options:{mode}});});
   q('[data-percent]').onchange=perform(()=>run({action:'view',sessionId:current,options:{mode:'zoom',percent:Number(q('[data-percent]').value)}}));
   for(const mode of ['in','out'])q(`[data-zoom-${mode}]`).onclick=perform(()=>run({action:'view',sessionId:current,options:{mode}}));
+  q('[data-fit]').onclick=perform(()=>run({action:'view',sessionId:current,options:{mode:'fit'}}));
+  q('[data-pan]').onclick=perform(async()=>{const s=embedded.get(current);await run({action:'request',sessionId:current,method:s.kind==='photo'?'ui.set':'ui.tool.select',params:{tool:'hand'}});s.frame.contentWindow.focus();});
+  q('[data-canvas-size]').onclick=perform(async()=>{
+    const s=embedded.get(current),state=await run({action:'inspect',sessionId:current}),doc=state.document,board=doc.artboards?.[0],width=doc.width||board?.width,height=doc.height||board?.height;
+    const d=document.createElement('dialog');d.className='studio-export studio-size-dialog';d.innerHTML=`<form method="dialog"><h2>画布大小</h2><div class="form-grid"><label>宽度<input data-width type="number" min="1" max="300000" required value="${width}"></label><label>高度<input data-height type="number" min="1" max="300000" required value="${height}"></label></div><p>调整作品画布边界；PDF 放置尺寸可在“位置与尺寸”中设置。</p><footer><button value="cancel" formnovalidate>取消</button><button value="apply" class="primary">应用</button></footer></form>`;
+    d.onclose=()=>{if(d.returnValue==='apply')perform(async()=>{const width=Number(d.querySelector('[data-width]').value),height=Number(d.querySelector('[data-height]').value);await run({action:'execute',sessionId:s.id,command:s.kind==='photo'?'image.canvasSize':'artboard.setProps',params:{width,height,...(s.kind==='photo'?{anchor:'center',extensionColor:'transparent'}:{index:0})}});s.dimensions=[width,height];q('.studio-document-meta').textContent=`${width} × ${height}`;await run({action:'view',sessionId:s.id,options:{mode:'fit'}});})();d.remove();};document.body.append(d);d.showModal();
+  });
   const setBackground=refresh=>{
     nextBackground={action:'background',sessionId:current,options:{mode:q('[data-background-mode]').value,color:q('[data-background-color]').value,opacity:Number(q('[data-background-strength]').value)/100,geometry:geometry(),refresh}};
     if(backgroundWork)return backgroundWork;
@@ -117,14 +131,17 @@ export function installCreativeUI({S,run,rev,studio}){
       const d=document.createElement('dialog');d.className='creative-dialog';d.setAttribute('aria-label',label);
       d.innerHTML=`<header><div>${icon(symbol)}<h2>${label}</h2></div><button data-close aria-label="关闭">${icon('close')}</button></header><div class="creative-start"><label>编辑对象<select data-object><option value="">新建作品</option></select></label><div data-new class="form-grid"><label>宽度<input data-width type="number" min="1" value="1200"></label><label>高度<input data-height type="number" min="1" value="800"></label>${kind==='photo'?'<label>位深<select data-depth><option>8</option><option>16</option><option>32</option></select></label><label>色彩<select data-mode><option value="rgb">RGB</option><option value="cmyk">CMYK</option><option value="lab">Lab</option><option value="gray">灰度</option></select></label>':''}</div><div class="creative-actions"><button data-open class="primary">开始编辑</button><button data-import>${icon('folder')}插入文件…</button><button data-resume>继续编辑</button></div><div data-object-actions class="creative-actions" hidden><button data-duplicate>${icon('copy')}复制</button><button data-delete>${icon('trash')}删除</button></div></div><footer><p data-status role="status">直接在 Folio 内编辑；人工与 AI 使用同一画布。</p></footer>`;
       document.body.append(d);d.showModal();const local=s=>d.querySelector(s);let items=[],working=false;
-      const task=fn=>async()=>{if(working)return;working=true;d.querySelectorAll('button').forEach(x=>x.disabled=true);try{await fn();}catch(e){local('[data-status]').textContent=e.message;}finally{working=false;d.querySelectorAll('button').forEach(x=>x.disabled=false);local('[data-resume]').disabled=![...embedded.sessions.values()].some(s=>s.kind===kind);}};
+      const task=fn=>async()=>{if(working)return;working=true;d.querySelectorAll('button').forEach(x=>x.disabled=true);try{await fn();}catch(e){local('[data-status]').textContent=e.message;}finally{working=false;d.querySelectorAll('button').forEach(x=>x.disabled=false);local('[data-resume]').disabled=!availableSessions().some(s=>s.kind===kind);}};
       local('[data-close]').onclick=()=>d.close();d.onclose=()=>d.remove();d.oncancel=e=>{if(working)e.preventDefault();};
-      const refresh=async()=>{if(S.pdf)items=(await run({action:'objects',page:S.page})).objects.filter(o=>kind==='photo'?['image','photo'].includes(o.kind):['path','vector'].includes(o.kind));local('[data-object]').replaceChildren(new Option('新建作品',''));for(const o of items)local('[data-object]').add(new Option((o.kind==='path'?'原有路径':o.kind==='vector'?'矢量图':'图片')+' · '+(o.index??o.id.slice(0,8)),o.key));};
+      const refresh=async()=>{const pdf=S.pdf,page=S.page,revision=rev();if(pdf)items=(await run({action:'objects',page})).objects.filter(o=>kind==='photo'?['image','photo'].includes(o.kind):['path','vector'].includes(o.kind));if(!d.isConnected||rev()!==revision)return;const fill=()=>{const select=local('[data-object]'),value=select.value;select.replaceChildren(new Option('新建作品',''));for(const [i,o] of items.entries())select.add(artworkOption(objectLabel(o,page,i+1),o.key,o.thumbnail));select.value=value;};fill();if(pdf&&items.length)objectThumbnails(pdf,page,items,{revision,cancelled:()=>!d.isConnected||rev()!==revision}).then(()=>{if(d.isConnected&&rev()===revision)fill();}).catch(()=>{});};
       local('[data-object]').onchange=()=>{const selected=!!local('[data-object]').value;local('[data-new]').hidden=selected;local('[data-object-actions]').hidden=!selected;};
-      async function open(pick=false){const o=items.find(o=>o.key===local('[data-object]').value);local('[data-status]').textContent='正在准备编辑画布…';const r=await run({action:'open',kind,pick,page:S.page,...(!pick?{id:o?.id,index:o?.index,settings:{width:Number(local('[data-width]').value),height:Number(local('[data-height]').value),...(kind==='photo'?{depth:Number(local('[data-depth]').value),mode:local('[data-mode]').value}:{})}}:{})});if(!r.cancelled){d.close();await show(r.sessionId);}}
-      local('[data-open]').onclick=task(()=>open());local('[data-import]').onclick=task(()=>open(true));local('[data-resume]').onclick=task(async()=>{const s=[...embedded.sessions.values()].filter(s=>s.kind===kind).at(-1);if(s){d.close();await show(s.id);}});
+      async function open(pick=false){const o=items.find(o=>o.key===local('[data-object]').value);local('[data-status]').textContent='正在准备编辑画布…';const r=await run({action:'open',kind,pick,page:S.page,...(!pick?{id:o?.id,index:o?.index,settings:{width:Number(local('[data-width]').value),height:Number(local('[data-height]').value),...(kind==='photo'?{depth:Number(local('[data-depth]').value),mode:local('[data-mode]').value}:{})}}:{})});if(!r.cancelled){if(o?.thumbnail)embedded.get(r.sessionId).thumbnail=o.thumbnail;d.close();await show(r.sessionId);if(r.warnings?.length)status(r.warnings.join('\n'));}}
+      local('[data-open]').onclick=task(()=>open());local('[data-import]').onclick=task(()=>open(true));local('[data-resume]').onclick=task(async()=>{const s=availableSessions().filter(s=>s.kind===kind).at(-1);if(s){d.close();await show(s.id);}});
       for(const action of ['duplicate','delete'])local(`[data-${action}]`).onclick=task(async()=>{const o=items.find(o=>o.key===local('[data-object]').value);if(o){await run({action,page:S.page,id:o.id,index:o.index,revision:rev()});await refresh();local('[data-object]').onchange();local('[data-status]').textContent='已完成，可撤销。';}});
-      await task(refresh)();
+      local('[data-resume]').disabled=!availableSessions().some(s=>s.kind===kind);
+      // New/import/resume are immediately available; object discovery is optional.
+      if(S.pdf){const loading=new Option('正在读取页面对象…','loading');loading.disabled=true;local('[data-object]').add(loading);}
+      local('[data-object]').setAttribute('aria-busy','true');refresh().catch(e=>{if(d.isConnected)local('[data-status]').textContent=e.message;}).finally(()=>{if(d.isConnected){local('[data-object]').removeAttribute('aria-busy');local('[data-object] option[value=loading]')?.remove();}});
     };
   }
 }

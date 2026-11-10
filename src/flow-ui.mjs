@@ -1,8 +1,10 @@
 import { boundedCanvasScale } from "./canvas-budget.mjs";
+import { pdfLoadingOptions } from './pdf-loading.mjs';
 import { constrainedDelta, nudgeDelta } from "./object-movement.mjs";
 import { editWarnings } from "./edit-warnings.mjs";
 import { FastFonts, fastLayout, canFast } from "./fast-layout.mjs";
 import { nativeRequest, releaseSource } from "./native-source.mjs";
+import {createPageInspectionCache} from './page-inspection-cache.mjs';
 import { fontLabel } from "./font-label.mjs";
 import { visualCaretMove } from "./text-navigation.mjs";
 import { displayToPage, pageTransform, turn } from "./page-coordinates.mjs";
@@ -40,6 +42,23 @@ export function installFlowUI(ctx) {
       ...(!command.startsWith("font-") ? { bytes: S.bytes } : {}),
       ...options,
     });
+  const inspectPage = createPageInspectionCache((bytes,page)=>nativeRequest({command:'inspect',bytes,page}));
+  // Font conversion and browser decoding run alongside page inspection. They
+  // share prepare()'s promises without retaining document or editor state.
+  const warmFallback = () => FastFonts.preloadFallback(call).catch(() => {});
+  let warmTimer;
+  const warm = event => {
+    if(!event.target?.closest?.('[data-action="flow-edit"],[data-ribbon-command="flow-edit"],#ribbon-tab-edit'))return;
+    clearTimeout(warmTimer);
+    const source=S.bytes,page=S.page;
+    warmTimer=setTimeout(()=>{
+      if(!S.pdf||S.busy||opening||session||source!==S.bytes||page!==S.page)return;
+      inspectPage(source,page).catch(()=>{});
+      void warmFallback();
+    },180);
+  };
+  document.addEventListener('pointerover',warm);
+  document.addEventListener('focusin',warm);
   async function start() {
     await S.imageEdit?.finish(true);
     if (session) {
@@ -54,11 +73,13 @@ export function installFlowUI(ctx) {
     if (surface.rotation(page) % 90 || info.userUnit !== 1)
       throw Error("此页坐标原点或单位暂不支持页面编辑，原文已保留");
     opening = true;
+    void warmFallback();
     toast("正在识别当前页的文字与版面…");
     const source = S.bytes,
       request = ++openingEpoch;
+    const openedAt=performance.now();
     try {
-      const result = await call("inspect", { page });
+      const result = await inspectPage(source, page);
       const ai = { regions: [], pending: true };
       if (source !== S.bytes || page !== S.page || request !== openingEpoch) {
         toast("页面已切换，请在当前页重新进入编辑");
@@ -73,6 +94,7 @@ export function installFlowUI(ctx) {
       session = createSession({ page, w, h, result, ai, source });
       S.flowEdit = session;
       await session.mount();
+      performance.measure('folio:page-edit-open',{start:openedAt,end:performance.now()});
       const active = session;
       call("layout", { page })
         .then((r) => active.updateAI(r))
@@ -1061,13 +1083,8 @@ export function installFlowUI(ctx) {
         });
         if (stale()) return;
         const nextBackground = await surface.pdfjs.getDocument({
+          ...pdfLoadingOptions,
           data: Uint8Array.from(atob(r.pdf), (c) => c.charCodeAt(0)),
-          cMapUrl: new URL("./vendor/cmaps/", import.meta.url).href,
-          cMapPacked: true,
-          standardFontDataUrl: new URL(
-            "./vendor/standard_fonts/",
-            import.meta.url,
-          ).href,
         }).promise;
         if (stale()) {
           await nextBackground.destroy();

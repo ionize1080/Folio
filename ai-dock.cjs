@@ -1,8 +1,8 @@
 const { WebContentsView, BrowserWindow, session } = require('electron');
 const path = require('node:path');
 class AIDock {
-  constructor({app, win, onState}) {
-    Object.assign(this, {app, win, onState, mode:'sidebar', visible:false});
+  constructor({app, win, onState, imageConfig}) {
+    Object.assign(this, {app, win, onState, imageConfig, mode:'sidebar', visible:false});
     win.on('resize', () => this.layout());
   }
   async open({root, profile, pipe, token, request, approvalAuto}) {
@@ -25,6 +25,22 @@ class AIDock {
     handle('folio:display', mode=>this.setMode(mode));
     handle('folio:state', ()=>({...this.state(),auto:!!this.approvalAuto}));
     handle('folio:approval', ()=>request({name:'folio_ui', arguments:{action:'approval'}}));
+    // Image credentials stay in the host and never enter the chat/model context.
+    handle('folio:image-config', ()=>this.imageConfig.public());
+    handle('folio:image-save', value=>this.imageConfig.save(value));
+    handle('folio:image-key-file', async()=>{
+      const result=await require('electron').dialog.showOpenDialog(this.detached||this.win,{properties:['openFile'],filters:[{name:'API key',extensions:['txt']}]});
+      return result.canceled?null:result.filePaths[0];
+    });
+    handle('folio:image-test', async()=>{
+      const config=this.imageConfig.read();
+      if(config.protocol==='chatbox')throw Error('Select an image model in Image Creator to test the Chatbox provider.');
+      const started=Date.now();
+      const image=await require('./image-provider.cjs').generate({prompt:'A simple blue circle centered on a white background. No text.',size:'1024x1024'},fetch,()=>this.imageConfig.key(),config);
+      const buffer=Buffer.from(image,'base64');
+      const mime=buffer[0]===137?'image/png':buffer[0]===255?'image/jpeg':'image/webp';
+      return {image:'data:'+mime+';base64,'+image,model:config.model,elapsedMs:Date.now()-started};
+    });
     require(path.join(root,'network.cjs'))({app:this.app,ipcMain:{handle:(name, fn)=>ipcMain.handle(name,(e,...args)=>{check(e);return fn(e,...args)})}});
     require(path.join(root,'native/dist/main/main.js'));
     view.webContents.setWindowOpenHandler(({url})=>{

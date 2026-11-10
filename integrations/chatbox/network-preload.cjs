@@ -29,3 +29,10 @@ require("electron").contextBridge.exposeInMainWorld("folioControls", {
     );
   },
 });
+
+require("electron").contextBridge.exposeInMainWorld("folioImages", {
+  config: () => require("electron").ipcRenderer.invoke("folio:image-config"),
+  save: (value) => require("electron").ipcRenderer.invoke("folio:image-save", value),
+  pickKeyFile: () => require("electron").ipcRenderer.invoke("folio:image-key-file"),
+  test: () => require("electron").ipcRenderer.invoke("folio:image-test"),
+});

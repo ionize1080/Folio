@@ -125,9 +125,9 @@ def align_text_objects(page,stream,mapped,descriptions):
     remaining=iter(verified)
     return [{'type':d['type'],'at':None,'unmapped':True} if d['type']=='path' else next(remaining) for d in descriptions]
 
-def check_editable(page,descriptions):
+def check_editable(page,descriptions,parsed=None):
     try:
-        stream,mapped=map_objects(page)
+        stream,mapped=parsed if parsed is not None else map_objects(page)
         from text_advance import advances
         safe=advances(page,stream)
         try:decoded=decoded_texts(page,stream)
@@ -279,8 +279,18 @@ def compose(data,edits,blocks,inspect,fragment,progress=None,*,preview=False):
         deleted_indices={e['index'] for e in replace if e.get('delete')}
         appended=[e for e in es if e.get('index') is None and not e.get('delete') and e.get('type') not in ('flow','vector-graphic','inserted-image','studio-graphic')]
         flow_indices=set(); flow_blobs=[]; original_patches={}; inline_flows={}; relocated_marks=set()
+        parsed=None;description=None
+        def source_stream():
+            nonlocal parsed
+            if parsed is None:parsed=map_objects(page)
+            return parsed
+        def source_description():
+            nonlocal description
+            if description is None:
+                des=inspect(number);description=(des,check_editable(page,des,source_stream()))
+            return description
         if flows:
-            desc=inspect(number);mapped=check_editable(page,desc)
+            desc,mapped=source_description()
             fonts_checked=False
             for flow in flows:
                 sources=flow.get('sources',[]);indices={e.get('index') for e in sources}
@@ -299,7 +309,7 @@ def compose(data,edits,blocks,inspect,fragment,progress=None,*,preview=False):
                 patch=None
                 if len(sources)==1:
                     from original_patch import correction
-                    original_stream,_=map_objects(page)
+                    original_stream,_=source_stream()
                     patch=correction(page,original_stream,mapped[sources[0]['index']],desc[sources[0]['index']],flow)
                 if patch is not None:
                     from clip_contract import validate_patch
@@ -312,7 +322,7 @@ def compose(data,edits,blocks,inspect,fragment,progress=None,*,preview=False):
                 model=flow.get('model') or {}
                 if model.get('text') and sources and not fonts_checked:
                     from font_match import inspect_fonts
-                    inspect_fonts(data,number,desc,mapped,map_objects(page)[0]);fonts_checked=True
+                    inspect_fonts(data,number,desc,mapped,source_stream()[0]);fonts_checked=True
                 if model.get('text') and any(desc[source['index']].get('fontResolution')=='metric-substitute' for source in sources):
                     styles=model.get('runs') or [model]
                     if any(style.get('fontResolution',model.get('fontResolution'))=='metric-substitute' for style in styles):
@@ -334,7 +344,7 @@ def compose(data,edits,blocks,inspect,fragment,progress=None,*,preview=False):
                 structured_position=None
                 if structured:
                     from structure_scope import validate_scopes
-                    original_stream,raw_objects=map_objects(page)
+                    original_stream,raw_objects=source_stream()
                     scopes,scope=validate_scopes(page,original_stream,raw_objects,mapped,sources)
                     ends=[mapped[source['index']].get('end') for source in sources]
                     if any(end is None for end in ends):raise ValueError('标签文字范围不完整')
@@ -351,13 +361,13 @@ def compose(data,edits,blocks,inspect,fragment,progress=None,*,preview=False):
                         # BT. Move that single complete marked-content scope to
                         # the replacement call after ET; page ownership/MCID and
                         # ParentTree stay unchanged and no Form nests a BT.
-                        original_stream,_=map_objects(page)
+                        original_stream,_=source_stream()
                         relocated_scope=original_stream.operations[scope['at']]
                         relocated_marks.update((scope['at'],scope['end']))
                 if structured or preserve_site:
                     ends=[mapped[source['index']].get('end') for source in sources]
                     if any(end is None for end in ends):raise ValueError('原文绘制范围不完整，草稿已保留')
-                    position=max(ends);original_stream,_=map_objects(page)
+                    position=max(ends);original_stream,_=source_stream()
                     if structured_position is not None:position=structured_position
                     first=min(mapped[source['index']]['at'] for source in sources)
                     # Story's own rectangular layout clip belongs to the old
@@ -408,16 +418,16 @@ def compose(data,edits,blocks,inspect,fragment,progress=None,*,preview=False):
         from table_resize import changes,transform
         growths=changes(es)
         if growths and not replace:
-            desc=inspect(number);mapped=check_editable(page,desc)
+            desc,mapped=source_description()
             if mapped is None:raise ValueError('此表格的内容映射暂不支持自动行高')
-            stream,_=map_objects(page);wraps=transform(stream,mapped,desc,height,growths) or ({},{})
+            stream,_=source_stream();wraps=transform(stream,mapped,desc,height,growths) or ({},{})
             ops=[]
             for i,(args,op) in enumerate(stream.operations):ops.extend(wraps[0].get(i,[]));ops.append((args,op));ops.extend(wraps[1].get(i,[]))
             stream.operations=ops;page[NameObject('/Contents')]=writer._add_object(stream)
         if replace:
-            desc=inspect(number);mapped=check_editable(page,desc)
+            desc,mapped=source_description()
             if mapped is None:raise ValueError(desc[0]['reason'] if desc else '内容流不支持安全编辑')
-            stream,_=map_objects(page);omit=set(relocated_marks);after=dict(inline_flows);used=set()
+            stream,_=source_stream();omit=set(relocated_marks);after=dict(inline_flows);used=set()
             table_before,table_after=transform(stream,mapped,desc,height,growths) or ({},{})
             from text_advance import advances
             safe=advances(page,stream)

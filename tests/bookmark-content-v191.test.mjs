@@ -154,3 +154,18 @@ test("changed outline stream payload or metadata dictionary still prevents sourc
     );
   }
 });
+
+test("yearbook destinations tolerate only binary serialization noise, including negative and zero coordinates", async () => {
+  const original = await fixture(), source = await PDFDocument.load(original);
+  const item = source.catalog.lookup(N('Outlines')).lookup(N('First'));
+  item.lookup(N('A')).set(N('D'), source.context.obj([source.getPage(3).ref, N('XYZ'), 254.32819999999998, 746.1490100000001, null]));
+  const engine = new PdfEngine(), info = await engine.open(await source.save());
+  const changed = await PDFDocument.load(engine.bytes);
+  const destination = changed.catalog.lookup(N('Outlines')).lookup(N('First')).lookup(N('A')).lookup(N('D'));
+  destination.set(2, PDFNumber.of(254.3282)); destination.set(3, PDFNumber.of(746.14901));
+  const result = await new PdfEngine().open(await engine.save({nodes:info.nodes, contentBytes:await changed.save()}));
+  assert.equal(result.nodes[0].target.page,4);
+  assert.deepEqual(result.nodes[0].target.args,[254.3282,746.14901,null]);
+  destination.set(3,PDFNumber.of(746.14901001));
+  await assert.rejects(engine.save({nodes:info.nodes,contentBytes:await changed.save()}), /来源发生变化/);
+});

@@ -22,6 +22,18 @@ patch('src/renderer/components/chat/MessageErrTips.tsx', [["import { translateTe
 patch('src/renderer/routes/image-creator/index.tsx', [
   ['setSelectedProvider(provider)', 'localStorage.setItem("folio-image-model", JSON.stringify({provider,modelId:model}))\n    setSelectedProvider(provider)']
 ]);
+patch('src/renderer/routes/settings/route.tsx', [
+  ["    key: 'default-models',", "    key: 'image-provider',\n    label: 'Image Model Provider',\n    icon: <IconSparkles className=\"w-full h-full\" />,\n  },\n  {\n    key: 'default-models',"],
+  ['  const { t } = useTranslation()', '  const { t, i18n } = useTranslation()', 2],
+  ['{t(item.label)}', "{item.key === 'image-provider' ? (i18n.language.startsWith('zh') ? (i18n.language === 'zh-Hant' ? '生圖模型提供方' : '生图模型提供方') : 'Image Model Provider') : t(item.label)}"]
+]);
+fs.copyFileSync(path.join(adapter,'image-provider-settings.tsx'),path.join(source,'src/renderer/routes/settings/image-provider.tsx'));
+changed.push('src/renderer/routes/settings/image-provider.tsx');
+patch('src/renderer/modals/Settings.tsx', [
+  ["import { SettingsRoot }", "import { ImageProviderSettings } from '@/routes/settings/image-provider'\nimport { SettingsRoot }"],
+  ['const SettingsDefaultModelsRoute =', "const SettingsImageProviderRoute = createRoute({ component: ImageProviderSettings, path: '/settings/image-provider', getParentRoute: () => RootRoute })\n\nconst SettingsDefaultModelsRoute ="],
+  ['  SettingsDefaultModelsRoute,', '  SettingsDefaultModelsRoute,\n  SettingsImageProviderRoute,']
+]);
 for (const name of ['gemini','custom-gemini']) {
   patch('src/shared/providers/definitions/models/'+name+'.ts', [
     ["messages: [{ role: 'user', content: params.prompt }]", "messages: [{role:'user',content:[...(params.images || []).map(img=>({type:'image' as const,image:img.imageUrl})),{type:'text',text:params.prompt}]}]"]

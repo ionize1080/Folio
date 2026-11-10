@@ -1,10 +1,11 @@
 import { transformedBounds } from "./object-selection-model.mjs";
+import { pdfLoadingOptions } from './pdf-loading.mjs';
 import * as pdfjs from "./vendor/pdf.mjs";
 import { installImageAdjustments } from "./image-adjustments-ui.mjs";
 import { installCropTools, perspectiveSourcePoint } from "./image-crop-ui.mjs";
 import { nativeRequest } from "./native-source.mjs";
 export function installPageImages(ctx) {
-  const { S, surface, guarded, toast, commit, refreshNative, clone } = ctx;
+  const { S, surface, guarded, toast, commit, refreshNative, clone, contextMenu } = ctx;
   let active = null,
     opening = false;
   const call = (command, options) =>
@@ -25,7 +26,7 @@ export function installPageImages(ctx) {
       page = options.page || S.page;
     try {
       toast("正在读取当前页图片…");
-      const result = await call("inspect", { page });
+      const result = await call("inspect", { page, imagesOnly: true });
       if (source !== S.bytes) return;
       const objects = result.objects
         .filter((o) => o.type === "image")
@@ -143,15 +144,8 @@ export function installPageImages(ctx) {
       });
       if (!check() || rev !== serial) return;
       const doc = await pdfjs.getDocument({
+        ...pdfLoadingOptions,
         data: Uint8Array.from(atob(r.pdf), (c) => c.charCodeAt(0)),
-        isEvalSupported: false,
-        cMapUrl: new URL("./vendor/cmaps/", import.meta.url).href,
-        cMapPacked: true,
-        standardFontDataUrl: new URL(
-          "./vendor/standard_fonts/",
-          import.meta.url,
-        ).href,
-        wasmUrl: new URL("./vendor/wasm/", import.meta.url).href,
       }).promise;
       try {
         const p = await doc.getPage(1),
@@ -410,6 +404,7 @@ export function installPageImages(ctx) {
         button.dataset.index = o.index;
         button.title = `图片 #${o.index}${o.editable ? "" : " · " + o.reason}`;
         button.setAttribute("aria-label", button.title);
+        button.setAttribute("aria-haspopup", "menu");
         button.style.cssText = `left:${Math.min(rect[0], rect[2])}px;top:${Math.min(rect[1], rect[3])}px;width:${Math.abs(rect[2] - rect[0])}px;height:${Math.abs(rect[3] - rect[1])}px`;
         let targetDrag = null,
           targetClick = false;
@@ -454,6 +449,29 @@ export function installPageImages(ctx) {
               callback(rgb);
             } else await select(o);
           });
+        button.oncontextmenu = (event) => {
+          if (!contextMenu || !check()) return;
+          event.stopPropagation();
+          const rect = button.getBoundingClientRect();
+          const at = event.clientX || event.clientY ? event : {
+            clientX: rect.left + Math.min(24, rect.width / 2),
+            clientY: rect.top + Math.min(24, rect.height / 2),
+            preventDefault: () => event.preventDefault(),
+          };
+          contextMenu(at, [
+            ["快速调整图片", () => select(o), !o.editable || !!applying],
+            ["裁剪 / 替换图片…", async () => {
+              await select(o);
+              const crop = bar.querySelector(".adjust-group");
+              if (crop) { crop.open = true; crop.scrollIntoView({ block: "nearest" }); }
+            }, !o.editable || !!applying],
+            null,
+            ["在图像工作室打开", async () => {
+              await finish(true);
+              await S.openCreativeStudio({ kind: "photo", page, index: o.index });
+            }, !o.editable || !!applying || !S.openCreativeStudio],
+          ]);
+        };
         hits.append(button);
       }
       cropEditor?.draw();

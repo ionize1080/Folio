@@ -193,3 +193,22 @@
 .font-tools-dialog [data-image]{max-width:100%;background:white;border-radius:8px;margin:16px 0}
 .font-tools-dialog textarea{width:100%;resize:vertical;font:inherit;padding:10px;border-radius:8px}
 .font-tools-dialog nav label{display:grid;gap:8px;padding:8px}
+.blank-pages-dialog{width:min(520px,calc(100vw - 40px));max-height:calc(100vh - 48px);overflow:auto;padding:24px;box-sizing:border-box;}
+.blank-pages-dialog header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;gap:16px;}
+.blank-pages-dialog h2{display:flex;align-items:center;gap:10px;margin:0;font-size:19px;font-weight:600;}
+.blank-pages-dialog h2 svg{color:var(--accent);width:22px;height:22px;}
+.blank-pages-dialog [data-close]{width:32px;height:32px;padding:6px;}
+.blank-pages-dialog fieldset{border:1px solid var(--line);border-radius:10px;padding:16px;margin:0 0 20px;min-width:0;}
+.blank-pages-dialog legend{padding:0 6px;font-weight:600;font-size:13px;}
+.blank-pages-dialog .form-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px 20px;align-items:start;}
+.blank-pages-dialog label{display:grid;gap:7px;margin:0;font-size:13px;color:var(--muted);min-width:0;}
+.blank-pages-dialog :is(input,select){box-sizing:border-box;width:100%;min-width:0;height:36px;color:var(--text);font-variant-numeric:tabular-nums;}
+.blank-pages-dialog :is(input,select):disabled{opacity:.72;}
+.blank-pages-dialog [hidden]{display:none!important;}
+.blank-page-preview{display:flex;align-items:center;justify-content:center;gap:20px;min-height:70px;background:var(--panel2);border-radius:8px;padding:12px;}
+.blank-page-preview i{background:white;box-shadow:0 1px 5px #0003;border:1px solid #aaa6;display:block;flex:none;}
+.blank-page-preview output{font-size:13px;font-variant-numeric:tabular-nums;color:var(--muted);}
+.blank-pages-dialog [data-status]{min-height:18px;margin:10px 0;color:var(--muted);font-size:12px;}
+.blank-pages-dialog footer{display:flex;gap:8px;justify-content:flex-end;padding-top:12px;border-top:1px solid var(--line);}
+.blank-pages-dialog footer button{min-height:36px;padding-inline:18px;}
+@media(max-height:720px){.blank-pages-dialog{padding:18px;}.blank-pages-dialog fieldset{padding:12px;margin-bottom:12px;}.blank-pages-dialog .form-grid{gap:10px 16px;}.blank-page-preview{min-height:48px;padding:8px;}.blank-pages-dialog header{margin-bottom:12px;}}

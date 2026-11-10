@@ -1,17 +1,24 @@
 import * as pdfjs from './vendor/pdf.mjs';
+import { pdfLoadingOptions } from './pdf-loading.mjs';
 import {icon} from './icons.mjs';
+import {chooseBlankPages} from './blank-pages-ui.mjs';
+import {readPageBoxes,organizerGeometry} from './page-organization-geometry.mjs';
 import {nativeRequest,releaseSource} from './native-source.mjs';
 import {toBase64,fromBase64} from './portable-state.mjs';
 export function installPageOrganizer({S,session,run,exportPDF}){
   const button=document.createElement('button');button.id='page-organizer';button.dataset.doc='';button.innerHTML=icon('page-grid')+'组织页面';button.title='缩略图多选、拖动排序、插入、删除、提取与替换';document.querySelector('.more-tools-menu').append(button);
-  button.onclick=async()=>{
+  const blankButton=document.createElement('button');blankButton.id='insert-blank-page';blankButton.dataset.doc='';blankButton.innerHTML=icon('new-page')+'插入空白页…';blankButton.title='选择空白页尺寸、方向、数量和插入位置';document.querySelector('.more-tools-menu').append(blankButton);
+  button.onclick=()=>open();blankButton.onclick=()=>open('blank');
+  async function open(initialAction=''){
     button.closest('details')?.removeAttribute('open');if(!S.pdf||S.busy)return;
     const capture=session.capture(),d=document.createElement('dialog');d.className='organizer-dialog';d.setAttribute('aria-label','组织页面');
     const commands=[['insert','insert-page','插入'],['blank','new-page','空白页'],['delete','trash','删除'],['extract','extract-page','提取'],['replace','replace-page','替换'],['copy','copy','复制'],['rotate','rotate','旋转'],['reverse','reverse','逆序'],['undo','undo','撤销'],['redo','redo','重做']];
     d.innerHTML=`<header><h2>组织页面</h2><div class="organizer-actions" role="toolbar" aria-label="页面组织">${commands.map(([id,i,label])=>`<button data-org="${id}" title="${label}">${icon(i)}<span>${label}</span></button>`).join('')}</div><button data-close aria-label="关闭">${icon('close')}</button></header><div class="organizer-controls"><label><select data-select aria-label="选择页面"><option value="current">当前页</option><option value="all">全部页</option><option value="odd">奇数页</option><option value="even">偶数页</option><option value="none">清除选择</option></select></label><label><select data-insert-position aria-label="插入位置"><option value="after">在选中页之后插入</option><option value="before">在选中页之前插入</option></select></label><details class="organizer-options"><summary>页面设置</summary><div><p>应用到选中页面</p><div class="form-grid"><label>宽度 pt<input data-width type="number" value="595.28" min="1"></label><label>高度 pt<input data-height type="number" value="841.89" min="1"></label></div><button data-resize>缩放到此尺寸</button><label>裁剪边距 pt（左、上、右、下）<input data-crop value="0,0,0,0"></label><button data-crop-apply>应用裁剪</button></div></details><details class="organizer-options"><summary>页面标记</summary><div><label>类型<select data-mark-kind><option value="footer">页脚 / 页码</option><option value="header">页眉</option><option value="watermark">水印</option><option value="background">背景色</option></select></label><label>文字（{page} / {pages}）<input data-mark-text value="{page} / {pages}"></label><div class="form-grid"><label>字号<input data-mark-size type="number" value="12" min="1"></label><label>颜色<input data-mark-color type="color" value="#667085"></label></div><label><input data-marks type="checkbox">输出时应用到选中页面</label></div></details><details class="organizer-options"><summary>拆分</summary><div><label>每份页数<input data-split-size type="number" min="1" value="1"></label><button data-split>按当前顺序拆分保存…</button></div></details><label class="organizer-zoom">缩略图<input data-zoom aria-label="缩略图大小" type="range" min="120" max="240" value="160"></label></div><div class="organizer-grid" role="listbox" aria-label="页面缩略图" aria-multiselectable="true"></div><footer><p data-status role="status">单击选择 · Ctrl 加选 · Shift 连选 · 拖动排序</p><button class="primary" data-save>另存整理后的 PDF…</button></footer>`;
     document.body.append(d);d.showModal();const q=s=>d.querySelector(s),grid=q('.organizer-grid');
     let order=Array.from({length:S.info.pageCount},(_,i)=>({key:crypto.randomUUID(),source:'current',page:i+1,rotation:0})),selected=new Set([order[S.page-1]?.key]),anchor=S.page-1,busy=false,closed=false,epoch=0;
-    const sources=[],docs=new Map(),history=[],future=[],tasks=new Set();let jobs=[],running=0;
+    const sources=[],docs=new Map(),boxes=new Map(),history=[],future=[],tasks=new Set();let jobs=[],running=0;
+    async function loadDocument(id,data){const loading=pdfjs.getDocument({...pdfLoadingOptions,data:data.slice()});try{const [pdf,info]=await Promise.all([loading.promise,readPageBoxes(data)]);docs.set(id,pdf);boxes.set(id,info);}catch(e){await loading.destroy();throw e;}}
+    const geometry=item=>organizerGeometry(item,item.blank?null:boxes.get(item.source)?.[item.page-1]);
     const status=()=>{q('[data-status]').textContent=`已选 ${selected.size} / ${order.length} 页 · Ctrl 加选 · Shift 连选 · 拖动排序`;q('[data-org=undo]').disabled=!history.length;q('[data-org=redo]').disabled=!future.length;};
     const snapshot=()=>({order:structuredClone(order),selected:[...selected]});
     const change=fn=>{if(busy)return;history.push(snapshot());if(history.length>80)history.shift();future.length=0;fn();paint();};
@@ -20,10 +27,7 @@ export function installPageOrganizer({S,session,run,exportPDF}){
       const page=item.blank?null:await docs.get(item.source).getPage(item.page);
       if(closed||token!==epoch||!tile.dataset.visible)return;
       const original=page?page.getViewport({scale:1,rotation:0}):{width:item.width,height:item.height};
-      const [width,height]=item.size||[original.width,original.height],crop=item.crop||[0,0,0,0];
-      const [left,top,right,bottom]=crop,w=width-left-right,h=height-top-bottom;
-      if(w<=0||h<=0)throw Error('裁剪须保留可见页面');
-      const rotation=((page?.rotate||0)+item.rotation+360)%360,turned=rotation%180!==0;
+      const {width:w,height:h,rotation,sourceRect}=geometry(item),turned=rotation%180!==0;
       const scale=240/Math.max(w,h),canvas=tile.querySelector('canvas');canvas.width=Math.ceil((turned?h:w)*scale);canvas.height=Math.ceil((turned?w:h)*scale);
       const ctx=canvas.getContext('2d');ctx.fillStyle='white';ctx.fillRect(0,0,canvas.width,canvas.height);
       ctx.translate(canvas.width/2,canvas.height/2);ctx.rotate(rotation*Math.PI/180);ctx.scale(scale,scale);ctx.translate(-w/2,-h/2);
@@ -33,7 +37,7 @@ export function installPageOrganizer({S,session,run,exportPDF}){
         const viewport=page.getViewport({scale:240/Math.max(original.width,original.height),rotation:0}),source=document.createElement('canvas');source.width=Math.ceil(viewport.width);source.height=Math.ceil(viewport.height);
         const task=page.render({canvasContext:source.getContext('2d'),viewport,background:'rgba(0,0,0,0)'});tasks.add(task);try{await task.promise;}finally{tasks.delete(task);}
         if(closed||token!==epoch)return;
-        ctx.drawImage(source,left/width*source.width,top/height*source.height,w/width*source.width,h/height*source.height,0,0,w,h);
+        ctx.drawImage(source,sourceRect[0]*source.width,sourceRect[1]*source.height,sourceRect[2]*source.width,sourceRect[3]*source.height,0,0,w,h);
       }
       if(marked&&mark.kind!=='background'){
         ctx.fillStyle=mark.color;ctx.globalAlpha=mark.kind==='watermark'?.2:1;ctx.font=mark.size+'px sans-serif';ctx.textAlign='center';ctx.textBaseline='top';
@@ -62,9 +66,20 @@ export function installPageOrganizer({S,session,run,exportPDF}){
     const save=(entries,filename)=>run({action:'organize-pages',filename,options:{order:clean(entries),sources,marks:entries===order?marks():undefined}});
     const selectedOrder=()=>order.filter(o=>selected.has(o.key));
     function atSelection(){const positions=order.flatMap((o,i)=>selected.has(o.key)?[i]:[]);return positions.length?(q('[data-insert-position]').value==='before'?Math.min(...positions):Math.max(...positions)+1):order.length;}
-    const insert=replace=>perform(async()=>{const picked=await window.desktop.mergeFiles();if(!picked.length){status();return;}const added=[];for(const file of picked){session.assert(capture);const result=await nativeRequest({command:'document-assemble',bytes:S.bytes,parts:[{name:file.name,data:toBase64(new Uint8Array(file.bytes))}]});session.assert(capture);const data=fromBase64(result.bytes),id=crypto.randomUUID(),pdf=await pdfjs.getDocument({data:data.slice()}).promise;docs.set(id,pdf);sources.push({id,name:file.name.replace(/\.[^.]+$/,'.pdf'),data:result.bytes});for(let i=1;i<=pdf.numPages;i++)added.push({key:crypto.randomUUID(),source:id,page:i,rotation:0});}history.push(snapshot());future.length=0;let at=replace?order.findIndex(o=>selected.has(o.key)):atSelection();if(at<0)at=order.length;if(replace)order=order.filter(o=>!selected.has(o.key));order.splice(at,0,...added);selected=new Set(added.map(o=>o.key));paint();});
+    const insert=replace=>perform(async()=>{const picked=await window.desktop.mergeFiles();if(!picked.length){status();return;}const added=[];for(const file of picked){session.assert(capture);const result=await nativeRequest({command:'document-assemble',bytes:S.bytes,parts:[{name:file.name,data:toBase64(new Uint8Array(file.bytes))}]});session.assert(capture);const data=fromBase64(result.bytes),id=crypto.randomUUID();await loadDocument(id,data);const pdf=docs.get(id);sources.push({id,name:file.name.replace(/\.[^.]+$/,'.pdf'),data:result.bytes});for(let i=1;i<=pdf.numPages;i++)added.push({key:crypto.randomUUID(),source:id,page:i,rotation:0});}history.push(snapshot());future.length=0;let at=replace?order.findIndex(o=>selected.has(o.key)):atSelection();if(at<0)at=order.length;if(replace)order=order.filter(o=>!selected.has(o.key));order.splice(at,0,...added);selected=new Set(added.map(o=>o.key));paint();});
     q('[data-org=insert]').onclick=insert(false);q('[data-org=replace]').onclick=insert(true);
-    q('[data-org=blank]').onclick=()=>change(()=>{const item={key:crypto.randomUUID(),blank:true,width:595.28,height:841.89,rotation:0};order.splice(atSelection(),0,item);selected=new Set([item.key]);});
+    q('[data-org=blank]').onclick=async()=>{
+      if(busy)return;
+      try {
+      const positions=order.flatMap((o,i)=>selected.has(o.key)?[i]:[]),currentPage=(positions[0]??Math.max(0,Math.min(order.length-1,S.page-1)))+1;
+      const plan=await chooseBlankPages({pageCount:order.length,currentPage,position:q('[data-insert-position]').value,getSize:async number=>{
+        return geometry(order[number-1]).displayedSize;
+      }});
+      if(!plan||closed)return;session.assert(capture);
+      change(()=>{const added=Array.from({length:plan.count},()=>({key:crypto.randomUUID(),blank:true,width:plan.width,height:plan.height,rotation:0}));order.splice(plan.at,0,...added);selected=new Set(added.map(o=>o.key));anchor=plan.at;});
+      grid.children[plan.at]?.scrollIntoView({block:'nearest'});
+      } catch(e) {if(!closed)q('[data-status]').textContent=e.message;}
+    };
     q('[data-org=delete]').onclick=()=>{if(selected.size>=order.length){q('[data-status]').textContent='请至少保留一页';return;}change(()=>{order=order.filter(o=>!selected.has(o.key));selected.clear();});};
     q('[data-org=copy]').onclick=()=>change(()=>{const added=selectedOrder().map(o=>({...o,key:crypto.randomUUID()}));order.splice(atSelection(),0,...added);selected=new Set(added.map(o=>o.key));});
     q('[data-org=rotate]').onclick=()=>change(()=>{order=order.map(o=>selected.has(o.key)?{...o,rotation:(o.rotation+90)%360}:o);});
@@ -80,6 +95,7 @@ export function installPageOrganizer({S,session,run,exportPDF}){
     const close=()=>{if(busy)return;closed=true;observer.disconnect();for(const t of tasks)t.cancel();for(const pdf of docs.values())pdf.destroy();d.close();d.remove();};q('[data-close]').onclick=close;d.oncancel=e=>{e.preventDefault();close();};
     d.onkeydown=e=>{if(e.target.matches('input,select,textarea'))return;if(e.key==='Delete'){e.preventDefault();q('[data-org=delete]').click();}if((e.ctrlKey||e.metaKey)&&e.key==='a'){e.preventDefault();q('[data-select]').value='all';q('[data-select]').dispatchEvent(new Event('change'));}if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();q(e.shiftKey?'[data-org=redo]':'[data-org=undo]').click();}};
     for(const input of d.querySelectorAll('[data-marks],[data-mark-kind],[data-mark-text],[data-mark-size],[data-mark-color]'))input.onchange=()=>{if(!busy)paint();};
-    await perform(async()=>{const bytes=await exportPDF();try{session.assert(capture);docs.set('current',await pdfjs.getDocument({data:bytes.slice()}).promise);}finally{if(bytes!==S.bytes)await releaseSource(bytes);}paint();grid.children[Math.max(0,S.page-1)]?.scrollIntoView({block:'nearest'});})();
+    await perform(async()=>{const bytes=await exportPDF();try{session.assert(capture);await loadDocument('current',bytes);}finally{if(bytes!==S.bytes)await releaseSource(bytes);}paint();grid.children[Math.max(0,S.page-1)]?.scrollIntoView({block:'nearest'});})();
+    if(initialAction==='blank'&&!closed&&docs.has('current'))await q('[data-org=blank]').onclick();
   };
 }

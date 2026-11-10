@@ -2,6 +2,8 @@ import {nativeRequest,releaseSource} from './native-source.mjs';
 import {toBase64,fromBase64} from './portable-state.mjs';
 import {placement} from './graphic-geometry.mjs';
 import {EmbeddedStudio} from './creative-embedded.mjs';
+import {t} from './i18n.mjs';
+import {transformedBounds} from './object-selection-model.mjs';
 
 export function pathSVG(p){
   const [l,b,r,t]=p.bounds,w=Math.max(1,r-l),h=Math.max(1,t-b),points=p.segments||[];
@@ -13,15 +15,28 @@ export function pathSVG(p){
 export function installCreativeTools({S,rev,applyContent,writeFile,approve,exportPDF}){
   const embedded=new EmbeddedStudio({writeFile});
   const sessions=new Map();const documentKey=()=>rev().slice(0,rev().lastIndexOf('/'));
+  const objectCaches=new WeakMap();
   async function objects(page){
+    let objectCache=objectCaches.get(S.bytes);
+    if(!objectCache){objectCache=new Map();objectCaches.set(S.bytes,objectCache);}
+    const key=rev()+':'+page;
+    if(!objectCache.has(key)){
+      const promise=readObjects(page).catch(error=>{if(objectCache.get(key)===promise)objectCache.delete(key);throw error;});
+      objectCache.set(key,promise);
+      while(objectCache.size>3)objectCache.delete(objectCache.keys().next().value);
+    }
+    return objectCache.get(key);
+  }
+  async function readObjects(page){
     const capture=rev();const [raw,studio,vectors]=await Promise.all([
-      nativeRequest({command:'inspect',bytes:S.bytes,page}),nativeRequest({command:'studio-list',bytes:S.bytes,page}),nativeRequest({command:'vector-list',bytes:S.bytes,page})]);
+      nativeRequest({command:'inspect',bytes:S.bytes,page,graphicsOnly:true}),nativeRequest({command:'studio-list',bytes:S.bytes,page}),nativeRequest({command:'vector-list',bytes:S.bytes,page})]);
     if(capture!==rev())throw Error('文档已变化，请刷新对象');
     const items=[];
     for(const o of raw.objects.filter(o=>['image','path'].includes(o.type)&&o.editable)){
       const prior=S.nativeEdits.find(e=>e.page===page&&e.index===o.index);if(prior?.delete||prior?.type==='studio-graphic')continue;
       const origin=raw.pageOrigin||[0,0],matrix=o.matrix.map((v,i)=>v+(i>=4?origin[i-4]:0));
-      const item={...o,matrix,...prior,kind:o.type,target:o.type,key:o.type+':'+o.index,bounds:o.bounds.map((v,i)=>v+origin[i%2]),box:[o.bounds[0]+origin[0],o.bounds[1]+origin[1],Math.max(1,o.bounds[2]-o.bounds[0]),Math.max(1,o.bounds[3]-o.bounds[1])]};
+      const bounds=transformedBounds({...o,matrix,bounds:o.bounds.map((v,i)=>v+origin[i%2])},prior);
+      const item={...o,matrix,...prior,pageRotation:raw.pageRotation||0,kind:o.type,target:o.type,key:o.type+':'+o.index,bounds,box:[bounds[0],bounds[1],Math.max(1,bounds[2]-bounds[0]),Math.max(1,bounds[3]-bounds[1])]};
       if(o.type==='image')item.box=[item.matrix[4],item.matrix[5],Math.hypot(...item.matrix.slice(0,2)),Math.hypot(...item.matrix.slice(2,4))];
       items.push(item);
     }
@@ -33,7 +48,7 @@ export function installCreativeTools({S,rev,applyContent,writeFile,approve,expor
   async function run(a){
     if(['objects','delete','duplicate','move','apply'].includes(a.action)&&!S.pdf)throw Error('请先打开要放置作品的 PDF');
     const page=a.page??S.page??1;if(S.pdf&&(!Number.isInteger(page)||page<1||page>S.info.pageCount))throw Error('页码无效');
-    if(a.action==='objects'){const r=await objects(page);return {...r,objects:r.objects.map(({sourceData,imageData,pdfData,svg,segments,...o})=>o)};}
+    if(a.action==='objects'){const r=await objects(page);return {...r,objects:structuredClone(r.objects.map(({sourceData,imageData,pdfData,svg,segments,...o})=>o))};}
     if(a.action==='list')return {revision:rev(),sessions:[...sessions.values()].filter(s=>!s.documentKey||s.documentKey===documentKey()).map(({sessionId,kind,page,id})=>({sessionId,kind,page,id}))};
     if(!approve(a))throw Error('用户取消操作');
     if(['delete','duplicate','move'].includes(a.action)){
@@ -47,7 +62,7 @@ export function installCreativeTools({S,rev,applyContent,writeFile,approve,expor
       }
       const kind=['photo','image'].includes(target.kind)?'photo':'vector';
       const opened=await run({action:'open',kind,page,id:target.id,index:target.index,visible:false,revision:capture});
-      const s=sessions.get(opened.sessionId),base=target.target==='path'?[target.box[2],0,0,target.box[3],target.box[0],target.box[1]]:target.matrix||[target.box[2],0,0,target.box[3],target.box[0],target.box[1]];
+      const s=sessions.get(opened.sessionId),base=s.matrix;
       let r;try{r=await embedded.request({action:'capture',sessionId:s.sessionId});}finally{await run({action:'close',sessionId:s.sessionId});}
       const matrix=placement(a.geometry||{x:base[4]+12,y:base[5]-12},base).matrix,targetPage=a.targetPage??page;
       if(!Number.isInteger(targetPage)||targetPage<1||targetPage>S.info.pageCount)throw Error('目标页码无效');
@@ -59,7 +74,7 @@ export function installCreativeTools({S,rev,applyContent,writeFile,approve,expor
     if(a.action==='open'){
       const capture=rev();if(a.revision!==undefined&&a.revision!==capture)throw Error('文档已变化，请刷新');
       if(S.imageEdit?.editing||S.flowDraftDirty)throw Error('请先应用当前页面编辑');
-      let target,data,extension,box=a.box;
+      let target,data,extension,frame,box=a.box,warnings=[];
       const kind=a.kind||'photo';
       if(a.id||a.index!==undefined){
         target=(await objects(page)).objects.find(o=>a.id?o.id===a.id:o.index===a.index);
@@ -71,18 +86,26 @@ export function installCreativeTools({S,rev,applyContent,writeFile,approve,expor
           else if(!data){const {graphics}=await nativeRequest({command:'studio-list',bytes:S.bytes,page,id:target.id});data=graphics.find(o=>o.id===target.id)?.pdfData;}
           if(kind==='photo'&&extension==='pdf'){data=(await nativeRequest({command:'studio-raster',pdfData:data})).imageData;extension='png';}
         }else if(['image','inserted'].includes(target.target)){
-          data=(await nativeRequest({command:'image-export',bytes:S.bytes,page,index:target.index,imageData:target.imageData,adjustments:target.adjustments,crop:target.crop,perspective:target.perspective})).imageData;extension='png';
+          const image=await nativeRequest({command:'image-export',bytes:S.bytes,page,index:target.index,imageData:target.imageData,adjustments:target.adjustments,crop:target.crop,perspective:target.perspective,imageFit:target.imageFit,matrix:target.matrix,clipBounds:target.clipBounds,pageRotation:target.pageRotation??(await S.pdf.getPage(page)).rotate,studio:true});
+          data=image.imageData;extension='png';frame=image.matrix;box=image.box;
+          if(image.resolutionReduced)warnings.push('图片已按工作室像素预算缩小，页面位置和方向保持不变。');
         }else{data=toBase64(new TextEncoder().encode(target.svg||pathSVG(target)));extension='svg';}
       }
       if(!box){const [l,b,r,t]=S.pdf?(await S.pdf.getPage(page)).view:[0,0,612,792];const ratio=(a.settings?.height||800)/(a.settings?.width||1200),w=Math.min(360,r-l-72,(t-b-72)/ratio);box=[l+36,b+36,w,w*ratio];}
       if(rev()!==capture)throw Error('文档已变化，请重试');
-      const result=await embedded.request({action:'open',kind,visible:a.visible===true,data,extension,path:a.path,pick:a.pick,settings:a.settings});
+      const name=target?`${t(kind==='photo'?'图片':'矢量图')} · ${t('第 {0} 页',{0:page})} · ${Math.round(box[2])} × ${Math.round(box[3])} pt.${extension}`:undefined;
+      const result=await embedded.request({action:'open',kind,visible:a.visible===true,data,extension,name,path:a.path,pick:a.pick,settings:a.settings});
       if(result.cancelled)return result;
       if(rev()!==capture){await embedded.request({action:'close',sessionId:result.sessionId});throw Error('文档已变化，请重试');}
       const s={sessionId:result.sessionId,documentKey:S.pdf?documentKey():null,kind,page,box,target,id:target?.target==='studio'?target.id:crypto.randomUUID(),baseline:target&&S.nativeEdits.find(e=>e.page===page&&(target.id?e.id===target.id:e.index===target.index))};sessions.set(s.sessionId,s);
       if(!target&&result.dimensions){const ratio=result.dimensions[1]/result.dimensions[0];box=[box[0],box[1],box[2],box[2]*ratio];s.box=box;}
+      s.matrix=frame||(target?.matrix&&target.target!=='path'?target.matrix:[box[2],0,0,box[3],box[0],box[1]]);
+      if(S.pdf){
+        try{await run({action:'background',sessionId:s.sessionId,options:{mode:'pdf',opacity:.6}});}
+        catch(error){warnings.push('PDF 背景暂未载入：'+error.message);}
+      }
       if(a.visible)queueMicrotask(()=>embedded.notify('show',{sessionId:s.sessionId,kind:s.kind}));
-      return {...result,revision:rev(),page,box,next:'commands discovers parameters; execute/batch edits this session; preview inspects pixels; apply writes one undoable PDF edit. Layers are stored only in .folio projects.'};
+      return {...result,revision:rev(),page,box,matrix:s.matrix,warnings,next:'commands discovers parameters; execute/batch edits this session; preview inspects pixels; apply writes one undoable PDF edit. Layers are stored only in .folio projects.'};
     }
     const s=sessions.get(a.sessionId);if(!s)throw Error('创作会话不存在，请重新打开');
     if(a.action==='background'){
@@ -97,7 +120,7 @@ export function installCreativeTools({S,rev,applyContent,writeFile,approve,expor
           options.reference={...page,revision};
         }
       }
-      const box=s.box,base=s.target?.matrix&&s.target.target!=='path'?s.target.matrix:[box[2],0,0,box[3],box[0],box[1]];
+      const base=s.matrix;
       options.matrix=placement(options.geometry||{},base).matrix;
       return embedded.request({...a,options});
     }
@@ -108,7 +131,7 @@ export function installCreativeTools({S,rev,applyContent,writeFile,approve,expor
       if(current!==s.baseline)throw Error('原对象已被其他操作修改；工作室内容仍保留，可导出后插入。');
       const r=await embedded.request({action:'capture',sessionId:s.sessionId});
       if(rev()!==capture)throw Error('文档已变化，工作室内容已保留，请重试应用');
-      const box=a.box||s.box,base=!a.box&&s.target?.matrix&&s.target.target!=='path'?s.target.matrix:[box[2],0,0,box[3],box[0],box[1]],matrix=placement(a.geometry||{},base).matrix;
+      const box=a.box||s.box,base=a.box?[box[2],0,0,box[3],box[0],box[1]]:s.matrix,matrix=placement(a.geometry||{},base).matrix;
       const placedBox=[matrix[4],matrix[5],Math.hypot(matrix[0],matrix[1]),Math.hypot(matrix[2],matrix[3])];
       const edit={type:'studio-graphic',id:s.id,page:s.page,kind:s.kind,box:placedBox,matrix,sourceData:r.sourceData,sourceExtension:r.extension,...(r.pdfData?{pdfData:r.pdfData}:{imageData:r.imageData}),opacity:s.target?.target==='path'?1:s.target?.opacity??1,blendMode:s.target?.blendMode||'Normal'};
       const extra=[];
@@ -117,7 +140,7 @@ export function installCreativeTools({S,rev,applyContent,writeFile,approve,expor
       else if(s.target?.replaceVectorId)edit.replaceVectorId=s.target.replaceVectorId;
       if(s.target?.target==='studio'&&s.target.index!==undefined){edit.index=s.target.index;edit.signature=s.target.signature;}
       await applyContent([...S.nativeEdits.filter(e=>e!==s.baseline),...extra,edit],S.ocr);
-      s.baseline=S.nativeEdits.find(e=>e.id===s.id);s.target={...edit,target:'studio'};s.box=placedBox;s.documentKey=documentKey();
+      s.baseline=S.nativeEdits.find(e=>e.id===s.id);s.target={...edit,target:'studio'};s.box=placedBox;s.matrix=matrix;s.documentKey=documentKey();
       return {applied:true,id:s.id,page:s.page,revision:rev(),warnings:r.warnings,project:'Save .folio to preserve editable layers; PDF contains the final artwork only.'};
     }
     if(a.action==='export'){
