@@ -34,6 +34,7 @@ jobs:
     - run: npm ci --ignore-scripts
     - run: npm run test:quick
     - run: python tests/ci-reports.py
+    - run: python tests/release-251-checks.py
   prepare:
     name: Prepare reusable dependencies
     runs-on: windows-latest

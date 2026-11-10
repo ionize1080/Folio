@@ -6,6 +6,7 @@ import os
 import zipfile
 
 from release_transport import gh, publish
+from release_251_checks import validate_export_review
 
 root = Path(__file__).resolve().parents[1]
 out = root / 'deliverables'
@@ -40,7 +41,8 @@ assert all(c['status'] == 'passed' for c in browser['checks'])
 assert reports['mcp-regression-report.json']['status'] == 'passed'
 assert reports['mcp-regression-report.json']['coverage'] >= 75
 assert reports['mcp-regression-report.json']['branchCoverage']
-for name in ['design-251.json','close-251.json','export-review-251.json','refinements-251.json','workflow-250.json','workflow-live-250.json','organizer-geometry.json','image-provider-ui.json','image-provider-live.json','image-studio-ui.json','pdf-loading-report.json','pdf-loading-packaged-report.json','creative-live.json','creative-engines.json','creative-embedded.json','creative-ui.json','organizer-ui.json','creative-experience.json']:
+validate_export_review(reports['export-review-251.json'])
+for name in ['design-251.json','close-251.json','refinements-251.json','workflow-250.json','workflow-live-250.json','organizer-geometry.json','image-provider-ui.json','image-provider-live.json','image-studio-ui.json','pdf-loading-report.json','pdf-loading-packaged-report.json','creative-live.json','creative-engines.json','creative-embedded.json','creative-ui.json','organizer-ui.json','creative-experience.json']:
     assert reports[name]['status']=='passed' and reports[name]['checks'], name
 assert reports['creative-live.json']['apiRequests']>=5 and reports['creative-live.json']['outputTokenLimit'] is None
 assert reports['creative-live.json']['placementUnchanged'] and reports['creative-live.json']['independent']['organizedPixelsExact']
