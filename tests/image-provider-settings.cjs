@@ -51,7 +51,7 @@ const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42
     console.log('Image provider: narrow layout passed',language);
   }
   checks.push('English, Simplified Chinese and Traditional Chinese fit the narrow sidebar in light/dark themes');
-  await chat.screenshot({path:path.join(out,'image-provider-settings.png'),animations:'disabled'});
+  await require('./native-capture.cjs')(app,chat,path.join(out,'image-provider-settings.png'),{url:chat.url()});
   assert.deepEqual(errors,[]);fs.writeFileSync(path.join(out,'image-provider-ui.json'),JSON.stringify({status:'passed',checks,apiRequests:[],errors},null,2));
   if(live) {
     await select('Qwen · Token Plan');
