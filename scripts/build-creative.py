@@ -1,5 +1,7 @@
 """Build the pinned, embedded editors. No platform desktop binaries are packaged."""
-import argparse,hashlib,json,os,runpy,shutil,subprocess,tomllib
+import argparse,hashlib,json,os,runpy,shutil,subprocess
+try:import tomllib
+except ImportError:import tomli as tomllib
 from pathlib import Path
 
 ROOT=Path(__file__).resolve().parents[1]
@@ -22,7 +24,9 @@ def build(kind,skip_build=False):
     runpy.run_path(str(ROOT/'scripts/patch-creative.py'))['patch'](kind,source)
     out=ROOT/'.creative-web'/kind;out.mkdir(parents=True,exist_ok=True)
     if not skip_build:
-        run('cargo','build','--locked','--profile','folio-web','--target','wasm32-unknown-unknown','-p',spec['package'],*( ['--features','heif'] if kind=='photo' else []),cwd=source)
+        # Short diagnostics avoid rustc's snippet-renderer panic on deeply nested
+        # Windows/WSL checkouts; this does not suppress compiler diagnostics.
+        run('cargo','build','--locked','--message-format=short','--profile','folio-web','--target','wasm32-unknown-unknown','-p',spec['package'],*( ['--features','heif'] if kind=='photo' else []),cwd=source)
         cargo_lock=tomllib.loads((source/'Cargo.lock').read_text())
         version=next(p['version'] for p in cargo_lock['package'] if p['name']=='wasm-bindgen')
         current=subprocess.run(['wasm-bindgen','--version'],capture_output=True,text=True).stdout.strip() if shutil.which('wasm-bindgen') else ''

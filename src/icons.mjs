@@ -1,4 +1,6 @@
 const paths = {
+  expand: 'M9 3H3v6 M15 3h6v6 M3 15v6h6 M21 15v6h-6 M8 8h8v8H8z',
+  crop: 'M8 3v13h13 M3 8h13v13',
   'page-grid': 'M3 3h7v8H3z M14 3h7v8h-7z M3 15h7v6H3z M14 15h7v6h-7z',
   'merge-pages': 'M3 3h6v7H3z M15 3h6v7h-6z M6 12v3h12v-3 M12 15v6 M9 18l3 3 3-3',
   back: 'M14 5l-7 7 7 7 M7 12h14',

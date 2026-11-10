@@ -5,7 +5,7 @@ const { _electron: electron } = require("playwright"),
   { execFileSync } = require("child_process");
 (async () => {
   const app = await electron.launch({
-    executablePath: path.resolve("dist/Folio-PDF-Studio-win-x64/Folio.exe"),
+    executablePath: process.env.FOLIO_EXE || path.resolve("dist/Folio-PDF-Studio-win-x64/Folio.exe"),
     args: [],
     env: {
       ...process.env,
@@ -110,7 +110,7 @@ const { _electron: electron } = require("playwright"),
     const cleanProfile = path.resolve('tests/output/plain-launch-'+Date.now());
     const health = path.join(cleanProfile,'updates','install-11111111-1111-1111-1111-111111111111.json.health.json');
     fs.mkdirSync(path.dirname(health), {recursive:true});
-    const plain = require('child_process').spawn(path.resolve('dist/Folio-PDF-Studio-win-x64/Folio.exe'),
+    const plain = require('child_process').spawn(process.env.FOLIO_EXE || path.resolve('dist/Folio-PDF-Studio-win-x64/Folio.exe'),
       ['--user-data-dir='+cleanProfile,'--folio-update-health='+health],
       {env:{...process.env,FOLIO_TEST_PROFILE:cleanProfile,FOLIO_TEST_BACKGROUND:'1'},windowsHide:true,stdio:'ignore'});
     try {

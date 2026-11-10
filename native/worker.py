@@ -374,6 +374,9 @@ def run(args, *, _preview=False):
   with fitz.open(stream=base64.b64decode(args['pdfData']),filetype='pdf') as doc:
    return {'imageData':base64.b64encode(doc[0].get_pixmap(matrix=fitz.Matrix(2,2),alpha=True).tobytes('png')).decode()}
  if args.get('command')=='image-export':
+  if args.get('studio'):
+   from image_studio import export_image
+   return export_image(args)
   from image_adjustments import source_image, process, bounded
   image=process(source_image(args),args.get('adjustments') or {})
   if args.get('perspective'):
@@ -418,7 +421,11 @@ def run(args, *, _preview=False):
   if not isinstance(page,int) or not 1<=page<=len(CACHED_PDF):raise ValueError('页码无效')
   return recognize(CACHED_PDF,p.raw,args)
  data=Path(args['input']).read_bytes() if 'input' in args else base64.b64decode(args['bytes'])
- if args.get('command') in ('inspect','apply') and not args.get('resolvedForms'):
+ if args.get('command')=='inspect' and not args.get('resolvedForms'):
+  from inspection_source import inspection_source
+  data,selected=inspection_source(data,args.get('page',1))
+  args={**args,'page':selected}
+ elif args.get('command')=='apply' and not args.get('resolvedForms'):
   from form_compat import reopen
   numbers=([args.get('page',1)] if args.get('command')=='inspect' else [e.get('page',1) for e in args.get('edits',[])])
   data=reopen(data,numbers)
@@ -431,18 +438,20 @@ def run(args, *, _preview=False):
         'size':[box[2]-box[0],box[3]-box[1]],'pageRotation':rotation,'pageBox':list(box)}
    from form_diagnostics import annotate
    annotate(p.raw,page,out['objects'])
-   from original_layout import inspect as inspect_origins
-   inspect_origins(p.raw,page,tp,out['objects'],out['size'][1]);tp.close();page.close()
-   from content import check_editable
+   if not (args.get('imagesOnly') or args.get('graphicsOnly')):
+    from original_layout import inspect as inspect_origins
+    inspect_origins(p.raw,page,tp,out['objects'],out['size'][1])
+   tp.close();page.close()
+   from content import check_editable,map_objects
    from pypdf import PdfReader
    pg=PdfReader(io.BytesIO(data)).pages[page_no-1]
-   mapped=check_editable(pg,out['objects'])
-   if args.get('imagesOnly'):
-    out['objects']=[o for o in out['objects'] if o['type']=='image']
+   parsed=map_objects(pg);mapped=check_editable(pg,out['objects'],parsed)
+   if args.get('imagesOnly') or args.get('graphicsOnly'):
+    kinds=('image',) if args.get('imagesOnly') else ('image','path')
+    out['objects']=[o for o in out['objects'] if o['type'] in kinds]
    else:
-    from content import map_objects
     from font_match import inspect_fonts
-    out['fonts']=inspect_fonts(data,page_no,out['objects'],mapped,map_objects(pg)[0])
+    out['fonts']=inspect_fonts(data,page_no,out['objects'],mapped,parsed[0])
     from table_geometry import inspect_tables
     out['tables']=inspect_tables(data,page_no)
    # PDFium object coordinates are in PDF user space; the visible editor uses

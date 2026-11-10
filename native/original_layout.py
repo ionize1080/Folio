@@ -277,5 +277,9 @@ def render(m):
     subset_fonts(doc);blob=doc.tobytes(garbage=3,deflate=True);doc.close()
     from generated_cmaps import repair
     blob=repair(blob,generated=True)
-    f=m['frame'];overflow=any(g['x']+g['w']>f['x']+f['width']+.5 or g['y']+g['h']>f['y']+f['height']+.5 for g in mapped)
+    # PDFium can give an invisible trailing space an advance beyond the ink
+    # bounds. It remains a caret position, but must not make an unchanged (or
+    # same-width corrected) paragraph report overflow and demand reflow.
+    f=m['frame'];overflow=any((g['x']+g['w']>f['x']+f['width']+.5 or g['y']+g['h']>f['y']+f['height']+.5)
+                             for g,t in zip(mapped,tokens) if not t['text'].isspace())
     return {'engine':'Folio anchored layout / MuPDF','layoutMode':mode,'engineVersion':fitz.VersionBind,'fragment':base64.b64encode(blob).decode(),'svg':svg,'previewBounds':preview_bounds,'glyphs':mapped,'positions':[], 'anchors':[], 'frames':[[f['x'],f['y'],f['x']+f['width'],f['y']+f['height']]],'frameOverset':overflow,'overflow':overflow and not m.get('allowOverflow'),'mappingComplete':True,'fallbackCount':len(details),'fallbackDetails':details,'spacingLimited':False}

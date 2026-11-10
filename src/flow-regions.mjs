@@ -2,6 +2,7 @@
 // paragraphs; never compare every object pair. Distances are in page points.
 const heading =
   /^(?:第[〇零一二三四五六七八九十百千万\d]+[章节篇部分]|[（(]?(?:[一二三四五六七八九十百]+|\d{1,3})[）)、.．](?![0-9]))/u;
+const decimalHeading = /^\d{1,3}(?:[.．]\d{1,3}){1,5}[.．]?\s+\p{L}/u;
 const item = /^[\s]*[□☐☑✓√·•▪●]/u;
 const diamondItem = /^[\s]*[◇◆]/u;
 export function textDirection(o) {
@@ -250,6 +251,9 @@ export function connectedParagraphs(objects, h, barriers = objects) {
         letters * 0.8;
       row.heading =
         heading.test(row.text) ||
+        (decimalHeading.test(row.text) &&
+          row.text.length <= 80 && row.end - row.u <= row.size * 24 &&
+          !/[.!?。！？][”’」』）)]?$/.test(row.text)) ||
         (row.smallCaps &&
           row.text.length <= 120 &&
           !/[.!?。！？]$/.test(row.text));

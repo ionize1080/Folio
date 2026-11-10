@@ -4,13 +4,31 @@ The cache is shared by the inspect and Story processes and keyed only by content
 import base64,hashlib,io,json,math,re,struct,tempfile,sys
 from pathlib import Path
 from functools import lru_cache
+from collections import OrderedDict
 # Embedded Windows Python must resolve the shipped converter on the first CID font,
 # without relying on a previous Type1/browser-font request to alter sys.path.
 sys.path.insert(0,str(Path(__file__).parent/'vendor'))
 CACHE=Path(tempfile.gettempdir())/'folio-fonts-v15'
+_coverage_cache=OrderedDict()
+MAX_CACHED_CODEPOINTS=262144
 
 def populated_coverage(blob, coverage):
     """Subset fonts can retain cmap entries for emptied, zero-advance glyphs."""
+    requested=frozenset(coverage);key=(hashlib.sha256(blob).digest(),requested)
+    cached=_coverage_cache.pop(key,None)
+    if cached is not None:
+        _coverage_cache[key]=cached
+        return set(cached)
+    result=_populated_coverage(blob,requested)
+    # Keep only fingerprints and Unicode sets, never source font programs.
+    # A changed embedded program or requested cmap cannot reuse an old result.
+    if len(requested)<=MAX_CACHED_CODEPOINTS:
+        _coverage_cache[key]=frozenset(result)
+        while len(_coverage_cache)>32 or sum(len(k[1]) for k in _coverage_cache)>MAX_CACHED_CODEPOINTS:
+            _coverage_cache.popitem(last=False)
+    return set(result)
+
+def _populated_coverage(blob, coverage):
     from fontTools.ttLib import TTFont
     import unicodedata
     font=TTFont(io.BytesIO(blob),lazy=True)

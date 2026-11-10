@@ -255,6 +255,15 @@ export class PdfEngine {
       }
       if (value instanceof PDFString || value instanceof PDFHexString)
         return ["bytes", Array.from(value.asBytes())];
+      if (value instanceof PDFNumber) {
+        // Native writers remove binary floating-point noise (e.g.
+        // 746.1490100000001 -> 746.14901). Only collapse a handful of ULPs
+        // around their eight-decimal serialization grid. Real coordinate,
+        // zoom and action changes still fail source-identity validation.
+        const number = value.asNumber(), rounded = Number(number.toFixed(8));
+        if (Number.isFinite(number) && Math.abs(number - rounded) <= Number.EPSILON * Math.max(1, Math.abs(number)) * 4)
+          return String(rounded);
+      }
       if (value === undefined && object !== undefined)
         throw Error("原始书签包含失效引用，无法安全核对来源");
       return value?.toString() ?? null;

@@ -15,16 +15,16 @@ def preview_source(args):
     cached=_cache.pop(key,None)
     if cached is None:
         raw=path.read_bytes() if 'input' in args else base64.b64decode(args['bytes'])
-        raw=reopen(raw,[number])
         with pikepdf.open(io.BytesIO(raw)) as original:
             if not isinstance(number,int) or not 1<=number<=len(original.pages):raise ValueError('页码无效')
             tagged='/StructTreeRoot' in original.Root or '/StructParents' in original.pages[number-1].obj
-            if tagged:data=raw
-            else:
-                buf=io.BytesIO()
-                with pikepdf.Pdf.new() as selected:
-                    selected.add_pages_from(original,[number-1]);selected.save(buf)
-                data=buf.getvalue()
+        if tagged:data=reopen(raw,[number])
+        else:
+            # Inspection already prepared this same page in most edit flows.
+            # Expand only the selected page rather than cloning a whole book
+            # before discarding all the neighboring pages.
+            from inspection_source import inspection_source
+            data,_=inspection_source(raw,number)
         cached=(data,number if tagged else 1,tagged)
     if len(cached[0])<=32*1024**2:
         _cache[key]=cached

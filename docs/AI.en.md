@@ -1,4 +1,4 @@
-# Using AI in Folio 2.1.0
+# Using AI in Folio 2.5.0
 
 **English** · [简体中文](AI.md) · [繁體中文](AI.zh-Hant.md)
 
@@ -14,7 +14,7 @@ Try “Explain my selection and cite the physical PDF page.” With several file
 2. Ask for another adjustment on the same preview. The model receives image pixels and a preview ID. Overview previews have a maximum long edge of 640 pixels, detail previews 1200. Folio applies adjustments at source resolution. Apply the candidate you want, then press **Ctrl+S** to save the PDF.
 3. For a faded scan, ask to enhance contrast, inspect small print and run local OCR to add searchable text. The image controls change visible pixels. OCR adds a text layer. The default OCR review threshold is 95% and can be adjusted in Preferences.
 4. To use an existing picture, request a replacement and choose the image in the local file picker. You can specify a rectangle, for example the top-left quarter of the width and height, `[0,0,0.25,0.25]`. Check the boundary in the preview before applying.
-5. For a generated replacement, first choose a configured image model in **Chatbox → Image Creator**. Reference-based local edits require a provider that accepts reference images. The resulting candidate can be reviewed before applying. The release tested Qwen vision, color adjustments, scan enhancement and local replacement. A separate live image-generation provider still needs end-to-end verification.
+5. For a generated replacement, open **Chatbox Settings → Image Model Provider**. Choose the service, endpoint and model, save the key, and run the preview test. Qwen Token Plan (`qwen-image-3.0-pro`) generation and reference-image editing are covered by actual API acceptance. Compatible endpoints must implement their selected image protocol. Review the candidate before applying it to the PDF.
 
 ## Embed and revise a diagram
 

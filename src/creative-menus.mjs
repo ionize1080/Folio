@@ -44,18 +44,22 @@ export function installCreativeMenus({root,session,request,onError}){
     const items=[...list.querySelectorAll('button:not(:disabled)')];const i=items.indexOf(document.activeElement);
     if(e.key==='ArrowDown'||e.key==='ArrowUp'){e.preventDefault();items[(i+(e.key==='ArrowDown'?1:-1)+items.length)%items.length]?.focus();}
     if(e.key==='ArrowLeft'&&!search.matches(':focus')&&path.length>1){e.preventDefault();path.pop();render();list.querySelector('button:not(:disabled)')?.focus();}
-    if(e.key==='Escape')anchor?.focus();
+    if(e.key==='Escape'){version++;pop.hidePopover();anchor?.focus();}
   });
-  pop.addEventListener('toggle',()=>{if(anchor)anchor.setAttribute('aria-expanded',String(pop.matches(':popover-open')));});
+  const syncExpanded=()=>{for(const button of root.querySelectorAll('[aria-expanded]'))if(button===anchor||button.closest('.studio-menus')||button.hasAttribute('data-all-tools'))button.setAttribute('aria-expanded',String(button===anchor&&pop.matches(':popover-open')));};
+  pop.addEventListener('toggle',syncExpanded);
+  document.addEventListener('pointerdown',e=>{if(!pop.contains(e.target)&&!anchor?.contains(e.target)){version++;pop.hidePopover();syncExpanded();}});
+  // A click inside an iframe does not light-dismiss its parent's popover.
+  window.addEventListener('blur',()=>{if(document.activeElement?.matches('.studio-frame')){version++;pop.hidePopover();syncExpanded();}});
   window.addEventListener('resize',position);
   window.addEventListener('folio-studio-visibility',()=>{if(!document.body.classList.contains('studio-active'))pop.hidePopover();});
   return async function open(button,sessionId,initialPath=[]){
     if(pop.matches(':popover-open')&&anchor===button){pop.hidePopover();return;}
-    const stamp=++version;anchor=button;openedSession=sessionId;
+    const stamp=++version;if(anchor&&anchor!==button)anchor.setAttribute('aria-expanded','false');anchor=button;openedSession=sessionId;
     try{
       const result=await request({action:'request',sessionId,method:'folio.menu'});if(stamp!==version)return;
       rows=result.filter(r=>r.id&&r.id!=='---'&&r.path?.length);path=initialPath.length?initialPath:[rows[0]?.path[0]];search.value='';render();
-      if(!pop.matches(':popover-open'))pop.showPopover();position();search.focus();
+      if(!pop.matches(':popover-open'))pop.showPopover();syncExpanded();position();search.focus();
     }catch(e){onError(e.message);}
   };
 }

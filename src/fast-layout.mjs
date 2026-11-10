@@ -490,6 +490,38 @@ export function fastLayout(m, measure) {
   };
 }
 const fontCache = new Map();
+function loadFastFont(call, key) {
+  if (!fontCache.has(key))
+    fontCache.set(
+      key,
+      (async () => {
+        const data = await call("font-fast", { fontKey: key });
+        const family = "FolioFast_" + data.key;
+        const face = new FontFace(
+          family,
+          Uint8Array.from(atob(data.base64), (c) => c.charCodeAt(0)),
+        );
+        await face.load();
+        document.fonts.add(face);
+        return {
+          ...data,
+          base64: undefined,
+          family,
+          coverage: new Set(data.coverage),
+        };
+      })().catch((e) => {
+        // Transient worker failures remain retryable; malformed content-keyed
+        // faces retain their deterministic rejection for this renderer session.
+        if (
+          e?.name !== "SyntaxError" &&
+          !/invalid font|OTS|font data/i.test(e?.message || "")
+        )
+          fontCache.delete(key);
+        throw e;
+      }),
+    );
+  return fontCache.get(key);
+}
 // Share full matched faces across paragraphs and successive missing characters,
 // as native/font_similarity.fallback does. Never block keystrokes on scoring.
 const matchedFaces = new Map(),
@@ -498,6 +530,13 @@ const matchedFaces = new Map(),
 const matchBucket = (key, ch) =>
   `${key}:${ch.codePointAt(0) < 0x300 ? "latin" : ch.codePointAt(0) >= 0x2e80 && ch.codePointAt(0) <= 0x9fff ? "cjk" : "other"}`;
 export class FastFonts {
+  static preloadFallback(call) {
+    // These fixed application fonts have no document or paragraph state. The
+    // same promises are adopted by prepare(), including FontFace decoding.
+    return Promise.all(
+      ["builtin-latin", "builtin-cjk"].map((key) => loadFastFont(call, key)),
+    );
+  }
   constructor(call, onMatched = () => {}, { preloadFallback = false } = {}) {
     this.call = call;
     this.onMatched = onMatched;
@@ -510,36 +549,7 @@ export class FastFonts {
     this.ctx = this.canvas.getContext("2d");
   }
   async load(key) {
-    if (!fontCache.has(key))
-      fontCache.set(
-        key,
-        (async () => {
-          const data = await this.call("font-fast", { fontKey: key });
-          const family = "FolioFast_" + data.key;
-          const face = new FontFace(
-            family,
-            Uint8Array.from(atob(data.base64), (c) => c.charCodeAt(0)),
-          );
-          await face.load();
-          document.fonts.add(face);
-          return {
-            ...data,
-            base64: undefined,
-            family,
-            coverage: new Set(data.coverage),
-          };
-        })().catch((e) => {
-          // Content-keyed malformed fonts are deterministic failures. Retain
-          // their rejection for this session instead of retransferring on keys.
-          if (
-            e?.name !== "SyntaxError" &&
-            !/invalid font|OTS|font data/i.test(e?.message || "")
-          )
-            fontCache.delete(key);
-          throw e;
-        }),
-      );
-    const f = await fontCache.get(key);
+    const f = await loadFastFont(this.call, key);
     this.fonts.set(key, f);
     this.fonts.set(f.key, f);
     return f;

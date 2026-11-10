@@ -225,6 +225,27 @@
       "args": [
         "tests/page-organization.py"
       ]
+    },
+    {
+      "capability": "Image studio placement, mirrors, rotation, clipping and replacement roundtrips",
+      "runtime": "python",
+      "args": [
+        "tests/image-studio-geometry.py"
+      ]
+    },
+    {
+      "capability": "Single-page inspection equivalence, cache isolation and original paragraph placement",
+      "runtime": "python",
+      "args": [
+        "tests/inspection-source.py"
+      ]
+    },
+    {
+      "capability": "Paragraph whitespace overflow, exact anchors and font coverage invalidation",
+      "runtime": "python",
+      "args": [
+        "tests/paragraph-precision-v250.py"
+      ]
     }
   ],
   "browser": [

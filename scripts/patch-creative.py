@@ -4,6 +4,11 @@ from pathlib import Path
 
 ROOT=Path(__file__).resolve().parents[1]
 def patch(kind, source):
+    def copy_source(name, origin):
+        target=source/name;data=(ROOT/'integrations/creative'/origin).read_bytes()
+        # Preserve mtimes for unchanged modules so repeated builds reuse Cargo's
+        # checked artifacts instead of repeating expensive WASM linking.
+        if not target.exists() or target.read_bytes()!=data:target.write_bytes(data)
     def replace(name, old, new):
         p=source/name; text=p.read_text(encoding='utf-8')
         # Some replacements retain the old anchor inside a larger handler. Others
@@ -13,8 +18,10 @@ def patch(kind, source):
         p.write_text(text.replace(old,new),encoding='utf-8',newline='\n')
     # Folio owns navigation, document naming, menus and zoom. Keep the native
     # canvas, contextual tool options and inspectors, not a second application shell.
-    (source/'crates/ui-egui/src/folio_backdrop.rs').write_bytes((ROOT/'integrations/creative/folio_backdrop.rs').read_bytes())
+    copy_source('crates/ui-egui/src/folio_backdrop.rs','folio_backdrop.rs')
+    copy_source('crates/ui-egui/src/folio_ui_fonts.rs','folio_ui_fonts.rs')
     replace('crates/ui-egui/src/lib.rs','mod canvas;', 'mod canvas;\nmod folio_backdrop;')
+    replace('crates/ui-egui/src/lib.rs','mod folio_backdrop;', 'mod folio_backdrop;\nmod folio_ui_fonts;')
     if kind=='vector':
         replace('crates/ui-egui/Cargo.toml','log = { workspace = true }','log = { workspace = true }\nbase64 = "0.23"')
         p=source/'Cargo.lock';text=p.read_text(encoding='utf-8')
@@ -25,6 +32,7 @@ def patch(kind, source):
             p.write_text(text,encoding='utf-8',newline='\n')
     dispatch='crates/ui-egui/src/control/dispatch.rs' if kind=='photo' else 'crates/ui-egui/src/control.rs'
     if kind=='photo':
+        replace('crates/ui-egui/src/theme.rs','    let size = ui_font_size(ctx);\n    for (name, data) in &mut fonts.font_data {','    crate::folio_ui_fonts::apply(&mut fonts);\n    let size = ui_font_size(ctx);\n    for (name, data) in &mut fonts.font_data {')
         replace('crates/ui-egui/src/app/frame.rs','panels::title_bar(self, ui);','// Folio supplies the application menu and title.')
         replace('crates/ui-egui/src/app/frame.rs','panels::status_bar(self, ui);','// Folio supplies zoom and document status.')
         replace('crates/ui-egui/src/canvas/tabs.rs','if !app.ui.view.hides_tabs() || opening {','if (n > 1 && !app.ui.view.hides_tabs()) || opening {')
@@ -34,6 +42,10 @@ def patch(kind, source):
         replace('crates/ui-egui/src/theme.rs','accent_border: Color32::from_rgba_unmultiplied(108, 92, 231, 120),','accent_border: Color32::from_rgba_unmultiplied(82, 103, 219, 80),')
         replace('crates/ui-egui/src/theme.rs','accent_text: Color32::from_rgb(80, 64, 200),','accent_text: Color32::from_rgb(65, 85, 190),')
         replace('crates/ui-egui/src/canvas.rs','let gpu_ok = crate::gpu_canvas::gpu_view_ok(flip, view.rotation, aspect);','let gpu_ok = !crate::folio_backdrop::active(ctx) && crate::gpu_canvas::gpu_view_ok(flip, view.rotation, aspect);')
+        # egui's shadow includes a filled interior normally hidden by the checker
+        # plane. With a transparent PDF reference it must become an outline.
+        replace('crates/ui-egui/src/canvas.rs','let drop_shadow = border == photocraft_engine::prefs::CanvasBorder::DropShadow;','let drop_shadow = border == photocraft_engine::prefs::CanvasBorder::DropShadow && !crate::folio_backdrop::active(ctx);')
+        replace('crates/ui-egui/src/canvas.rs','if border == photocraft_engine::prefs::CanvasBorder::Line && !beyond && !crate::crop_shield::hides_outside(app) {','if (border == photocraft_engine::prefs::CanvasBorder::Line || crate::folio_backdrop::active(ctx)) && !beyond && !crate::crop_shield::hides_outside(app) {')
         replace('crates/ui-egui/src/canvas.rs','let beyond = draw_beyond_canvas(app, painter, &xf, idx, output);','crate::folio_backdrop::paint(painter, |p| xf.to_screen(p[0], p[1]), None);\n    let beyond = draw_beyond_canvas(app, painter, &xf, idx, output);')
         replace('crates/ui-egui/src/canvas/paint.rs','    match checker {\n        Some((checker_id, square)) if !opaque || tex.is_none() => {','    if !crate::folio_backdrop::active(painter.ctx()) { match checker {\n        Some((checker_id, square)) if !opaque || tex.is_none() => {')
         replace('crates/ui-egui/src/canvas/paint.rs','    if let Some(tex) = tex {\n        if rotated {','    } // Folio reference replaces the checkerboard.\n    if let Some(tex) = tex {\n        if rotated {')
@@ -51,6 +63,7 @@ def patch(kind, source):
         }
         "ui.menu.list" => {''')
     else:
+        replace('crates/ui-egui/src/theme.rs','    add_craft_fonts(&mut fonts);\n    fonts','    add_craft_fonts(&mut fonts);\n    crate::folio_ui_fonts::apply(&mut fonts);\n    fonts')
         replace('crates/ui-egui/src/canvas.rs','    paint_paper(app, st, ui, &painter, &xf, rect, (&t, app.outline_view()));','    paint_paper(app, st, ui, &painter, &xf, rect, (&t, app.outline_view()));\n    crate::folio_backdrop::paint(&painter, |p| xf.to_screen(Point::new(p[0] as f64, p[1] as f64)), None);')
         replace('crates/ui-egui/src/app.rs','chrome::app_bar(self, ui);','// Folio supplies the application menu and title.')
         replace('crates/ui-egui/src/app.rs','chrome::status_bar(self, ui);','// Folio supplies zoom and document status.')
@@ -80,10 +93,11 @@ def patch(kind, source):
         }
         "ui.menu.list" => ok(serde_json::to_value(crate::menus::menu_entries(app)).unwrap_or_default()),''')
     replace(dispatch,'"folio.menu" => {','"folio.backdrop" => match crate::folio_backdrop::configure(ctx, &req.params) { Ok(v) => ok(v), Err(e) => err(e) },\n        "folio.menu" => {')
+    replace(dispatch,'"folio.backdrop" => match','"folio.fonts" => match crate::folio_ui_fonts::configure(ctx, &req.params) { Ok(v) => ok(v), Err(e) => err(e) },\n        "folio.backdrop" => match')
     if kind=='photo':
         web='apps/photocraft-web'
         for name,origin in [('api.rs','photo-api.rs'),('saved_files.rs','saved_files.rs')]:
-            (source/web/'src'/name).write_bytes((ROOT/'integrations/creative'/origin).read_bytes())
+            copy_source(web+'/src/'+name,origin)
         replace(web+'/Cargo.toml','log = { workspace = true }','log = { workspace = true }\nserde_json = { workspace = true }')
         replace(web+'/src/main.rs','mod web;','mod web;\n#[cfg(target_arch = "wasm32")]\nmod api;\n#[cfg(target_arch = "wasm32")]\nmod saved_files;')
         replace(web+'/src/web.rs','type Inbox =','pub(crate) type Inbox =')

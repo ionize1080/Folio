@@ -58,7 +58,9 @@ if (base) {
   if (hash !== sums[`electron-v${version}-win32-x64.zip`])
     throw Error("Official Electron runtime checksum mismatch");
 }
-const out = path.join(root, "dist", "Folio-PDF-Studio-win-x64"),
+const packageName = process.env.FOLIO_PACKAGE_NAME || "Folio-PDF-Studio-win-x64";
+if (!/^[a-zA-Z0-9_-]{1,100}$/.test(packageName)) throw Error("Invalid package output directory name");
+const out = path.join(root, "dist", packageName),
   stage = path.join(root, "dist", "app-stage");
 await fs.rm(out, { recursive: true, force: true });
 await fs.rm(stage, { recursive: true, force: true });

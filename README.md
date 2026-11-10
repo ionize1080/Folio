@@ -4,9 +4,9 @@
 
 A local-first PDF workspace for Windows x64, built for **long-document bookmarks, in-page text and image editing, OCR review, and optional Chatbox AI assistance**. The portable package includes its runtime, fonts and models. No separate Python or Node.js installation is needed.
 
-Version 2.4 adds [integrated raster/vector workspaces](docs/CREATIVE-STUDIO.md), a compact categorized ribbon, thumbnail page organization and direct Word/Excel export. Artwork editors support PDF reference backgrounds, high zoom and shared human/AI control. PDF stores final artwork; `.folio` preserves editable sources and layers.
+Version 2.5 improves [integrated raster/vector workspaces](docs/CREATIVE-STUDIO.md), image orientation and cropping, paragraph editing speed, blank-page insertion and explicit image-provider settings. Both studios use PDF reference backgrounds and share the same manual/AI controls. PDF stores final artwork; `.folio` preserves editable sources and layers.
 
-[Download the Windows x64 portable ZIP](https://github.com/ionize1080/Folio/releases/download/v2.4.0/Folio-PDF-Studio-2.4.0-portable-win-x64.zip) · [2.4.0 release notes](docs/RELEASE-2.4.0.md) · [AI user guide](docs/AI.en.md) · [Documentation](docs/README.md)
+[Download the Windows x64 portable ZIP](https://github.com/ionize1080/Folio/releases/download/v2.5.0/Folio-PDF-Studio-2.5.0-portable-win-x64.zip) · [2.5.0 release notes](docs/RELEASE-2.5.0.md) · [AI user guide](docs/AI.en.md) · [Documentation](docs/README.md)
 
 ## Open your first documents
 
@@ -15,13 +15,13 @@ Version 2.4 adds [integrated raster/vector workspaces](docs/CREATIVE-STUDIO.md),
 3. Apply the edit, then choose **Save** to write the current PDF. With original-file protection enabled, the first save prompts for a copy. Closing an ordinary PDF with pending changes offers Save, Discard or Cancel. For continued work on paragraph structure or reviewed OCR, choose **More tools → Import / Export → Save .folio project**.
 4. Open **Preferences** to choose Cobalt, Celadon, Amber, Mulberry, Graphite or a custom accent. Appearance supports system, light and dark modes. Interface language follows Windows by default. An explicit language choice takes precedence.
 
-The release also includes a [source archive](https://github.com/ionize1080/Folio/releases/download/v2.4.0/Folio-PDF-Studio-2.4.0-source.zip), [checksums](https://github.com/ionize1080/Folio/releases/download/v2.4.0/Folio-PDF-Studio-2.4.0-SHA256.txt) and a [validation report](https://github.com/ionize1080/Folio/releases/download/v2.4.0/Folio-PDF-Studio-2.4.0-validation.json). For an installed copy, use **About → Check for updates**.
+The release also includes a [source archive](https://github.com/ionize1080/Folio/releases/download/v2.5.0/Folio-PDF-Studio-2.5.0-source.zip), [checksums](https://github.com/ionize1080/Folio/releases/download/v2.5.0/Folio-PDF-Studio-2.5.0-SHA256.txt) and a [validation report](https://github.com/ionize1080/Folio/releases/download/v2.5.0/Folio-PDF-Studio-2.5.0-validation.json). For an installed copy, use **About → Check for updates**.
 
 ## Work with Chatbox
 
 Click **AI** and configure your provider, API credentials and tool-capable model in Chatbox settings. Use a vision-capable model to inspect images. Chatbox can compare open documents, report the current physical page and selection, cite pages in a summary, or generate and revise bookmarks.
 
-For a photo, ask for a whole-image preview, then a close-up to check a curve or filter. Apply your chosen candidate at source resolution. For a faded scan, ask for both contrast enhancement and local OCR. You can also replace a rectangle with a local image or embed a flowchart and edit it after reopening the PDF. Generating new pixels requires a separately configured model in **Chatbox → Image Creator**. See the [workflow examples and tested scope](docs/AI.en.md).
+For a photo, ask for a whole-image preview, then a close-up to check a curve or filter. Apply your chosen candidate at source resolution. For a faded scan, ask for both contrast enhancement and local OCR. You can also replace a rectangle with a local image or embed a flowchart and edit it after reopening the PDF. Generating new pixels requires a separately configured model in **Chatbox Settings → Image Model Provider**. See the [workflow examples and tested scope](docs/AI.en.md).
 
 ## Features
 

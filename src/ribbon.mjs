@@ -17,7 +17,7 @@ export function installRibbon(){
     ['photo','图像','Image',['photo-studio','edit-image','graphics-editor']],
     ['vector','矢量','Vector',['vector-studio','graphics-editor','edit-content']],
     ['bookmarks','书签','Bookmarks',['smart-toc','generate','calibrate','calibrate-pages','whitespace','batch','exchange']],
-    ['organize','组织','Organize',['page-organizer','document-assembly','pages']],
+    ['organize','组织','Organize',['insert-blank-page','page-organizer','document-assembly','pages']],
     ['export','导出','Export',['export-word','export-excel','save-as','save-project','exchange','office-import','document-utilities']]
   ];
   let current='home';const selection=document.querySelector('.selection-toolbar');const originalParent=selection.parentNode;

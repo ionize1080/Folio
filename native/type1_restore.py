@@ -85,5 +85,7 @@ def restore_type1(blob,unicode_map,name,segments=None,pdf_encoding=None):
     fb.setupOS2(sTypoAscender=1000,sTypoDescender=-250,usWinAscent=1100,usWinDescent=300,usWeightClass=700 if bold else 400,fsSelection=(32 if bold else 0)|(1 if italic else 0)|(64 if not bold and not italic else 0))
     fb.setupPost(italicAngle=angle);fb.setupCFF(ps,{'FullName':name.split('+')[-1],'FamilyName':name.split('+')[-1],'Weight':weight,'ItalicAngle':angle},chars,{})
     fb.font['head'].macStyle=(1 if bold else 0)|(2 if italic else 0)
+    fb.font.recalcTimestamp=False
+    fb.font['head'].created=fb.font['head'].modified=2082844800
     out=io.BytesIO();fb.save(out)
     return out.getvalue(),set(cmap)

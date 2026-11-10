@@ -1,4 +1,5 @@
 import {applyAppearance, paletteControls, palettes} from "./appearance.mjs";
+import { pdfLoadingOptions } from './pdf-loading.mjs';
 import { bookmarkHTML } from "./bookmark-html.mjs";
 import { buildExportSnapshot } from "./export-snapshot.mjs";
 import {
@@ -597,16 +598,8 @@ async function loadPDF(
     let pdf;
     try {
       pdf = await pdfjs.getDocument({
+        ...pdfLoadingOptions,
         data: new Uint8Array(composedBytes || bytes),
-        cMapUrl: new URL("./vendor/cmaps/", import.meta.url).href,
-        cMapPacked: true,
-        standardFontDataUrl: new URL(
-          "./vendor/standard_fonts/",
-          import.meta.url,
-        ).href,
-        wasmUrl: new URL("./vendor/wasm/", import.meta.url).href,
-        isEvalSupported: false,
-        enableXfa: false,
       }).promise;
     } catch (e) {
       temp.terminate();
@@ -4043,17 +4036,9 @@ async function refreshNative(
           ocrReference: reference,
         });
         return pdfjs.getDocument({
+          ...pdfLoadingOptions,
           data: Uint8Array.from(atob(result.pdf), (c) => c.charCodeAt(0)),
           worker: previewWorker,
-          cMapUrl: new URL("./vendor/cmaps/", import.meta.url).href,
-          cMapPacked: true,
-          standardFontDataUrl: new URL(
-            "./vendor/standard_fonts/",
-            import.meta.url,
-          ).href,
-          wasmUrl: new URL("./vendor/wasm/", import.meta.url).href,
-          isEvalSupported: false,
-          enableXfa: false,
         }).promise;
       },
       async () =>
@@ -4128,6 +4113,7 @@ async function openPageDiff() {
 }
 const pageImages = installPageImages({
   S,
+  contextMenu,
   surface,
   guarded,
   toast,

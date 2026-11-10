@@ -96,3 +96,32 @@ test('a cold same-name system face does not block the first missing keystroke in
     assert.equal(f.measure('原',m).fontKey,'same-name-source');assert.equal(f.measure('新',m).fontKey,'builtin-cjk');f.dispose();
   }finally{restore();}
 });
+
+test('background fallback preload retries transient failures and is shared with a later document',async()=>{
+  const restore=environment(),oldFace=globalThis.FontFace;
+  let releaseCjk,notifications=0;const calls=new Map(),added=[];
+  document.fonts={add:font=>added.push(font.family)};
+  globalThis.FontFace=class{constructor(family){this.family=family;}async load(){return this;}};
+  const call=async(command,{fontKey:key})=>{
+    assert.equal(command,'font-fast');calls.set(key,(calls.get(key)||0)+1);
+    if(key==='builtin-latin'&&calls.get(key)===1)throw Error('worker restarted');
+    if(key==='builtin-cjk')await new Promise(r=>releaseCjk=r);
+    return {key,base64:'AA==',coverage:[...'原新A '].map(c=>c.codePointAt(0)),advances:{}};
+  };
+  try{
+    await assert.rejects(FastFonts.preloadFallback(call),/worker restarted/);
+    const preload=FastFonts.preloadFallback(call);
+    const first=new FastFonts(call,()=>notifications++,{preloadFallback:true});first.dispose();
+    const next=new FastFonts(call,()=>notifications++,{preloadFallback:true});
+    let ready=false;const prepared=next.prepare({text:'原',fontKey:'warm-original'}).then(()=>ready=true);
+    await new Promise(r=>setImmediate(r));assert.equal(ready,false,'entry can continue while CJK font is in flight');
+    assert.equal(calls.get('builtin-latin'),2,'transient failure is retried');
+    assert.equal(calls.get('builtin-cjk'),1,'preload and new document join one in-flight font');
+    releaseCjk();await Promise.all([preload,prepared]);
+    assert.equal(notifications,0,'font warmup cannot notify a closed or unrelated paragraph');
+    assert.equal(next.fonts.get('builtin-cjk').coverage.has('新'.codePointAt(0)),true);
+    assert.equal(added.filter(n=>n==='FolioFast_builtin-cjk').length,1);
+    assert.equal(next.measure('原',{fontKey:'warm-original',size:12}).fontKey,'warm-original');
+    next.dispose();
+  }finally{globalThis.FontFace=oldFace;restore();}
+});

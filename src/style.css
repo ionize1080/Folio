@@ -1917,8 +1917,9 @@ body[data-right="narrow"] .inspector > .panel-rail {
   min-height: 0;
   box-shadow: none;
 }
-.page-edit-hit:hover {
-  background: #739fed0c;
+.page-edit-hit:enabled:hover,
+.page-edit-hit:enabled:active {
+  background: transparent;
   border-color: #84a7db;
 }
 .page-edit-hit.unavailable:hover {
@@ -4436,10 +4437,13 @@ body.dark .page-tile.selected {
   padding: 0;
   cursor: crosshair;
 }
-.image-page-hit:hover,
+.image-page-hit:enabled:hover,
+.image-page-hit:enabled:active,
 .image-page-hit.selected {
   outline: 2px solid #527be1;
-  background: #5280ef0c;
+  /* These buttons are hit regions, not opaque controls. The global toolbar
+     hover rule otherwise paints a solid rectangle over the actual image. */
+  background: transparent;
 }
 .image-adjustments [data-curve] {
   display: block;

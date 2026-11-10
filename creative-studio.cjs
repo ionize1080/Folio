@@ -16,4 +16,19 @@ async function readCreativeAsset(file){
   }else data=await fs.readFile(file);
   return {data:data.toString('base64'),name:path.basename(file),extension:path.extname(file).slice(1).toLowerCase(),bytes:data.length};
 }
-module.exports={readCreativeAsset};
+const uiFontCache=new Map();
+// Only host interface faces are readable here. User supplied font/file paths are
+// never accepted, and Windows font files stay on the user's own computer.
+async function readCreativeUIFonts(language='en'){
+  const locale=language==='zh-Hant'?'zh-Hant':'zh-Hans';
+  if(uiFontCache.has(locale))return uiFontCache.get(locale);
+  const pending=(async()=>{
+    const directory=path.join(process.env.WINDIR||'C:\\Windows','Fonts'),fonts=[];
+    for(const [name,file,index] of [['regular','segoeui.ttf',0],['semibold','seguisb.ttf',0],['mono','consola.ttf',0],['cjk',locale==='zh-Hant'?'msjh.ttc':'msyh.ttc',1]]){
+      try{const data=await fs.readFile(path.join(directory,file));if(data.length<=32*1024*1024)fonts.push({name,index,data:data.toString('base64')});}catch{}
+    }
+    if(!fonts.some(f=>f.name==='cjk')){try{const data=await fs.readFile(path.join(__dirname,'src/vendor/folio-ui.ttf'));fonts.push({name:'cjk',index:0,data:data.toString('base64')});}catch{}}
+    return {fonts,source:'host-interface',language:locale};
+  })();uiFontCache.set(locale,pending);return pending;
+}
+module.exports={readCreativeAsset,readCreativeUIFonts};
