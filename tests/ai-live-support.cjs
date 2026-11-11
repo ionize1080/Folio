@@ -14,6 +14,9 @@ async function configure(chat){
  const config=credentials();
  await chat.waitForFunction(()=>typeof window.folioSettingsReady==='function');
  await chat.evaluate(()=>window.folioSettingsReady());
+ // Let initial tool/provider setup finish before replacing test settings;
+ // otherwise a late startup write can overwrite the configured provider.
+ await chat.waitForFunction(()=>window.folioToolsStatus?.().count>=8,null,{timeout:30000});
  await chat.evaluate(async({key,endpoint,model})=>{
   const s=await window.electronAPI.invoke('getSettings');s.language='zh-Hans';s.messageLayout='left';
   delete s.maxTokens;delete s.maxContextSize;delete s.maxContextMessageCount;
@@ -24,6 +27,15 @@ async function configure(chat){
  },config);
  await chat.reload();await chat.waitForSelector('textarea[placeholder]');await chat.waitForFunction(()=>window.folioToolsStatus().count>=8,{timeout:30000});
  await chat.evaluate(()=>window.folioSettingsReady());
+ const configured=await chat.evaluate(async model=>{
+  const settings=await window.electronAPI.invoke('getSettings');
+  return settings.defaultChatModel?.provider==='acceptance-qwen' && settings.defaultChatModel?.model===model && Boolean(settings.providers?.['acceptance-qwen']?.apiKey);
+ },config.model);
+ if(!configured)throw Error('Live acceptance provider did not persist after startup');
+ // The initial home conversation may have been created before configuration.
+ // Start a new test conversation and verify its actual model before sending.
+ await chat.locator('textarea[placeholder]').first().focus();await chat.keyboard.press('Control+n');
+ await chat.waitForFunction(model=>document.body.innerText.includes(model),config.model,{timeout:30000});
  return {model:config.model};
 }
 async function send(chat,text){

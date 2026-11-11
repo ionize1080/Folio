@@ -5,10 +5,14 @@ const root=path.resolve(__dirname,'..'),out=path.join(root,'tests/output'),pytho
 const sources=new SourceStore(),native=new NativeBridge(path.join(root,'native'),python,sources),fonts=new NativeBridge(path.join(root,'native'),python,sources),background=new NativeBridge(path.join(root,'native'),python,sources),flow=new FlowLayout(path.join(root,'native'),python),warm=new FontWarmup(path.join(root,'native'),python,sources);
 const builtinFonts=new NativeBridge(path.join(root,'native'),python),matches=new NativeBridge(path.join(root,'native'),python);
 const report={checks:[],requests:[],errors:[]},sample=process.env.FOLIO_EDIT_SAMPLE||path.join(out,'editing-260-tagged.pdf'),pageNumber=Number(process.env.FOLIO_EDIT_PAGE||1);
-let browser,saved;
+let browser,page,saved;
 (async()=>{
   browser=await chromium.launch({headless:true,...(process.platform==='win32'?{channel:'chrome'}:{})});
-  const page=await browser.newPage({viewport:{width:1600,height:1100}});page.setDefaultTimeout(60000);
+  page=await browser.newPage({viewport:{width:1600,height:1100},locale:process.env.FOLIO_TEST_LOCALE||'en-US'});page.setDefaultTimeout(60000);
+  const ready=()=>page.waitForFunction(()=>{
+    const status=document.querySelector('#pe-status'),input=document.querySelector('.page-edit-input');
+    return input && !input.disabled && !status?.classList.contains('error') && /完成|complete|ready/i.test(status?.textContent||'');
+  });
   page.on('pageerror',e=>report.errors.push(e.message));
   await page.route('**/*',async route=>{
     const req=route.request(),u=new URL(req.url());if(u.hostname!=='localhost')return route.abort();
@@ -42,10 +46,10 @@ let browser,saved;
   await page.evaluate(n=>window.__qa.goPage(n),pageNumber);await page.evaluate(()=>window.__qa.actions['flow-edit']());
   await page.locator('.page-edit-hit[aria-label^="Adrian Day"]').first().click();
   const input=page.locator('.page-edit-input');
-  await page.waitForFunction(()=>/完成/.test(document.querySelector('#pe-status')?.textContent));
+  await ready();
   const original=await input.inputValue();assert(original.startsWith('Adrian Day'));
   const changed=original.includes('下跌。')?original.replace('下跌。','下跌测试测试。'):original.replace('paragraph','paragraph edited');assert.notEqual(changed,original);
-  await input.fill(changed);await page.waitForFunction(()=>/完成/.test(document.querySelector('#pe-status')?.textContent));
+  await input.fill(changed);await ready();
   await page.screenshot({path:path.join(out,'editing-260-preview.png')});
   await page.locator('#pe-done').click();await page.waitForFunction(()=>!window.__qa.S.flowEdit);
   await page.evaluate(()=>window.__qa.savePDF());assert(saved?.length>0);fs.writeFileSync(path.join(out,'editing-260-ui-saved.pdf'),saved);
@@ -53,13 +57,16 @@ let browser,saved;
   await page.evaluate(bytes=>window.__qa.loadPDF(new Uint8Array(bytes),'Reopened regression.pdf'),Array.from(saved));
   await page.evaluate(n=>window.__qa.goPage(n),pageNumber);await page.evaluate(()=>window.__qa.actions['flow-edit']());
   await page.locator('.page-edit-hit[aria-label^="Adrian Day"]').first().click();
-  await page.waitForFunction(()=>/完成/.test(document.querySelector('#pe-status')?.textContent));
+  await ready();
   assert.equal((await input.inputValue()).replace(/\s/g,''),changed.replace(/\s/g,''));
   await page.screenshot({path:path.join(out,'editing-260-reopened.png')});
   report.checks.push('saved paragraph reopens as one editable unit with exact amended text');
   assert(report.requests.some(r=>r.command==='font-warm-document'));assert.equal(report.errors.length,0,JSON.stringify(report.errors));
-  report.status='passed';report.browser=browser.version();report.sample=path.basename(sample);report.page=pageNumber;
-})().catch(e=>{report.status='failed';report.errors.push(e.stack);process.exitCode=1;}).finally(async()=>{
+  report.status='passed';report.browser=browser.version();report.locale=await page.evaluate(()=>document.documentElement.lang);report.sample=path.basename(sample);report.page=pageNumber;
+})().catch(async e=>{
+  report.status='failed';report.errors.push(e.stack);process.exitCode=1;
+  report.uiState=await page?.evaluate(()=>({locale:document.documentElement.lang,status:document.querySelector('#pe-status')?.textContent,inputDisabled:document.querySelector('.page-edit-input')?.disabled})).catch(()=>null);
+}).finally(async()=>{
   warm.close();native.cancel();fonts.cancel();builtinFonts.cancel();matches.cancel();background.cancel();flow.close();await browser?.close();await sources.close();
   fs.writeFileSync(path.join(out,'editing-260-ui.json'),JSON.stringify(report,null,2));console.log(JSON.stringify(report));
 });
