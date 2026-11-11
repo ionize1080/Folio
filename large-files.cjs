@@ -93,7 +93,7 @@ class LargeFiles {
     await this.entry(handle);
     return result;
   }
-  async save({ handle, outlines }) {
+  async save({ handle, outlines }, onProgress) {
     if (this.saving) throw Error("已有保存任务");
     this.saving = handle;
     let tmp;
@@ -117,7 +117,8 @@ class LargeFiles {
         output: tmp,
         password: e.password,
         outlines,
-      });
+        progress:!!onProgress,
+      },onProgress);
       await this.entry(handle);
       const f = await fs.open(tmp, "r+");
       try {

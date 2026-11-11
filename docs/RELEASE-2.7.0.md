@@ -1,0 +1,23 @@
+# Folio PDF Studio 2.7.0
+
+Folio now saves PDF revisions incrementally, offers bookmark quality checks and richer page organization, and gives more vertical space to the document.
+
+- **Incremental saving:** append changed objects and reuse unchanged image/font streams, including native page-content snapshots and organized-page exports. Later saves of unchanged native content reuse the parsed snapshot. Progress covers resource reuse, serialization, file verification and writing. A complete rewrite remains available in Preferences.
+- **Bookmark tools:** statistics, duplicate/empty titles, hierarchy and destination checks, optional public-link checks, batch repair, node-only or subtree deletion, interval generation with title templates, and stable hierarchical sorting.
+- **Reading:** character-level text hit testing, a uniform selection overlay, configurable wheel speed and destination-marker visibility/color. Bookmark navigation resolves its final position before scrolling.
+- **Page organization:** range/parity and marquee selection, insertion, blank pages, paired replacement, annotation/form options, rotation, crop, aspect-preserving resize, canvas-only resize and split/export.
+- **Annotations:** curated and custom colors, opacity, line weight/dashes, underline, squiggle, strikeout, rectangle, ink and translucent freehand marker appearances.
+- **Studios:** resize the canvas with handles against a PDF reference; optional expansion grows only when artwork crosses the canvas. Drawing scale remains stable, including round shapes. Live sessions reopen, and `.folio` project saves capture editable sources and automatic-canvas settings.
+- **Compact interface:** custom Windows title bar with Save/Undo/Redo, document tabs and window controls. Reading controls share the bottom status bar. Common-tab commands remain available.
+- **Updates:** Chrome-compatible request headers, validated resumable parallel downloads and Markdown release notes.
+- **Printing:** thumbnail/range/parity selection, copies, collation, grayscale and long/short-edge duplex. Handouts support custom grids, four page orders, borders, margins, gaps, subpage dimensions and draggable position/uniform scale. Booklets support left/right binding, automatic padding, signatures and separate front/back passes. The shared preview/output layout can also be saved as a PDF. Select a printer directly to preserve the application's settings; the system dialog remains available.
+
+Local integrity validation used three real PDFs, 69 successive edited states and 4,960 page comparisons. MuPDF compared every page's text and rendered pixels against a complete-save reference; PDFium independently rendered sample pages, and pypdf traversed reachable references. The campaign covers text, native paragraph outputs, images, vector drawing, OCR text, comments, forms, metadata, bookmarks, rotation, crop, page insertion/deletion/reordering/replacement, resizing, extraction and undo. This is evidence for the tested files, not a guarantee for every PDF.
+
+In a local 96 MiB / 300-page / 1,000-bookmark benchmark, renaming one bookmark appended **414 bytes** and changed one object. Serialization plus in-memory assembly measured about **3× faster** than a full rewrite; this figure excludes disk verification and flushing and is not an end-to-end guarantee.
+
+Release verification now builds and archives once, tests the exact ZIP across four parallel package jobs, and runs installer/update checks separately. Artwork UI, placement and page organization also have separate jobs. Publication validates commit/run identities and artifact hashes without rebuilding or repeating the test suite.
+
+Microsoft Print to PDF was exercised through the actual Windows driver: an eight-page booklet produced four correctly ordered A4 landscape faces, and a four-up grayscale handout produced two A4 portrait faces. Independent pixel checks verified page positions, colors and physical dimensions. This caught and fixed native-dialog orientation overrides and a driver-DPI mismatch that reduced physical print size. Automated checks also cover right binding, blank padding, manual backs, borders, spacing, dragging and PDF export.
+
+Incremental files retain earlier revisions; use a complete rewrite when old content must be removed or accumulated history reclaimed. Web-link checks report inaccessible/blocked links as uncertain rather than dead. Printing uses rendered pages (300 DPI by default, 150/600 available, bounded per-page memory); it does not alter the vector content in the PDF. Physical-printer duplex feeding and driver-specific capabilities still require device testing. Folio does not claim complete Acrobat or PDF-XChange feature parity.

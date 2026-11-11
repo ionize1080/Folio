@@ -1,8 +1,8 @@
 """Reorder pages with original resources, annotations and remapped outlines."""
 import base64,io,math,tempfile
 from pathlib import Path
-from pypdf import PdfReader,PdfWriter
-from pypdf.generic import RectangleObject,ArrayObject,NameObject,NumberObject
+from pypdf import PdfReader,PdfWriter,Transformation
+from pypdf.generic import RectangleObject,ArrayObject,NameObject,NumberObject,Fit
 
 def process(args):
     options=args.get('options') or {};order=options.get('order')
@@ -32,7 +32,7 @@ def process(args):
             entry=order[i];number=entry.get('page')
             if type(number)!=int or not 1<=number<=len(reader.pages):raise ValueError('页面编号无效')
             group.append(entry);i+=1
-        start=len(writer.pages);writer.append(reader,pages=[e['page']-1 for e in group],import_outline=True)
+        start=len(writer.pages);writer.append(reader,pages=[e['page']-1 for e in group],import_outline=source!='current')
     # append() remaps links only within each imported group. A target can be in
     # another group after insertion/reordering, so rebuild internal links using
     # the final page map before any scale/crop changes their annotation rectangles.
@@ -40,6 +40,21 @@ def process(args):
     ref_maps={source:{(p.indirect_reference.idnum,p.indirect_reference.generation):n for n,p in enumerate(reader.pages) if p.indirect_reference} for source,reader in readers.items()}
     for index,item in enumerate(order):
         if not item.get('blank'):page_map.setdefault((item.get('source','current'),item['page']-1),index)
+        if item.get('replaces'):
+            old=item['replaces'];page_map[(old.get('source','current'),old['page']-1)]=index
+    # Import current outlines once against the final map. This preserves the
+    # targets of replaced pages and avoids duplicating outlines per page group.
+    def outlines(items,parent=None):
+        previous=parent
+        for item in items:
+            if isinstance(item,list):outlines(item,previous);continue
+            number=current.get_destination_page_number(item)
+            target=page_map.get(('current',number))
+            if target is None:previous=parent;continue
+            previous=writer.add_outline_item(str(item.title),target,parent=parent,
+                color=item.get('/C'),bold=bool(int(item.get('/F',0))&2),italic=bool(int(item.get('/F',0))&1),
+                fit=Fit(str(item.typ),list(item.dest_array)[2:]),is_open=int(item.get('/Count',0))>=0)
+    outlines(current.outline)
     for index,item in enumerate(order):
         if item.get('blank'):continue
         source=item.get('source','current');reader=readers[source];original=reader.pages[item['page']-1];page=writer.pages[index]
@@ -67,11 +82,39 @@ def process(args):
         if existing or links:page[NameObject('/Annots')]=ArrayObject(existing+links)
         else:page.pop('/Annots',None)
     for offset,item in enumerate(order):
-        page=writer.pages[offset];rotation=item.get('rotation',0)
+        page=writer.pages[offset];page.pdf=writer;rotation=item.get('rotation',0)
+        if item.get('copyAnnotations') is False or item.get('copyForms') is False:
+            kept=[]
+            for ref in page.get('/Annots',[]):
+                a=ref.get_object();widget=a.get('/Subtype')=='/Widget'
+                if (widget and item.get('copyForms') is not False) or (not widget and item.get('copyAnnotations') is not False):kept.append(ref)
+            page[NameObject('/Annots')]=ArrayObject(kept)
+        if item.get('keepTargetAnnotations') and item.get('replaces'):
+            old=item['replaces'];target=readers[old.get('source','current')].pages[old['page']-1]
+            kept=list(page.get('/Annots',[]))
+            for ref in target.get('/Annots',[]):
+                a=ref.get_object().clone(writer,force_duplicate=True);a[NameObject('/P')]=page.indirect_reference
+                kept.append(writer._add_object(a))
+            page[NameObject('/Annots')]=ArrayObject(kept)
         if type(rotation)!=int or rotation%90:raise ValueError('页面旋转须为 90° 的倍数')
         if rotation:page.rotate(rotation)
         if item.get('size'):
-            width,height=map(dimension,item['size']);page.scale_to(width,height)
+            width,height=map(dimension,item['size']);resize=item.get('resize') or {}
+            if resize.get('canvasOnly'):
+                b=page.mediabox;page.mediabox=RectangleObject([b.left,b.bottom,b.left+width,b.bottom+height]);page.cropbox=page.mediabox
+            elif resize.get('keepAspect'):
+                b=page.mediabox;scale=min(width/float(b.width),height/float(b.height))
+                dx=(width-float(b.width)*scale)/2-float(b.left)*scale;dy=(height-float(b.height)*scale)/2-float(b.bottom)*scale
+                page.scale(scale,scale);page.add_transformation(Transformation().translate(dx,dy))
+                # scale() updates annotation rectangles; move their geometry with the content.
+                for ref in page.get('/Annots',[]):
+                    a=ref.get_object()
+                    for key in ['/Rect','/QuadPoints']:
+                        if key in a:
+                            from pypdf.generic import FloatObject
+                            a[NameObject(key)]=ArrayObject([FloatObject(float(v)+(dx if i%2==0 else dy)) for i,v in enumerate(a[key])])
+                page.mediabox=RectangleObject([0,0,width,height]);page.cropbox=page.mediabox
+            else:page.scale_to(width,height)
         if item.get('crop'):
             left,top,right,bottom=map(float,item['crop']);box=page.cropbox
             if not all(math.isfinite(v) and v>=0 for v in (left,top,right,bottom)) or left+right>=box.width or top+bottom>=box.height:raise ValueError('裁剪须保留可见页面')

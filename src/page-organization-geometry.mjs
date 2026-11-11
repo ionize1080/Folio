@@ -12,6 +12,15 @@ export function organizerGeometry(item,info) {
   const base=info||{media:{x:0,y:0,width:item.width,height:item.height},crop:{x:0,y:0,width:item.width,height:item.height},rotation:0,userUnit:1};
   const {media,crop}=base,userUnit=base.userUnit||1;
   if(![media.width,media.height,userUnit].every(n=>Number.isFinite(n)&&n>0))throw Error('页面尺寸无效');
+  if(item.size&&(item.resize?.keepAspect||item.resize?.canvasOnly)){
+    const [nw,nh]=item.size,canvasOnly=item.resize.canvasOnly,s=canvasOnly?1:Math.min(nw/media.width,nh/media.height);
+    const dx=canvasOnly?-media.x:(nw-media.width*s)/2-media.x*s,dy=canvasOnly?-media.y:(nh-media.height*s)/2-media.y*s;
+    const [left,top,right,bottom]=item.crop||[0,0,0,0],w=nw-left-right,h=nh-top-bottom;
+    if(![w,h].every(v=>Number.isFinite(v)&&v>0))throw Error('裁剪须保留可见页面');
+    const cx=Math.max(media.x,crop.x),cy=Math.max(media.y,crop.y),cw=Math.min(media.x+media.width,crop.x+crop.width)-cx,ch=Math.min(media.y+media.height,crop.y+crop.height)-cy;
+    const rotation=((base.rotation+(item.rotation||0))%360+360)%360,turned=rotation%180!==0;
+    return {width:w*userUnit,height:h*userUnit,rotation,displayedSize:turned?[h*userUnit,w*userUnit]:[w*userUnit,h*userUnit],sourceRect:[0,0,1,1],destRect:[(cx*s+dx-left)*userUnit,(nh-top-((cy+ch)*s+dy))*userUnit,cw*s*userUnit,ch*s*userUnit]};
+  }
   const sx=item.size?item.size[0]/media.width:1,sy=item.size?item.size[1]/media.height:1;
   if(![sx,sy].every(n=>Number.isFinite(n)&&n>0))throw Error('页面尺寸无效');
   const scale=b=>[b.x*sx,b.y*sy,(b.x+b.width)*sx,(b.y+b.height)*sy];

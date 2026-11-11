@@ -1,6 +1,11 @@
 const paths = {
   archive: 'M4 3h16v5H4z M6 8v13h12V8 M10 12h4',
   print: 'M7 8V3h10v5 M7 17H3V9h18v8h-4 M7 14h10v7H7z M17 11h1',
+  'rotate-left': 'M4 7V2 M4 7h5 M4 7a9 9 0 1 1-1 9',
+  'rotate-half': 'M3 9a9 9 0 0 1 17-2 M20 3v4h-4 M21 15a9 9 0 0 1-17 2 M4 21v-4h4 M9 9h6v6H9z',
+  'bookmark-qc': 'M5 3h11v10 M5 3v18l5-3 M14 18l3 3 5-7 M8 7h5 M8 10h4',
+  'bookmark-interval': 'M4 3h10v18l-5-3-5 3z M18 4h3 M18 10h3 M18 16h3 M19.5 4v12',
+  'bookmark-sort': 'M4 5h10 M4 10h7 M4 15h4 M18 3v18 M15 18l3 3 3-3',
   'archive-check': 'M3 3h16v5H3z M5 8v13h7 M9 12h4 M14 18l3 3 5-7',
   'print-check': 'M7 8V3h10v5 M7 17H3V9h18v4 M7 14h5v7H7z M15 18l2 2 5-6',
   accessibility: 'M12 2a2 2 0 1 0 0 4 2 2 0 0 0 0-4 M3 8l9 2 9-2 M12 10v5 M7 22l5-7 5 7',

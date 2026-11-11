@@ -19,7 +19,10 @@ def outline_info(doc):
             for r,ref in zip(toc,refs)]
 
 
-def process(args):
+def process(args, emit=None):
+    def progress(stage,percent,**details):
+        if emit and args.get('progress'):emit({'progress':{'stage':stage,'percent':percent,**details}})
+    progress('prepare',1)
     with open_document(args) as doc:
         if args['command'] in ('large-page','large-text'):
             page=args.get('page')
@@ -54,7 +57,13 @@ def process(args):
             if not old and not ident.startswith('new-'):raise ValueError('原始书签身份已失效')
         if not doc.can_save_incrementally():raise ValueError('此文件需要完整重写，当前大文件书签通道不支持；原件未改变')
     if os.path.realpath(args['input'])==os.path.realpath(args['output']):raise ValueError('请另存为副本')
-    shutil.copyfile(args['input'],args['output'])
+    total=os.path.getsize(args['input']);copied=0
+    with open(args['input'],'rb') as source,open(args['output'],'wb') as output:
+        while True:
+            chunk=source.read(8*1024*1024)
+            if not chunk:break
+            output.write(chunk);copied+=len(chunk)
+            progress('copy',2+copied/max(1,total)*68,completed=copied,total=total)
     with open_document({**args,'input':args['output']}) as doc:
         root_key=doc.xref_get_key(doc.pdf_catalog(),'Outlines')
         if root_key[0]=='xref':root=int(root_key[1].split()[0])
@@ -71,27 +80,31 @@ def process(args):
             stack=stack[:row['level']];parent=stack[-1];stack.append(ref)
             children.setdefault(parent,[]).append(ref);children.setdefault(ref,[])
             doc.xref_set_key(ref,'Parent',f'{parent} 0 R');allocated.append(ref)
-        def descendants(ref):return sum(1+descendants(c) for c in children[ref])
-        for ref,siblings in children.items():
-            old_count=doc.xref_get_key(ref,'Count');collapsed=old_count[0]=='int' and int(old_count[1])<0
+        # Parents precede children. One reverse pass avoids rewalking every
+        # subtree, which became quadratic with deeply nested bookmarks.
+        collapsed={}
+        for ref in children:
+            value=doc.xref_get_key(ref,'Count');collapsed[ref]=value[0]=='int' and int(value[1])<0
+        totals={};visible={}
+        for ref in reversed(children):
+            totals[ref]=sum(1+totals[c] for c in children[ref])
+            visible[ref]=sum(1+(0 if collapsed[c] else visible[c]) for c in children[ref])
+        for index,(ref,siblings) in enumerate(children.items()):
             for key,value in [('First',f'{siblings[0]} 0 R' if siblings else 'null'),('Last',f'{siblings[-1]} 0 R' if siblings else 'null')]:doc.xref_set_key(ref,key,value)
             # Count should be the number of visible descendants; retain collapse
             # state while recomputing hierarchy after edits.
-            def visible(r):
-                total=0
-                for c in children[r]:
-                    total+=1
-                    count=doc.xref_get_key(c,'Count')
-                    if count[0]!='int' or int(count[1])>=0:total+=visible(c)
-                return total
-            count=descendants(ref) if collapsed else visible(ref)
-            doc.xref_set_key(ref,'Count',str(-count if collapsed else count))
+            count=-totals[ref] if collapsed[ref] else visible[ref]
+            doc.xref_set_key(ref,'Count',str(count))
             for i,child in enumerate(siblings):
                 doc.xref_set_key(child,'Prev',f'{siblings[i-1]} 0 R' if i else 'null')
                 doc.xref_set_key(child,'Next',f'{siblings[i+1]} 0 R' if i+1<len(siblings) else 'null')
+            if index%1000==0:progress('outlines',70+20*index/max(1,len(children)))
+        progress('write',92)
         doc.saveIncr()
+    progress('verify',96)
     with open_document({**args,'input':args['output']}) as check:
         actual=outline_info(check)
         if [(r['level'],r['title'],r['page']) for r in actual] != [(r['level'],r['title'],r['page']) for r in rows]:
             raise ValueError('书签写回校验失败，未替换目标文件')
+    progress('complete',100)
     return {'verified':True,'bookmarks':len(rows),'bytes':os.path.getsize(args['output'])}

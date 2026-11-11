@@ -4,6 +4,17 @@ import base64, gzip, hashlib, json, os, sys
 
 ROOT = Path(__file__).resolve().parents[1]
 SUITES = {
+    'saveintegrity': ['incremental-corpus-270.json', 'save-performance-270.json'],
+    'creativeui270': ['design-251.json', 'close-251.json', 'refinements-251.json'],
+    'creativeplacement': ['creative-ui.json', 'creative-experience.json'],
+    'organizer': ['organizer-ui.json'],
+    'build270': ['package-report.json', 'update-python-201.json'],
+    'packaged1': ['packaged-1-270.json', 'creative-embedded.json'],
+    'packaged2': ['packaged-2-270.json', 'design-251.json', 'organizer-ui.json', 'printing-270.json', 'printing-270-render-checks.json', 'workbench-ui-report.json', 'engineering-ui-report.json', 'studio-canvas-270.json', 'close-251.json', 'conversion-scan-report.json', 'pdf-loading-packaged-report.json'],
+    'packaged3': ['packaged-3-270.json', 'refinements-251.json', 'creative-ui.json', 'graphics-220-ui.json', 'selection-270.json', 'packaged-ai.json', 'organizer-geometry.json', 'export-review-251.json'],
+    'packaged4': ['packaged-4-270.json', 'creative-experience.json', 'creative-engines.json', 'image-provider-ui.json', 'workflow-250.json', 'workspace-210.json', 'studio-270-ui.json', 'studio-270-native.json', 'image-studio-ui.json'],
+    'packageupdate': ['editing-260-package.json', 'v162-health-report.json', 'v201-updater-report.json'],
+} | {
     **{'editing'+str(n):['editing-'+str(n)+'-260.json'] for n in range(1,5)},
     'editingui':['editing-260-ui.json','editing-260-native.json'],
     **{'native'+str(n):['native-'+str(n)+'-regression-report.json'] for n in range(1,7)},

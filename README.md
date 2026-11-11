@@ -4,9 +4,9 @@
 
 A local-first PDF workspace for Windows x64, built for **long-document bookmarks, in-page text and image editing, OCR review, and optional Chatbox AI assistance**. The portable package includes its runtime, fonts and models. No separate Python or Node.js installation is needed.
 
-Version 2.5 improves [integrated raster/vector workspaces](docs/CREATIVE-STUDIO.md), image orientation and cropping, paragraph editing speed, blank-page insertion and explicit image-provider settings. Both studios use PDF reference backgrounds and share the same manual/AI controls. PDF stores final artwork; `.folio` preserves editable sources and layers.
+Version 2.7 adds incremental saving, bookmark quality checks and batch tools, richer page organization, and booklet/handout printing with an editable preview. A compact title bar and bottom reading controls leave more room for documents. The [raster/vector studios](docs/CREATIVE-STUDIO.md) support canvas handles and automatic expansion; `.folio` projects preserve editable sources and layers.
 
-[Download the Windows x64 portable ZIP](https://github.com/ionize1080/Folio/releases/download/v2.6.0/Folio-PDF-Studio-2.6.0-portable-win-x64.zip) · [2.6.0 release notes](docs/RELEASE-2.6.0.md) · [AI user guide](docs/AI.en.md) · [Documentation](docs/README.md)
+[Download the Windows x64 portable ZIP](https://github.com/ionize1080/Folio/releases/download/v2.7.0/Folio-PDF-Studio-2.7.0-portable-win-x64.zip) · [2.7.0 release notes](docs/RELEASE-2.7.0.md) · [AI user guide](docs/AI.en.md) · [Documentation](docs/README.md)
 
 ## Open your first documents
 
@@ -15,7 +15,7 @@ Version 2.5 improves [integrated raster/vector workspaces](docs/CREATIVE-STUDIO.
 3. Apply the edit, then choose **Save** to write the current PDF. With original-file protection enabled, the first save prompts for a copy. Closing an ordinary PDF with pending changes offers Save, Discard or Cancel. For continued work on paragraph structure or reviewed OCR, choose **More tools → Import / Export → Save .folio project**.
 4. Open **Preferences** to choose Cobalt, Celadon, Amber, Mulberry, Graphite or a custom accent. Appearance supports system, light and dark modes. Interface language follows Windows by default. An explicit language choice takes precedence.
 
-The release also includes a [source archive](https://github.com/ionize1080/Folio/releases/download/v2.6.0/Folio-PDF-Studio-2.6.0-source.zip), [checksums](https://github.com/ionize1080/Folio/releases/download/v2.6.0/Folio-PDF-Studio-2.6.0-SHA256.txt) and a [validation report](https://github.com/ionize1080/Folio/releases/download/v2.6.0/Folio-PDF-Studio-2.6.0-validation.json). For an installed copy, use **About → Check for updates**.
+The release also includes a [source archive](https://github.com/ionize1080/Folio/releases/download/v2.7.0/Folio-PDF-Studio-2.7.0-source.zip), [checksums](https://github.com/ionize1080/Folio/releases/download/v2.7.0/Folio-PDF-Studio-2.7.0-SHA256.txt) and a [validation report](https://github.com/ionize1080/Folio/releases/download/v2.7.0/Folio-PDF-Studio-2.7.0-validation.json). For an installed copy, use **About → Check for updates**.
 
 ## Work with Chatbox
 

@@ -14,6 +14,8 @@ import {
   StandardFonts,
 } from "./vendor/pdf-lib.js";
 import { MODES, validate, uid, childrenMap } from "./model.mjs";
+import {forkDocument,graftDocument,incrementalRevision,joinRevision,reserveOriginalRefs,removeUnreachable} from './incremental-pdf.mjs';
+import {annotationStyle,annotationTypes,appearanceCommands} from './annotation-style.mjs';
 const N = (s) => PDFName.of(s),
   str = (o) =>
     o instanceof PDFString || o instanceof PDFHexString
@@ -45,12 +47,14 @@ function readableRaw(o) {
 }
 export class PdfEngine {
   async open(bytes) {
+    this.savedEngine=null;this.pendingSave=null;this.baseHash=null;
     this.bytes = bytes;
     this.doc = await PDFDocument.load(bytes, {
       updateMetadata: false,
       throwOnInvalidObject: true,
     });
     this.pages = this.doc.getPages();
+    this.incrementalSafe=reserveOriginalRefs(this.doc,bytes);
     this.refs = new Map(this.pages.map((p, i) => [p.ref.toString(), i + 1]));
     this.warnings = [];
     const ctx = this.doc.context;
@@ -201,6 +205,10 @@ export class PdfEngine {
         sourceRef,
         target: {
           kind: "preserve",
+          actionType: action instanceof PDFDict ? str(action.get(N("S"))) : null,
+          uri:action instanceof PDFDict ? str(this.lookup(action.get(N("URI")))) : null,
+          hasNext:action instanceof PDFDict && !!action.get(N("Next")),
+          external:action instanceof PDFDict && ["URI","GoToR","Launch"].includes(str(action.get(N("S")))),
           ...(parsed || {}),
           label: parsed
             ? parsed.named
@@ -312,10 +320,12 @@ export class PdfEngine {
       return;
     }
     const root = ctx.obj({ Type: "Outlines" }),
-      rootRef = ctx.register(root),
+      previousRoot=this.doc.catalog.get(N('Outlines')),
+      rootRef = previousRoot instanceof PDFRef?previousRoot:ctx.register(root),
       dicts = new Map(),
       refs = new Map(),
       children = childrenMap(nodes);
+    ctx.assign(rootRef,root);
     for (const n of nodes) {
       const src = this.sources.get(n.sourceRef),
         d = ctx.obj({});
@@ -357,7 +367,10 @@ export class PdfEngine {
         );
       } else if (!src) throw Error("原始动作已失去来源，请重新指定该书签目标");
       dicts.set(n.id, d);
-      refs.set(n.id, ctx.register(d));
+      let ref=this.outlineRefs?.get(n.id);
+      if(!ref&&this.reuseSourceRefs!==false&&src){const match=/^(\d+) (\d+) R$/.exec(n.sourceRef||'');if(match)ref=PDFRef.of(+match[1],+match[2]);}
+      if(ref)ctx.assign(ref,d);else ref=ctx.register(d);
+      refs.set(n.id,ref);
     }
     // Count is the number of visible descendants if this node were open, not total descendants.
     const visible = new Map();
@@ -393,6 +406,7 @@ export class PdfEngine {
       ),
     );
     this.doc.catalog.set(N("Outlines"), rootRef);
+    this.outlineRefs=refs;
   }
   async save({
     nodes,
@@ -401,11 +415,25 @@ export class PdfEngine {
     metadata = null,
     showBookmarks = true,
     contentBytes = null,
-  }) {
-    // Work on a new document for each save so repeated saves never duplicate annotations or objects.
+    contentRevision = null,
+    incrementalResult = false,
+    baseHash = null,
+    compact = false,
+  }, progress = () => {}) {
+    progress({stage:'准备保存',completed:0,total:1});
+    const previous=this.savedEngine||this;
+    const reuseContent=!!contentRevision&&previous.contentRevision===contentRevision;
+    let base=previous;
+    if(contentBytes&&!reuseContent){base=new PdfEngine();await base.open(contentBytes);}
+    else if(!contentBytes&&previous.contentRevision)base=this;
     const working = new PdfEngine();
-    await working.open(contentBytes || this.bytes);
-    if (contentBytes) {
+    const fork=forkDocument(base.doc);
+    working.doc=fork.doc;working.bytes=base.bytes;
+    working.pages=working.doc.getPages();working.refs=base.refs;
+    working.lookup=o=>working.doc.context.lookup(o);
+    working.sources=new Map([...base.sources].map(([key,value])=>[key,fork.copy(value)]));
+    working.sourceSignatures=base.sourceSignatures;
+    if (contentBytes&&!reuseContent) {
       const keys = [...this.sources.keys()],
         values = [...working.sources.values()];
       if (
@@ -417,6 +445,18 @@ export class PdfEngine {
         throw Error("内容预览的原始书签来源发生变化，请重新打开文档");
       working.sources = new Map(keys.map((key, i) => [key, values[i]]));
     }
+    // Previous Folio annotations are replaced by the current undoable snapshot.
+    // Existing annotations belonging to other editors remain untouched.
+    for(const [number,refs] of base.addedAnnotations||[]) {
+      const page=working.pages[number-1],list=page.node.lookup(N('Annots'));
+      if(list instanceof PDFArray)page.node.set(N('Annots'),working.doc.context.obj(list.asArray().filter(r=>!refs.has(r.toString()))));
+    }
+    working.addedAnnotations=new Map();
+    for(const p of Object.keys(base.appliedRotations||{}))if(!Object.hasOwn(rotations,p))
+      working.pages[Number(p)-1].setRotation(degrees(this.pages[Number(p)-1].getRotation().angle));
+    working.appliedRotations=rotations;
+    working.contentRevision=contentBytes?contentRevision||crypto.randomUUID():null;
+    working.outlineRefs=base.outlineRefs;working.reuseSourceRefs=!contentBytes||reuseContent;
     working.writeOutlines(nodes);
     for (const [p, a] of Object.entries(rotations)) {
       if (!working.pages[Number(p) - 1] || !Number.isFinite(a) || a % 90)
@@ -436,12 +476,33 @@ export class PdfEngine {
       );
     }
     if (showBookmarks) working.doc.catalog.set(N("PageMode"), N("UseOutlines"));
-    return working.doc.save({
+    else if(working.doc.catalog.get(N('PageMode'))===N('UseOutlines'))working.doc.catalog.delete(N('PageMode'));
+    if(base!==previous&&!compact&&previous.incrementalSafe!==false){
+      const imported=await graftDocument(previous.doc,working.doc,progress);
+      working.doc=imported.doc;working.pages=working.doc.getPages();working.refs=new Map(working.pages.map((p,i)=>[p.ref.toString(),i+1]));
+      working.sources=new Map([...working.sources].map(([k,v])=>[k,imported.copy(v)]));
+      working.outlineRefs=new Map([...(working.outlineRefs||[])].map(([k,v])=>[k,imported.copy(v)]));
+      working.addedAnnotations=new Map([...working.addedAnnotations].map(([k,v])=>[k,new Set([...v].map(ref=>imported.refs.get(ref).toString()))]));
+      base=previous;working.bytes=base.bytes;
+    }
+    const revision=compact||base.incrementalSafe===false?null:await incrementalRevision(base.doc,working.doc,base.bytes,progress);
+    const complete=revision?null:forkDocument(working.doc).doc;
+    working.doc.folioWrittenRefs=revision?revision.writtenRefs:removeUnreachable(complete);
+    const bytes=revision?joinRevision(base.bytes,revision.delta):await complete.save({
       useObjectStreams: true,
       objectsPerTick: 100,
       addDefaultPage: false,
     });
+    if(incrementalResult){
+      working.incrementalSafe=reserveOriginalRefs(working.doc,bytes);
+      working.bytes=bytes;this.pendingSave=working;
+      const append=!!revision && !!baseHash && baseHash===base.baseHash;
+      return {bytes:append?revision.delta:bytes.slice(),append,baseLength:base.bytes.length,baseHash:base.baseHash,
+        mode:revision?'incremental':'full',objects:revision?.objects,deltaBytes:revision?.delta.length,totalBytes:bytes.length};
+    }
+    return bytes;
   }
+  commitSave({sha256}){if(!this.pendingSave)throw Error('没有待确认的保存');this.pendingSave.baseHash=sha256;this.savedEngine=this.pendingSave;this.pendingSave=null;return true;}
   addAnnotation(a) {
     const page = this.pages[a.page - 1];
     if (!page) throw Error("批注页码无效");
@@ -452,16 +513,13 @@ export class PdfEngine {
       r.some((x) => !Number.isFinite(x))
     )
       throw Error("批注坐标无效");
+    const style=annotationStyle(a);
     const ctx = this.doc.context,
       color = [1, 3, 5].map(
-        (i) => parseInt((a.color || "#f3c640").slice(i, i + 2), 16) / 255,
+        (i) => parseInt(style.color.slice(i, i + 2), 16) / 255,
       ),
       sub =
-        a.type === "highlight"
-          ? "Highlight"
-          : a.type === "rectangle"
-            ? "Square"
-            : "Text";
+        annotationTypes[a.type];
     const obj = {
       Type: "Annot",
       Subtype: sub,
@@ -479,13 +537,22 @@ export class PdfEngine {
           "Z",
       ),
     };
-    if (sub === "Highlight") {
+    if (['Highlight','Underline','StrikeOut','Squiggly'].includes(sub)) {
       obj.QuadPoints = [r[0], r[3], r[2], r[3], r[0], r[1], r[2], r[1]];
-      obj.CA = 0.35;
+      obj.CA = style.opacity;
     } else if (sub === "Square") {
-      obj.BS = ctx.obj({ W: 1.5, S: "S" });
+      obj.BS = ctx.obj({ W: style.width, S: a.dash&&a.dash!=='solid'?'D':'S',D:a.dash==='dotted'?[1,3]:[5,3] });
     } else obj.Name = N("Comment");
-    page.node.addAnnot(ctx.register(ctx.obj(obj)));
+    obj.CA=style.opacity;
+    if(sub==='Ink'){obj.InkList=a.paths;obj.BS=ctx.obj({W:style.width,S:'S'});}
+    if(sub!=='Text'){
+      const gs=ctx.obj({Type:'ExtGState',CA:style.opacity,ca:style.opacity,BM:['highlight','marker'].includes(a.type)?'Multiply':'Normal'});
+      const appearance=ctx.flateStream(appearanceCommands(a,style,color),{Type:'XObject',Subtype:'Form',BBox:r,Resources:ctx.obj({ExtGState:ctx.obj({GS:gs})})});
+      obj.AP=ctx.obj({N:ctx.register(appearance)});
+    }
+    const ref=ctx.register(ctx.obj(obj)),list=page.node.lookup(N('Annots'));
+    page.node.set(N('Annots'),ctx.obj([...(list instanceof PDFArray?list.asArray():[]),ref]));
+    if(this.addedAnnotations){if(!this.addedAnnotations.has(a.page))this.addedAnnotations.set(a.page,new Set());this.addedAnnotations.get(a.page).add(ref.toString());}
   }
   async extractPages(indices) {
     if (

@@ -1,3 +1,5 @@
+import {installTextSelection} from './text-selection.mjs';
+import {scrollDelta} from './scroll-preferences.mjs';
 // Virtual page surface. PDF coordinates are always transformed by PDF.js viewports.
 export class PageSurface {
   constructor(pdfjs, host, state, settings, onActive, onError) {
@@ -28,6 +30,7 @@ export class PageSurface {
     this.space = false;
     this.lastWheel = 0;
     this.boundary = 0;
+    this.textSelection=installTextSelection(this);
     host.addEventListener("pointerdown", (e) => {
       if (!(this.space || this.hand) || e.button !== 0) return;
       e.preventDefault();
@@ -342,7 +345,7 @@ export class PageSurface {
     );
     const b = visible.find((b) => b.page === this.s.page) || wanted[0];
     if (editingBox) this.activate(editingPage);
-    else if (b) this.activate(b.page);
+    else if (b&&!this.navigating) this.activate(b.page);
     this.scheduleTiles();
   }
   async ensure(b) {
@@ -355,7 +358,7 @@ export class PageSurface {
       text = document.createElement("div"),
       marks = document.createElement("div"),
       draw = document.createElement("div");
-    text.className = "textLayer";
+    text.className = "textLayer precise-text-layer";
     marks.className = "marks";
     draw.className = "draw";
     shell.style.background = "transparent";
@@ -432,6 +435,7 @@ export class PageSurface {
         viewport: vp,
       });
       await e.textTask.render();
+      this.textSelection.schedule();
       if (e.cancelled) return;
       shell.dataset.ready = "true";
     })().catch((err) => {
@@ -651,48 +655,27 @@ export class PageSurface {
   }
   async go(page, target = null, history = true) {
     if (!this.s.pdf) return;
-    const nav = ++this.navigation;
-    if (history) this.remember();
-    page = Math.max(1, Math.min(this.s.info.pageCount, Number(page) || 1));
-    this.s.page = page;
-    await this.refresh(null, false);
-    if (nav !== this.navigation) return;
-    const b = this.boxes.find((b) => b.page === page);
-    if (!b) return;
-    this.host.scrollTop = b.y;
-    this.host.scrollLeft = Math.max(0, b.x - 24);
-    await this.ensure(b);
-    if (nav !== this.navigation) return;
-    const e = this.entries.get(page);
-    if (!e?.viewport) return;
-    if (!target) this.marker = null;
-    if (target) {
-      const vp = e.viewport,
-        v = e.page.view,
-        a = target.args || [];
+    const nav=++this.navigation;this.navigating=nav;
+    if(history)this.remember();
+    page=Math.max(1,Math.min(this.s.info.pageCount,Number(page)||1));
+    try{
+      // Resolve geometry before moving the viewport. In particular, never scroll
+      // to b.y, paint, and then scroll another 16 px for a page-top destination.
+      const pdfPage=await this.s.pdf.getPage(page);if(nav!==this.navigation)return;
+      this.s.page=page;await this.refresh(null,false);if(nav!==this.navigation)return;
+      const b=this.boxes.find(b=>b.page===page);if(!b)return;
+      const vp=pdfPage.getViewport({scale:this.s.scale,rotation:this.rotation(page)}),v=pdfPage.view,a=target?.args||[];
       let point;
-      if (target.mode === "XYZ")
-        point = vp.convertToViewportPoint(a[0] ?? v[0], a[1] ?? v[3]);
-      else if (["FitH", "FitBH"].includes(target.mode))
-        point = vp.convertToViewportPoint(v[0], a[0] ?? v[3]);
-      else if (["FitV", "FitBV"].includes(target.mode))
-        point = vp.convertToViewportPoint(a[0] ?? v[0], v[3]);
-      else if (target.mode === "FitR") {
-        const r = vp.convertToViewportRectangle(a);
-        point = [Math.min(r[0], r[2]), Math.min(r[1], r[3])];
-      }
-      if (point) {
-        this.host.scrollLeft = Math.max(0, b.x + point[0] - 16);
-        this.host.scrollTop = Math.max(0, b.y + point[1] - 16);
-        this.marker = {
-          page,
-          point,
-          native: e.viewport.convertToPdfPoint(...point),
-        };
-      }
-    }
-    await this.update();
-    if (nav === this.navigation) this.activate(page);
+      if(target?.mode==='XYZ')point=vp.convertToViewportPoint(a[0]??v[0],a[1]??v[3]);
+      else if(['FitH','FitBH'].includes(target?.mode))point=vp.convertToViewportPoint(v[0],a[0]??v[3]);
+      else if(['FitV','FitBV'].includes(target?.mode))point=vp.convertToViewportPoint(a[0]??v[0],v[3]);
+      else if(target?.mode==='FitR'){const r=vp.convertToViewportRectangle(a);point=[Math.min(r[0],r[2]),Math.min(r[1],r[3])];}
+      this.marker=point?{page,point,native:vp.convertToPdfPoint(...point)}:null;
+      this.host.scrollLeft=Math.max(0,b.x+(point?.[0]||0)-(point?16:24));
+      this.host.scrollTop=Math.max(0,b.y+(point?.[1]||0)-(point?16:0));
+      await this.ensure(b);if(nav!==this.navigation)return;
+      await this.update();if(nav===this.navigation)this.activate(page);
+    }finally{if(this.navigating===nav)this.navigating=null;}
   }
   async zoom(value, cx, cy) {
     this.navigation++;
@@ -719,17 +702,18 @@ export class PageSurface {
       ).catch(this.onError);
       return;
     }
+    const delta=scrollDelta(e,this.settings.wheelLines||3);
     if (e.shiftKey) {
       e.preventDefault();
-      this.host.scrollLeft += e.deltaY || e.deltaX;
+      this.host.scrollLeft += delta || e.deltaX;
       return;
     }
     if (this.layout === "horizontal" && !e.deltaX) {
       e.preventDefault();
-      this.host.scrollLeft += e.deltaY;
+      this.host.scrollLeft += delta;
       return;
     }
-    if (!["single", "two"].includes(this.layout)) return;
+    if (!["single", "two"].includes(this.layout)) {if(delta!==e.deltaY){e.preventDefault();this.host.scrollTop+=delta;}return;}
     const down = e.deltaY > 0,
       at = down
         ? this.host.scrollTop + this.host.clientHeight >=
@@ -745,7 +729,7 @@ export class PageSurface {
           })
           .catch(this.onError);
       }
-    }
+    }else if(delta!==e.deltaY){e.preventDefault();this.host.scrollTop+=delta;}
   }
   screen(dir) {
     const h = this.host;

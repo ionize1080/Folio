@@ -4,6 +4,8 @@ import {placement} from './graphic-geometry.mjs';
 import {EmbeddedStudio} from './creative-embedded.mjs';
 import {t} from './i18n.mjs';
 import {transformedBounds} from './object-selection-model.mjs';
+import {artworkBounds} from './creative-background.mjs';
+import {canvasPlacement} from './studio-canvas-geometry.mjs';
 
 export function pathSVG(p){
   const [l,b,r,t]=p.bounds,w=Math.max(1,r-l),h=Math.max(1,t-b),points=p.segments||[];
@@ -15,6 +17,32 @@ export function pathSVG(p){
 export function installCreativeTools({S,rev,applyContent,writeFile,approve,exportPDF}){
   const embedded=new EmbeddedStudio({writeFile});
   const sessions=new Map();const documentKey=()=>rev().slice(0,rev().lastIndexOf('/'));
+  async function syncCanvas(s,state,effectiveBounds){
+    state??=await embedded.request({action:'inspect',sessionId:s.sessionId});
+    const bounds=artworkBounds(s.kind,state),old=s.artBounds;
+    if(old&&(effectiveBounds||bounds.some((v,i)=>Math.abs(v-old[i])>1e-6))){
+      // Native PhotoCraft canvas-size uses a centred anchor by default. Explicit
+      // handle crops supply their exact origin; vector artboards carry x and y.
+      const next=effectiveBounds||(s.kind==='photo'?[-(bounds[2]-old[2])/2,-(bounds[3]-old[3])/2,bounds[2],bounds[3]]:bounds);
+      const matches=(a,b)=>a?.every((v,i)=>Math.abs(v-b[i])<1e-6),history=s.canvasHistory??=[],future=s.canvasFuture??=[];
+      const undo=!effectiveBounds&&history.at(-1),redo=!effectiveBounds&&future.at(-1);
+      if(undo&&matches(bounds,undo.before)){history.pop();future.push(undo);s.matrix=undo.beforeMatrix;}
+      else if(redo&&matches(bounds,redo.after)){future.pop();history.push(redo);s.matrix=redo.afterMatrix;}
+      else{const beforeMatrix=s.matrix;s.matrix=canvasPlacement(s.matrix,old,next);history.push({before:old,after:bounds,beforeMatrix,afterMatrix:s.matrix});if(history.length>100)history.shift();future.length=0;}
+      s.canvasHistory=history;s.canvasFuture=future;
+      s.box=[s.matrix[4],s.matrix[5],Math.hypot(...s.matrix.slice(0,2)),Math.hypot(...s.matrix.slice(2,4))];
+      const e=embedded.get(s.sessionId);e.dimensions=bounds.slice(2);e.referenceMatrix=s.matrix;
+      embedded.notify('geometry',{sessionId:s.sessionId,box:s.box,matrix:s.matrix,dimensions:e.dimensions});
+    }
+    s.artBounds=bounds;return state;
+  }
+  S.flushStudios=async()=>{
+    for(const s of sessions.values())if(!s.documentKey||s.documentKey===documentKey()){
+      const edit=S.nativeEdits.find(e=>e.id===s.id);
+      if(s.baseline&&(!edit||edit.delete))continue;
+      await run({action:'apply',sessionId:s.sessionId,revision:rev()});
+    }
+  };
   const objectCaches=new WeakMap();
   async function objects(page){
     let objectCache=objectCaches.get(S.bytes);
@@ -61,7 +89,7 @@ export function installCreativeTools({S,rev,applyContent,writeFile,approve,expor
         await applyContent([...S.nativeEdits.filter(e=>e!==prior),...(edit?[edit]:[])],S.ocr);return {revision:rev(),applied:true};
       }
       const kind=['photo','image'].includes(target.kind)?'photo':'vector';
-      const opened=await run({action:'open',kind,page,id:target.id,index:target.index,visible:false,revision:capture});
+      const opened=await run({action:'open',kind,page,id:target.id,index:target.index,visible:false,reuse:false,revision:capture});
       const s=sessions.get(opened.sessionId),base=s.matrix;
       let r;try{r=await embedded.request({action:'capture',sessionId:s.sessionId});}finally{await run({action:'close',sessionId:s.sessionId});}
       const matrix=placement(a.geometry||{x:base[4]+12,y:base[5]-12},base).matrix,targetPage=a.targetPage??page;
@@ -73,6 +101,8 @@ export function installCreativeTools({S,rev,applyContent,writeFile,approve,expor
     }
     if(a.action==='open'){
       const capture=rev();if(a.revision!==undefined&&a.revision!==capture)throw Error('文档已变化，请刷新');
+      const existing=a.reuse!==false&&a.id&&[...sessions.values()].find(s=>s.id===a.id&&s.documentKey===documentKey()&&JSON.stringify(s.baseline)===JSON.stringify(S.nativeEdits.find(e=>e.id===a.id)));
+      if(existing){const e=embedded.get(existing.sessionId);if(a.visible)queueMicrotask(()=>embedded.notify('show',{sessionId:existing.sessionId}));return {sessionId:existing.sessionId,kind:existing.kind,dimensions:e.dimensions,page:existing.page,box:existing.box,matrix:existing.matrix,revision:capture,reused:true};}
       if(S.imageEdit?.editing||S.flowDraftDirty)throw Error('请先应用当前页面编辑');
       let target,data,extension,frame,box=a.box,warnings=[];
       const kind=a.kind||'photo';
@@ -100,6 +130,8 @@ export function installCreativeTools({S,rev,applyContent,writeFile,approve,expor
       const s={sessionId:result.sessionId,documentKey:S.pdf?documentKey():null,kind,page,box,target,id:target?.target==='studio'?target.id:crypto.randomUUID(),baseline:target&&S.nativeEdits.find(e=>e.page===page&&(target.id?e.id===target.id:e.index===target.index))};sessions.set(s.sessionId,s);
       if(!target&&result.dimensions){const ratio=result.dimensions[1]/result.dimensions[0];box=[box[0],box[1],box[2],box[2]*ratio];s.box=box;}
       s.matrix=frame||(target?.matrix&&target.target!=='path'?target.matrix:[box[2],0,0,box[3],box[0],box[1]]);
+      s.artBounds=artworkBounds(kind,await embedded.request({action:'inspect',sessionId:s.sessionId}));
+      embedded.get(s.sessionId).autoExpand=!!target?.studioOptions?.autoExpand;
       if(S.pdf){
         try{await run({action:'background',sessionId:s.sessionId,options:{mode:'pdf',opacity:.6}});}
         catch(error){warnings.push('PDF 背景暂未载入：'+error.message);}
@@ -108,7 +140,19 @@ export function installCreativeTools({S,rev,applyContent,writeFile,approve,expor
       return {...result,revision:rev(),page,box,matrix:s.matrix,warnings,next:'commands discovers parameters; execute/batch edits this session; preview inspects pixels; apply writes one undoable PDF edit. Layers are stored only in .folio projects.'};
     }
     const s=sessions.get(a.sessionId);if(!s)throw Error('创作会话不存在，请重新打开');
+    if(a.action==='canvas-resize'){
+      const before=await syncCanvas(s),bounds=a.bounds;
+      if(!Array.isArray(bounds)||bounds.length!==4||!bounds.every(Number.isFinite)||bounds.slice(2).some(v=>v<1||v>300000))throw Error('画布尺寸无效');
+      const [x,y,width,height]=bounds.map(v=>s.kind==='photo'?Math.round(v):v);
+      await embedded.request({action:'execute',sessionId:s.sessionId,command:s.kind==='photo'?'image.crop':'artboard.setProps',params:s.kind==='photo'?{x,y,width,height,deleteCroppedPixels:false}:{index:0,x,y,width,height}});
+      await syncCanvas(s,null,[x,y,width,height]);
+      const e=embedded.get(s.sessionId);
+      if(e.background?.mode==='pdf')await embedded.request({action:'background',sessionId:s.sessionId,options:{matrix:s.matrix}});
+      return {bounds:s.artBounds,matrix:s.matrix,box:s.box};
+    }
+    if(a.action==='inspect'||a.action==='view')await syncCanvas(s);
     if(a.action==='background'){
+      await syncCanvas(s);
       const options={...a.options},e=embedded.get(s.sessionId);
       if(options.mode==='pdf'||((options.refresh||options.geometry)&&e.background?.mode==='pdf')){
         if(!S.pdf)throw Error('请先打开 PDF，再选择页面背景');
@@ -128,19 +172,22 @@ export function installCreativeTools({S,rev,applyContent,writeFile,approve,expor
       if(s.documentKey&&s.documentKey!==documentKey())throw Error('此工作室属于另一份文档，请切回原文档');
       const capture=rev();if(a.revision!==capture)throw Error('请取得最新文档修订后应用');
       const current=s.target&&S.nativeEdits.find(e=>e.page===s.page&&(s.target.id?e.id===s.target.id:e.index===s.target.index));
-      if(current!==s.baseline)throw Error('原对象已被其他操作修改；工作室内容仍保留，可导出后插入。');
+      if(current!==s.baseline&&JSON.stringify(current)!==JSON.stringify(s.baseline))throw Error('原对象已被其他操作修改；工作室内容仍保留，可导出后插入。');
       const r=await embedded.request({action:'capture',sessionId:s.sessionId});
+      await syncCanvas(s);
       if(rev()!==capture)throw Error('文档已变化，工作室内容已保留，请重试应用');
       const box=a.box||s.box,base=a.box?[box[2],0,0,box[3],box[0],box[1]]:s.matrix,matrix=placement(a.geometry||{},base).matrix;
       const placedBox=[matrix[4],matrix[5],Math.hypot(matrix[0],matrix[1]),Math.hypot(matrix[2],matrix[3])];
       const edit={type:'studio-graphic',id:s.id,page:s.page,kind:s.kind,box:placedBox,matrix,sourceData:r.sourceData,sourceExtension:r.extension,...(r.pdfData?{pdfData:r.pdfData}:{imageData:r.imageData}),opacity:s.target?.target==='path'?1:s.target?.opacity??1,blendMode:s.target?.blendMode||'Normal'};
+      edit.studioOptions={autoExpand:!!embedded.get(s.sessionId).autoExpand};
       const extra=[];
       if(s.target&&['image','path'].includes(s.target.target)){edit.index=s.target.index;edit.signature=s.target.signature;}
       if(s.target?.target==='vector')edit.replaceVectorId=s.target.id;
       else if(s.target?.replaceVectorId)edit.replaceVectorId=s.target.replaceVectorId;
       if(s.target?.target==='studio'&&s.target.index!==undefined){edit.index=s.target.index;edit.signature=s.target.signature;}
-      await applyContent([...S.nativeEdits.filter(e=>e!==s.baseline),...extra,edit],S.ocr);
+      await applyContent([...S.nativeEdits.filter(e=>e!==current),...extra,edit],S.ocr);
       s.baseline=S.nativeEdits.find(e=>e.id===s.id);s.target={...edit,target:'studio'};s.box=placedBox;s.matrix=matrix;s.documentKey=documentKey();
+      const e=embedded.get(s.sessionId);e.referenceMatrix=matrix;
       return {applied:true,id:s.id,page:s.page,revision:rev(),warnings:r.warnings,project:'Save .folio to preserve editable layers; PDF contains the final artwork only.'};
     }
     if(a.action==='export'){

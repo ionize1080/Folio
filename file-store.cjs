@@ -43,19 +43,22 @@ class FileStore {
   identity(s) {
     return [s.dev, s.ino, s.size, s.mtimeMs, s.ctimeMs].join(":");
   }
-  async version(file) {
+  async version(file,onProgress) {
     let f;
     try {
       f = await fs.open(file, "r");
-      const before = this.identity(await f.stat()),
+      const stat=await f.stat(),before = this.identity(stat),
         hash = crypto.createHash("sha256");
       const chunk = Buffer.alloc(1024 * 1024);
-      let n;
-      while ((n = (await f.read(chunk)).bytesRead))
-        hash.update(chunk.subarray(0, n));
+      let n,total=0;
+      while ((n = (await f.read(chunk)).bytesRead)){
+        hash.update(chunk.subarray(0, n));total+=n;
+        if(total%(8*1024**2)===0||total===stat.size)onProgress?.({stage:'校验原文件',completed:total,total:stat.size});
+      }
       if (before !== this.identity(await f.stat()))
         throw Error("文件正在被其他程序修改，请另存副本");
-      return { identity: before, sha256: hash.digest("hex") };
+      const value={identity:before,sha256:hash.copy().digest('hex')};
+      Object.defineProperty(value,'hashState',{value:hash});return value;
     } catch (e) {
       if (e.code === "ENOENT") return null;
       throw e;
@@ -63,11 +66,13 @@ class FileStore {
       await f?.close();
     }
   }
-  async checkVersion(file, expected) {
-    if (JSON.stringify(await this.version(file)) !== JSON.stringify(expected))
+  async checkVersion(file, expected,onProgress) {
+    const actual=await this.version(file,onProgress);
+    if (JSON.stringify(actual) !== JSON.stringify(expected))
       throw Error(
         "目标文件已被其他程序修改、替换或删除。请另存副本，或重新打开文件后再保存。",
       );
+    return actual;
   }
   async savedVersion(file, sha256) {
     this.versions.set(file, {
@@ -115,7 +120,8 @@ class FileStore {
     }
     file = path.resolve(file);
     const expected = reuse ? this.versions.get(file) : await this.version(file);
-    if (reuse) await this.checkVersion(file, expected);
+    // Full content verification happens immediately before writing. Checking a
+    // second time here doubled disk reads on every incremental save.
     if (
       kind === "pdf" &&
       protect &&
@@ -129,7 +135,7 @@ class FileStore {
     for (const [id, v] of this.tickets)
       if (Date.now() - v.time > 3600000) this.tickets.delete(id);
     this.tickets.set(ticket, { file, kind, expected, time: Date.now() });
-    return { ticket, name: path.basename(file) };
+    return { ticket, name: path.basename(file), baseHash: expected?.sha256 };
   }
   async beginStream({ ticket, kind, total }) {
     const grant = this.tickets.get(ticket?.ticket);
@@ -224,7 +230,7 @@ class FileStore {
   async close() {
     for (const id of [...this.streams.keys()]) await this.abortStream(id);
   }
-  async save(options) {
+  async save(options,onProgress) {
     const { bytes, kind } = options;
     if (
       !bytes ||
@@ -240,17 +246,36 @@ class FileStore {
       throw Error("保存位置已失效，请重新选择");
     this.tickets.delete(id);
     const file = grant.file;
+    if(options.append){
+      if(kind!=='pdf'||!Number.isSafeInteger(options.baseLength)||options.baseLength<1||options.baseHash!==grant.expected?.sha256)
+        throw Error('增量保存的原文件版本不匹配，请重新保存');
+      const checked=await this.checkVersion(file,grant.expected,onProgress);
+      let handle,started=false;
+      try{
+        handle=await fs.open(file,'r+');
+        const stat=await handle.stat();
+        if(stat.size!==options.baseLength||this.identity(stat)!==checked.identity)throw Error('文件已被修改，请另存副本');
+        let at=0;started=true;
+        const chunk=Buffer.from(bytes);
+        while(at<chunk.length){const {bytesWritten}=await handle.write(chunk,at,Math.min(4*1024**2,chunk.length-at),options.baseLength+at);if(!bytesWritten)throw Error('增量写入中断');at+=bytesWritten;onProgress?.({stage:'写入修改',completed:at,total:chunk.length});}
+        await handle.sync();await handle.close();handle=null;
+        await this.savedVersion(file,checked.hashState.update(chunk).digest('hex'));
+        return {name:path.basename(file),handle:this.grant(file),working:true,sha256:this.versions.get(file).sha256,incremental:true};
+      }catch(err){if(handle&&started){await handle.truncate(options.baseLength);await handle.sync();}throw err;}
+      finally{await handle?.close();}
+    }
     // Flush a same-directory temporary file before replacing. Failed replacement leaves original intact.
     const tmp = file + ".folio-" + crypto.randomUUID() + ".tmp";
     let f;
     try {
       f = await fs.open(tmp, "wx");
-      await f.writeFile(Buffer.from(bytes));
+      const data=Buffer.from(bytes);
+      for(let at=0;at<data.length;){const {bytesWritten}=await f.write(data,at,Math.min(4*1024**2,data.length-at),at);if(!bytesWritten)throw Error('文件写入中断');at+=bytesWritten;onProgress?.({stage:'写入文件',completed:at,total:data.length});}
       await f.sync();
       await f.close();
       f = null;
       await storageBudget.add(tmp, { pinned: true });
-      await this.checkVersion(file, grant.expected);
+      await this.checkVersion(file, grant.expected,onProgress);
       await this.replace(tmp, file);
       await this.savedVersion(
         file,
@@ -276,6 +301,7 @@ class FileStore {
       name: path.basename(file),
       handle: this.grant(file),
       working: true,
+      sha256: this.versions.get(file).sha256,
     };
   }
 }

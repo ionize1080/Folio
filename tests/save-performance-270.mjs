@@ -1,0 +1,12 @@
+import fs from 'node:fs/promises';import crypto from 'node:crypto';import assert from 'node:assert/strict';
+import {PDFDocument,PDFName} from '../src/vendor/pdf-lib.js';import {PdfEngine} from '../src/pdf-core.mjs';import {makeNode} from '../src/model.mjs';
+const doc=await PDFDocument.create();for(let i=0;i<300;i++)doc.addPage([595,842]);
+doc.catalog.set(PDFName.of('FolioBenchmarkPayload'),doc.context.register(doc.context.stream(crypto.randomBytes(96*1024**2))));
+const bytes=await doc.save({useObjectStreams:true}),engine=new PdfEngine();await engine.open(bytes);
+const nodes=Array.from({length:1000},(_,i)=>makeNode('Chapter '+(i+1),i%300+1));
+const first=await engine.save({nodes,incrementalResult:true});engine.commitSave({sha256:'baseline'});nodes[500].title='One changed chapter';
+let start=performance.now();const full=await engine.save({nodes,compact:true});const fullMs=performance.now()-start;
+start=performance.now();const delta=await engine.save({nodes,incrementalResult:true,baseHash:'baseline'}),incrementalMs=performance.now()-start;
+assert(delta.append);assert(delta.deltaBytes<4096,`${delta.deltaBytes} bytes for one changed bookmark`);assert.equal(delta.objects,1);assert.equal(delta.totalBytes,first.totalBytes+delta.deltaBytes);
+const result={status:'passed',bytes:bytes.length,pages:300,bookmarks:1000,fullMs,incrementalMs,speedup:fullMs/incrementalMs,fullWriteBytes:full.length,incrementalWriteBytes:delta.bytes.length,changedObjects:delta.objects,scope:'Serialization and memory assembly; excludes disk verification and fsync'};
+await fs.writeFile('tests/output/save-performance-270.json',JSON.stringify(result,null,2));console.log(JSON.stringify(result));

@@ -5,6 +5,12 @@ const listen = (channel, callback) => {
   return () => ipcRenderer.removeListener(channel, fn);
 };
 contextBridge.exposeInMainWorld("desktop", {
+  printDocument:options=>ipcRenderer.invoke('print-document',options),
+  listPrinters:()=>ipcRenderer.invoke('list-printers'),
+  windowState:()=>ipcRenderer.invoke('window-state'),
+  onSaveProgress:cb=>listen('save-progress',cb),
+  windowCommand:action=>ipcRenderer.invoke('window-command',action),
+  onWindowState:cb=>listen('window-state',cb),
   creativeStudio: options => ipcRenderer.invoke('creative-studio',options),
   reviewConversion: options => ipcRenderer.invoke("review-conversion",options),
   mergeFiles: () => ipcRenderer.invoke("merge-files"),
@@ -69,6 +75,7 @@ contextBridge.exposeInMainWorld("desktop", {
   largeRead: (data) => ipcRenderer.invoke("large-read", data),
   largePage: (data) => ipcRenderer.invoke("large-page", data),
   largeInfo: (data) => ipcRenderer.invoke("large-info", data),
+  onLargeSaveProgress: cb => listen("large-save-progress",cb),
   largeSave: (data) => ipcRenderer.invoke("large-save", data),
   largeRelease: (handle) => ipcRenderer.invoke("large-release", handle),
   largeCancel: handle => ipcRenderer.invoke("large-cancel", handle),
@@ -92,6 +99,7 @@ contextBridge.exposeInMainWorld("desktop", {
   finishSaveStream: (id) => ipcRenderer.invoke("save-stream-finish", id),
   abortSaveStream: (id) => ipcRenderer.invoke("save-stream-abort", id),
   save: (data) => ipcRenderer.invoke("save", data),
+  checkBookmarkLinks: items=>ipcRenderer.invoke('bookmark-links',items),
   setDirty: (value) => ipcRenderer.invoke("dirty", value),
   close: () => ipcRenderer.invoke("close"),
   onClose: (callback) => ipcRenderer.on("request-close", () => callback()),

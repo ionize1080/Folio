@@ -104,3 +104,34 @@ body .tree-row {border-radius:6px;}
 @media (forced-colors:active) {
   #tree:focus-visible .tree-row.keyboard-current {outline-color:Highlight;}
 }
+/* One compact window strip: document actions, tabs and window controls. */
+.appbar[data-ribbon].custom-titlebar,html[lang=en] .appbar[data-ribbon].custom-titlebar{grid-template-columns:auto auto minmax(80px,1fr) auto auto;padding-right:0;column-gap:8px;-webkit-app-region:drag;}
+.custom-titlebar>nav,.custom-titlebar button,.custom-titlebar input,.custom-titlebar select,.custom-titlebar details,.custom-titlebar .document-tabs,.custom-titlebar .doc-tab,.custom-titlebar .studio-identity,.custom-titlebar .ribbon-tab-row{-webkit-app-region:no-drag;}
+.appbar.custom-titlebar>.document-tabs,.appbar.custom-titlebar>.doc-tab,.custom-titlebar>.studio-identity{grid-column:3;}
+.appbar.custom-titlebar>.app-actions{grid-column:4;}
+.custom-titlebar>.titlebar-quick{grid-column:2;grid-row:1;display:flex;gap:2px;align-items:center;border-right:1px solid var(--line);padding-right:8px;}
+.titlebar-quick button{height:30px;min-height:30px;width:30px;padding:6px;border-radius:7px;color:var(--muted);}
+.titlebar-quick button:hover{color:var(--accent);background:var(--accent-soft);}
+.titlebar-quick svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.6;}
+.custom-titlebar>.window-controls{grid-column:5;grid-row:1;display:flex;align-self:stretch;gap:0;margin-left:4px;}
+.window-controls button{min-width:42px;width:42px;height:40px;min-height:40px;border:0;border-radius:0;padding:12px;color:var(--text);}
+.window-controls button:last-child{border-top-right-radius:8px;}
+.window-controls button:hover{background:var(--panel2);}
+.window-controls [data-window=close]:hover{background:#e5484d;color:white;}
+.window-controls svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.25;}
+@media(max-width:1100px){.custom-titlebar .brand div{display:none;}.appbar.custom-titlebar>.app-actions{gap:1px}.appbar.custom-titlebar .folio-ai-open{min-width:38px;padding-inline:8px!important}.custom-titlebar .folio-ai-open span{display:none!important}.window-controls button{width:36px;min-width:36px;padding:10px;}}
+/* Reading controls occupy the existing footer, returning two rows to the page. */
+.reading-statusbar{min-height:38px;height:38px;padding:0 12px;gap:8px;position:relative;z-index:25;flex:none;background:var(--panel);border-top:1px solid var(--line);}
+.reading-statusbar>#status{max-width:230px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:11px;}
+.reading-statusbar>.spacer,.reading-statusbar>#performance,.reading-statusbar>span:last-of-type{display:none;}
+.reading-statusbar>.viewer-toolbar{margin-left:auto;flex:1;justify-content:flex-end;height:36px;min-height:36px;border:0;background:transparent;padding:2px 0;gap:4px;}
+.reading-statusbar .viewer-toolbar .spacer{flex:0;}
+.reading-statusbar .viewer-toolbar button{min-height:30px;height:30px;min-width:28px;padding:4px 6px;border-radius:7px;}
+.reading-statusbar .viewer-toolbar input,.reading-statusbar .viewer-toolbar select{height:28px;min-height:28px;font-size:12px;}
+.reading-statusbar #page-number{width:50px;}.reading-statusbar #zoom{max-width:105px;}.reading-statusbar #layout{max-width:120px;}
+.reading-statusbar .view-options{font-size:12px;}.reading-statusbar .view-options>div{top:auto;bottom:calc(100% + 9px);left:auto;right:0;min-width:210px;box-shadow:var(--shadow);border-radius:12px;}
+.reading-detail{display:block;color:var(--muted);font-size:11px;margin-top:10px;}
+.viewer-bottom[hidden]{display:none;}
+@media(max-width:1200px){.reading-statusbar>#status{max-width:160px;}.reading-statusbar [data-action=annotate] span,.reading-statusbar .separator{display:none;}}
+@media(max-width:1000px){.reading-statusbar>#status{max-width:120px;}.reading-statusbar [data-action=back],.reading-statusbar [data-action=forward]{display:none;}.reading-statusbar .viewer-toolbar{gap:2px;}.reading-statusbar .view-options summary{font-size:0;}.reading-statusbar .view-options summary::after{content:'•••';font-size:16px;}}
+@media(max-width:840px){.reading-statusbar>#status,.reading-statusbar>.status-led{display:none;}.reading-statusbar>.viewer-toolbar{justify-content:center;}}

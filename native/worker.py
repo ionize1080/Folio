@@ -311,7 +311,7 @@ def run(args, *, _preview=False):
  global CACHED_PDF,CACHED_PATH
  if args.get('command') in ('large-info','large-save','large-page','large-text'):
   from large_pdf import process
-  return process(args)
+  return process(args,emit)
  if args.get('command') in ('qpdf-status','qpdf-decrypt'):
   from qpdf_tools import process
   return process(args)

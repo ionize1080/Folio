@@ -1,3 +1,4 @@
+import {renderMarkdown} from "./safe-markdown.mjs";
 import { getLanguage, onLanguageChange } from "./i18n.mjs";
 import { localizedReleaseNotes } from "./release-notes.mjs";
 export async function updateDialog({ modal, closeModal, setCleanup }) {
@@ -7,7 +8,7 @@ export async function updateDialog({ modal, closeModal, setCleanup }) {
     closed = false;
   modal(
     "关于 Folio · 检查更新",
-    `<p data-update-current></p><label>更新通道<select id="update-channel"><option value="stable">仅正式版</option><option value="preview">包含预发布</option></select></label><label>HTTP 代理<input id="update-proxy" placeholder="留空复用系统代理，例如 http://127.0.0.1:7890"></label><label class="check"><input id="update-auto" type="checkbox">启动时自动检查（下载和安装由你确认）</label><p class="hint">与首选项共用网络设置。安装保持当前程序目录名称；旧版保留在同级备份目录，设置保存在用户配置目录。</p><div class="adjust-tools"><button id="update-check">保存设置并检查更新</button><button id="update-download">下载更新</button><button id="update-cancel">取消下载</button><button id="update-install">安装并重启</button></div><progress id="update-progress" hidden></progress><p id="update-status" role="status"></p><pre id="update-notes" class="update-notes"></pre>`,
+    `<div class="update-hero"><strong>Folio PDF Studio</strong><p data-update-current></p></div><details class="update-settings"><summary>更新通道与网络设置</summary><label>更新通道<select id="update-channel"><option value="stable">仅正式版</option><option value="preview">包含预发布</option></select></label><label>HTTP 代理<input id="update-proxy" placeholder="留空复用系统代理，例如 http://127.0.0.1:7890"></label><label class="check"><input id="update-auto" type="checkbox">启动时自动检查（下载和安装由你确认）</label><p class="hint">与首选项共用网络设置。安装保持当前程序目录名称；旧版保留在同级备份目录，设置保存在用户配置目录。</p></details><div class="adjust-tools"><button id="update-check">保存设置并检查更新</button><button id="update-download">下载更新</button><button id="update-cancel">暂停下载</button><button id="update-install">安装并重启</button></div><progress id="update-progress" hidden></progress><p id="update-status" role="status"></p><p id="update-transfer" class="hint"></p><article id="update-notes" class="update-notes markdown-body"></article>`,
     [{ text: "关闭", run: closeModal }],
   );
   const $ = (s) => document.querySelector(s);
@@ -35,10 +36,13 @@ export async function updateDialog({ modal, closeModal, setCleanup }) {
       labels[r.phase];
     if (r.lastInstall?.message && !busyPhase(r.phase))
       $("#update-status").textContent += "\n" + r.lastInstall.message;
-    $("#update-notes").textContent = localizedReleaseNotes(
+    $("#update-notes").innerHTML = renderMarkdown(localizedReleaseNotes(
       r.release?.notes,
       getLanguage(),
-    );
+    ));
+    const mb=n=>(n/1024**2).toFixed(1)+' MB';
+    $("#update-transfer").textContent=r.phase==='downloading'?`${r.verifying?'正在校验完整安装包':`${mb(r.received||0)} / ${mb(r.total||0)} · ${mb(r.speed||0)}/s${r.eta?` · 约 ${Math.ceil(r.eta)} 秒`:''}`} · ${r.connections||1} 路${r.resumable?' · 支持断点续传':''}`:'';
+    $("#update-download").textContent=r.received>0&&r.phase==='error'?'继续下载':'下载更新';
     const busy = ["checking", "downloading", "installing"].includes(r.phase);
     $("#update-check").disabled = busy;
     $("#update-download").disabled = !r.canDownload;

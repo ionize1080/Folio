@@ -19,6 +19,8 @@ export async function openLargeWorkspace(file, ctx) {
     listOffset = 0,
     preview = [];
   const status = (s) => ($("[data-status]").textContent = s);
+  const progressBar=document.createElement('progress');progressBar.max=100;progressBar.hidden=true;progressBar.style.cssText='width:100%;height:6px';host.append(progressBar);
+  const unlisten=api.onLargeSaveProgress?.(p=>{progressBar.hidden=false;progressBar.value=p.percent||0;status(({prepare:'准备保存',copy:'复制原文',outlines:'更新书签',write:'写入修改',verify:'校验文件',complete:'保存完成'}[p.stage]||'正在保存')+' · '+Math.round(p.percent||0)+'%');});
   const mark = () => {
     dirty = true;
     api.setDirty(true);
@@ -129,7 +131,7 @@ export async function openLargeWorkspace(file, ctx) {
       !(await ctx.confirmDiscard("书签修改尚未保存，关闭大文件工作区？"))
     )
       return false;
-    closed = true;
+    closed = true;unlisten?.();
     serial++;
     resize.disconnect();
     await api.largeRelease(file.handle);
@@ -268,6 +270,7 @@ export async function openLargeWorkspace(file, ctx) {
     status("正在复制原件并写入书签，请保留足够磁盘空间…");
     try {
       const r = await api.largeSave({ handle: file.handle, outlines: rows });
+      progressBar.hidden=true;
       if (!r.cancelled) {
         dirty = false;
         api.setDirty(ctx.originalDirty);

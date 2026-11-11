@@ -1,3 +1,4 @@
+import {annotationPalette} from "./annotation-style.mjs";
 import {applyAppearance, paletteControls, palettes} from "./appearance.mjs";
 import { pdfLoadingOptions } from './pdf-loading.mjs';
 import { bookmarkHTML } from "./bookmark-html.mjs";
@@ -30,6 +31,7 @@ import { copyRegionDialog } from "./copy-region-ui.mjs";
 import { installPagePicker, compactPages } from "./page-picker.mjs";
 import { extractLines } from "./text-lines.mjs";
 import { patchStyles, duplicatePlan } from "./bookmark-tools.mjs";
+import {installBookmarkQC} from "./bookmark-qc-ui.mjs";
 import { installBookmarkUI } from "./bookmark-ui.mjs";
 import { smartTocDialog } from "./smart-toc-ui.mjs";
 import { installNativeUI } from "./native-ui.mjs";
@@ -160,6 +162,7 @@ function launchWorker() {
   worker.onmessage = (e) => {
     const p = pending.get(e.data.id);
     if (!p) return;
+    if(e.data.progress){showSaveProgress(e.data.progress);return;}
     pending.delete(e.data.id);
     e.data.error ? p.reject(Error(e.data.error)) : p.resolve(e.data.result);
   };
@@ -640,6 +643,7 @@ async function loadPDF(
     worker.onmessage = (e) => {
       const p = pending.get(e.data.id);
       if (!p) return;
+      if(e.data.progress){showSaveProgress(e.data.progress);return;}
       pending.delete(e.data.id);
       e.data.error ? p.reject(Error(e.data.error)) : p.resolve(e.data.result);
     };
@@ -753,6 +757,11 @@ async function loadPDF(
     if (requestEpoch === loadEpoch) setBusy(false);
   }
 }
+function showSaveProgress(p){
+  const el=document.querySelector("#busy-progress");if(el){el.hidden=false;el.max=p.total||1;el.value=p.completed||0;}
+  document.querySelector("#busy-text").textContent=`${p.stage} · ${p.completed} / ${p.total}`;
+}
+window.desktop?.onSaveProgress?.(showSaveProgress);
 async function savePDF(forceAs = false, skipSummary = false) {
   await S.flowEdit?.flush();
   await S.imageEdit?.flush();
@@ -812,12 +821,10 @@ async function savePDF(forceAs = false, skipSummary = false) {
     );
     const { contentBytes } = exportSnapshot;
     if (contentBytes) stage = "复用已应用内容，整理书签与文档属性";
-    timer = setInterval(() => {
-      $("#busy-text").textContent =
-        `${stage} · ${((performance.now() - started) / 1000).toFixed(1)} 秒`;
-    }, 200);
+    showSaveProgress({stage,completed:0,total:1});
     const serialStart = performance.now();
-    const bytes = await rpc("save", exportSnapshot);
+    const saved = await rpc("save", {...exportSnapshot,incrementalResult:!!window.desktop,baseHash:ticket?.baseHash,compact:settings.saveMode==="compact"});
+    const bytes=window.desktop?saved.bytes:saved;
     documentSession.assert(saveSession);
     timings.serializeMs = performance.now() - serialStart;
     stage = "正在完成写入";
@@ -827,6 +834,7 @@ async function savePDF(forceAs = false, skipSummary = false) {
       result = await window.desktop.save({
         name,
         ticket,
+        ...saved,
         bytes,
         kind: "pdf",
         handle: S.handle,
@@ -840,6 +848,7 @@ async function savePDF(forceAs = false, skipSummary = false) {
     }
     if (result) {
       documentSession.assert(saveSession);
+      if(window.desktop)await rpc("commitSave",{sha256:result.sha256});
       S.name = result.name;
       S.handle = result.handle || null;
       S.working = true;
@@ -851,6 +860,7 @@ async function savePDF(forceAs = false, skipSummary = false) {
         ...timings,
         contentReused: !!contentBytes,
         bytes: bytes.length,
+        mode:saved.mode||"full",deltaBytes:saved.deltaBytes,totalBytes:saved.totalBytes,
       };
       console.info("Folio save", S.lastSaveMetrics);
       $("#doc-name").textContent = S.name;
@@ -868,6 +878,7 @@ async function savePDF(forceAs = false, skipSummary = false) {
     return { status: "failed", error: e.message };
   } finally {
     clearInterval(timer);
+    const progress=document.querySelector("#busy-progress");if(progress)progress.hidden=true;
     setBusy(false);
   }
 }
@@ -1910,6 +1921,7 @@ function saveProject(){
       if (!S.pdf) return;
       await S.flowEdit?.flush();
       await S.imageEdit?.flush();
+      await S.prepareStudiosForProject?.();
       await writeFile(
         S.name.replace(/\.pdf$/i, "") + ".folio",
         await encodeProject(S.bytes, S.name, snapshot(), { blob: true }),
@@ -2177,6 +2189,13 @@ function renderMarks() {
       width: Math.abs(rect[2] - rect[0]) + "px",
       height: Math.abs(rect[3] - rect[1]) + "px",
     });
+    el.style.background='transparent';el.style.border='none';
+    const color=a.color||'#f2c94c';
+    if(a.paths){const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.setAttribute('width','100%');svg.setAttribute('height','100%');svg.style.overflow='visible';for(const p of a.paths){const line=document.createElementNS(svg.namespaceURI,'polyline');const points=[];for(let i=0;i<p.length;i+=2){const v=S.view.convertToViewportPoint(p[i],p[i+1]);points.push([v[0]-Math.min(rect[0],rect[2]),v[1]-Math.min(rect[1],rect[3])].join(','));}line.setAttribute('points',points.join(' '));line.setAttribute('fill','none');line.setAttribute('stroke',color);line.setAttribute('stroke-width',(a.width||2)*S.view.scale);line.setAttribute('stroke-linecap','round');line.setAttribute('stroke-linejoin','round');svg.append(line);}el.append(svg);el.style.opacity=a.opacity??1;}
+    else if(a.type==='highlight'){el.style.background=color;el.style.opacity=a.opacity??.35;}
+    else if(['underline','squiggly','strikeout'].includes(a.type)){el.style.borderBottom=`${(a.width||1.5)*S.view.scale}px ${a.type==='squiggly'?'dotted':a.dash||'solid'} ${color}`;if(a.type==='strikeout')el.style.height=(Math.abs(rect[3]-rect[1])/2)+'px';el.style.opacity=a.opacity??1;}
+    else if(a.type==='rectangle'){el.style.border=`${(a.width||1.5)*S.view.scale}px ${a.dash||'solid'} ${color}`;el.style.opacity=a.opacity??1;}
+    else el.style.background=color;
     el.title = a.text || "双击删除此批注";
     el.ondblclick = () => {
       commit(S.nodes, {
@@ -2218,7 +2237,7 @@ function renderMarks() {
 function annotateDialog() {
   modal(
     "添加批注",
-    `<p>选定类型后，在页面上拖出矩形区域。双击本次新增批注可删除。批注不是安全涂黑，不能用于隐去敏感内容。</p><label>类型<select id="anno-type"><option value="highlight">区域高亮</option><option value="rectangle">矩形边框</option><option value="note">便笺</option></select></label><label>批注内容<textarea id="anno-text" rows="3"></textarea></label><p class="hint">按 Esc 退出绘制模式。当前编辑会写入标准 PDF 批注字典。</p>`,
+    `<p>选定类型后，在页面上拖出矩形区域。双击本次新增批注可删除。批注不是安全涂黑，不能用于隐去敏感内容。</p><label>类型<select id="anno-type"><option value="highlight">区域高亮</option><option value="underline">下划线</option><option value="squiggly">波浪下划线</option><option value="strikeout">删除线</option><option value="ink">手绘笔</option><option value="marker">手绘荧光笔</option><option value="rectangle">矩形边框</option><option value="note">便笺</option></select></label><div class="form-grid"><label>颜色<input id="anno-color" type="color" value="#f2c94c" list="anno-palette"><datalist id="anno-palette">${annotationPalette.map(c=>`<option value="${c}">`).join("")}</datalist></label><label>不透明度 %<input id="anno-opacity" type="number" min="5" max="100" value="35"></label><label>线宽 pt<input id="anno-width" type="number" min="0.25" max="72" step="0.25" value="2"></label><label>线型<select id="anno-dash"><option value="solid">实线</option><option value="dashed">虚线</option><option value="dotted">点线</option></select></label></div><label>批注内容<textarea id="anno-text" rows="3"></textarea></label><p class="hint">按 Esc 退出绘制模式。当前编辑会写入标准 PDF 批注字典。</p>`,
     [
       { text: "取消", run: closeModal },
       {
@@ -2226,25 +2245,27 @@ function annotateDialog() {
         primary: true,
         run: () => {
           const type = $("#anno-type").value,
-            text = $("#anno-text").value;
+            text = $("#anno-text").value,style={color:$("#anno-color").value,opacity:Number($("#anno-opacity").value)/100,width:Number($("#anno-width").value),dash:$("#anno-dash").value};
           closeModal();
-          startDraw(type, text);
+          startDraw(type, text,style);
         },
       },
     ],
   );
 }
-function startDraw(type, text) {
+function startDraw(type, text,style={}) {
   const layer = $("#draw-layer");
   if (!layer) return;
   layer.classList.add("active");
   status("在页面上拖动添加批注 · Esc 退出");
-  let start, box;
+  let start, box, points=[];
+  const freehand=["ink","marker"].includes(type);
   layer.onpointerdown = (e) => {
     const r = layer.getBoundingClientRect();
-    start = [e.clientX - r.left, e.clientY - r.top];
+    start = [e.clientX - r.left, e.clientY - r.top];points=[start];
     box = document.createElement("div");
     box.className = "selection-box";
+    if(freehand){box=document.createElementNS("http://www.w3.org/2000/svg","svg");box.setAttribute("width",r.width);box.setAttribute("height",r.height);box.style.pointerEvents="none";box.innerHTML=`<polyline fill="none" stroke="${style.color||"#5267db"}" stroke-width="${(style.width||2)*S.view.scale}" stroke-linecap="round" stroke-linejoin="round" opacity="${style.opacity??1}"/>`;}
     layer.replaceChildren(box);
     layer.setPointerCapture(e.pointerId);
   };
@@ -2253,6 +2274,7 @@ function startDraw(type, text) {
     const r = layer.getBoundingClientRect(),
       x = Math.max(0, Math.min(r.width, e.clientX - r.left)),
       y = Math.max(0, Math.min(r.height, e.clientY - r.top));
+    if(freehand){if(points.length<20000&&Math.hypot(x-points.at(-1)[0],y-points.at(-1)[1])>1)points.push([x,y]);box.firstChild.setAttribute("points",points.map(p=>p.join(",")).join(" "));return;}
     Object.assign(box.style, {
       left: Math.min(x, start[0]) + "px",
       top: Math.min(y, start[1]) + "px",
@@ -2271,6 +2293,7 @@ function startDraw(type, text) {
       end[0] = Math.min(r.width, start[0] + 24);
       end[1] = Math.min(r.height, start[1] + 24);
     }
+    const path=freehand?[...points,end].map(p=>S.view.convertToPdfPoint(...p)):null;
     const a = S.view.convertToPdfPoint(...start),
       b = S.view.convertToPdfPoint(...end),
       rect = [
@@ -2288,7 +2311,8 @@ function startDraw(type, text) {
           type,
           text,
           rect,
-          color: type === "rectangle" ? "#5267db" : "#f3c640",
+          ...style,
+          ...(path?{paths:[path.flat()],rect:[Math.min(...path.map(p=>p[0]))-(style.width||2),Math.min(...path.map(p=>p[1]))-(style.width||2),Math.max(...path.map(p=>p[0]))+(style.width||2),Math.max(...path.map(p=>p[1]))+(style.width||2)]}:{}),
         },
       ],
     });
@@ -2394,7 +2418,7 @@ async function settingsDialog() {
   const network = (await window.desktop?.updateInfo?.())?.settings;
   modal(
     "偏好设置",
-    `<div class="preferences-language"><span>界面语言</span>${languagePicker("settings-language")}<small>立即生效，并记住选择。不会改变文档文字或 OCR 语言。</small></div>${paletteControls()}<div class="form-grid"><label>默认留白单位<select id="set-whitespace-unit"><option value="mm">毫米 mm</option><option value="pt">点 pt</option></select></label><label>外观主题<select id="set-theme"><option value="system">跟随系统</option><option value="light">浅色</option><option value="dark">深色</option></select></label><label>书签侧栏宽度（px）<input id="set-sidebar" type="number" min="220" max="520" value="${settings.sidebar}"></label><label>书签行高<select id="set-row"><option value="28">紧凑 · 28 px</option><option value="34">标准 · 34 px</option><option value="40">宽松 · 40 px</option></select></label><label>渲染像素倍率上限<select id="set-quality"><option value="1">1× · 节省内存</option><option value="2">2× · 推荐</option><option value="3">3× · 高清</option></select></label><label>磁盘缓存上限（MB，默认2048）<input id="set-disk-budget" type="number" min="64" max="262144" value="${diskBudget?.limitMB||2048}"></label><label>撤销步数上限<input id="set-undo" type="number" min="5" max="100" value="${settings.undo}"></label></div>${ai ? `<fieldset class="preferences-ai"><legend>AI 文档辅助</legend><p class="hint">API、服务商和模型在 Chatbox 原生设置中配置；以下选项管理 Folio 文档操作。</p><div class="form-grid"><label>操作审批<select id="set-ai-approval"><option value="manual">手动审批</option><option value="auto">自动审批</option></select></label><label>Chatbox 显示方式<select id="set-ai-display"><option value="sidebar">侧栏</option><option value="window">独立窗口</option></select></label><label>OCR 低置信度复核阈值（%）<input id="set-ai-threshold" type="number" min="0" max="100" step="1" value="${ai.threshold}"></label></div><p class="hint">优先本地 Paddle；低于阈值的结果可按需交给所选模型复核。默认 95%。自动审批仅在本次会话生效，启用需二次确认，自动审批盾牌图标标红。</p></fieldset>` : ""}<label class="check"><input id="set-outline" type="checkbox" ${settings.showBookmarks ? "checked" : ""}>保存后建议阅读器显示书签面板</label><label class="check"><input id="set-protect" type="checkbox" ${settings.protect ? "checked" : ""}>原文件保护：首次保存为副本，之后更新副本</label><label class="check"><input id="set-restore" type="checkbox" ${settings.restoreView ? "checked" : ""}>记住每本文档的阅读位置、缩放和布局（关闭后尊重文档初始视图）</label><label class="check"><input id="set-ignore-zoom" type="checkbox" ${settings.ignoreZoom ? "checked" : ""}>忽略书签的缩放要求（不修改 PDF 目标）</label><label class="check"><input id="set-wrap" type="checkbox" ${settings.wrap ? "checked" : ""}>长书签标题显示两行</label><label class="check"><input id="set-summary" type="checkbox" ${settings.saveSummary ? "checked" : ""}>保存前显示修改摘要</label><label class="check"><input id="set-gpu" type="checkbox" ${software ? "checked" : ""} ${window.desktop?.graphics ? "" : "disabled"}>显卡兼容：关闭硬件加速（重新启动后生效）</label><label>HTTP 代理（更新共用）<input id="set-http-proxy" placeholder="留空使用系统代理"></label><button data-action="shortcuts">自定义快捷键…</button><button id="ocr-cache-open">OCR 任务记录与缓存…</button><p class="hint">撤销快照受 32 MB 预算限制；画布按可见范围加载，高清画布与分块按约 128 MB 预算回收，当前可见区域优先，缩放期间保留已完成画面。恢复快照在编辑停止 0.7 秒后保存在本机。缓存超限按最近使用时间轮替；大文件处理中临时扩容，当前文档、原子保存及未保存草稿受保护。</p>`,
+    `<div class="preferences-language"><span>界面语言</span>${languagePicker("settings-language")}<small>立即生效，并记住选择。不会改变文档文字或 OCR 语言。</small></div>${paletteControls()}<div class="form-grid"><label>默认留白单位<select id="set-whitespace-unit"><option value="mm">毫米 mm</option><option value="pt">点 pt</option></select></label><label>外观主题<select id="set-theme"><option value="system">跟随系统</option><option value="light">浅色</option><option value="dark">深色</option></select></label><label>滚轮滚动量<select id="set-wheel-preset"><option value="1">精细 · 1 行</option><option value="3">标准 · 3 行（推荐）</option><option value="6">快速 · 6 行</option><option value="custom">自定义</option></select></label><label>每次滚动行数<input id="set-wheel-lines" type="number" min="1" max="30" value="${settings.wheelLines||3}"></label><label>书签侧栏宽度（px）<input id="set-sidebar" type="number" min="220" max="520" value="${settings.sidebar}"></label><label>书签行高<select id="set-row"><option value="28">紧凑 · 28 px</option><option value="34">标准 · 34 px</option><option value="40">宽松 · 40 px</option></select></label><label>渲染像素倍率上限<select id="set-quality"><option value="1">1× · 节省内存</option><option value="2">2× · 推荐</option><option value="3">3× · 高清</option></select></label><label>磁盘缓存上限（MB，默认2048）<input id="set-disk-budget" type="number" min="64" max="262144" value="${diskBudget?.limitMB||2048}"></label><label>撤销步数上限<input id="set-undo" type="number" min="5" max="100" value="${settings.undo}"></label></div>${ai ? `<fieldset class="preferences-ai"><legend>AI 文档辅助</legend><p class="hint">API、服务商和模型在 Chatbox 原生设置中配置；以下选项管理 Folio 文档操作。</p><div class="form-grid"><label>操作审批<select id="set-ai-approval"><option value="manual">手动审批</option><option value="auto">自动审批</option></select></label><label>Chatbox 显示方式<select id="set-ai-display"><option value="sidebar">侧栏</option><option value="window">独立窗口</option></select></label><label>OCR 低置信度复核阈值（%）<input id="set-ai-threshold" type="number" min="0" max="100" step="1" value="${ai.threshold}"></label></div><p class="hint">优先本地 Paddle；低于阈值的结果可按需交给所选模型复核。默认 95%。自动审批仅在本次会话生效，启用需二次确认，自动审批盾牌图标标红。</p></fieldset>` : ""}<label class="check"><input id="set-outline" type="checkbox" ${settings.showBookmarks ? "checked" : ""}>保存后建议阅读器显示书签面板</label><label class="check"><input id="set-protect" type="checkbox" ${settings.protect ? "checked" : ""}>原文件保护：首次保存为副本，之后更新副本</label><label class="check"><input id="set-restore" type="checkbox" ${settings.restoreView ? "checked" : ""}>记住每本文档的阅读位置、缩放和布局（关闭后尊重文档初始视图）</label><label class="check"><input id="set-ignore-zoom" type="checkbox" ${settings.ignoreZoom ? "checked" : ""}>忽略书签的缩放要求（不修改 PDF 目标）</label><label class="check"><input id="set-wrap" type="checkbox" ${settings.wrap ? "checked" : ""}>长书签标题显示两行</label><div class="form-grid"><label class="check"><input id="set-target-marker" type="checkbox" ${settings.showTargetMarker!==false?"checked":""}>显示书签跳转定位线</label><label>定位线颜色<input id="set-target-color" type="color" value="${/^#[0-9a-f]{6}$/i.test(settings.targetMarkerColor||"")?settings.targetMarkerColor:"#db8c36"}"></label></div><label>保存方式<select id="set-save-mode"><option value="auto">快速增量保存</option><option value="compact">完整重写（兼容模式）</option></select></label><label class="check"><input id="set-summary" type="checkbox" ${settings.saveSummary ? "checked" : ""}>保存前显示修改摘要</label><label class="check"><input id="set-gpu" type="checkbox" ${software ? "checked" : ""} ${window.desktop?.graphics ? "" : "disabled"}>显卡兼容：关闭硬件加速（重新启动后生效）</label><label>HTTP 代理（更新共用）<input id="set-http-proxy" placeholder="留空使用系统代理"></label><button data-action="shortcuts">自定义快捷键…</button><button id="ocr-cache-open">OCR 任务记录与缓存…</button><p class="hint">撤销快照受 32 MB 预算限制；画布按可见范围加载，高清画布与分块按约 128 MB 预算回收，当前可见区域优先，缩放期间保留已完成画面。恢复快照在编辑停止 0.7 秒后保存在本机。缓存超限按最近使用时间轮替；大文件处理中临时扩容，当前文档、原子保存及未保存草稿受保护。</p>`,
     [
       { text: "取消", run: closeModal },
       {
@@ -2418,12 +2442,12 @@ async function settingsDialog() {
             });
           Object.assign(settings, {
             whitespaceUnit: $("#set-whitespace-unit").value,
-            saveSummary: $("#set-summary").checked,
+            saveSummary: $("#set-summary").checked,showTargetMarker:$("#set-target-marker").checked,targetMarkerColor:$("#set-target-color").value,saveMode:$("#set-save-mode").value,
             protect: $("#set-protect").checked,
             restoreView: $("#set-restore").checked,
             ignoreZoom: $("#set-ignore-zoom").checked,
             wrap: $("#set-wrap").checked,
-            theme: $("#set-theme").value,
+            theme: $("#set-theme").value,wheelLines:Math.max(1,Math.min(30,Number($("#set-wheel-lines").value)||3)),
             palette: $('input[name="palette"]:checked').value,
             customAccent: $("#custom-accent").value,
             sidebar,
@@ -2448,12 +2472,15 @@ async function settingsDialog() {
   const palette = Object.hasOwn(palettes, settings.palette) ? settings.palette : "custom";
   $('input[name="palette"][value="'+palette+'"]').checked = true;
   $("#custom-accent").value = settings.customAccent;
-  $("#set-theme").value = settings.theme;
+  $("#set-theme").value = settings.theme;$("#set-save-mode").value=settings.saveMode||"auto";
   const preview = () => applyAppearance({...settings, theme:$("#set-theme").value,
     palette:$('input[name="palette"]:checked').value, customAccent:$("#custom-accent").value});
   $("#custom-accent").oninput = () => { $('input[value="custom"][name="palette"]').checked = true; preview(); };
   $(".palette-options").onchange = preview;
   $("#set-theme").onchange = preview;
+  $("#set-wheel-preset").value=[1,3,6].includes(settings.wheelLines||3)?String(settings.wheelLines||3):"custom";
+  $("#set-wheel-preset").onchange=e=>{if(e.target.value!=="custom")$("#set-wheel-lines").value=e.target.value;};
+  $("#set-wheel-lines").oninput=()=>$("#set-wheel-preset").value="custom";
   modalCleanup = () => applyAppearance(settings);
   $("#set-row").value = settings.row;
   $("#set-quality").value = settings.quality;
@@ -2564,10 +2591,11 @@ function showTargetMarker() {
     e = surface.entries.get(S.page);
   if (!e) return;
   e.shell.querySelector(".target-marker")?.remove();
-  if (!m || m.page !== S.page || !selectedNode()) return;
+  if (settings.showTargetMarker===false || !m || m.page !== S.page || !selectedNode()) return;
   if (m.native) m.point = e.viewport.convertToViewportPoint(...m.native);
   const line = document.createElement("div");
   line.className = "target-marker";
+  const color=/^#[0-9a-f]{6}$/i.test(settings.targetMarkerColor||"")?settings.targetMarkerColor:"#db8c36";line.style.borderColor=color;line.style.color=color;
   line.style.top = m.point[1] + "px";
   line.title = "跳转目标 · 拖动微调所选书签";
   line.textContent = "目标";
@@ -4105,6 +4133,7 @@ async function refreshNative(
     setBusy(false);
   }
 }
+installBookmarkQC({S,surface,modal,closeModal,esc,commit,toast});
 const bookmarkUI = installBookmarkUI({
   S,
   surface,
@@ -4680,4 +4709,8 @@ installDocumentTabs({
 window.desktop?.updateStarted?.().catch(() => {});
 
 import {installAI} from './ai-ui.mjs';
+import {installPrinting} from './printing.mjs';
+installPrinting({S,pdfjs,session:documentSession,exportPDF:async()=>{await S.flowEdit?.flush();await S.imageEdit?.flush();return rpc('save',await buildExportSnapshot(S,settings,documentSession));}});
 const aiUI=installAI({S,surface,commit,writeFile,saveProject,getViewContext:()=>surface.context(),getLargeDocument:()=>largeWorkspace,session:documentSession,applyContent:async(edits,ocr)=>{await refreshNative(edits,ocr);commit(clone(S.nodes),{nativeEdits:edits,ocr});},exportPDF:async()=>rpc('save',await buildExportSnapshot(S,settings,documentSession)),undo:()=>restoreHistory('undo'),redo:()=>restoreHistory('redo')});
+import {installWindowChrome} from './window-chrome.mjs';
+installWindowChrome().catch(console.error);

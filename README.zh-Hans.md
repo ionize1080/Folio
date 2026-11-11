@@ -2,11 +2,11 @@
 
 [English](README.md) · **简体中文** · [繁體中文](README.zh-Hant.md)
 
-Folio PDF Studio 2.6.0 是 Windows x64 上的本地 PDF 工作台。可以同时打开多份文档，整理长篇书签、编辑页面文字与图片，或把扫描件处理成可检索 PDF。需要模型协助时，从工具栏打开 Chatbox。
+Folio PDF Studio 2.7.0 是 Windows x64 上的本地 PDF 工作台。可以同时打开多份文档，整理长篇书签、编辑页面文字与图片，或把扫描件处理成可检索 PDF。需要模型协助时，从工具栏打开 Chatbox。
 
-本版改进[图像与矢量工作室](docs/CREATIVE-STUDIO.md)、图片方向与裁剪、段落编辑速度、空白页插入和显式生图服务设置。两个工作室默认使用 PDF 参考背景，并提供缩略图选择与直接画布控制。PDF 保存最终结果，`.folio` 保存可继续编辑的图层与源文件。
+2.7 版新增增量保存、书签 QC 与批量工具、更完整的页面整理，以及带可调整预览的小册子和讲义打印。紧凑标题栏和底栏阅读工具增加文档可视高度。[图像／矢量工作室](docs/CREATIVE-STUDIO.md) 支持画布手柄与自动扩展，`.folio` 工程保留可编辑源文件和图层。
 
-[下载 Windows x64 便携包](https://github.com/ionize1080/Folio/releases/download/v2.6.0/Folio-PDF-Studio-2.6.0-portable-win-x64.zip) · [本版说明](docs/RELEASE-2.6.0.zh-Hans.md) · [AI 使用指南](docs/AI.md) · [文档索引](docs/README.md)
+[下载 Windows x64 便携包](https://github.com/ionize1080/Folio/releases/download/v2.7.0/Folio-PDF-Studio-2.7.0-portable-win-x64.zip) · [本版说明](docs/RELEASE-2.7.0.zh-Hans.md) · [AI 使用指南](docs/AI.md) · [文档索引](docs/README.md)
 
 ## 打开第一组文件
 
@@ -15,7 +15,7 @@ Folio PDF Studio 2.6.0 是 Windows x64 上的本地 PDF 工作台。可以同时
 3. 编辑后先应用，再按 Ctrl+S 写入当前 PDF。原件保护默认首次另存副本。关闭含未保存修改的普通 PDF 时，可选择保存、放弃或取消。需要保留段落结构及 OCR 校对进度时，在「更多工具 → 导入 / 导出」保存 `.folio` 工程。
 4. 打开「首选项」设置外观。明暗模式可跟随系统，内置钴蓝、青瓷、琥珀、桑葚、石墨五套配色，也可以自选重点色。界面语言默认跟随 Windows，之前手动选择的语言优先。
 
-同一发布页也提供[源码包](https://github.com/ionize1080/Folio/releases/download/v2.6.0/Folio-PDF-Studio-2.6.0-source.zip)、[校验值](https://github.com/ionize1080/Folio/releases/download/v2.6.0/Folio-PDF-Studio-2.6.0-SHA256.txt)和[验收报告](https://github.com/ionize1080/Folio/releases/download/v2.6.0/Folio-PDF-Studio-2.6.0-validation.json)。检查更新可从「关于与使用说明 → 检查更新」进入。
+同一发布页也提供[源码包](https://github.com/ionize1080/Folio/releases/download/v2.7.0/Folio-PDF-Studio-2.7.0-source.zip)、[校验值](https://github.com/ionize1080/Folio/releases/download/v2.7.0/Folio-PDF-Studio-2.7.0-SHA256.txt)和[验收报告](https://github.com/ionize1080/Folio/releases/download/v2.7.0/Folio-PDF-Studio-2.7.0-validation.json)。检查更新可从「关于与使用说明 → 检查更新」进入。
 
 ## 用 AI 阅读与编辑
 

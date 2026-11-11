@@ -1,3 +1,4 @@
+const {downloadAsset}=require('./update-download.cjs');
 // Update trust is anchored to this repository, never to renderer-provided URLs.
 const fs = require("node:fs/promises");
 const path = require("node:path");
@@ -167,7 +168,8 @@ class UpdateManager {
       signal: this.abort?.signal,
       credentials: "omit",
       headers: {
-        "User-Agent": "Folio-Updater",
+        "User-Agent": (this.session.getUserAgent?.() || `Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${process.versions.chrome||"130.0.0.0"} Safari/537.36`).replace(/\s(?:Electron|Folio[^/ ]*)\/[^ ]+/g,""),
+        "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
         Accept: "application/vnd.github+json",
         ...options.headers,
       },
@@ -255,39 +257,8 @@ class UpdateManager {
         part = file + ".part";
       this.ready = null;
       this.status("downloading", { received: 0, total: a.size, error: null });
-      const r = await this.fetch(assetURL(a.browser_download_url), {
-          headers: { Accept: "application/octet-stream" },
-        }),
-        handle = await fs.open(part, "w"),
-        digest = crypto.createHash("sha256");
-      let count = 0,
-        complete = false,
-        last = 0;
-      try {
-        for await (const chunk of r.body) {
-          count += chunk.length;
-          if (count > a.size) throw Error("下载大小超出发布信息");
-          digest.update(chunk);
-          await handle.writeFile(chunk);
-          if (Date.now() - last > 200) {
-            last = Date.now();
-            this.status("downloading", { received: count });
-          }
-        }
-        await handle.sync();
-        complete = true;
-      } finally {
-        await handle.close();
-        if (!complete) await fs.rm(part, { force: true });
-      }
-      if (
-        count !== a.size ||
-        digest.digest("hex").toLowerCase() !== hash.toLowerCase()
-      ) {
-        await fs.rm(part, { force: true });
-        throw Error("更新包 SHA-256 校验失败");
-      }
-      await fs.rename(part, file);
+      const downloaded=await downloadAsset({url:assetURL(a.browser_download_url),file,size:a.size,hash,fetch:(url,options)=>this.fetch(url,options),signal:this.abort.signal,progress:p=>this.status("downloading",p)});
+      const count=downloaded.received;
       this.ready = { file, hash, version: this.release.tag_name };
       return this.status("ready", { received: count });
     });

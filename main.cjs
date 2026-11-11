@@ -149,6 +149,7 @@ app.whenReady().then(async () => {
   };
   const availableScreen=screen.getPrimaryDisplay().workAreaSize;
   win = new BrowserWindow({
+    frame: process.platform !== 'win32',
     show: process.env.FOLIO_TEST_BACKGROUND !== "1",
     width: Math.min(1500,availableScreen.width),
     height: Math.min(970,availableScreen.height),
@@ -189,6 +190,25 @@ app.whenReady().then(async () => {
   }
   const {DocumentTabs} = require("./document-tabs.cjs");
   tabs = new DocumentTabs(win, editorOptions, configureEditor, readDocument);
+  const windowState=()=>({custom:process.platform==='win32',maximized:win.isMaximized(),fullscreen:win.isFullScreen()});
+  ipc('window-state',windowState);
+  ipc('print-document',options=>{
+    if(sender()!==tabs.active.wc)throw Error('请切换到要打印的文档');
+    return require('./printing.cjs').printDocument({...options,BrowserWindow,parent:win,owner:sender(),saveDialog:options=>dialog.showSaveDialog(win,options)});
+  });
+  ipc('list-printers',async()=>{
+    if(sender()!==tabs.active.wc)throw Error('请切换到要打印的文档');
+    return (await sender().getPrintersAsync()).map(p=>({name:p.name,displayName:p.displayName,isDefault:p.isDefault}));
+  });
+  ipc('window-command',action=>{
+    if(sender()!==tabs.active.wc)return;
+    if(action==='minimize')win.minimize();
+    else if(action==='maximize'){if(win.isMaximized())win.unmaximize();else win.maximize();}
+    else if(action==='close')win.close();
+    else throw Error('未知窗口操作');
+    return win.isDestroyed()?null:windowState();
+  });
+  for(const event of ['maximize','unmaximize','enter-full-screen','leave-full-screen'])win.on(event,()=>{for(const entry of tabs.entries.values())if(!entry.wc.isDestroyed())entry.wc.send('window-state',windowState());});
   const requireActive = () => sender() === tabs.active.wc;
   Menu.setApplicationMenu(null);
   const aiHost = require("./ai-host.cjs").installAIHost({app, win, ipc, tabs, sender, requireActive});
@@ -372,7 +392,8 @@ app.whenReady().then(async () => {
     for(const file of r.filePaths){total+=(await fs.stat(file)).size;if(total>100*1024**2)throw Error('本批输入超过 100 MB');files.push({name:path.basename(file),bytes:await fs.readFile(file)});}
     return files;
   });
-  ipc("save", (data) => fileStore.save(data));
+  ipc("save", (data) => {const owner=sender();return fileStore.save(data,progress=>{if(!owner.isDestroyed())owner.send('save-progress',progress);});});
+  ipc('bookmark-links',items=>require('./bookmark-links.cjs').checkLinks(items,(url,options)=>require('electron').net.fetch(url,options)));
   ipc("save-prepare", (data) => fileStore.prepare(data));
   ipc("copy-text", (text) => {
     if (typeof text !== "string" || text.length > 16000000)
@@ -407,7 +428,7 @@ app.whenReady().then(async () => {
   ipc("large-read", (data) => largeFiles.read(data));
   ipc("large-info", (data) => largeFiles.info(data));
   ipc("large-page", (data) => largeFiles.page(data));
-  ipc("large-save", (data) => largeFiles.save(data));
+  ipc("large-save", (data) => {const owner=sender();return largeFiles.save(data,progress=>{if(!owner.isDestroyed())owner.send("large-save-progress",progress);});});
   ipc("large-release", (handle) => largeFiles.release(handle));
   ipc("large-cancel", handle => largeFiles.cancel(handle));
   ipc("source-register", async bytes => {

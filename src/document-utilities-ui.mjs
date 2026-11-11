@@ -67,7 +67,11 @@ export function installDocumentUtilities({ S, exportPDF, session, writeFile }) {
       session.assert(capture);
       if(ocrWarnings.length)r.warnings=[...(r.warnings||[]),...ocrWarnings];
       if (!r.bytes) return r;
-      const data = Uint8Array.from(atob(r.bytes), (c) => c.charCodeAt(0));
+      let data = Uint8Array.from(atob(r.bytes), (c) => c.charCodeAt(0));
+      if(a.action==='organize-pages'){
+        const {appendSnapshot}=await import('./incremental-pdf.mjs');
+        data=await appendSnapshot(bytes,data);session.assert(capture);
+      }
       const saved = await writeFile(
         a.filename || S.name.replace(/\.pdf$/i, "") + "-" + a.action + "." + r.extension,
         data,
