@@ -615,13 +615,11 @@ export class FastFonts {
         .flatMap((r) => [r.fontKey, r.latinFontKey, r.cjkFontKey])
         .filter(Boolean),
     );
-    // Load reusable emergency faces while opening a paragraph, before the first
-    // missing character arrives. They remain temporary if outline matching wins.
-    if (this.preloadFallback) {
-      keys.add("builtin-latin");
-      keys.add("builtin-cjk");
-    }
     await Promise.all([...keys].map((k) => this.load(k)));
+    // Prepare emergency faces without delaying a paragraph whose own fonts
+    // already cover its text. Actual missing characters still await required().
+    if (this.preloadFallback)
+      void Promise.allSettled(["builtin-latin","builtin-cjk"].map(k=>this.load(k)));
     // At most two fallback edges: original -> same-name system -> builtin.
     for (let pass = 0; pass < 3; pass++) {
       const missing = [...this.required(m)].filter((k) => !this.fonts.has(k));

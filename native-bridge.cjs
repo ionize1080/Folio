@@ -33,10 +33,13 @@ class NativeBridge {
       {
         windowsHide: true,
         stdio: ["pipe", "pipe", "pipe"],
-        env: { ...process.env, PYTHONUTF8: "1", PYTHONNOUSERSITE: "1" },
+        env: { ...process.env, ...this.environment, PYTHONUTF8: "1", PYTHONNOUSERSITE: "1" },
       },
     );
     this.process = child;
+    if (this.priority != null) child.once('spawn', () => {
+      try { os.setPriority(child.pid, this.priority); } catch {}
+    });
     let details = "";
     child.stderr.on("data", (b) => (details = (details + b).slice(-16000)));
     const fail = (e) => {

@@ -143,9 +143,16 @@ def render(m):
         _,_,count=cluster(inherited,old_index,font['coverage'])
         if count>1 and all(mapping.get(i+j)==old_index+j for j in range(count)):
             ligature_members.update(range(i,i+count))
+    runs=sorted(m.get('runs',[]),key=lambda r:r['start']);run_index=0
     for i,ch in enumerate(text):
-        run=next((r for r in m.get('runs',[]) if r['start']<=offsets[i]<r['end']),m)
+        while run_index<len(runs) and runs[run_index]['end']<=offsets[i]:run_index+=1
+        run=runs[run_index] if run_index<len(runs) and runs[run_index]['start']<=offsets[i]<runs[run_index]['end'] else m
         source=gs[mapping[i]] if i in mapping else gs[min(i,len(gs)-1)]
+        # Geometric word gaps have anchors but no source style run. The
+        # paragraph's dominant font may be another face/size; inherit the
+        # adjacent glyph style instead of needlessly abandoning local layout.
+        if source.get('synthetic') and ch.isspace() and run is m:
+            run={**m,**source['style']}
         key=(run.get('latinFontKey') if ord(ch)<0x300 else run.get('cjkFontKey')) or run.get('fontKey') or m.get('fontKey')
         if key not in source_fonts:source_fonts[key]=load_font(key)
         font=source_fonts[key]
@@ -241,24 +248,22 @@ def render(m):
         for i in range(end,len(tokens)):
             g=gs[i-delta];placement[i]=(g['originX'],g['baseline'])
         mode='局部行重排'
-    doc=fitz.open();page=doc.new_page(width=m['pageWidth'],height=m['pageHeight']);names={};mapped=[]
+    doc=fitz.open();page=doc.new_page(width=m['pageWidth'],height=m['pageHeight']);mapped=[]
+    from glyph_writer import GlyphWriter
+    writer=GlyphWriter(page)
     from ligatures import cluster
     painted=0
     positioned=[{**t,'originX':placement[i][0],'baseline':placement[i][1]} for i,t in enumerate(tokens)]
     source_ink={(g['text'],g['style'].get('fontKey'),g['style'].get('size'),g['style'].get('horizontalScale',100)):g for g in gs}
     for i,t in enumerate(tokens):
         x,y=placement[i];font=fonts[t['path']]
-        if t['path'] not in names:
-            names[t['path']]='F'+str(len(names));page.insert_font(fontname=names[t['path']],fontfile=t['path'])
         color=tuple(int(t['color'][j:j+2],16)/255 for j in (1,3,5))
         # Source gaps represented as logical spaces must be emitted explicitly.
         # They paint no ink, but otherwise ActualText on adjacent letters can
         # suppress the reader's geometric word separator on reopening.
         if (not t['synthetic'] or t['text'].isspace()) and i>=painted:
             scalar,actual,count=cluster(positioned,i,t['coverage']);painted=i+count
-            page.insert_text((x,y),scalar,fontsize=t['size'],fontname=names[t['path']],color=color,morph=(fitz.Point(x,y),fitz.Matrix(t['scale'],1)))
-            from text_semantics import mark_text
-            mark_text(page,actual)
+            writer.add(scalar,actual,t['path'],x,y,t['size'],color,t['scale'])
         source=gs[t['old']] if t['old'] is not None else None
         if source and abs(x-source['originX'])<.001 and abs(y-source['baseline'])<.001:
             box={k:source[k] for k in ('x','y','w','h')}
@@ -270,6 +275,7 @@ def render(m):
             if ref:box={'x':x+ref['x']-ref['originX'],'y':y+ref['y']-ref['baseline'],'w':ref['w'],'h':ref['h']}
             else:box={'x':x,'y':y-t['size']*.85,'w':t['width'],'h':t['size']}
         mapped.append({**box,'start':t['start'],'end':t['end'],'originX':x,'baseline':y,'line':round(y,3),'size':t['size']})
+    writer.finish()
     from text_semantics import expand_preview
     original_box,preview_bounds=expand_preview(page)
     svg=page.get_svg_image(text_as_path=True);page.set_mediabox(original_box)

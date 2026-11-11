@@ -2,6 +2,7 @@ import { sourceStyles } from "./flow-style.mjs";
 import { paragraphCandidates, mergeCandidates } from "./flow-model.mjs";
 import { horizontalRows } from "./flow-regions.mjs";
 import { rubyConflicts } from "./ruby-anchors.mjs";
+import { PageSpatialIndex } from "./page-spatial.mjs";
 
 const area = (b) => Math.max(0, b[2] - b[0]) * Math.max(0, b[3] - b[1]);
 export const intersects = (a, b, t = 0) =>
@@ -117,24 +118,22 @@ export function pageCandidates(objects, w, h, regions = [], tables = []) {
   const allCells = tables.flatMap((t) =>
     t.cells.map((c) => ({ ...c, tableId: t.id })),
   );
+  const cellIndex = new PageSpatialIndex(allCells,c=>c.bounds);
+  const textObjects = objects.filter(o=>o.type==='text'&&o.text?.trim());
+  const textIndex = allCells.length ? new PageSpatialIndex(textObjects,o=>topBounds(o,h)) : null;
   // A detector rectangle is not proof of a cell. Multiple separated columns
   // on several baselines are an unsafe grid: expose the original row elements.
   const unsafe = new Set();
   // A single PDF text object may paint several cells. Ownership is the whole
   // object: assigning it by its centre would hide its left-hand glyphs and
   // remove neighbouring cells on save. Keep that object as an original row.
-  for (const o of objects.filter((o) => o.type === "text" && o.text?.trim())) {
+  for (const o of textObjects) {
     const b = topBounds(o, h);
-    const touched = allCells.filter((c) => intersects(b, c.bounds, 1));
+    const touched = cellIndex.search(b,1);
     if (touched.length > 1) for (const c of touched) unsafe.add(c.id);
   }
   for (const cell of allCells) {
-    const src = objects.filter(
-      (o) =>
-        o.type === "text" &&
-        o.text?.trim() &&
-        intersects(topBounds(o, h), cell.bounds, 1),
-    );
+    const src = textIndex.search(cell.bounds,1);
     const rows = horizontalRows(src, h);
     const multi = rows.filter((row, i) =>
       rows.some(
@@ -154,18 +153,13 @@ export function pageCandidates(objects, w, h, regions = [], tables = []) {
       c.bounds[3] - c.bounds[1] >= 2,
   );
   const groups = new Map();
+  const allowedCells=new Set(cellList.map(c=>c.id));
   for (const o of objects.filter((o) => o.type === "text" && o.flowEditable)) {
     const b = topBounds(o, h),
       x = (b[0] + b[2]) / 2,
       y = (b[1] + b[3]) / 2;
-    const cell = allCells.find(
-      (c) =>
-        x > c.bounds[0] &&
-        x < c.bounds[2] &&
-        y > c.bounds[1] &&
-        y < c.bounds[3],
-    );
-    if (cell && cellList.includes(cell)) {
+    const cell = cellIndex.search([x,y,x,y])[0];
+    if (cell && allowedCells.has(cell.id)) {
       if (!cellObjects.has(cell.id)) cellObjects.set(cell.id, []);
       cellObjects.get(cell.id).push(o);
       continue;
@@ -215,7 +209,9 @@ export function pageCandidates(objects, w, h, regions = [], tables = []) {
       ? "span"
       : activeCuts.filter((c) => x > c.x).length;
     const key =
-      (r?.kind === "table"
+      (o.structureParagraph != null && r?.kind !== "table"
+        ? `tag:${o.structureParagraph}`
+        : r?.kind === "table"
         ? `${r.i}:${r.kind === "table" ? Math.round(o.matrix[5] / 3) : ""}`
         : "geometry") +
       ":" +
@@ -226,6 +222,12 @@ export function pageCandidates(objects, w, h, regions = [], tables = []) {
   const barriers = objects.filter((o) => o.type === "path");
   let candidates = [...groups.values()].flatMap((g) => {
     const cs = paragraphCandidates(g, h, barriers);
+    if (cs.length > 1 && g[0].structureParagraph != null && g.every(o => o.structureParagraph === g[0].structureParagraph)) {
+      // The native tag-tree owner certifies one logical paragraph. Keep its
+      // physical lines as soft wraps even when per-glyph ink boxes vary.
+      const merged = mergeCandidates(cs, w, h);
+      return [{ ...cs[0], ...merged, lineStarts: [0, ...Array.from(merged.text.matchAll(/\n/g), m => m.index + 1)], hardLineBreaks: false }];
+    }
     if (!cs.length || g[0].flowGroup == null) return cs;
     const src = [...g].sort((a, b) => a.index - b.index);
     const saved = savedParagraph(src);

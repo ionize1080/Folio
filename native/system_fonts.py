@@ -53,8 +53,23 @@ def select_font(ident):
     from fontTools.ttLib import TTFont
     item=catalog().get(ident)
     if not item:raise ValueError('字体不可用，请刷新字体列表')
-    f=TTFont(item['path'],fontNumber=item['face']);buf=io.BytesIO();f.save(buf);f.close();blob=buf.getvalue();font=fitz.Font(fontbuffer=blob)
+    from font_similarity import cache_file,publish_cache
+    from font_match import load_font
+    import json
+    disk=cache_file('selection',ident)
+    meta={'fontName':item['name'],'source':item['source'],'family':item['family'],'face':item['face']}
+    try:
+        record=json.loads(disk.read_text(encoding='utf-8'));key=record.get('fontKey')
+        metadata=(CACHE/(key+'.json')).stat()
+        cached=load_font(key)
+        if cached and record.get('metadataStamp')==metadata.st_mtime_ns and record.get('metadataSize')==metadata.st_size and Path(cached['path']).is_file():return {'fontKey':key,**meta}
+    except (OSError,ValueError,AttributeError,TypeError):pass
+    f=TTFont(item['path'],fontNumber=item['face'],lazy=True,recalcTimestamp=False,recalcBBoxes=False);buf=io.BytesIO();f.save(buf);f.close();blob=buf.getvalue();font=fitz.Font(fontbuffer=blob)
     from font_cache import publish_font
     key=hashlib.sha256(blob).hexdigest()[:32]
-    publish_font(CACHE,key,blob,{'name':item['name'],'coverage':font.valid_codepoints()})
-    return {'fontKey':key,'fontName':item['name'],'source':item['source'],'family':item['family'],'face':item['face']}
+    from font_match import populated_coverage
+    covered=sorted(populated_coverage(blob,font.valid_codepoints()))
+    publish_font(CACHE,key,blob,{'name':item['name'],'coverage':covered,'coverageVersion':2})
+    metadata=(CACHE/(key+'.json')).stat()
+    publish_cache(disk,json.dumps({'fontKey':key,'metadataStamp':metadata.st_mtime_ns,'metadataSize':metadata.st_size}).encode())
+    return {'fontKey':key,**meta}

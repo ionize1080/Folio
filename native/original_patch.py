@@ -34,6 +34,10 @@ def correction(page, stream, mapped, description, flow):
             elif op==b'Tw':state['word']=float(args[0])
             elif op==b'"':state['word']=float(args[0])
         font=page['/Resources']['/Font'][state['font']].get_object()
+        # Type3 widths are in FontMatrix space, unlike ordinary 1000-unit
+        # fonts. Their vector-restoration path handles edits without changing
+        # the native width dictionary to an incompatible unit system.
+        if font.get('/Subtype')=='/Type3':return None
         step,widths,default=font_metrics(font)
         if font.get('/ToUnicode'):
             try:from pypdf._cmap import _parse_to_unicode as parse_unicode

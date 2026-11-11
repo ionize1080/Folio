@@ -735,6 +735,10 @@ async function loadPDF(
     }
     syncZoom();
     syncLayout();
+    // The first visible page is already rendered. Discovery is file-backed,
+    // cancellable and preempted by editing in the main-process coordinator.
+    if (window.desktop?.registerSource)
+      void nativeRequest({ command: 'font-warm-document', bytes, page: S.page }).catch(() => {});
     status(
       `${info.pageCount} 页 · ${info.nodes.length.toLocaleString()} 个书签`,
     );

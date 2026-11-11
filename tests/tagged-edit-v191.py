@@ -124,6 +124,10 @@ for options in ({'split_owner': True}, {'nested': True}, {'link': True}, {'actua
     source = fixture(**options)
     _, candidates = models(source)
     m = edit(max(candidates, key=lambda m: len(m['text'])), 'Changed complete paragraph with separate tags')
+    if options.get('split_owner'):
+        # Tag-aware selection now correctly separates the two P owners.
+        # Explicitly request both here to keep testing the cross-owner guard.
+        m['sources']=[s for c in candidates for s in c['sources']]
     if options.get('partial'):
         m['sources'] = m['sources'][:1]
     m['frame']['width'] = 330

@@ -1,7 +1,7 @@
 """Font recommendations scored from outlines and advance metrics, never names.
 Exact identity means matching sampled glyphs, not proof of an entire font family.
 """
-import hashlib, json, math
+import hashlib, json, math, os, zlib
 import struct
 from collections.abc import Mapping
 from functools import lru_cache
@@ -12,6 +12,31 @@ from font_match import load_font
 # Cache glyphs independently: inserting one leading character must not reraster
 # every installed face. Outline masks are bounded to approximately 32 MiB.
 _glyph_features=OrderedDict()
+
+def match_cache():
+    from font_match import CACHE
+    return Path(os.environ.get('FOLIO_FONT_MATCH_CACHE',str(CACHE/'matches-v2')))
+
+def cache_file(kind,identity):
+    return match_cache()/(kind+'-'+hashlib.sha256(identity.encode()).hexdigest()+'.cache')
+
+def publish_cache(path,data):
+    # Cache failure must never prevent editing (read-only/temp-full systems).
+    try:
+        from font_cache import _publish
+        path.parent.mkdir(parents=True,exist_ok=True)
+        _publish(path,data)
+    except OSError:pass
+
+def trim_cache():
+    """Bound durable metadata; called by the idle worker, never on a keystroke."""
+    try:
+        files=sorted(match_cache().glob('*.cache'),key=lambda p:p.stat().st_mtime,reverse=True)
+        total=0
+        for i,path in enumerate(files):
+            total+=path.stat().st_size
+            if i>=2048 or total>32*1024**2:path.unlink(missing_ok=True)
+    except OSError:pass
 
 def outline_font(path, face, sampled=False):
     from fontTools.ttLib import TTFont
@@ -64,13 +89,20 @@ def outline_font(path, face, sampled=False):
 
 @lru_cache(maxsize=2048)
 def coverage(path,face,stamp):
+    disk=cache_file('coverage',f'{path}:{face}:{stamp}:{Path(path).stat().st_size}')
+    try:
+        raw=zlib.decompress(disk.read_bytes())
+        if raw[:4]==b'FC02' and 5<=len(raw)<=139270:return raw[5:],bool(raw[4])
+    except (OSError,zlib.error):pass
     font=outline_font(path,face)
     try:
         # A packed bitset costs 139 KiB even for a huge CJK face; Latin faces
         # use only their highest scalar. It avoids thousands of Python integers.
         cmap=font.getBestCmap() or {};bits=bytearray((max(cmap,default=0)//8)+1)
         for cp in cmap:bits[cp//8]|=1<<(cp%8)
-        return bytes(bits),bool(font.get('OS/2') and font['OS/2'].fsType & 2)
+        restricted=bool(font.get('OS/2') and font['OS/2'].fsType & 2)
+        publish_cache(disk,zlib.compress(b'FC02'+bytes([restricted])+bytes(bits)))
+        return bytes(bits),restricted
     finally:font.close()
 
 def covers(bits,cp):return cp//8<len(bits) and bool(bits[cp//8] & (1<<(cp%8)))
@@ -126,19 +158,23 @@ def features(path, face, stamp, characters):
         return out,bits,restricted
     finally:font.close()
 
-@lru_cache(maxsize=128)
-def recommend(font_key, missing='', sample=''):
+@lru_cache(maxsize=64)
+def rank_fonts(font_key, cjk, catalog_key):
     from system_fonts import catalog
     source=load_font(font_key)
     if not source:return []
-    source_coverage=source['coverage']; chars=''.join(dict.fromkeys(c for c in sample if ord(c) in source_coverage and not c.isspace()))
-    if len(chars)<8:
-        cjk=any(ord(c)>=0x2e80 for c in missing)
-        preferred=[cp for cp in sorted(source_coverage) if (0x2e80<=cp<=0x9fff if cjk else 65<=cp<=122)]
-        chosen=set(preferred);rest=[cp for cp in sorted(source_coverage) if cp>=33 and cp not in chosen]
-        chars+=''.join(chr(cp) for cp in preferred+rest if chr(cp) not in chars)[:16-len(chars)]
-    # Spread evidence across the subset rather than comparing a single common glyph.
-    chars=chars[:16]; required={ord(c) for c in missing if not c.isspace()}
+    disk=cache_file('ranking',f'2:{font_key}:{int(cjk)}:{catalog_key}')
+    try:
+        value=json.loads(disk.read_text(encoding='utf-8'))
+        required={'id','name','source','score','evidence','exactGlyphs','match','confidence'}
+        if isinstance(value,dict) and value.get('version')==2 and isinstance(value.get('fonts'),list) and all(isinstance(f,dict) and required<=f.keys() and isinstance(f['id'],str) and isinstance(f['score'],(int,float)) and math.isfinite(f['score']) for f in value['fonts']):return value['fonts']
+    except (OSError,ValueError,TypeError):pass
+    source_coverage=sorted(source['coverage'])
+    preferred=[cp for cp in source_coverage if (0x2e80<=cp<=0x9fff if cjk else 65<=cp<=122)]
+    # Stable, distributed evidence makes a cached mapping useful for any new
+    # character or paragraph. Coverage filtering remains exact for each request.
+    chosen=preferred or [cp for cp in source_coverage if cp>=33]
+    chars=''.join(chr(chosen[round(i*(len(chosen)-1)/15)]) for i in range(16)) if len(chosen)>16 else ''.join(map(chr,chosen))
     if not chars:return []
     try: ref,_,_=features(source['path'],0,Path(source['path']).stat().st_mtime_ns,chars)
     except Exception:return []
@@ -147,7 +183,7 @@ def recommend(font_key, missing='', sample=''):
         try:
             stamp=Path(item['path']).stat().st_mtime_ns
             bits,restricted=coverage(item['path'],item['face'],stamp)
-            if restricted or not all(covers(bits,cp) for cp in required):continue
+            if restricted:continue
             cand,_,_=features(item['path'],item['face'],stamp,chars)
             shared=[c for c in chars if c in ref and c in cand]
             if len(shared)<min(4,len(ref)):continue
@@ -162,7 +198,30 @@ def recommend(font_key, missing='', sample=''):
             ranked.append({'id':item['id'],'name':item['name'],'source':item['source'],'score':round(score,4),
                 'evidence':len(shared),'exactGlyphs':exact,'match':'样本字形一致' if same else '字形相近','confidence':'高' if same else '中' if score>=.78 and len(shared)>=8 else '低'})
         except Exception:continue
-    return sorted(ranked,key=lambda r:(r['confidence']=='高',r['score'],r['evidence']),reverse=True)[:5]
+    ranked=sorted(ranked,key=lambda r:(r['confidence']=='高',r['score'],r['evidence']),reverse=True)
+    publish_cache(disk,json.dumps({'version':2,'fonts':ranked},ensure_ascii=True).encode())
+    return ranked
+
+@lru_cache(maxsize=128)
+def recommend(font_key, missing='', sample=''):
+    from system_fonts import catalog
+    entries=catalog()
+    # IDs include path, collection face and font-file timestamp. A different
+    # installed-font set cannot reuse another machine's recommendations.
+    catalog_key=hashlib.sha256('|'.join(sorted(entries)).encode()).hexdigest()
+    required={ord(c) for c in missing if not c.isspace()}
+    ranked=rank_fonts(font_key,any(cp>=0x2e80 for cp in required),catalog_key)
+    result=[]
+    for item in ranked:
+        installed=entries.get(item['id'])
+        if not installed:continue
+        try:
+            bits,restricted=coverage(installed['path'],installed['face'],Path(installed['path']).stat().st_mtime_ns)
+            if restricted or not all(covers(bits,cp) for cp in required):continue
+        except OSError:continue
+        result.append(item)
+        if len(result)==5:break
+    return result
 
 # Reuse the chosen full face across different missing characters. Keep separate
 # script buckets so a Latin choice does not displace a Chinese fallback.

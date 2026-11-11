@@ -1,12 +1,12 @@
-# Folio PDF Studio 2.5.1 documentation
+# Folio PDF Studio 2.6.0 documentation
 
 | Start here | English | 简体中文 | 繁體中文 |
 | --- | --- | --- | --- |
 | Install, open files and save edits | [User guide](../README.md) | [使用指南](../README.zh-Hans.md) | [使用指南](../README.zh-Hant.md) |
 | Ask about a selection, edit a picture or embed a flowchart | [Chatbox and MCP](AI.en.md) | [Chatbox 与 MCP](AI.md) | [Chatbox 與 MCP](AI.zh-Hant.md) |
-| What shipped in 2.5.1 | [Release notes](RELEASE-2.5.1.md) | [发布说明](RELEASE-2.5.1.zh-Hans.md) | [發行說明](RELEASE-2.5.1.zh-Hant.md) |
+| What shipped in 2.6.0 | [Release notes](RELEASE-2.6.0.md) | [发布说明](RELEASE-2.6.0.zh-Hans.md) | [發行說明](RELEASE-2.6.0.zh-Hant.md) |
 
-**Download.** Extract the complete Windows x64 portable archive and run `Folio.exe`. Source, checksums and the release validation JSON are available with the same release. [GitHub Release](https://github.com/ionize1080/Folio/releases/tag/v2.5.1)
+**Download.** Extract the complete Windows x64 portable archive and run `Folio.exe`. Source, checksums and the release validation JSON are available with the same release. [GitHub Release](https://github.com/ionize1080/Folio/releases/tag/v2.6.0)
 
 ## Task guides and engineering references
 
@@ -17,7 +17,7 @@
 | How are tabs, approvals, previews and saves connected? | [Architecture and data flow](ARCHITECTURE.md) |
 | How do I set up, build or test Folio? | [Development](DEVELOPMENT.md) · [Windows release workflow](../.github/workflows/release-251.yml) |
 | How do appearance and translation work? | [Desktop controls and themes](DESIGN.md) · [Localization](LOCALIZATION.md) |
-| What was verified on the published executable? | [Release validation](VALIDATION.md) · [Windows CI report](https://github.com/ionize1080/Folio/releases/download/v2.5.1/Folio-PDF-Studio-2.5.1-validation.json) |
+| What was verified on the published executable? | [Release validation](VALIDATION.md) · [Windows CI report](https://github.com/ionize1080/Folio/releases/download/v2.6.0/Folio-PDF-Studio-2.6.0-validation.json) |
 | Which tools did the real model call and what changed in the PDFs? | [MCP acceptance and measurements, in Chinese](MCP-2.1.0-validation.zh-Hans.md) |
 | Which licenses apply to bundled components? | [Folio license](../LICENSE) · [Third-party notices](../THIRD-PARTY-NOTICES.md) |
 

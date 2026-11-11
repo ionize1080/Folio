@@ -1,29 +1,39 @@
 """Bounded fast-layout export: the canvas and PDF consume identical glyph anchors.
 No files, CSS, HTML or font paths are accepted from the renderer.
 """
-import base64,hashlib,math,re
+import base64,hashlib,json,math,re
 from pathlib import Path
 from functools import lru_cache
 
 @lru_cache(maxsize=16)
 def font_data(key):
     import fitz
-    from font_match import load_font,CACHE
+    from font_match import load_font,populated_coverage,CACHE
     from font_cache import publish_font
     if key in ('builtin-cjk','builtin-latin'):
         path=Path(__file__).parent/'fonts'/('NotoSansSC.ttf' if key=='builtin-cjk' else 'DejaVuSans.ttf')
         blob=path.read_bytes();actual=hashlib.sha256(blob).hexdigest()[:32]
         font=fitz.Font(fontbuffer=blob);coverage=font.valid_codepoints();name=font.name
-        publish_font(CACHE,actual,blob,{'name':name,'coverage':coverage})
+        f=load_font(actual)
+        if f and f.get('browserReadyVersion')==1:coverage=sorted(f['coverage'])
     else:
         f=load_font(key)
         if not f:raise ValueError('字体不可用')
-        blob=Path(f['path']).read_bytes();actual=key;coverage=list(f['coverage']);name=f['name']
-    from browser_fonts import opentype
-    wrapped=opentype(blob)
-    if wrapped!=blob:
-        blob=wrapped;actual=hashlib.sha256(blob).hexdigest()[:32]
-        publish_font(CACHE,actual,blob,{'name':name,'coverage':coverage})
+        blob=Path(f['path']).read_bytes();actual=key;coverage=sorted(f['coverage']);name=f['name']
+    from font_similarity import cache_file,publish_cache
+    disk=cache_file('browser-v1',actual)
+    if not f or f.get('browserReadyVersion')!=1:
+        try:
+            cached=load_font(json.loads(disk.read_text(encoding='utf-8'))['fontKey'])
+            if cached and cached.get('browserReadyVersion')==1:
+                f=cached;blob=Path(f['path']).read_bytes();actual=Path(f['path']).stem;coverage=sorted(f['coverage'])
+        except (OSError,ValueError,KeyError,TypeError):pass
+    if not f or f.get('browserReadyVersion')!=1:
+        from browser_fonts import opentype
+        blob=opentype(blob);actual=hashlib.sha256(blob).hexdigest()[:32]
+        coverage=sorted(populated_coverage(blob,coverage))
+        publish_font(CACHE,actual,blob,{'name':name,'coverage':coverage,'coverageVersion':2,'browserReadyVersion':1})
+        publish_cache(disk,json.dumps({'fontKey':actual}).encode())
     system_key=None
     if key not in ('builtin-cjk','builtin-latin'):
         from font_resolver import resolve_name
@@ -42,7 +52,9 @@ def render(m):
     if not isinstance(layout,dict) or layout.get('version')!=1 or layout.get('text')!=m['text']:raise ValueError('快速排版已过期，请重新预览')
     gs=layout.get('glyphs',[])
     if not isinstance(gs,list) or len(gs)>100000 or ''.join(g.get('text','') for g in gs)!=m['text']:raise ValueError('快速排版字符映射不完整')
-    doc=fitz.open();page=doc.new_page(width=m['pageWidth'],height=m['pageHeight']);fonts={};names={};offset=0
+    doc=fitz.open();page=doc.new_page(width=m['pageWidth'],height=m['pageHeight']);fonts={};offset=0
+    from glyph_writer import GlyphWriter
+    writer=GlyphWriter(page)
     from ligatures import cluster
     painted=0
     for index,g in enumerate(gs):
@@ -60,7 +72,7 @@ def render(m):
         if font is None:
             font=load_font(key)
             if not font:raise ValueError('快速排版字体不可用')
-            fonts[key]=font;names[key]='F'+str(len(names));page.insert_font(fontname=names[key],fontfile=font['path'])
+            fonts[key]=font
         covered=any(start+cluster(gs,start,font['coverage'])[2]>index and cluster(gs,start,font['coverage'])[2]>1
                     for start in range(max(0,index-2),index+1))
         if ord(ch) not in font['coverage'] and not covered:raise ValueError('快速排版字体缺字：'+ch)
@@ -73,19 +85,13 @@ def render(m):
         sx=g.get('scale',1)
         if not isinstance(sx,(float,int)) or not math.isfinite(sx) or not .05<=sx<=20:raise ValueError('文字比例无效')
         x,y=g['originX'],g['baseline']
-        # insert_text rotation precedes the page-space morph: conjugate local
-        # scale/shear into page coordinates so italic never tilts the baseline.
-        radians=-math.radians(angle);c=math.cos(radians);s=math.sin(radians);k=.22 if italic else 0
-        matrix=fitz.Matrix(sx*c*c-k*c*s+s*s,(sx-1)*c*s-k*s*s,(sx-1)*c*s+k*c*c,sx*s*s+k*c*s+c*c,0,0)
         stroke=g.get('strokeWidth',0) if bold else 0
         if not isinstance(stroke,(int,float)) or not math.isfinite(stroke) or not 0<=stroke<=20:raise ValueError('描边无效')
         stroke=stroke or g['size']*.025
         if index<painted:continue
         scalar,actual,count=cluster(gs,index,font['coverage']);painted=index+count
-        page.insert_text((x,y),scalar,fontsize=g['size'],fontname=names[key],color=rgb,fill=rgb,render_mode=2 if bold else 0,
-                         border_width=stroke/g['size'],rotate=(-angle)%360,morph=(fitz.Point(x,y),matrix))
-        from text_semantics import mark_text
-        mark_text(page,actual)
+        writer.add(scalar,actual,font['path'],x,y,g['size'],rgb,sx,angle,bold,italic,stroke)
+    writer.finish()
     from text_semantics import expand_preview
     original_box,preview_bounds=expand_preview(page)
     svg=page.get_svg_image(text_as_path=True);page.set_mediabox(original_box)

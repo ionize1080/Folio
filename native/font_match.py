@@ -34,11 +34,24 @@ def _populated_coverage(blob, coverage):
     font=TTFont(io.BytesIO(blob),lazy=True)
     try:
         if 'glyf' not in font or 'hmtx' not in font:return coverage
-        cmap=font.getBestCmap() or {};glyf=font['glyf'];metrics=font['hmtx'].metrics
-        return {cp for cp in coverage if cp in cmap and (
-            unicodedata.category(chr(cp))[0] in ('M','Z','C') or
-            metrics.get(cmap[cp],(0,0))[0] != 0 and
-            glyf[cmap[cp]].numberOfContours != 0)}
+        # Only the contour count and advance decide whether a subset glyph was
+        # emptied. Reading their indexed headers avoids constructing tens of
+        # thousands of Python Glyph objects or decoding outline coordinates.
+        count=font['maxp'].numGlyphs
+        order=['.notdef']+['glyph%05d'%i for i in range(1,count)]
+        font.setGlyphOrder(order);cmap=font.getBestCmap() or {}
+        locations=font['loca'].locations;glyf=font.reader['glyf'];hmtx=font.reader['hmtx'];metric_count=font['hhea'].numberOfHMetrics
+        if not 1<=metric_count<=count:raise ValueError('字体字宽数量不一致')
+        gids={name:i for i,name in enumerate(order)};result=set()
+        for cp in coverage:
+            name=cmap.get(cp)
+            if name is None:continue
+            if unicodedata.category(chr(cp))[0] in ('M','Z','C'):result.add(cp);continue
+            gid=gids[name];a,b=locations[gid:gid+2]
+            if not 0<=a<=b<=len(glyf):raise ValueError('字体字形范围无效')
+            width=struct.unpack_from('>H',hmtx,min(gid,metric_count-1)*4)[0]
+            if width and b-a>=10 and struct.unpack_from('>h',glyf,a)[0]!=0:result.add(cp)
+        return result
     finally:font.close()
 
 def checksum(data):
@@ -123,16 +136,32 @@ def inspect_fonts(data,page_number,objects,mapped,stream):
     reader=PdfReader(io.BytesIO(data));page=reader.pages[page_number-1]
     fonts=page['/Resources'].get('/Font',{});fonts=fonts.get_object() if hasattr(fonts,'get_object') else fonts
     available={};CACHE.mkdir(parents=True,exist_ok=True)
+    type3_groups={};restored_type3={}
+    def type3_identity(f):
+        descriptor=f.get('/FontDescriptor',{});descriptor=descriptor.get_object() if hasattr(descriptor,'get_object') else descriptor
+        if not descriptor.get('/FontName'):return ('anonymous',id(f))
+        return (str(descriptor.get('/FontName','')),str(f.get('/FontMatrix')),str(descriptor.get('/FontWeight','')),str(descriptor.get('/ItalicAngle','')))
+    for ref in fonts.values():
+        f=ref.get_object()
+        if f.get('/Subtype')=='/Type3':type3_groups.setdefault(type3_identity(f),[]).append(f)
     with fitz.open(stream=data,filetype='pdf') as doc:
         refs={f[4]:f[0] for f in doc[page_number-1].get_fonts()}
         for resource,ref in fonts.items():
-            f=ref.get_object();name=str(f.get('/BaseFont','/Unknown')).removeprefix('/');key=None;reason='原字体未嵌入；可选择本机或替代字体'
+            f=ref.get_object();descriptor=f.get('/FontDescriptor',{});descriptor=descriptor.get_object() if hasattr(descriptor,'get_object') else descriptor
+            name=str(f.get('/BaseFont',descriptor.get('/FontName','/Unknown'))).removeprefix('/');key=None;reason='原字体未嵌入；可选择本机或替代字体'
             embedded=None;intrinsic_style=None
             try:_,ext,_,embedded=doc.extract_font(ref.idnum)
             except (ValueError,RuntimeError,AttributeError):pass
             if embedded:reason='原字体已嵌入，但此字体格式或字符映射暂不支持'
             try:
-                if f.get('/Subtype') in ('/TrueType','/Type1'):
+                if f.get('/Subtype')=='/Type3':
+                    from type3_restore import restore
+                    identity=type3_identity(f)
+                    if identity not in restored_type3:
+                        try:restored_type3[identity]=restore(f,type3_groups[identity])
+                        except ValueError:restored_type3[identity]=None
+                    blob,coverage=restored_type3[identity] or restore(f);embedded=blob
+                elif f.get('/Subtype') in ('/TrueType','/Type1'):
                     _,ext,_,blob=doc.extract_font(ref.idnum)
                     if not blob:
                         aliases={'Helvetica':'helv','Helvetica-Bold':'hebo','Helvetica-Oblique':'heit','Helvetica-BoldOblique':'hebi','Times-Roman':'tiro','Times-Bold':'tibo','Times-Italic':'tiit','Times-BoldItalic':'tibi','Courier':'cour','Courier-Bold':'cobo','Courier-Oblique':'coit','Courier-BoldOblique':'cobi'}
@@ -195,7 +224,7 @@ def inspect_fonts(data,page_number,objects,mapped,stream):
                 coverage=populated_coverage(blob,{cp for cp in coverage if face.has_glyph(cp)})
                 if not coverage:raise ValueError('原字体 Unicode 映射不完整')
                 key=hashlib.sha256(blob).hexdigest()[:32]
-                info={'name':name,'coverage':sorted(coverage),'coverageVersion':2}
+                info={'name':name,'coverage':sorted(coverage),'coverageVersion':2,'browserReadyVersion':1}
                 from font_cache import publish_font
                 publish_font(CACHE,key,blob,info)
                 reason=''
@@ -211,6 +240,7 @@ def inspect_fonts(data,page_number,objects,mapped,stream):
             try:
                 _,_,_,embedded=doc.extract_font(ref.idnum)
             except (ValueError,RuntimeError):embedded=None
+            if f.get('/Subtype')=='/Type3' and key:embedded=True
             if not embedded:
                 if key:meta['fontResolution']='standard'
                 else:

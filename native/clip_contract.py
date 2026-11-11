@@ -7,6 +7,27 @@ Rectangles are certified; curves/compound paths retain an unknown marker.
 # PDFium bounds and generated font bearings differ by a few hundredths of a
 # point. Use one sub-pixel tolerance for save validation and editable reopen.
 CLIP_TOLERANCE = 0.05
+
+def inherited_ink_clips(clips, boxes):
+    """Retain a source glyph's small side bearing across an inherited clip.
+
+    Chromium clips at the CSS line box, not at the glyph outline. Italic and
+    serif overhangs are already clipped in the original. Certify at most one
+    point of *observed* overhang; never expand the actual PDF clipping path.
+    """
+    result=[]
+    for clip in clips:
+        if clip is None:
+            result.append(None);continue
+        edge=list(clip)
+        for box in boxes:
+            if box[2]<=clip[0] or box[0]>=clip[2] or box[3]<=clip[1] or box[1]>=clip[3]:continue
+            for i in (0,1):
+                if 0<clip[i]-box[i]<=1:edge[i]=min(edge[i],box[i])
+            for i in (2,3):
+                if 0<box[i]-clip[i]<=1:edge[i]=max(edge[i],box[i])
+        result.append(tuple(edge))
+    return result
 def clip_states(operations):
     matrix=(1,0,0,1,0,0);clips=();stack=[];path=[];pending=False;result={}
     def point(x,y):

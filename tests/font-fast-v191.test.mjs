@@ -106,7 +106,7 @@ test('background fallback preload retries transient failures and is shared with 
     assert.equal(command,'font-fast');calls.set(key,(calls.get(key)||0)+1);
     if(key==='builtin-latin'&&calls.get(key)===1)throw Error('worker restarted');
     if(key==='builtin-cjk')await new Promise(r=>releaseCjk=r);
-    return {key,base64:'AA==',coverage:[...'原新A '].map(c=>c.codePointAt(0)),advances:{}};
+    return {key,base64:'AA==',coverage:[...(key==='warm-original'?'原':'原新A ')].map(c=>c.codePointAt(0)),advances:{}};
   };
   try{
     await assert.rejects(FastFonts.preloadFallback(call),/worker restarted/);
@@ -114,7 +114,8 @@ test('background fallback preload retries transient failures and is shared with 
     const first=new FastFonts(call,()=>notifications++,{preloadFallback:true});first.dispose();
     const next=new FastFonts(call,()=>notifications++,{preloadFallback:true});
     let ready=false;const prepared=next.prepare({text:'原',fontKey:'warm-original'}).then(()=>ready=true);
-    await new Promise(r=>setImmediate(r));assert.equal(ready,false,'entry can continue while CJK font is in flight');
+    await new Promise(r=>setImmediate(r));assert.equal(ready,true,'covered original text becomes ready while CJK font is in flight');
+    assert.equal(next.ready({text:'新',fontKey:'warm-original'}),false,'actual missing glyph still needs its fallback');
     assert.equal(calls.get('builtin-latin'),2,'transient failure is retried');
     assert.equal(calls.get('builtin-cjk'),1,'preload and new document join one in-flight font');
     releaseCjk();await Promise.all([preload,prepared]);

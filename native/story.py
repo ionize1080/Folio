@@ -203,6 +203,17 @@ def layout(model):
     writer.end_page(); writer.close()
     from generated_cmaps import repair
     blob=repair(buf.getvalue())
+    if m.get('allowOverflow'):
+        # These are Story's own layout-frame clips, never inherited PDF clips.
+        # A long word or an unusual side bearing can extend past its advance.
+        # Overflow must remain visible/editable instead of being silently cut.
+        # Original document / Form clips are independently validated on save.
+        from pypdf.generic import ContentStream
+        with fitz.open(stream=blob,filetype='pdf') as generated:
+            pg=generated[0];content=ContentStream(None,None);content.set_data(pg.read_contents())
+            content.operations=[(args,op) for args,op in content.operations if op not in (b'W',b'W*')]
+            ref=generated.get_new_xref();generated.update_object(ref,'<<>>');generated.update_stream(ref,content.get_data(),compress=False);pg.set_contents(ref)
+            blob=generated.tobytes()
     if m['align']=='justify' and text:
         from justify import justify_fragment
         with fitz.open(stream=blob,filetype='pdf') as raw:

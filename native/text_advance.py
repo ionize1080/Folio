@@ -4,6 +4,13 @@ No invisible duplicate text is left in search/copy. Unsupported encodings fail c
 from pypdf.generic import ArrayObject, FloatObject, TextStringObject
 
 def font_metrics(font):
+    if font.get('/Subtype') == '/Type3':
+        matrix=list(map(float,font.get('/FontMatrix',(.001,0,0,.001,0,0))))
+        if len(matrix)!=6 or abs(matrix[1])+abs(matrix[2])>1e-9 or matrix[0]<=0:
+            raise ValueError('Type3 字体矩阵不支持水平独立编辑')
+        values=font.get('/Widths',[])
+        if hasattr(values,'get_object'):values=values.get_object()
+        return 1,{int(font.get('/FirstChar',0))+i:float(v)*matrix[0]*1000 for i,v in enumerate(values)},None
     if font.get('/Subtype') == '/Type0':
         if font.get('/Encoding') != '/Identity-H':
             raise ValueError('此字体编码暂不能独立编辑共享文字组')

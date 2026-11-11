@@ -83,6 +83,7 @@ def publish_font(cache, key, blob, info):
             # Names can be aliases of the same content and codepoint order is
             # irrelevant. Retain those valid entries, including their timestamp.
             if (previous.get('coverageVersion') == info.get('coverageVersion')
+                    and (not info.get('browserReadyVersion') or previous.get('browserReadyVersion')==info['browserReadyVersion'])
                     and set(previous['coverage']) == set(info['coverage'])):
                 return
             # A system/builtin writer has not validated subset metrics. Its

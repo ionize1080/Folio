@@ -107,6 +107,12 @@ def describe(r,obj,i,tp):
  rectangles=[]
  if contains_ink_clip(r,clip,rectangles=rectangles):out['clipBounds']=rectangles
  out['simpleText']=typ==1 and out['renderMode'] in (0,2) and contains_ink_clip(r,clip,out['bounds'])
+ if typ==1 and not out['simpleText'] and out['renderMode'] in (0,2) and rectangles:
+  from clip_contract import inherited_ink_clips,validate_ink
+  try:
+   validate_ink([out['bounds']],inherited_ink_clips(rectangles,[out['bounds']]))
+   out['simpleText']=True;out['clippedOverhang']=True
+  except ValueError:pass
  if not out['editable']:out['reason']='复杂裁剪、嵌套或特殊绘制模式暂为只读'
  out['signature']=hashlib.sha256(json.dumps({k:out[k] for k in ['type','matrix','bounds']+(['text'] if typ==1 else [])},sort_keys=True).encode()).hexdigest()[:20];return out
 
@@ -311,6 +317,9 @@ def run(args, *, _preview=False):
   return process(args)
  if args.get('command')=='replace':return replace(args['source'],args['target'])
  if args.get('command')=='preflight':return preflight(read_blocks(args))
+ if args.get('command') in ('font-scan','font-warm'):
+  from font_warmup import scan,warm
+  return scan(args) if args['command']=='font-scan' else warm(args)
  if args.get('command')=='font-recommend':
   from font_similarity import recommend
   return {'fonts':recommend(args.get('fontKey'),str(args.get('missing',''))[:100000],str(args.get('sample',''))[:500])}

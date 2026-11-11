@@ -192,6 +192,8 @@ def check_editable(page,descriptions,parsed=None):
             b['styleEditable']=bool(a['type']=='text' and b['editable'] and a.get('at') is not None)
             if a['type']=='text' and not (a.get('single') and a.get('end') is not None):
                 b['editable']=False;b['reason']='此文字与其他片段共用文字组，暂不能安全单独替换；可新增文本框'
+        from structure_scope import annotate_paragraphs
+        annotate_paragraphs(page,mapped,descriptions)
         return mapped
     except Exception as e:
         for b in descriptions:
@@ -345,7 +347,7 @@ def compose(data,edits,blocks,inspect,fragment,progress=None,*,preview=False):
                 if structured:
                     from structure_scope import validate_scopes
                     original_stream,raw_objects=source_stream()
-                    scopes,scope=validate_scopes(page,original_stream,raw_objects,mapped,sources)
+                    scopes,scope=validate_scopes(page,original_stream,raw_objects,mapped,sources,model,desc)
                     ends=[mapped[source['index']].get('end') for source in sources]
                     if any(end is None for end in ends):raise ValueError('标签文字范围不完整')
                     if len(scopes)>1:
@@ -395,8 +397,8 @@ def compose(data,edits,blocks,inspect,fragment,progress=None,*,preview=False):
                         ink_boxes=[[left+x0,bottom+y0,left+x1,bottom+y1] for obj in fragment_page.get_objects(max_depth=1) for x0,y0,x1,y1 in [obj.get_bounds()] if x1>x0 and y1>y0]
                         fragment_page.close()
                     clips=owned_scope['clips'] if owned_scope else [clip for source in sources for clip in desc[source['index']].get('clipBounds',[])]
-                    from clip_contract import validate_ink
-                    validate_ink(ink_boxes,clips)
+                    from clip_contract import validate_ink,inherited_ink_clips
+                    validate_ink(ink_boxes,inherited_ink_clips(clips,[desc[i]['bounds'] for i in indices]))
                     for j,item in enumerate(mapped):
                         if j in indices or j in deleted_indices or item.get('at') is None or not first<=item['at']<=position:continue
                         other=desc[j].get('bounds')

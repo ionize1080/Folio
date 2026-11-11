@@ -4,7 +4,7 @@ import base64, io, json, sys
 ROOT = Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(ROOT / 'native'), str(ROOT / 'native/vendor')]
 import fitz, worker, pypdfium2 as pdfium
-from clip_contract import validate_ink, CLIP_TOLERANCE
+from clip_contract import validate_ink, inherited_ink_clips, CLIP_TOLERANCE
 from pypdf import PdfReader, PdfWriter
 from pypdf.generic import ContentStream, NameObject, FloatObject
 
@@ -17,7 +17,7 @@ with pdfium.PdfDocument(raw) as document:
     page.close()
 
 checks = []
-for delta, editable in [(0.03, True), (0.10, False), (1.0, False)]:
+for delta, editable in [(0.03, True), (0.10, True), (0.99, True), (1.1, False)]:
     writer = PdfWriter()
     page = writer.add_page(PdfReader(io.BytesIO(raw)).pages[0])
     clip = [box[0] + delta, box[1] - 5, box[2] + 5, box[3] + 5]
@@ -30,10 +30,16 @@ for delta, editable in [(0.03, True), (0.10, False), (1.0, False)]:
     text = next(o for o in inspection['objects'] if o['type'] == 'text')
     assert bool(text.get('flowEditable')) == editable, (delta, text)
     try:
-        validate_ink([box], [clip])
+        validate_ink([box], inherited_ink_clips([clip],[box]))
         accepted = True
     except ValueError:
         accepted = False
     assert accepted == editable, delta
+    if editable:
+        beyond=[box[0]-1.2,*box[1:]]
+        try:
+            validate_ink([beyond],inherited_ink_clips([clip],[box]))
+            raise AssertionError('new ink escaped the observed source envelope')
+        except ValueError:pass
     checks.append(f'{delta}pt clip overrun: save/reopen agree on {"editable" if editable else "protected"}')
 print(json.dumps({'tolerance': CLIP_TOLERANCE, 'checks': checks, 'errors': []}))

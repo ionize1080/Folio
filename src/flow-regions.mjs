@@ -205,6 +205,10 @@ export function connectedParagraphs(objects, h, barriers = objects) {
       i++
     ) {
       const b = rules[i].bounds;
+      // Link underlines sit directly below the previous baseline. They are
+      // inline decoration, not a separator between this line and the next.
+      if (rules[i].y - last.base <= s * 0.3 &&
+          b[0] >= last.u - s * 0.2 && b[2] <= last.end + s * 0.2) continue;
       if (b[2] - b[0] > s * 2 && b[0] < row.end && b[2] > row.u) return true;
     }
     return false;

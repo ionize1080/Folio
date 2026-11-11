@@ -95,6 +95,7 @@ for (const item of [
   "source-store.cjs",
   "temp-store.cjs",
   "native-bridge.cjs",
+  "font-warmup.cjs",
   "large-files.cjs",
   "flow-layout.cjs",
   "flow-validation.cjs",

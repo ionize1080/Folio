@@ -1,0 +1,732 @@
+{
+  "version": "2.6.0",
+  "created": "2026-11-11T04:31:50.152053+00:00",
+  "seed": 20261111,
+  "documents": 32,
+  "sampledPages": 95,
+  "sources": {
+    "local": 15,
+    "public": 17
+  },
+  "attempts": {
+    "passed": 303,
+    "limited": 136
+  },
+  "errorFiles": 0,
+  "allOriginalsUnchanged": true,
+  "checks": [
+    "saved text",
+    "editable reopen",
+    "outside pixels",
+    "adjacent page pixels",
+    "page count",
+    "unique source ownership"
+  ],
+  "limitations": [
+    {
+      "reason": "原文与其他绘制对象交错重叠，请分别编辑或明确调整图层，草稿已保留",
+      "attempts": 42
+    },
+    {
+      "reason": "链接、替代文字或复杂标签范围需分别编辑，草稿已保留",
+      "attempts": 38
+    },
+    {
+      "reason": "带标签文字需选择完整 MCID 范围，草稿已保留",
+      "attempts": 14
+    },
+    {
+      "reason": "精排字位不完整",
+      "attempts": 11
+    },
+    {
+      "reason": "原字体 AAAAAM+TimesNewRomanPSMT 未解析，草稿已保留；请明确选择此范围的替代字体后应用",
+      "attempts": 8
+    },
+    {
+      "reason": "原字体 AAAAAI+TimesNewRomanPSMT 未解析，草稿已保留；请明确选择此范围的替代字体后应用",
+      "attempts": 6
+    },
+    {
+      "reason": "标签文字须在完整且不嵌套的 MCID 范围内编辑，草稿已保留",
+      "attempts": 4
+    },
+    {
+      "reason": "原字体 AAAAAO+TimesNewRomanPS-BoldMT 未解析，草稿已保留；请明确选择此范围的替代字体后应用",
+      "attempts": 4
+    },
+    {
+      "reason": "不同语言标记范围需分别编辑，草稿已保留",
+      "attempts": 2
+    },
+    {
+      "reason": "新文字超出原 PDF 裁剪边界，请缩小文字或调整位置；草稿已保留",
+      "attempts": 2
+    },
+    {
+      "reason": "文字包含不可排版的控制字符",
+      "attempts": 2
+    },
+    {
+      "reason": "原文含固定列间距；本次修改无法保留各列位置，请缩短修改或明确选择段落重排",
+      "attempts": 2
+    },
+    {
+      "reason": "“机”上方有独立注音，本次排版会使注音错位；请保留该字原位，草稿已保留",
+      "attempts": 1
+    }
+  ],
+  "localTimingMs": {
+    "layoutMs": {
+      "median": 130.0,
+      "p95": 817.17,
+      "samples": 303
+    },
+    "saveMs": {
+      "median": 1011.45,
+      "p95": 3796.58,
+      "samples": 303
+    },
+    "reopenMs": {
+      "median": 1284.91,
+      "p95": 4045.2,
+      "samples": 303
+    }
+  },
+  "files": [
+    {
+      "id": "local-01",
+      "sha256": "1d926789aa688692929294a1f983eeef065ddabc38d99b98a9770f9218c5bcd3",
+      "source": "local",
+      "category": "user-corpus",
+      "samplePages": [
+        1,
+        2,
+        3
+      ],
+      "pages": 3,
+      "attempts": {
+        "passed": 11,
+        "limited": 6
+      },
+      "sourceUnchanged": true,
+      "errors": 0
+    },
+    {
+      "id": "local-02",
+      "sha256": "f9279ae19d5ef484c3df604c0531eefd6c901e4d63b7a28689b39edfe4c233a8",
+      "source": "local",
+      "category": "user-corpus",
+      "samplePages": [
+        4,
+        5,
+        13
+      ],
+      "pages": 13,
+      "attempts": {
+        "passed": 16,
+        "limited": 2
+      },
+      "sourceUnchanged": true,
+      "errors": 0
+    },
+    {
+      "id": "local-03",
+      "sha256": "6f11ef12c65830a30c23882d3aa695221c803de1a4686a274ce2d76c21831804",
+      "source": "local",
+      "category": "user-corpus",
+      "samplePages": [
+        47,
+        139,
+        288
+      ],
+      "pages": 315,
+      "attempts": {},
+      "sourceUnchanged": true,
+      "errors": 0
+    },
+    {
+      "id": "local-04",
+      "sha256": "f545a861ad181216128522d9d40ace9959178b5dfdda4245c34232ca78b97eee",
+      "source": "local",
+      "category": "user-corpus",
+      "samplePages": [
+        11,
+        25,
+        49
+      ],
+      "pages": 52,
+      "attempts": {},
+      "sourceUnchanged": true,
+      "errors": 0
+    },
+    {
+      "id": "local-05",
+      "sha256": "7ade1302d7c34d79e51e6262b93dd34bd9ac7dd2d41577200004cb095f3f008d",
+      "source": "local",
+      "category": "user-corpus",
+      "samplePages": [
+        3,
+        51,
+        57
+      ],
+      "pages": 60,
+      "attempts": {},
+      "sourceUnchanged": true,
+      "errors": 0
+    },
+    {
+      "id": "local-06",
+      "sha256": "457c956d8529bffc034dbad96ec4f19716654fb2e16dd791744bf52790c51339",
+      "source": "local",
+      "category": "user-corpus",
+      "samplePages": [
+        1,
+        4,
+        11
+      ],
+      "pages": 12,
+      "attempts": {
+        "passed": 9,
+        "limited": 1
+      },
+      "sourceUnchanged": true,
+      "errors": 0
+    },
+    {
+      "id": "local-07",
+      "sha256": "91c4fbacfd939d9f790864821ea79ad03dc4ad593356cb3ca087cb3e15f1ed58",
+      "source": "local",
+      "category": "user-corpus",
+      "samplePages": [
+        53,
+        90,
+        94
+      ],
+      "pages": 132,
+      "attempts": {},
+      "sourceUnchanged": true,
+      "errors": 0
+    },
+    {
+      "id": "local-08",
+      "sha256": "bfb9a9541f15f280c8cf928ffd1cb7a348ca7502367e9fb61209e18984bcf3a3",
+      "source": "local",
+      "category": "user-corpus",
+      "samplePages": [
+        7,
+        18,
+        21
+      ],
+      "pages": 27,
+      "attempts": {
+        "passed": 13,
+        "limited": 5
+      },
+      "sourceUnchanged": true,
+      "errors": 0
+    },
+    {
+      "id": "local-09",
+      "sha256": "3da72ca8f3e26934434a7283b45c5af22bcafaed2d4c91773435ce2266760e0b",
+      "source": "local",
+      "category": "user-corpus",
+      "samplePages": [
+        12,
+        101,
+        119
+      ],
+      "pages": 131,
+      "attempts": {
+        "passed": 16,
+        "limited": 2
+      },
+      "sourceUnchanged": true,
+      "errors": 0
+    },
+    {
+      "id": "local-10",
+      "sha256": "46f068df46465fdf92b30f07f40a23719c256679c85fe3afbd1db32a73fb1e16",
+      "source": "local",
+      "category": "user-corpus",
+      "samplePages": [
+        72,
+        86,
+        113
+      ],
+      "pages": 154,
+      "attempts": {
+        "passed": 17,
+        "limited": 1
+      },
+      "sourceUnchanged": true,
+      "errors": 0
+    },
+    {
+      "id": "local-11",
+      "sha256": "4d1afa6ec4603813e04c699a62866b3d1326feb249825f3b9aa1b617ec487ed0",
+      "source": "local",
+      "category": "user-corpus",
+      "samplePages": [
+        1,
+        5,
+        8
+      ],
+      "pages": 8,
+      "attempts": {
+        "passed": 4,
+        "limited": 14
+      },
+      "sourceUnchanged": true,
+      "errors": 0
+    },
+    {
+      "id": "local-12",
+      "sha256": "3e14e6cbb40d98ebd854732cc406ea4cf56caaf10d893c018c5b65f95305c74e",
+      "source": "local",
+      "category": "user-corpus",
+      "samplePages": [
+        6,
+        14,
+        22
+      ],
+      "pages": 45,
+      "attempts": {
+        "passed": 15,
+        "limited": 3
+      },
+      "sourceUnchanged": true,
+      "errors": 0
+    },
+    {
+      "id": "local-13",
+      "sha256": "4c2455667419750f3a44758b5175828f6e5a322e76b9d301d8c09d3f2cd467d2",
+      "source": "local",
+      "category": "user-corpus",
+      "samplePages": [
+        99,
+        169,
+        261
+      ],
+      "pages": 288,
+      "attempts": {},
+      "sourceUnchanged": true,
+      "errors": 0
+    },
+    {
+      "id": "local-14",
+      "sha256": "49e1f97ada2962f3526de2e9eb1eebfa2f9c3d2e78668dfb5246365700c93d05",
+      "source": "local",
+      "category": "user-corpus",
+      "samplePages": [
+        12,
+        17,
+        22
+      ],
+      "pages": 35,
+      "attempts": {
+        "limited": 18
+      },
+      "sourceUnchanged": true,
+      "errors": 0
+    },
+    {
+      "id": "local-15",
+      "sha256": "3fb6af4b3d3d570ee2c5184c9f2aee64d39c55dc2b74691218752db49600c8f0",
+      "source": "local",
+      "category": "user-corpus",
+      "samplePages": [
+        3,
+        4,
+        10
+      ],
+      "pages": 10,
+      "attempts": {
+        "passed": 18
+      },
+      "sourceUnchanged": true,
+      "errors": 0
+    },
+    {
+      "id": "public-16",
+      "sha256": "d49e8d98b836ed4dae95e86953eee59d87e7df406a5a97e00456af0d8912f287",
+      "source": "public",
+      "category": "14_Papers",
+      "samplePages": [
+        19,
+        29,
+        31
+      ],
+      "pages": 45,
+      "attempts": {
+        "limited": 6,
+        "passed": 12
+      },
+      "sourceUnchanged": true,
+      "errors": 0,
+      "name": "Bystander on the Fence_ Sanctions in a Multipolar World__0b422ebf.pdf",
+      "url": "https://arxiv.org/pdf/2610.22830"
+    },
+    {
+      "id": "public-17",
+      "sha256": "eae8fd1d4eae9ce4f83dff78d3640e9f6375d991de103e83219349419dd01972",
+      "source": "public",
+      "category": "14_Papers",
+      "samplePages": [
+        4,
+        5,
+        8
+      ],
+      "pages": 11,
+      "attempts": {
+        "passed": 16,
+        "limited": 2
+      },
+      "sourceUnchanged": true,
+      "errors": 0,
+      "name": "Wang Enhance Image Classification via Inter-Class Image Mixup with Diffusion Model__2313c4d7.pdf",
+      "url": "https://openaccess.thecvf.com/content/CVPR2024/papers/Wang_Enhance_Image_Classification_via_Inter-Class_Image_Mixup_with_Diffusion_Model_CVPR_2024_paper.pdf"
+    },
+    {
+      "id": "public-18",
+      "sha256": "6fa5f2797d5e40cb8178dac16b9a87aa03952a842c1afff330e995f7f1ebd483",
+      "source": "public",
+      "category": "15_Chinese_Documents",
+      "samplePages": [
+        3,
+        4,
+        7
+      ],
+      "pages": 8,
+      "attempts": {
+        "limited": 12,
+        "passed": 6
+      },
+      "sourceUnchanged": true,
+      "errors": 0,
+      "name": "理论力学小班辅导讲义-秋季学期-程阳__ca2c3d65.pdf",
+      "url": "https://tutor.learning.tsinghua.edu.cn/web/File/lecturer/2026-01/file_url1768280566FTzfEDwyS.pdf"
+    },
+    {
+      "id": "public-19",
+      "sha256": "5521110fbe2a8cf1d299b3a9d9a03d0db928de7addfa2ea50e32fb440575fc12",
+      "source": "public",
+      "category": "07_Graphics_Color",
+      "samplePages": [
+        1,
+        2,
+        3
+      ],
+      "pages": 3,
+      "attempts": {
+        "passed": 12
+      },
+      "sourceUnchanged": true,
+      "errors": 0,
+      "name": "pdf.js__calgray__eaa101.pdf",
+      "url": "https://raw.githubusercontent.com/mozilla/pdf.js/28e406a46fcca6591b96f943d98a739b8866da78/test/pdfs/calgray.pdf"
+    },
+    {
+      "id": "public-20",
+      "sha256": "c59544af2bdce1e53e28359a8320f26c90f7f5fcf7b294c3d2d8a35abccd9428",
+      "source": "public",
+      "category": "07_Graphics_Color",
+      "samplePages": [
+        5,
+        7,
+        8
+      ],
+      "pages": 17,
+      "attempts": {
+        "passed": 18
+      },
+      "sourceUnchanged": true,
+      "errors": 0,
+      "name": "pdf.js__calrgb__32b079.pdf",
+      "url": "https://raw.githubusercontent.com/mozilla/pdf.js/28e406a46fcca6591b96f943d98a739b8866da78/test/pdfs/calrgb.pdf"
+    },
+    {
+      "id": "public-21",
+      "sha256": "f17a09190ad8a04964d78115d8ba7fc7a298557274fa14932ba58612342b7dec",
+      "source": "public",
+      "category": "01_Text_Editing",
+      "samplePages": [
+        2,
+        3,
+        4
+      ],
+      "pages": 4,
+      "attempts": {
+        "passed": 6
+      },
+      "sourceUnchanged": true,
+      "errors": 0,
+      "name": "sample-files__pdflatex-4-pages__51c9a1.pdf",
+      "url": "https://raw.githubusercontent.com/py-pdf/sample-files/02b8203bf416db3dbdb03438bc8278dfcb0555f3/004-pdflatex-4-pages/pdflatex-4-pages.pdf"
+    },
+    {
+      "id": "public-22",
+      "sha256": "f768cc3f9ac8bed3bba662c8bc355e1dc18e141c28ba0d8126164ca24c2d3425",
+      "source": "public",
+      "category": "14_Papers",
+      "samplePages": [
+        12,
+        14,
+        22
+      ],
+      "pages": 30,
+      "attempts": {
+        "passed": 8,
+        "limited": 10
+      },
+      "sourceUnchanged": true,
+      "errors": 0,
+      "name": "Gravitational Waves as a Probe of Multi-Fluid Cosmologies_ General Formalism and the __3e332d3d.pdf",
+      "url": "https://arxiv.org/pdf/2610.23808"
+    },
+    {
+      "id": "public-23",
+      "sha256": "951e9ab1d5ec310429f89173357a7c9f84b08153fd7f81b5d060ed2487869f16",
+      "source": "public",
+      "category": "06_Tables_Layouts",
+      "samplePages": [
+        1,
+        2
+      ],
+      "pages": 2,
+      "attempts": {
+        "passed": 11,
+        "limited": 1
+      },
+      "sourceUnchanged": true,
+      "errors": 0,
+      "name": "pdfplumber__issue-33-lorem-ipsum__d2c61b.pdf",
+      "url": "https://raw.githubusercontent.com/jsvine/pdfplumber/4c64b92d5caccd71c645e98e0fabb0c4dba7ff45/tests/pdfs/issue-33-lorem-ipsum.pdf"
+    },
+    {
+      "id": "public-24",
+      "sha256": "1b158c1d9768ec3055317869786fd89de7cb4067a1a16a73a20baf944402a7ab",
+      "source": "public",
+      "category": "15_Chinese_Documents",
+      "samplePages": [
+        140,
+        157,
+        183
+      ],
+      "pages": 260,
+      "attempts": {
+        "passed": 10
+      },
+      "sourceUnchanged": true,
+      "errors": 0,
+      "name": "长光华芯_2024年年报__5007d851.pdf",
+      "url": "https://static.cninfo.com.cn/finalpage/2025-04-30/1223427222.PDF"
+    },
+    {
+      "id": "public-25",
+      "sha256": "09682de0117ccd4b2bd2b16d335bdbabb3c8cfcdc42d729001abaa52a8bbfddd",
+      "source": "public",
+      "category": "14_Papers",
+      "samplePages": [
+        6,
+        7,
+        9
+      ],
+      "pages": 9,
+      "attempts": {
+        "passed": 10,
+        "limited": 6
+      },
+      "sourceUnchanged": true,
+      "errors": 0,
+      "name": "A precessing AGN with S-shaped morphology discovered in MALS__8f1b6cf8.pdf",
+      "url": "https://arxiv.org/pdf/2610.23738"
+    },
+    {
+      "id": "public-26",
+      "sha256": "c25e3ef861afd451bb6f922c85e79ada497f943c68f00d7200b583f42467aeb1",
+      "source": "public",
+      "category": "14_Papers",
+      "samplePages": [
+        27,
+        43,
+        61
+      ],
+      "pages": 61,
+      "attempts": {
+        "passed": 18
+      },
+      "sourceUnchanged": true,
+      "errors": 0,
+      "name": "AI-Driven Reproducibility and Analytical Robustness in Scientific Discovery__eb349e1c.pdf",
+      "url": "https://arxiv.org/pdf/2610.23845"
+    },
+    {
+      "id": "public-27",
+      "sha256": "2b93a6a52d8279fa465464ebabc3dffb971ebf598080d384b5a7fc6db920e813",
+      "source": "public",
+      "category": "15_Chinese_Documents",
+      "samplePages": [
+        3,
+        4,
+        5
+      ],
+      "pages": 8,
+      "attempts": {
+        "passed": 17,
+        "limited": 1
+      },
+      "sourceUnchanged": true,
+      "errors": 0,
+      "name": "附件2-明查工作要点及打分表__67ea973f.pdf",
+      "url": "https://www.lvliang.gov.cn/llxxgk/zfxxgk/xxgkml/gbmwj/snw/fdzdgknr_55123/zcwjjjd_55127/202403/P020240315580657547656.pdf"
+    },
+    {
+      "id": "public-28",
+      "sha256": "240f90294f6a63bc79106c076a45636322687595d3b58b8c1b6d704ba806196b",
+      "source": "public",
+      "category": "15_Chinese_Documents",
+      "samplePages": [
+        7,
+        45,
+        57
+      ],
+      "pages": 64,
+      "attempts": {
+        "passed": 14
+      },
+      "sourceUnchanged": true,
+      "errors": 0,
+      "name": "“十四五”国家信息化规划_中央网络安全和信息化委员会办公室__22aad1f5.pdf",
+      "url": "https://www.cac.gov.cn/rootimages/uploadimg/1642205314564505/1642205314564505.pdf"
+    },
+    {
+      "id": "public-29",
+      "sha256": "4e06e1d09e4ea95a26227a5c13ddde11ab86f4d979a4ec3c70c416b2ac0c4271",
+      "source": "public",
+      "category": "01_Text_Editing",
+      "samplePages": [
+        14,
+        77,
+        133
+      ],
+      "pages": 137,
+      "attempts": {
+        "passed": 8,
+        "limited": 10
+      },
+      "sourceUnchanged": true,
+      "errors": 0,
+      "name": "pypdf__issue-604__a07c24.pdf",
+      "url": "https://raw.githubusercontent.com/py-pdf/pypdf/1a6de8d43c3a931b1ab3643c8dee2c9b51a32d42/resources/issue-604.pdf"
+    },
+    {
+      "id": "public-30",
+      "sha256": "7946cae1a3946be45c2bb237e94c7a5053a7767c87c8d9b2515775da4e02a1ef",
+      "source": "public",
+      "category": "14_Papers",
+      "samplePages": [
+        13,
+        17,
+        40
+      ],
+      "pages": 45,
+      "attempts": {
+        "passed": 7,
+        "limited": 11
+      },
+      "sourceUnchanged": true,
+      "errors": 0,
+      "name": "On the skew-curvature power law relationship in a stochastic volatility model with in__916981d5.pdf",
+      "url": "https://arxiv.org/pdf/2610.23488"
+    },
+    {
+      "id": "public-31",
+      "sha256": "02f541c7368cd727ed816200cda47901873c71c38507ba7837346479abb22a70",
+      "source": "public",
+      "category": "14_Papers",
+      "samplePages": [
+        1,
+        6,
+        8
+      ],
+      "pages": 9,
+      "attempts": {
+        "limited": 7,
+        "passed": 11
+      },
+      "sourceUnchanged": true,
+      "errors": 0,
+      "name": "MultiPASE_ Shape-Aware Comparative 3D Genome Analysis__be3412ee.pdf",
+      "url": "https://arxiv.org/pdf/2610.22786"
+    },
+    {
+      "id": "public-32",
+      "sha256": "e96ba336695055e3a0b7e228f69217ae2cfac9767dbb459b646e87e3fd5bce08",
+      "source": "public",
+      "category": "14_Papers",
+      "samplePages": [
+        2,
+        8,
+        11
+      ],
+      "pages": 12,
+      "attempts": {
+        "limited": 18
+      },
+      "sourceUnchanged": true,
+      "errors": 0,
+      "name": "Beyond Large Language Models_ A Mental World Model Framework for Mental Modeling, Sim__8a9ece33.pdf",
+      "url": "https://arxiv.org/pdf/2610.23722"
+    }
+  ],
+  "fontAndGlyphBenchmark": {
+    "scope": "Fresh scoring cache, same installed fonts, two independent Python processes; full font programs may already be cached. Glyph timing excludes PDF serialization.",
+    "font": [
+      {
+        "required": "测",
+        "recommendMs": 7277.85,
+        "selectionMs": 701.9,
+        "browserFontMs": 1491.67,
+        "fontKey": "025fedb4284b88a80a2eb00594d23405",
+        "top": {
+          "id": "5eb6857f79e34526e8de23e89c23a998",
+          "name": "宋体",
+          "source": "系统字体",
+          "score": 1.0,
+          "evidence": 16,
+          "exactGlyphs": 16,
+          "match": "样本字形一致",
+          "confidence": "高"
+        }
+      },
+      {
+        "required": "试",
+        "recommendMs": 432.04,
+        "selectionMs": 69.93,
+        "browserFontMs": 289.25,
+        "fontKey": "025fedb4284b88a80a2eb00594d23405",
+        "top": {
+          "id": "5eb6857f79e34526e8de23e89c23a998",
+          "name": "宋体",
+          "source": "系统字体",
+          "score": 1.0,
+          "evidence": 16,
+          "exactGlyphs": 16,
+          "match": "样本字形一致",
+          "confidence": "高"
+        }
+      }
+    ],
+    "glyph500": {
+      "perGlyph": {
+        "ms": 298.63,
+        "streams": 500
+      },
+      "batch": {
+        "ms": 13.46,
+        "streams": 1
+      }
+    }
+  }
+}

@@ -78,6 +78,7 @@ for (const f of [
   "src/ai-tools.mjs",
   "src/ai-worker.mjs",
   "native-bridge.cjs",
+  "font-warmup.cjs",
   "large-files.cjs",
   "flow-layout.cjs",
   "flow-validation.cjs",

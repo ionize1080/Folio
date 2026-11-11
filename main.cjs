@@ -62,6 +62,15 @@ app.on("before-quit", () => native.cancel());
 app.on("before-quit", () => qpdfNative.cancel());
 const fontNative = new NativeBridge(native.root, native.python);
 app.on("before-quit", () => fontNative.cancel());
+const fontMatchNative = new NativeBridge(native.root, native.python);
+// Cold application CJK fonts must not queue ahead of a paragraph's tiny
+// embedded subsets. This low-priority worker exits after preparing the faces.
+const builtinFontNative = new NativeBridge(native.root, native.python);
+builtinFontNative.priority = require('node:os').constants.priority.PRIORITY_LOW;
+let builtinFontIdle, builtinFontPending = 0;
+const { FontWarmup } = require('./font-warmup.cjs');
+const fontWarmup = new FontWarmup(native.root, native.python, sourceStore);
+app.on('before-quit', () => { fontWarmup.close(); fontMatchNative.cancel();clearTimeout(builtinFontIdle);builtinFontNative.cancel(); });
 const backgroundNative = new NativeBridge(
   native.root,
   native.python,
@@ -169,7 +178,7 @@ app.whenReady().then(async () => {
     const clear = () => {
       const owned = sources.get(wc) || [];
       sources.set(wc,new Set());
-      for (const handle of owned) void sourceStore.release(handle).catch(() => {});
+      for (const handle of owned) { fontWarmup.forget(handle);void sourceStore.release(handle).catch(() => {}); }
       const group = workers.get(wc);
       if (group) for (const bridge of Object.values(group)) { bridge.cancel(); void bridge.clearCache(); }
       workers.delete(wc);
@@ -409,35 +418,53 @@ app.whenReady().then(async () => {
     owned.add(handle);
     return registered;
   });
-  ipc("source-release", handle => sources.get(sender()).delete(handle) && sourceStore.release(handle));
+  ipc("source-release", handle => {
+    if (!sources.get(sender()).delete(handle)) return;
+    fontWarmup.forget(handle);
+    return sourceStore.release(handle);
+  });
   ipc("native", (data) => {
     const owner = sender();
     const options = { ...data };
+    if (options.command === 'font-warm-document') {
+      if (!sources.get(owner)?.has(options.sourceHandle)) throw Error('原文句柄无效');
+      return fontWarmup.add(options.sourceHandle, options.page);
+    }
+    if (options.command === 'font-recommend')
+      return fontWarmup.foregroundTask(() => fontMatchNative.run(options));
+    if (options.command==='font-fast' && ['builtin-latin','builtin-cjk'].includes(options.fontKey)) {
+      clearTimeout(builtinFontIdle);
+      builtinFontPending++;
+      return builtinFontNative.run(options).finally(()=>{
+        if (--builtinFontPending) return;
+        builtinFontIdle=setTimeout(()=>builtinFontNative.cancel(),15000);
+        builtinFontIdle.unref?.();
+      });
+    }
     if (
       [
         "font-catalog",
         "font-select",
         "font-data",
-        "font-recommend",
         "font-fast",
       ].includes(options.command)
     )
-      return fontNative.run(options);
+      return fontWarmup.foregroundTask(() => fontNative.run(options));
     delete options.ocrFile;
     if (options.ocrReference) {
       options.ocrFile = ocrJobs.resolveReference(options.ocrReference);
       delete options.ocr;
     }
     delete options.ocrReference;
-    return (
+    return fontWarmup.foregroundTask(() => (
       editorWorker(options.command === "flow-background" ? "background" : "native")
     ).run(options, (progress) => {
       if (!owner.isDestroyed()) owner.send("native-progress", progress);
-    });
+    }));
   });
   const { FlowLayout } = require("./flow-layout.cjs");
   const flowLayout = new FlowLayout(native.root, native.python);
-  ipc("flow-layout", (data) => flowLayout.render(data));
+  ipc("flow-layout", (data) => fontWarmup.foregroundTask(() => flowLayout.render(data)));
   app.on("before-quit", () => flowLayout.close());
   win.on("closed", () => flowLayout.close());
   ipc("native-cancel", () => editorWorker("native").cancel());

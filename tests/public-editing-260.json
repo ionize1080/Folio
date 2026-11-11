@@ -1,0 +1,260 @@
+{
+  "version": 1,
+  "seed": 20261111,
+  "documents": [
+    {
+      "name": "Bystander on the Fence_ Sanctions in a Multipolar World__0b422ebf.pdf",
+      "sha256": "d49e8d98b836ed4dae95e86953eee59d87e7df406a5a97e00456af0d8912f287",
+      "url": "https://arxiv.org/pdf/2610.22830v1",
+      "samplePages": [
+        19,
+        29,
+        31
+      ],
+      "pageCount": 45,
+      "bytes": 386223,
+      "category": "14_Papers",
+      "source": "public",
+      "minPassed": 6
+    },
+    {
+      "name": "Wang Enhance Image Classification via Inter-Class Image Mixup with Diffusion Model__2313c4d7.pdf",
+      "sha256": "eae8fd1d4eae9ce4f83dff78d3640e9f6375d991de103e83219349419dd01972",
+      "url": "https://openaccess.thecvf.com/content/CVPR2024/papers/Wang_Enhance_Image_Classification_via_Inter-Class_Image_Mixup_with_Diffusion_Model_CVPR_2024_paper.pdf",
+      "samplePages": [
+        4,
+        5,
+        8
+      ],
+      "pageCount": 11,
+      "bytes": 4007758,
+      "category": "14_Papers",
+      "source": "public",
+      "minPassed": 8
+    },
+    {
+      "name": "理论力学小班辅导讲义-秋季学期-程阳__ca2c3d65.pdf",
+      "sha256": "6fa5f2797d5e40cb8178dac16b9a87aa03952a842c1afff330e995f7f1ebd483",
+      "url": "https://tutor.learning.tsinghua.edu.cn/web/File/lecturer/2026-01/file_url1768280566FTzfEDwyS.pdf",
+      "samplePages": [
+        3,
+        4,
+        7
+      ],
+      "pageCount": 8,
+      "bytes": 1063031,
+      "category": "15_Chinese_Documents",
+      "source": "public",
+      "minPassed": 2
+    },
+    {
+      "name": "pdf.js__calgray__eaa101.pdf",
+      "sha256": "5521110fbe2a8cf1d299b3a9d9a03d0db928de7addfa2ea50e32fb440575fc12",
+      "url": "https://raw.githubusercontent.com/mozilla/pdf.js/28e406a46fcca6591b96f943d98a739b8866da78/test/pdfs/calgray.pdf",
+      "samplePages": [
+        1,
+        2,
+        3
+      ],
+      "pageCount": 3,
+      "bytes": 15093,
+      "category": "07_Graphics_Color",
+      "source": "public",
+      "minPassed": 6
+    },
+    {
+      "name": "pdf.js__calrgb__32b079.pdf",
+      "sha256": "c59544af2bdce1e53e28359a8320f26c90f7f5fcf7b294c3d2d8a35abccd9428",
+      "url": "https://raw.githubusercontent.com/mozilla/pdf.js/28e406a46fcca6591b96f943d98a739b8866da78/test/pdfs/calrgb.pdf",
+      "samplePages": [
+        5,
+        7,
+        8
+      ],
+      "pageCount": 17,
+      "bytes": 322053,
+      "category": "07_Graphics_Color",
+      "source": "public",
+      "minPassed": 9
+    },
+    {
+      "name": "sample-files__pdflatex-4-pages__51c9a1.pdf",
+      "sha256": "f17a09190ad8a04964d78115d8ba7fc7a298557274fa14932ba58612342b7dec",
+      "url": "https://raw.githubusercontent.com/py-pdf/sample-files/02b8203bf416db3dbdb03438bc8278dfcb0555f3/004-pdflatex-4-pages/pdflatex-4-pages.pdf",
+      "samplePages": [
+        2,
+        3,
+        4
+      ],
+      "pageCount": 4,
+      "bytes": 24607,
+      "category": "01_Text_Editing",
+      "source": "public",
+      "minPassed": 3
+    },
+    {
+      "name": "Gravitational Waves as a Probe of Multi-Fluid Cosmologies_ General Formalism and the __3e332d3d.pdf",
+      "sha256": "f768cc3f9ac8bed3bba662c8bc355e1dc18e141c28ba0d8126164ca24c2d3425",
+      "url": "https://arxiv.org/pdf/2610.23808v1",
+      "samplePages": [
+        12,
+        14,
+        22
+      ],
+      "pageCount": 30,
+      "bytes": 1960380,
+      "category": "14_Papers",
+      "source": "public",
+      "minPassed": 4
+    },
+    {
+      "name": "pdfplumber__issue-33-lorem-ipsum__d2c61b.pdf",
+      "sha256": "951e9ab1d5ec310429f89173357a7c9f84b08153fd7f81b5d060ed2487869f16",
+      "url": "https://raw.githubusercontent.com/jsvine/pdfplumber/4c64b92d5caccd71c645e98e0fabb0c4dba7ff45/tests/pdfs/issue-33-lorem-ipsum.pdf",
+      "samplePages": [
+        1,
+        2
+      ],
+      "pageCount": 2,
+      "bytes": 60367,
+      "category": "06_Tables_Layouts",
+      "source": "public",
+      "minPassed": 5
+    },
+    {
+      "name": "长光华芯_2024年年报__5007d851.pdf",
+      "sha256": "1b158c1d9768ec3055317869786fd89de7cb4067a1a16a73a20baf944402a7ab",
+      "url": "https://static.cninfo.com.cn/finalpage/2025-04-30/1223427222.PDF",
+      "samplePages": [
+        140,
+        157,
+        183
+      ],
+      "pageCount": 260,
+      "bytes": 1647097,
+      "category": "15_Chinese_Documents",
+      "source": "public",
+      "minPassed": 5
+    },
+    {
+      "name": "A precessing AGN with S-shaped morphology discovered in MALS__8f1b6cf8.pdf",
+      "sha256": "09682de0117ccd4b2bd2b16d335bdbabb3c8cfcdc42d729001abaa52a8bbfddd",
+      "url": "https://arxiv.org/pdf/2610.23738v1",
+      "samplePages": [
+        6,
+        7,
+        9
+      ],
+      "pageCount": 9,
+      "bytes": 4157017,
+      "category": "14_Papers",
+      "source": "public",
+      "minPassed": 5
+    },
+    {
+      "name": "AI-Driven Reproducibility and Analytical Robustness in Scientific Discovery__eb349e1c.pdf",
+      "sha256": "c25e3ef861afd451bb6f922c85e79ada497f943c68f00d7200b583f42467aeb1",
+      "url": "https://arxiv.org/pdf/2610.23845v1",
+      "samplePages": [
+        27,
+        43,
+        61
+      ],
+      "pageCount": 61,
+      "bytes": 538759,
+      "category": "14_Papers",
+      "source": "public",
+      "minPassed": 9
+    },
+    {
+      "name": "附件2-明查工作要点及打分表__67ea973f.pdf",
+      "sha256": "2b93a6a52d8279fa465464ebabc3dffb971ebf598080d384b5a7fc6db920e813",
+      "url": "https://www.lvliang.gov.cn/llxxgk/zfxxgk/xxgkml/gbmwj/snw/fdzdgknr_55123/zcwjjjd_55127/202403/P020240315580657547656.pdf",
+      "samplePages": [
+        3,
+        4,
+        5
+      ],
+      "pageCount": 8,
+      "bytes": 439074,
+      "category": "15_Chinese_Documents",
+      "source": "public",
+      "minPassed": 8
+    },
+    {
+      "name": "“十四五”国家信息化规划_中央网络安全和信息化委员会办公室__22aad1f5.pdf",
+      "sha256": "240f90294f6a63bc79106c076a45636322687595d3b58b8c1b6d704ba806196b",
+      "url": "https://www.cac.gov.cn/rootimages/uploadimg/1642205314564505/1642205314564505.pdf",
+      "samplePages": [
+        7,
+        45,
+        57
+      ],
+      "pageCount": 64,
+      "bytes": 955140,
+      "category": "15_Chinese_Documents",
+      "source": "public",
+      "minPassed": 7
+    },
+    {
+      "name": "pypdf__issue-604__a07c24.pdf",
+      "sha256": "4e06e1d09e4ea95a26227a5c13ddde11ab86f4d979a4ec3c70c416b2ac0c4271",
+      "url": "https://raw.githubusercontent.com/py-pdf/pypdf/1a6de8d43c3a931b1ab3643c8dee2c9b51a32d42/resources/issue-604.pdf",
+      "samplePages": [
+        14,
+        77,
+        133
+      ],
+      "pageCount": 137,
+      "bytes": 7988082,
+      "category": "01_Text_Editing",
+      "source": "public",
+      "minPassed": 4
+    },
+    {
+      "name": "On the skew-curvature power law relationship in a stochastic volatility model with in__916981d5.pdf",
+      "sha256": "7946cae1a3946be45c2bb237e94c7a5053a7767c87c8d9b2515775da4e02a1ef",
+      "url": "https://arxiv.org/pdf/2610.23488v1",
+      "samplePages": [
+        13,
+        17,
+        40
+      ],
+      "pageCount": 45,
+      "bytes": 1126983,
+      "category": "14_Papers",
+      "source": "public",
+      "minPassed": 3
+    },
+    {
+      "name": "MultiPASE_ Shape-Aware Comparative 3D Genome Analysis__be3412ee.pdf",
+      "sha256": "02f541c7368cd727ed816200cda47901873c71c38507ba7837346479abb22a70",
+      "url": "https://arxiv.org/pdf/2610.22786v1",
+      "samplePages": [
+        1,
+        6,
+        8
+      ],
+      "pageCount": 9,
+      "bytes": 1058658,
+      "category": "14_Papers",
+      "source": "public",
+      "minPassed": 5
+    },
+    {
+      "name": "Beyond Large Language Models_ A Mental World Model Framework for Mental Modeling, Sim__8a9ece33.pdf",
+      "sha256": "e96ba336695055e3a0b7e228f69217ae2cfac9767dbb459b646e87e3fd5bce08",
+      "url": "https://arxiv.org/pdf/2610.23722",
+      "samplePages": [
+        2,
+        8,
+        11
+      ],
+      "pageCount": 12,
+      "bytes": 1560351,
+      "category": "14_Papers",
+      "source": "public",
+      "minPassed": 0
+    }
+  ]
+}

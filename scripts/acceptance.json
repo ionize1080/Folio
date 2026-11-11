@@ -246,6 +246,20 @@
       "args": [
         "tests/paragraph-precision-v250.py"
       ]
+    },
+    {
+      "capability": "tagged overhang, Type3 vectors and batch ink fidelity",
+      "runtime": "python",
+      "args": [
+        "tests/editing-260-native.py"
+      ]
+    },
+    {
+      "capability": "persistent font mappings, exact missing coverage and validated browser-font reuse",
+      "runtime": "python",
+      "args": [
+        "tests/editing-260-fonts.py"
+      ]
     }
   ],
   "browser": [

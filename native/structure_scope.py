@@ -39,13 +39,50 @@ def block_owner(owner):
             return owner
         # A link, formula, list item or another block is a real semantic
         # boundary. Only plain inline spans may lead to a common owner.
-        if role != '/Span':
+        if role not in ('/Span','/NonStruct'):
             return None
         owner = owner.get('/P')
     return None
 
 
-def validate_scopes(page, stream, raw_objects, mapped, sources):
+def annotate_paragraphs(page, mapped, descriptions):
+    """Expose real P/heading ownership as stronger evidence than line gaps."""
+    def contiguous():
+        ranges={}
+        for i,d in enumerate(descriptions):
+            group=d.get('structureParagraph')
+            if group is not None:
+                span=ranges.setdefault(group,[i,i]);span[1]=i
+        invalid={g for g,(a,b) in ranges.items() if any(d.get('type')=='text' and d.get('text','').strip() and d.get('structureParagraph')!=g for d in descriptions[a:b+1])}
+        for d in descriptions:
+            if d.get('structureParagraph') in invalid:d.pop('structureParagraph',None)
+    document=page.pdf or getattr(page.indirect_reference,'pdf',None)
+    root=document.root_object if document is not None else {}
+    tree=dereference(root.get('/StructTreeRoot',{}))
+    if not isinstance(tree,dict):return
+    parents=number_tree(tree.get('/ParentTree'),page.get('/StructParents'))
+    if not isinstance(parents,(list,tuple)):
+        hints={int(a):int(b) for a,b in page.get('/FolioInspectionParagraphs',[])}
+        for entry,description in zip(mapped,descriptions):
+            tags=entry.get('structureScopes',[])
+            if len(tags)==1 and not entry.get('semanticScopes') and description.get('flowEditable') and tags[0]['mcid'] in hints:
+                description['structureParagraph']=hints[tags[0]['mcid']]
+        contiguous();return
+    owners={}
+    for entry,description in zip(mapped,descriptions):
+        tags=entry.get('structureScopes',[])
+        if len(tags)!=1 or entry.get('semanticScopes') or not description.get('flowEditable'):continue
+        mcid=tags[0]['mcid']
+        if not 0<=mcid<len(parents):continue
+        owner=block_owner(parents[mcid])
+        if owner is None:continue
+        key=id(owner)
+        if key not in owners:owners[key]=len(owners)
+        description['structureParagraph']=owners[key]
+    contiguous()
+
+
+def validate_scopes(page, stream, raw_objects, mapped, sources, model=None, descriptions=None):
     from content import decoded_texts
     entries = [mapped[s['index']] for s in sources]
     scopes = {}
@@ -59,9 +96,23 @@ def validate_scopes(page, stream, raw_objects, mapped, sources):
     selected = {entry['at'] for entry in entries}
     decoded = decoded_texts(page, stream)
     harmless = lambda entry: entry['type'] == 'text' and not decoded.get(entry['at'], '?').strip()
+    # A producer may use one MCID for several visually separate paragraphs.
+    # Replacing a contiguous subset is safe when the replacement stays inside
+    # the existing wrapper and contains exactly the selected source text. No
+    # tag, ownership or neighbouring text is removed or relocated in this case.
+    partial=False
+    if len(scopes)==1 and model and descriptions:
+        scope=scopes[0];first=min(selected);last=max(selected)
+        compact=lambda text: ''.join(text.split())
+        original=(model.get('originalLayout') or {}).get('text','')
+        captured=''.join(descriptions[s['index']].get('text','') for s in sources)
+        partial=bool(original and compact(original)==compact(captured)) and all(
+            entry.get('end') is not None and scope['at']<entry['end']<scope['end'] for entry in entries)
+        partial=partial and not any(entry['type']=='text' and entry['at'] not in selected and not harmless(entry)
+            for entry in raw_objects if first<=entry['at']<=max(e['end'] for e in entries))
     for scope in scopes:
         members = [entry for entry in raw_objects if scope['at'] < entry['at'] < scope['end']]
-        if len(members) != scope['count'] or any(entry['at'] not in selected and not harmless(entry) for entry in members):
+        if len(members) != scope['count'] or (not partial and any(entry['at'] not in selected and not harmless(entry) for entry in members)):
             raise ValueError('带标签文字需选择完整 MCID 范围，草稿已保留')
     if len(scopes) == 1:
         return scopes, scopes[0]
