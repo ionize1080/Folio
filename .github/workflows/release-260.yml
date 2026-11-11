@@ -727,7 +727,7 @@ jobs:
       with:
         ai: 'false'
         conversion: 'false'
-        models: 'false'
+        models: 'true'
         creative: 'false'
         fixtures: 'false'
     - run: native\runtime\python.exe tests/editing-260-native.py

@@ -1,5 +1,7 @@
 # PDF editing architecture and verification, 2.6.0
 
+[简体中文分析与测试报告](EDITING-2.6.0.zh-Hans.md)
+
 This work targets observable editing correctness and latency. It does not establish parity with Acrobat, PDF-XChange or Foxit: a controlled, identical-operation competitor benchmark has not been run. Sources below describe publicly documented behavior, not proprietary internals.
 
 ## Findings and changes
