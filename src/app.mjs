@@ -101,7 +101,7 @@ const settings = readSettings(
     cover: true,
     shortcuts: {},
     theme: "system",
-    palette:"cobalt", customAccent:"#165DDB", selectionColor:"#5370f5", showTargetMarker:true, targetMarkerColor:"#db8c36",
+    palette:"cobalt", customAccent:"#165DDB", selectionColor:"#5370f5", targetThumb:true, showTargetMarker:true, targetMarkerColor:"#db8c36",
     sidebar: 250,
     row: 34,
     quality: 2,
@@ -1032,7 +1032,8 @@ function rebuild() {
       `${S.info.pageCount} 页 · ${S.nodes.length.toLocaleString()} 个书签`,
     );
 }
-let treeFrame = 0;
+let treeFrame = 0,
+  rowCache = new Map();
 function rowHeight() {
   return settings.wrap ? Math.max(58, settings.row) : settings.row;
 }
@@ -1045,38 +1046,49 @@ function renderTree() {
       start + Math.ceil(tree.clientHeight / rowHeight()) + 12,
     );
   const fragment = document.createDocumentFragment();
+  const nextCache = new Map(),
+    height = rowHeight(),
+    matching = filterReady() ? filterCache.matchSet : null;
   for (let i = start; i < end; i++) {
     const n = S.visible[i],
       d = S.depth.get(n.id) || 0,
+      siblings = S.children.get(n.parent) || [],
+      kids = S.children.has(n.id),
+      selected = S.selected.has(n.id),
+      // Everything the row paints; unchanged rows keep their DOM while scrolling.
+      sig = [n.title, n.color, n.bold, n.italic, n.target.page, d, siblings.indexOf(n), siblings.length, kids, kids && S.collapsed.has(n.id), selected, !!matching?.has(n.id), height].join("");
+    let cached = rowCache.get(n.id), row;
+    if (cached && cached.sig === sig) {
+      row = cached.row;
+      row.classList.remove("keyboard-current", "drop-before", "drop-after", "drop-inside");
+    } else {
       row = document.createElement("div");
-    row.className =
-      "tree-row" +
-      (S.selected.has(n.id) ? " selected" : "") +
-      (filterReady() && filterCache.matchSet.has(n.id) ? " filter-match" : "");
-    row.dataset.id = n.id;
-    row.style.top = i * rowHeight() + "px";
-    row.style.height = rowHeight() + "px";
-    row.style.paddingLeft = Math.min(d, 24) * 16 + 4 + "px";
-    row.style.setProperty("--d", Math.min(d, 24));
-    row.draggable = true;
-    row.role = "treeitem";
-    row.id = "tree-node-" + n.id;
-    const siblings = S.children.get(n.parent) || [];
-    row.setAttribute("aria-posinset", siblings.indexOf(n) + 1);
-    row.setAttribute("aria-setsize", siblings.length);
-    row.setAttribute("aria-level", d + 1);
-    row.setAttribute("aria-selected", S.selected.has(n.id));
-    if (S.children.has(n.id))
-      row.setAttribute("aria-expanded", !S.collapsed.has(n.id));
-    row.title = n.title;
-    row.innerHTML = `<button class="toggle" tabindex="-1">${S.children.has(n.id) ? icon(S.collapsed.has(n.id) ? "disclose" : "chevron") : ""}</button><span class="bm">${icon("bookmark")}</span><span class="title"></span><span class="page">${n.target.page || "↗"}</span>`;
-    const title = row.querySelector(".title");
-    title.textContent = n.title;
-    title.style.color = n.color;
-    title.style.fontWeight = n.bold ? "700" : "400";
-    title.style.fontStyle = n.italic ? "italic" : "normal";
+      row.className = "tree-row" + (selected ? " selected" : "") + (matching?.has(n.id) ? " filter-match" : "");
+      row.dataset.id = n.id;
+      row.style.height = height + "px";
+      row.style.paddingLeft = Math.min(d, 24) * 16 + 4 + "px";
+      row.style.setProperty("--d", Math.min(d, 24));
+      row.draggable = true;
+      row.role = "treeitem";
+      row.id = "tree-node-" + n.id;
+      row.setAttribute("aria-posinset", siblings.indexOf(n) + 1);
+      row.setAttribute("aria-setsize", siblings.length);
+      row.setAttribute("aria-level", d + 1);
+      row.setAttribute("aria-selected", selected);
+      if (kids) row.setAttribute("aria-expanded", !S.collapsed.has(n.id));
+      row.title = n.title;
+      row.innerHTML = `<button class="toggle" tabindex="-1">${kids ? icon(S.collapsed.has(n.id) ? "disclose" : "chevron") : ""}</button><span class="bm">${icon("bookmark")}</span><span class="title"></span><span class="page">${n.target.page || "↗"}</span>`;
+      const title = row.querySelector(".title");
+      title.textContent = n.title;
+      title.style.color = n.color;
+      title.style.fontWeight = n.bold ? "700" : "400";
+      title.style.fontStyle = n.italic ? "italic" : "normal";
+    }
+    row.style.top = i * height + "px";
+    nextCache.set(n.id, { sig, row });
     fragment.append(row);
   }
+  rowCache = nextCache;
   $("#tree-rows").replaceChildren(fragment);
   const active = document.getElementById(
     "tree-node-" + (S.activeId || S.selected.values().next().value),
@@ -1191,7 +1203,7 @@ function fillProperties() {
   coordinates($("#prop-mode").value, n.target.args);
   $("#prop-page").disabled = multi || n.target.kind === "preserve";
   $$(".coord").forEach((el) => (el.disabled = multi));
-  targetThumb.show(!multi && !!S.pdf);
+  targetThumb.show(!multi && !!S.pdf && settings.targetThumb !== false);
   if (!multi) targetThumb.refresh(true);
 }
 function applyProperty(event) {
@@ -2459,7 +2471,7 @@ async function settingsDialog() {
   const network = (await window.desktop?.updateInfo?.())?.settings;
   modal(
     "偏好设置",
-    `<div class="preferences-language"><span>界面语言</span>${languagePicker("settings-language")}<small>立即生效，并记住选择。不会改变文档文字或 OCR 语言。</small></div>${paletteControls()}<div class="pref-color-row"><div><b>文字选取颜色</b><small>划选 PDF 文字时的高亮色</small></div><div class="selection-presets">${["#5370f5","#0a84ff","#30b0a0","#34c759","#ffb020","#ff6b57","#bf5af2"].map(c=>`<button type="button" class="cp-swatch" data-sel="${c}" style="--c:${c}" aria-label="${c}"></button>`).join("")}<input id="set-selection-color" type="color" aria-label="自定义文字选取颜色" value="${settings.selectionColor}"></div></div><div class="form-grid"><label>默认留白单位<select id="set-whitespace-unit"><option value="mm">毫米 mm</option><option value="pt">点 pt</option></select></label><label>外观主题<select id="set-theme"><option value="system">跟随系统</option><option value="light">浅色</option><option value="dark">深色</option></select></label><label>滚轮滚动量<select id="set-wheel-preset"><option value="1">精细 · 1 行</option><option value="3">标准 · 3 行（推荐）</option><option value="6">快速 · 6 行</option><option value="custom">自定义</option></select></label><label>每次滚动行数<input id="set-wheel-lines" type="number" min="1" max="30" value="${settings.wheelLines||3}"></label><label>书签侧栏宽度（px）<input id="set-sidebar" type="number" min="220" max="520" value="${settings.sidebar}"></label><label>书签行高<select id="set-row"><option value="28">紧凑 · 28 px</option><option value="34">标准 · 34 px</option><option value="40">宽松 · 40 px</option></select></label><label>渲染像素倍率上限<select id="set-quality"><option value="1">1× · 节省内存</option><option value="2">2× · 推荐</option><option value="3">3× · 高清</option></select></label><label>磁盘缓存上限（MB，默认2048）<input id="set-disk-budget" type="number" min="64" max="262144" value="${diskBudget?.limitMB||2048}"></label><label>撤销步数上限<input id="set-undo" type="number" min="5" max="100" value="${settings.undo}"></label></div>${ai ? `<fieldset class="preferences-ai"><legend>AI 文档辅助</legend><p class="hint">API、服务商和模型在 Chatbox 原生设置中配置；以下选项管理 Folio 文档操作。</p><div class="form-grid"><label>操作审批<select id="set-ai-approval"><option value="manual">手动审批</option><option value="auto">自动审批</option></select></label><label>Chatbox 显示方式<select id="set-ai-display"><option value="sidebar">侧栏</option><option value="window">独立窗口</option></select></label><label>OCR 低置信度复核阈值（%）<input id="set-ai-threshold" type="number" min="0" max="100" step="1" value="${ai.threshold}"></label></div><p class="hint">优先本地 Paddle；低于阈值的结果可按需交给所选模型复核。默认 95%。自动审批仅在本次会话生效，启用需二次确认，自动审批盾牌图标标红。</p></fieldset>` : ""}<label class="check"><input id="set-outline" type="checkbox" ${settings.showBookmarks ? "checked" : ""}>保存后建议阅读器显示书签面板</label><label class="check"><input id="set-protect" type="checkbox" ${settings.protect ? "checked" : ""}>原文件保护：首次保存为副本，之后更新副本</label><label class="check"><input id="set-restore" type="checkbox" ${settings.restoreView ? "checked" : ""}>记住每本文档的阅读位置、缩放和布局（关闭后尊重文档初始视图）</label><label class="check"><input id="set-ignore-zoom" type="checkbox" ${settings.ignoreZoom ? "checked" : ""}>忽略书签的缩放要求（不修改 PDF 目标）</label><label class="check"><input id="set-wrap" type="checkbox" ${settings.wrap ? "checked" : ""}>长书签标题显示两行</label><div class="form-grid"><label class="check"><input id="set-target-marker" type="checkbox" ${settings.showTargetMarker!==false?"checked":""}>显示书签跳转定位线</label><label>定位线颜色<input id="set-target-color" type="color" value="${/^#[0-9a-f]{6}$/i.test(settings.targetMarkerColor||"")?settings.targetMarkerColor:"#db8c36"}"></label></div><label>保存方式<select id="set-save-mode"><option value="auto">快速增量保存</option><option value="compact">完整重写（兼容模式）</option></select></label><label class="check"><input id="set-summary" type="checkbox" ${settings.saveSummary ? "checked" : ""}>保存前显示修改摘要</label><label class="check"><input id="set-gpu" type="checkbox" ${software ? "checked" : ""} ${window.desktop?.graphics ? "" : "disabled"}>显卡兼容：关闭硬件加速（重新启动后生效）</label><label>HTTP 代理（更新共用）<input id="set-http-proxy" placeholder="留空使用系统代理"></label><button data-action="shortcuts">自定义快捷键…</button><button id="ocr-cache-open">OCR 任务记录与缓存…</button><p class="hint">撤销快照受 32 MB 预算限制；画布按可见范围加载，高清画布与分块按约 128 MB 预算回收，当前可见区域优先，缩放期间保留已完成画面。恢复快照在编辑停止 0.7 秒后保存在本机。缓存超限按最近使用时间轮替；大文件处理中临时扩容，当前文档、原子保存及未保存草稿受保护。</p>`,
+    `<div class="prefs"><nav class="prefs-nav" aria-label="偏好设置分类"><button type="button" data-pref-nav="general" aria-current="true">${icon("settings")}<span>通用</span></button><button type="button" data-pref-nav="reading" aria-current="false">${icon("book")}<span>阅读与滚动</span></button><button type="button" data-pref-nav="bookmarks" aria-current="false">${icon("bookmark")}<span>书签</span></button><button type="button" data-pref-nav="saving" aria-current="false">${icon("save")}<span>保存与文件</span></button><button type="button" data-pref-nav="performance" aria-current="false">${icon("sliders")}<span>性能与缓存</span></button>${ai ? `<button type="button" data-pref-nav="ai" aria-current="false">${icon("spark")}<span>AI 文档辅助</span></button>` : ""}<button type="button" data-pref-nav="advanced" aria-current="false">${icon("globe")}<span>网络与快捷键</span></button></nav><div class="prefs-scroll"><section class="pref-section" data-pref-section="general"><h3>通用</h3><div class="pref-row"><div class="pref-label"><b>界面语言</b><small>立即生效，并记住选择。不会改变文档文字或 OCR 语言。</small></div><div class="pref-control">${languagePicker("settings-language")}</div></div><div class="pref-row"><div class="pref-label"><b>外观主题</b></div><div class="pref-control"><select id="set-theme"><option value="system">跟随系统</option><option value="light">浅色</option><option value="dark">深色</option></select></div></div>${paletteControls()}<div class="pref-color-row"><div><b>文字选取颜色</b><small>划选 PDF 文字时的高亮色</small></div><div class="selection-presets">${["#5370f5","#0a84ff","#30b0a0","#34c759","#ffb020","#ff6b57","#bf5af2"].map(c=>`<button type="button" class="cp-swatch" data-sel="${c}" style="--c:${c}" aria-label="${c}"></button>`).join("")}<input id="set-selection-color" type="color" aria-label="自定义文字选取颜色" value="${settings.selectionColor}"></div></div><div class="pref-row"><div class="pref-label"><b>默认留白单位</b></div><div class="pref-control"><select id="set-whitespace-unit"><option value="mm">毫米 mm</option><option value="pt">点 pt</option></select></div></div></section><section class="pref-section" data-pref-section="reading"><h3>阅读与滚动</h3><div class="pref-row"><div class="pref-label"><b>滚轮滚动量</b></div><div class="pref-control"><select id="set-wheel-preset"><option value="1">精细 · 1 行</option><option value="3">标准 · 3 行（推荐）</option><option value="6">快速 · 6 行</option><option value="custom">自定义</option></select></div></div><div class="pref-row"><div class="pref-label"><b>每次滚动行数</b></div><div class="pref-control"><input id="set-wheel-lines" type="number" min="1" max="30" value="${settings.wheelLines||3}"></div></div><div class="pref-row"><div class="pref-label"><b>渲染像素倍率上限</b></div><div class="pref-control"><select id="set-quality"><option value="1">1× · 节省内存</option><option value="2">2× · 推荐</option><option value="3">3× · 高清</option></select></div></div><label class="check"><input id="set-restore" type="checkbox" ${settings.restoreView?"checked":""} >记住每本文档的阅读位置、缩放和布局（关闭后尊重文档初始视图）</label></section><section class="pref-section" data-pref-section="bookmarks"><h3>书签</h3><div class="pref-row"><div class="pref-label"><b>书签侧栏宽度（px）</b></div><div class="pref-control"><input id="set-sidebar" type="number" min="220" max="520" value="${settings.sidebar}"></div></div><div class="pref-row"><div class="pref-label"><b>书签行高</b></div><div class="pref-control"><select id="set-row"><option value="28">紧凑 · 28 px</option><option value="34">标准 · 34 px</option><option value="40">宽松 · 40 px</option></select></div></div><label class="check"><input id="set-wrap" type="checkbox" ${settings.wrap?"checked":""} >长书签标题显示两行</label><label class="check"><input id="set-ignore-zoom" type="checkbox" ${settings.ignoreZoom?"checked":""} >忽略书签的缩放要求（不修改 PDF 目标）</label><label class="check"><input id="set-outline" type="checkbox" ${settings.showBookmarks?"checked":""} >保存后建议阅读器显示书签面板</label><label class="check"><input id="set-target-thumb" type="checkbox" ${settings.targetThumb!==false?"checked":""} >在属性栏显示跳转目标页缩略图（实时预览落点）</label><label class="check"><input id="set-target-marker" type="checkbox" ${settings.showTargetMarker!==false?"checked":""} >跳转后在页面上显示定位线</label><div class="pref-row"><div class="pref-label"><b>定位线颜色</b></div><div class="pref-control"><input id="set-target-color" type="color" value="${/^#[0-9a-f]{6}$/i.test(settings.targetMarkerColor||"")?settings.targetMarkerColor:"#db8c36"}"></div></div></section><section class="pref-section" data-pref-section="saving"><h3>保存与文件</h3><div class="pref-row"><div class="pref-label"><b>保存方式</b></div><div class="pref-control"><select id="set-save-mode"><option value="auto">快速增量保存</option><option value="compact">完整重写（兼容模式）</option></select></div></div><label class="check"><input id="set-protect" type="checkbox" ${settings.protect?"checked":""} >原文件保护：首次保存为副本，之后更新副本</label><label class="check"><input id="set-summary" type="checkbox" ${settings.saveSummary?"checked":""} >保存前显示修改摘要</label></section><section class="pref-section" data-pref-section="performance"><h3>性能与缓存</h3><div class="pref-row"><div class="pref-label"><b>磁盘缓存上限（MB，默认2048）</b></div><div class="pref-control"><input id="set-disk-budget" type="number" min="64" max="262144" value="${diskBudget?.limitMB||2048}"></div></div><div class="pref-row"><div class="pref-label"><b>撤销步数上限</b></div><div class="pref-control"><input id="set-undo" type="number" min="5" max="100" value="${settings.undo}"></div></div><label class="check"><input id="set-gpu" type="checkbox" ${software?"checked":""} ${window.desktop?.graphics ? "" : "disabled"}>显卡兼容：关闭硬件加速（重新启动后生效）</label><button id="ocr-cache-open">OCR 任务记录与缓存…</button><p class="hint">撤销快照受 32 MB 预算限制；画布按可见范围加载，高清画布与分块按约 128 MB 预算回收，当前可见区域优先，缩放期间保留已完成画面。恢复快照在编辑停止 0.7 秒后保存在本机。缓存超限按最近使用时间轮替；大文件处理中临时扩容，当前文档、原子保存及未保存草稿受保护。</p></section>${ai ? `<section class="pref-section" data-pref-section="ai"><h3>AI 文档辅助</h3><div class="pref-block"><p class="hint">API、服务商和模型在 Chatbox 原生设置中配置；以下选项管理 Folio 文档操作。</p><div class="form-grid"><label>操作审批<select id="set-ai-approval"><option value="manual">手动审批</option><option value="auto">自动审批</option></select></label><label>Chatbox 显示方式<select id="set-ai-display"><option value="sidebar">侧栏</option><option value="window">独立窗口</option></select></label><label>OCR 低置信度复核阈值（%）<input id="set-ai-threshold" type="number" min="0" max="100" step="1" value="${ai.threshold}"></label></div><p class="hint">优先本地 Paddle；低于阈值的结果可按需交给所选模型复核。默认 95%。自动审批仅在本次会话生效，启用需二次确认，自动审批盾牌图标标红。</p></div></section>` : ""}<section class="pref-section" data-pref-section="advanced"><h3>网络与快捷键</h3><div class="pref-row"><div class="pref-label"><b>HTTP 代理（更新共用）</b></div><div class="pref-control"><input id="set-http-proxy" placeholder="留空使用系统代理"></div></div><button data-action="shortcuts">自定义快捷键…</button></section></div></div>`,
     [
       { text: "取消", run: closeModal },
       {
@@ -2483,7 +2495,7 @@ async function settingsDialog() {
             });
           Object.assign(settings, {
             whitespaceUnit: $("#set-whitespace-unit").value,
-            saveSummary: $("#set-summary").checked,showTargetMarker:$("#set-target-marker").checked,targetMarkerColor:$("#set-target-color").value,selectionColor:$("#set-selection-color").value,saveMode:$("#set-save-mode").value,
+            saveSummary: $("#set-summary").checked,showTargetMarker:$("#set-target-marker").checked,targetMarkerColor:$("#set-target-color").value,selectionColor:$("#set-selection-color").value,targetThumb:$("#set-target-thumb").checked,saveMode:$("#set-save-mode").value,
             protect: $("#set-protect").checked,
             restoreView: $("#set-restore").checked,
             ignoreZoom: $("#set-ignore-zoom").checked,
@@ -2498,11 +2510,37 @@ async function settingsDialog() {
             showBookmarks: $("#set-outline").checked,
           });
           applySettings();
+          fillProperties();
           closeModal();
         },
       },
     ],
   );
+  $("#modal").classList.add("prefs-dialog");
+  const prefsPane = $(".prefs-scroll"), prefsNav = [...$$("[data-pref-nav]")];
+  const sections = [...$$("[data-pref-section]")];
+  const mark = (id) => prefsNav.forEach((b) => b.setAttribute("aria-current", String(b.dataset.prefNav === id)));
+  let spyFrame = 0, jumping = false, jumpTimer = 0;
+  const spy = () => {
+    spyFrame = 0;
+    if (jumping) return;
+    const top = prefsPane.getBoundingClientRect().top + 24;
+    let current = sections[0];
+    for (const s of sections) if (s.getBoundingClientRect().top <= top) current = s;
+    if (prefsPane.scrollTop + prefsPane.clientHeight >= prefsPane.scrollHeight - 2) current = sections.at(-1);
+    mark(current.dataset.prefSection);
+  };
+  prefsPane.addEventListener("scroll", () => { spyFrame ||= requestAnimationFrame(spy); }, { passive: true });
+  $(".prefs-nav").onclick = (e) => {
+    const b = e.target.closest("[data-pref-nav]");
+    if (!b) return;
+    const target = sections.find((s) => s.dataset.prefSection === b.dataset.prefNav);
+    mark(b.dataset.prefNav);
+    jumping = true;
+    prefsPane.scrollTo({ top: target.offsetTop - prefsPane.offsetTop - 4, behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+    clearTimeout(jumpTimer);
+    jumpTimer = setTimeout(() => { jumping = false; }, 500);
+  };
   if (ai) {
     $("#set-ai-approval").value = ai.auto ? "auto" : "manual";
     $("#set-ai-display").value = ai.display;
@@ -2525,7 +2563,7 @@ async function settingsDialog() {
   $("#set-wheel-preset").value=[1,3,6].includes(settings.wheelLines||3)?String(settings.wheelLines||3):"custom";
   $("#set-wheel-preset").onchange=e=>{if(e.target.value!=="custom")$("#set-wheel-lines").value=e.target.value;};
   $("#set-wheel-lines").oninput=()=>$("#set-wheel-preset").value="custom";
-  modalCleanup = () => {applyAppearance(settings);document.documentElement.style.setProperty("--text-selection",settings.selectionColor);};
+  modalCleanup = () => {$("#modal").classList.remove("prefs-dialog");applyAppearance(settings);document.documentElement.style.setProperty("--text-selection",settings.selectionColor);};
   $("#set-row").value = settings.row;
   $("#set-quality").value = settings.quality;
 }
@@ -2707,6 +2745,7 @@ function renameInline() {
   input.className = "inline-name";
   input.value = n.title;
   title.replaceChildren(input);
+  rowCache.delete(n.id); // this row no longer matches its cached markup
   row.draggable = false;
   input.focus();
   input.select();
@@ -3968,10 +4007,20 @@ $("#tree").addEventListener("click", (e) => {
     rebuild();
     return;
   }
+  // The first click re-renders the rows, so the browser never reports a native dblclick
+  // (the two clicks land on different elements). Detect the second click ourselves.
+  const now = performance.now(), plain = !e.ctrlKey && !e.shiftKey && !e.metaKey;
+  const second = plain && lastRowClick.id === id && now - lastRowClick.at < 450 && !!e.target.closest(".title");
+  lastRowClick = second ? { id: null, at: 0 } : { id, at: now };
+  if (second) {
+    selectNode(id, e);
+    renameInline();
+    return;
+  }
   selectNode(id, e);
-  if (!e.ctrlKey && !e.shiftKey && !e.metaKey)
-    guarded(() => jump(S.index.get(id)));
+  if (plain) guarded(() => jump(S.index.get(id)));
 });
+let lastRowClick = { id: null, at: 0 };
 let dragIds = null,
   dragChosen = null,
   dropState = null,
@@ -4007,6 +4056,7 @@ $("#tree").addEventListener("dragstart", (e) => {
   dragLabel = document.createElement("div");
   dragLabel.id = "drag-label";
   dragLabel.textContent = `移动 ${dragChosen.size} 个书签`;
+  dragLabel.style.visibility = "hidden"; // shown only once the pointer position is known
   document.body.append(dragLabel);
 });
 function dragTick() {
@@ -4074,6 +4124,7 @@ $("#tree").addEventListener("dragover", (e) => {
   dragPointer = { x: e.clientX, y: e.clientY };
   dragLabel.style.left = e.clientX + 16 + "px";
   dragLabel.style.top = e.clientY + 12 + "px";
+  dragLabel.style.visibility = "";
   if (!dragFrame) dragFrame = requestAnimationFrame(dragTick);
 });
 $("#tree").addEventListener("drop", (e) => {
@@ -4093,6 +4144,12 @@ $("#tree").addEventListener("drop", (e) => {
     });
 });
 $("#tree").addEventListener("dragend", clearDrag);
+// The dragged row can be re-rendered mid-drag (auto-expand, scroll), which swallows its own
+// dragend; these listeners guarantee the floating label never gets stranded.
+document.addEventListener("dragend", clearDrag, true);
+document.addEventListener("drop", () => setTimeout(() => dragLabel && clearDrag(), 0), true);
+document.addEventListener("mousemove", (e) => { if (dragLabel && e.buttons === 0) clearDrag(); }, true);
+window.addEventListener("blur", () => dragLabel && clearDrag());
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && dragIds) clearDrag();
 });
@@ -4463,7 +4520,7 @@ $("#tree").addEventListener("contextmenu", (e) => {
   ]);
 });
 $("#tree").addEventListener("dblclick", (e) => {
-  if (e.target.closest(".title") && !e.target.closest("input")) renameInline();
+  if (e.target.closest(".title") && !e.target.closest("input") && !$(".inline-name")) renameInline();
 });
 async function copyPageText(text) {
   if (window.desktop?.copyText) await window.desktop.copyText(text);

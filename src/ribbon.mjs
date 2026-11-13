@@ -39,5 +39,5 @@ export function installRibbon(){
   const toggle=()=>{const off=header.classList.toggle('ribbon-collapsed');collapse.setAttribute('aria-expanded',String(!off));localStorage.setItem('folio-ribbon-collapsed',String(off));};collapse.onclick=toggle;
   document.addEventListener('keydown',e=>{if(e.ctrlKey&&e.key==='F1'){e.preventDefault();toggle();}});
   if(localStorage.getItem('folio-ribbon-collapsed')==='true')header.classList.add('ribbon-collapsed');
-  selection.hidden=true;labels();onLanguageChange(()=>{labels();choose(current);});choose('home');
+  selection.hidden=true;labels();(window.requestIdleCallback||setTimeout)(()=>{for(const d of definitions)if(d[0]!=='read'&&d[0]!=='home')buttonsFor(d[0]);});onLanguageChange(()=>{labels();choose(current);});choose('home');
 }
