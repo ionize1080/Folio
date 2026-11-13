@@ -474,3 +474,9 @@ hr { border: 0; border-top: 1px solid var(--line); }
 #properties input[type=color] { width: 40px; height: 32px; border-radius: var(--r-sm); border: 1px solid var(--line-strong); padding: 3px; background: var(--panel2); }
 .more-tools-menu .more-tools-search, .more-tools-menu input[type=search] { border-radius: var(--r-md); background: var(--panel2); }
 .more-tools-menu h4, .more-tools-menu .group-title { color: var(--muted); letter-spacing: .08em; text-transform: uppercase; font-size: 10.5px; font-weight: 700; }
+
+/* Primary label colour must follow --on-accent in every state and theme (beats legacy `.primary{color:#fff!important}`). */
+body button.primary, body.dark button.primary,
+body .appbar[data-ribbon] .toolbar button.primary, body.dark .appbar[data-ribbon] .toolbar button.primary,
+body .page-edit-bar button.primary, body #modal-footer button.primary { color: var(--on-accent) !important; }
+body button.primary svg { color: var(--on-accent); }
