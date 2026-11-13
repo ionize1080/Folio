@@ -177,3 +177,16 @@
 @media (forced-colors: active) {
   .ocr-chip:has(input:checked) span, .ocr-tabs button[aria-selected=true] { outline: 2px solid Highlight; }
 }
+
+/* Corrections: panes never squash their children; tab/nav buttons opt out of the generic outlined style. */
+.ocr-pane > * { flex-shrink: 0; }
+#ocr-pane-review #ocr-results { flex: 1 0 190px; }
+.ocr-pane textarea { min-height: 72px; }
+.ocr-tabs button, .ocr-nav button { background: transparent; box-shadow: none; min-height: 0; font-weight: 600; }
+.ocr-tabs button { padding: 0 12px; border-radius: var(--r-sm) var(--r-sm) 0 0; }
+.ocr-tabs button:enabled:hover, .ocr-nav button:enabled:hover { background: var(--hover); box-shadow: none; color: var(--accent); }
+.ocr-tabs button[aria-selected=true]:enabled:hover { background: transparent; }
+.ocr-nav button { padding: 0; border-radius: var(--r-sm); }
+/* The legacy stylesheet pinned this button to the bottom of the panel. */
+.ocr-dialog #ocr-pane-review #ocr-correct { position: static; border: 0; background: var(--accent-soft); box-shadow: none; }
+.ocr-dialog #ocr-pane-review #ocr-correct:enabled:hover { background: var(--selected); color: var(--accent); }

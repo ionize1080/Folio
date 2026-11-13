@@ -427,14 +427,14 @@ svg[data-symbol] { stroke-linejoin: round; stroke-linecap: round; }
 #modal-body details[open] > summary { color: var(--accent); }
 
 /* Plain (class-less) action buttons inside dialogs become outlined controls. */
-:where(#modal-body) button:not([class]):not(#modal-close),
+:where(#modal-body) button:where(:not([class]):not(#modal-close)),
 #modal-footer button:not(.primary) {
   min-height: 34px; padding-inline: 14px; border-radius: var(--r-md);
   background: var(--panel); box-shadow: inset 0 0 0 1px var(--line-strong); color: var(--text); font-weight: 520;
 }
-:where(#modal-body) button:not([class]):not(#modal-close):enabled:hover,
+:where(#modal-body) button:where(:not([class]):not(#modal-close)):enabled:hover,
 #modal-footer button:not(.primary):enabled:hover { background: var(--hover); box-shadow: inset 0 0 0 1px var(--selected-line); color: var(--accent); }
-:where(#modal-body) button:not([class]):not(#modal-close):disabled { background: var(--panel2); box-shadow: inset 0 0 0 1px var(--line); }
+:where(#modal-body) button:where(:not([class]):not(#modal-close)):disabled { background: var(--panel2); box-shadow: inset 0 0 0 1px var(--line); }
 #modal-footer { padding: 14px 22px; gap: 10px; justify-content: flex-end; }
 #modal-footer button.primary { padding-inline: 20px; min-height: 36px; border-radius: var(--r-md); }
 .modal-header { padding: 18px 24px 14px; }
