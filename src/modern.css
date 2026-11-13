@@ -480,3 +480,166 @@ body button.primary, body.dark button.primary,
 body .appbar[data-ribbon] .toolbar button.primary, body.dark .appbar[data-ribbon] .toolbar button.primary,
 body .page-edit-bar button.primary, body #modal-footer button.primary { color: var(--on-accent) !important; }
 body button.primary svg { color: var(--on-accent); }
+
+/* ═════════ 9. Refinement pass (review 2026-11) ═════════ */
+
+/* 9.1 Document tabs: one surface, one hover. The close button no longer paints its own box. */
+.document-tab { position: relative; background: transparent; }
+.document-tab > button { background: transparent !important; box-shadow: none !important; }
+.document-tab:hover:not(.active), .document-tab:focus-within:not(.active) { background: var(--hover); }
+.document-tab.active { background: var(--panel); border-color: var(--line-strong); box-shadow: var(--shadow-1); }
+.document-tab .tab-close { opacity: 0; transition: opacity var(--t-fast) var(--ease), background-color var(--t-fast) var(--ease); }
+.document-tab:hover .tab-close, .document-tab.active .tab-close, .document-tab:focus-within .tab-close { opacity: 1; }
+
+/* 9.2 Ribbon pills: the hit area is the full cell, larger than the visible pill. */
+.ribbon-tab-row { align-items: stretch; }
+.ribbon-tabs { gap: 0; align-items: stretch; }
+.ribbon-tabs button {
+  position: relative; isolation: isolate; margin: 0; height: auto; min-height: 30px; align-self: stretch;
+  background: transparent; border-radius: 0; box-shadow: none; padding: 0 16px;
+}
+.ribbon-tabs button::before {
+  content: ""; position: absolute; inset: 1px 2px; border-radius: 99px; z-index: -1;
+  transition: background-color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease);
+}
+.ribbon-tabs button:hover:not([aria-selected=true]) { background: transparent; }
+.ribbon-tabs button:hover:not([aria-selected=true])::before { background: var(--hover); }
+.ribbon-tabs button[aria-selected=true] { background: transparent; box-shadow: none; }
+.ribbon-tabs button[aria-selected=true]::before { background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--selected-line); }
+
+/* 9.3 Ctrl+Enter hint: quiet metadata, not a second button. */
+button kbd { font: 500 10.5px/1 ui-monospace, "Cascadia Mono", Consolas, monospace; padding: 2px 5px; border-radius: 4px; border: 0; background: color-mix(in oklab, currentColor 14%, transparent); color: inherit; opacity: .62; letter-spacing: .02em; margin-left: 4px; }
+
+/* 9.4 Colour inputs become compact swatches that open the Folio picker. */
+input[type=color] {
+  appearance: none; -webkit-appearance: none; flex: none; cursor: pointer;
+  width: 34px; height: 26px; min-height: 26px; padding: 0; border-radius: 8px; border: 1px solid var(--line-strong);
+  background: none; box-shadow: var(--shadow-1); overflow: hidden;
+}
+input[type=color]::-webkit-color-swatch-wrapper { padding: 3px; }
+input[type=color]::-webkit-color-swatch { border: 0; border-radius: 5px; box-shadow: inset 0 0 0 1px #00000024; }
+input[type=color]:hover { border-color: var(--selected-line); }
+input[type=color][aria-expanded=true] { box-shadow: var(--ring); border-color: var(--accent); }
+label:has(> input[type=color]) { flex-direction: row !important; align-items: center; justify-content: space-between; gap: 12px; }
+.palette-options input[type=color] { width: 26px; height: 20px; min-height: 20px; border-radius: 6px; box-shadow: none; }
+.property-row input[type=color] { margin-left: auto; }
+
+/* 9.5 Preferences */
+.preferences-language { border: 0; padding: 0 0 14px; margin-bottom: 14px; border-bottom: 1px solid var(--line); border-radius: 0; gap: 4px 12px; }
+.preferences-language .language-picker { border: 1px solid var(--line-strong); background: var(--panel2); }
+.preferences-language .language-picker select { background: transparent !important; box-shadow: none !important; }
+.palette-field { margin: 4px 0 18px; }
+#modal .form-grid > label:has(> input[type=color]) { align-self: end; min-height: 36px; padding: 0 2px; }
+.selection-presets { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+/* 9.6 Panel splitters: a hairline with a grip that appears on intent. */
+.panel-resizer { width: 11px; background: transparent !important; }
+.panel-resizer.left { right: -6px; }
+.panel-resizer.right { left: -6px; }
+.panel-resizer::before {
+  content: ""; position: absolute; top: 0; bottom: 0; left: 5px; width: 1px; background: transparent;
+  transition: background-color var(--t-med) var(--ease), width var(--t-fast) var(--ease), left var(--t-fast) var(--ease);
+}
+.panel-resizer::after {
+  content: ""; position: absolute; top: 50%; left: 50%; width: 4px; height: 34px; margin: -17px 0 0 -2px; border-radius: 4px;
+  background: var(--line-strong); opacity: 0; transform: scaleY(.6);
+  transition: opacity var(--t-med) var(--ease), transform var(--t-med) var(--ease), background-color var(--t-fast);
+}
+.panel-resizer:hover::before, .panel-resizer.drag::before { left: 4px; width: 3px; border-radius: 3px; background: color-mix(in oklab, var(--accent) 38%, transparent); }
+.panel-resizer:hover::after, .panel-resizer.drag::after { opacity: 1; transform: none; background: var(--accent); }
+
+/* 9.7 Text selection colour (user setting) */
+.pdf-page .textLayer ::selection { background: color-mix(in srgb, var(--text-selection, #5370f5) 32%, transparent); }
+
+/* 9.8 Colour picker popover */
+.cp-pop {
+  box-sizing: border-box;
+  position: fixed; z-index: 10000; width: 272px; padding: 12px; display: grid; gap: 10px;
+  background: color-mix(in oklab, var(--panel) 94%, transparent); backdrop-filter: blur(18px) saturate(1.4);
+  border: 1px solid var(--line-strong); border-radius: var(--r-lg); box-shadow: var(--shadow-3);
+  animation: cp-in var(--t-med) var(--ease);
+}
+@keyframes cp-in { from { opacity: 0; transform: translateY(-4px) scale(.98); } }
+.cp-area { position: relative; height: 132px; border-radius: var(--r-md); touch-action: none; cursor: crosshair; outline-offset: 2px;
+  background: linear-gradient(to top, #000, transparent), linear-gradient(to right, #fff, var(--hue, red)); box-shadow: inset 0 0 0 1px #00000018; }
+.cp-hue { position: relative; height: 12px; border-radius: 99px; touch-action: none; cursor: pointer; outline-offset: 3px;
+  background: linear-gradient(to right, #f00, #ff0 17%, #0f0 33%, #0ff 50%, #00f 67%, #f0f 83%, #f00); box-shadow: inset 0 0 0 1px #00000018; }
+.cp-knob { position: absolute; width: 16px; height: 16px; margin: -8px 0 0 -8px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px #0006, 0 2px 6px #0004; pointer-events: none; }
+.cp-hue .cp-knob { top: 50%; }
+.cp-row { display: flex; align-items: center; gap: 8px; }
+.cp-now { width: 30px; height: 30px; border-radius: 50%; flex: none; box-shadow: inset 0 0 0 1px #00000024, 0 0 0 2px var(--panel); }
+.cp-hex { flex: 1; min-width: 0; height: 30px; min-height: 30px; font: 600 12.5px/1 ui-monospace, "Cascadia Mono", Consolas, monospace; text-transform: uppercase; letter-spacing: .04em; padding: 0 10px; border-radius: var(--r-sm); }
+.cp-hex.bad { box-shadow: 0 0 0 2px color-mix(in oklab, var(--danger) 45%, transparent); }
+.cp-eye { width: 30px; height: 30px; min-height: 30px; padding: 0; border-radius: var(--r-sm); background: var(--panel2); box-shadow: inset 0 0 0 1px var(--line-strong); }
+.cp-eye svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.cp-grid { display: grid; grid-template-columns: repeat(10, 1fr); gap: 4px; }
+.cp-swatch { aspect-ratio: 1; width: auto; min-height: 0; padding: 0; border-radius: 7px; background: var(--c); border: 0; box-shadow: inset 0 0 0 1px #0000001f; transition: transform var(--t-fast) var(--ease), box-shadow var(--t-fast); }
+.cp-swatch:hover { transform: scale(1.18); z-index: 1; box-shadow: inset 0 0 0 1px #0000002e, 0 3px 10px #0003; }
+.cp-swatch:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.cp-label { font-size: 11px; color: var(--muted); margin: -2px 0 -4px; }
+@media (prefers-reduced-motion: reduce) { .cp-pop { animation: none; } .cp-swatch, .panel-resizer::before, .panel-resizer::after { transition: none; } }
+.pref-color-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 0 0 18px; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--panel2); }
+.pref-color-row b { display: block; font-size: 13px; }
+.pref-color-row small { color: var(--muted); font-size: 11.5px; }
+.pref-color-row .cp-swatch { width: 24px; flex: none; border-radius: 50%; }
+.pref-color-row .selection-presets { gap: 6px; flex-wrap: nowrap; }
+.pref-color-row input[type=color] { margin-left: 4px; }
+.organizer-dialog footer [data-apply] { min-width: 150px; }
+.organizer-dialog footer [data-save] { background: var(--panel); box-shadow: inset 0 0 0 1px var(--line-strong); }
+
+/* 9.9 Context menu rows: icon, label, quiet shortcut; emphasis by intent. */
+#context-menu { min-width: 224px; }
+#context-menu button { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; padding: 6px 10px; min-height: 32px; }
+#context-menu button svg, #context-menu .mi-blank { width: 17px; height: 17px; flex: none; stroke: currentColor; fill: none; stroke-width: 1.6; opacity: .72; }
+#context-menu button .mi-label { flex: 1; min-width: 0; }
+#context-menu button kbd { margin-left: 16px; font: 500 11px/1 inherit; color: var(--muted); background: none; padding: 0; opacity: .85; }
+#context-menu button[data-tone=accent] svg { color: var(--accent); opacity: 1; }
+#context-menu button[data-tone=accent] .mi-label { font-weight: 600; }
+#context-menu button[data-tone=danger] svg { color: var(--danger); opacity: .9; }
+#context-menu button[data-tone=danger]:enabled:hover { background: color-mix(in oklab, var(--danger) 11%, transparent); color: var(--danger); }
+#context-menu button:disabled svg { opacity: .3; }
+#context-menu [role=separator] { height: 1px; margin: 5px 8px; background: var(--line); }
+
+/* ═════════ 10. Bookmark workbench design system ═════════ */
+/* 10.1 Dialog frame: glyph chip + quiet kicker, sized to content. */
+.modal-header { display: flex; align-items: center; gap: 14px; }
+.modal-header > div { flex: 1; min-width: 0; }
+#modal-kicker:empty { display: none; }
+#modal-kicker { font-size: 11px; letter-spacing: .04em; text-transform: none; font-weight: 600; color: var(--muted); }
+.modal-glyph { width: 38px; height: 38px; border-radius: 11px; flex: none; display: grid; place-items: center; color: var(--accent);
+  background: linear-gradient(160deg, color-mix(in oklab, var(--accent) 16%, var(--panel)), color-mix(in oklab, var(--accent) 7%, var(--panel)));
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--accent) 18%, transparent); }
+.modal-glyph[hidden] { display: none; }
+.modal-glyph svg { width: 21px; height: 21px; stroke: currentColor; fill: none; stroke-width: 1.6; }
+#modal[data-size=form]:not(.native-dialog):not(.rules-workspace-dialog):not(.split-dialog) { width: min(640px, 94vw); }
+#modal[data-size=form-lg]:not(.native-dialog):not(.rules-workspace-dialog):not(.split-dialog) { width: min(820px, 94vw); }
+#modal[data-size=wide]:not(.native-dialog):not(.rules-workspace-dialog):not(.split-dialog) { width: min(1120px, 95vw); }
+
+/* 10.2 Status banners: tinted, iconed, no left bar. Tone via .error/.warn/.ok. */
+.callout { position: relative; box-shadow: none !important; padding: 10px 14px 10px 40px; background: color-mix(in oklab, var(--accent) 7%, var(--panel)); border: 1px solid color-mix(in oklab, var(--accent) 16%, transparent); }
+.callout::before { content: ""; position: absolute; left: 14px; top: 12px; width: 16px; height: 16px; background: var(--accent); -webkit-mask: var(--ci) center / contain no-repeat; mask: var(--ci) center / contain no-repeat;
+  --ci: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M12 11v6M12 7.5h.01'/%3E%3C/svg%3E"); }
+.callout.error, #modal-error { background: color-mix(in oklab, var(--danger) 8%, var(--panel)); border-color: color-mix(in oklab, var(--danger) 22%, transparent); }
+.callout.error::before, #modal-error::before { background: var(--danger); --ci: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 4 3 19.5h18z'/%3E%3Cpath d='M12 10v4.5M12 17.2h.01'/%3E%3C/svg%3E"); }
+.callout.warn, .callout.warning { background: color-mix(in oklab, #f0b64a 13%, var(--panel)); border-color: color-mix(in oklab, #d89a2b 30%, transparent); }
+.callout.warn::before, .callout.warning::before { background: #c98a1b; --ci: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 4 3 19.5h18z'/%3E%3Cpath d='M12 10v4.5M12 17.2h.01'/%3E%3C/svg%3E"); }
+.callout.ok, .callout.success { background: color-mix(in oklab, var(--ok) 9%, var(--panel)); border-color: color-mix(in oklab, var(--ok) 28%, transparent); }
+.callout.ok::before, .callout.success::before { background: var(--ok); --ci: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='m8 12.5 3 3 5-6'/%3E%3C/svg%3E"); }
+.callout:empty, .callout[hidden] { display: none; }
+
+/* 10.3 Form rhythm: compact controls, quiet labels, tidy grids. */
+#modal-body > p:not(.callout), #modal-body > .hint { margin: 0; color: var(--muted); font-size: 12.5px; line-height: 1.7; }
+#modal-body .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px 14px; margin: 0; }
+#modal-body label { display: flex; flex-direction: column; gap: 6px; margin: 0; }
+#modal-body label.check, #modal-body label:has(> input[type=checkbox]), #modal-body label:has(> input[type=radio]) { flex-direction: row; align-items: center; gap: 9px; font-size: 13px; }
+#modal-body :is(input:not([type=checkbox], [type=radio], [type=color], [type=range], [type=file]), select) { min-height: 34px; height: 34px; padding-inline: 11px; font-size: 13px; }
+#modal-body .hint, #modal-body small { font-size: 12px; color: var(--muted); line-height: 1.65; }
+#modal-body :where(button:not([class]):not(#modal-close)) { min-height: 30px; padding: 0 12px; font-size: 12.5px; border-radius: 99px; background: var(--panel2); box-shadow: inset 0 0 0 1px var(--line); }
+#modal-body :where(button:not([class]):not(#modal-close)):enabled:hover { background: var(--accent-soft); color: var(--accent); box-shadow: inset 0 0 0 1px var(--selected-line); }
+#modal-body details { background: var(--panel2); border: 1px solid var(--line); }
+#modal-body details > summary { padding: 9px 14px; cursor: pointer; list-style: none; display: flex; align-items: center; gap: 8px; }
+#modal-body details > summary::before { content: ""; width: 6px; height: 6px; border-right: 1.8px solid currentColor; border-bottom: 1.8px solid currentColor; transform: rotate(-45deg); transition: transform var(--t-fast) var(--ease); opacity: .6; margin-right: 2px; flex: none; }
+#modal-body details[open] > summary::before { transform: rotate(45deg); }
+#modal-body details > summary::-webkit-details-marker { display: none; }
+#modal-body details > :not(summary) { margin-inline: 14px; }
+#modal-body details > :last-child { margin-bottom: 14px; }

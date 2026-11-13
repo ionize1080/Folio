@@ -72,6 +72,7 @@ export function installDocumentUtilities({ S, exportPDF, session, writeFile }) {
         const {appendSnapshot}=await import('./incremental-pdf.mjs');
         data=await appendSnapshot(bytes,data);session.assert(capture);
       }
+      if(a.apply&&a.action==='organize-pages'){const { bytes: _, ...info } = r;return { ...info, data, saved: false, applied: true };}
       const saved = await writeFile(
         a.filename || S.name.replace(/\.pdf$/i, "") + "-" + a.action + "." + r.extension,
         data,

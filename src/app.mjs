@@ -1,5 +1,7 @@
 import {annotationPalette} from "./annotation-style.mjs";
 import {applyAppearance, paletteControls, palettes} from "./appearance.mjs";
+import {installColorPicker} from "./color-picker.mjs";
+import {enhanceChoices} from "./choice-chips.mjs";
 import { pdfLoadingOptions } from './pdf-loading.mjs';
 import { bookmarkHTML } from "./bookmark-html.mjs";
 import { buildExportSnapshot } from "./export-snapshot.mjs";
@@ -98,7 +100,7 @@ const settings = readSettings(
     cover: true,
     shortcuts: {},
     theme: "system",
-    palette:"cobalt", customAccent:"#165DDB",
+    palette:"cobalt", customAccent:"#165DDB", selectionColor:"#5370f5", showTargetMarker:true, targetMarkerColor:"#db8c36",
     sidebar: 250,
     row: 34,
     quality: 2,
@@ -108,6 +110,7 @@ const settings = readSettings(
   localStorage.getItem("folio-settings"),
 );
 installLocalization();
+installColorPicker();
 const documentSession = new DocumentSession();
 const S = {
   sessionId: documentSession.id,
@@ -341,6 +344,7 @@ function fitPanels() {
 window.addEventListener("resize", fitPanels);
 function applySettings(redraw = true) {
   applyAppearance(settings);
+  document.documentElement.style.setProperty("--text-selection", settings.selectionColor);
   document.documentElement.style.setProperty(
     "--sidebar",
     settings.sidebar + "px",
@@ -367,9 +371,26 @@ window.addEventListener("storage", e => {
   Object.assign(settings, readSettings(settings,e.newValue));
   applyAppearance(settings);
 });
+// Per-dialog chrome: glyph chip, context kicker, and a width class so short forms don't sprawl.
+const MODAL_META = [
+  ["多级规则", "rules", "书签 · 自动生成", "wide"], ["智能目录识别", "contents", "书签 · 目录识别", "wide"],
+  ["书签统计与质量", "shield", "书签 · 质量检查", "form-lg"], ["按标题校准", "target", "书签 · 目标校准", "form-lg"],
+  ["调整书签跳转留白", "spacing", "书签 · 跳转留白", "form"], ["批量规则", "sliders", "书签 · 批量规则", "wide"],
+  ["每 N 页生成", "bookmark-plus", "书签 · 按页生成", "form"], ["导入 / 导出", "exchange", "书签 · 交换", "form"],
+  ["偏好设置", "settings", "偏好", "form-lg"], ["查找重复", "dedupe", "书签 · 去重", "form-lg"],
+  ["更改书签缩放", "zoom", "书签 · 缩放", "form"], ["切换标题大小写", "case", "书签 · 标题", "form"],
+];
+function applyModalChrome(title) {
+  const m = MODAL_META.find(([k]) => title.includes(k)), box = $("#modal");
+  if (m) box.dataset.size = m[3]; else delete box.dataset.size;
+  $("#modal-kicker").textContent = m ? m[2] : "";
+  $("#modal-glyph").innerHTML = m ? icon(m[1]) : "";
+  $("#modal-glyph").hidden = !m;
+}
 function modal(title, body, buttons = []) {
   closeModal();
   $("#modal-title").textContent = title;
+  applyModalChrome(title);
   $("#modal-body").innerHTML =
     `<div id="modal-error" class="callout error" role="alert" hidden></div>` +
     DOMPurify.sanitize(body, {
@@ -395,6 +416,7 @@ function modal(title, body, buttons = []) {
     $("#modal-footer").append(el);
   }
   icons($("#modal"));
+  enhanceChoices($("#modal-body"));
   $("#modal").showModal();
 }
 function closeModal() {
@@ -1034,6 +1056,7 @@ function renderTree() {
     row.style.top = i * rowHeight() + "px";
     row.style.height = rowHeight() + "px";
     row.style.paddingLeft = Math.min(d, 24) * 16 + 4 + "px";
+    row.style.setProperty("--d", Math.min(d, 24));
     row.draggable = true;
     row.role = "treeitem";
     row.id = "tree-node-" + n.id;
@@ -1932,7 +1955,7 @@ function saveProject(){
 function exchangeDialog() {
   modal(
     "导入 / 导出与工作工程",
-    `<p>JSON 包含层级、颜色、字形和跳转参数。TXT 适合在 Excel 或文本编辑器中整理。</p><div class="callout">跨文件导入时，原始动作字典不会复制。可解析的本地目标会转为显式目标；不可解析的动作会提示并定位第 1 页。PDF-XChange 专用书签交换格式暂未实现。</div><div class="menu-grid"><button id="export-json">导出 Folio JSON</button><button id="export-txt">导出目录 TXT</button><button id="export-html">导出书签 HTML</button><button id="import-json">导入 Folio JSON</button><button id="import-txt">导入目录 TXT</button><button id="export-project">保存工作工程 .folio</button></div><p class="hint">工作工程包含原 PDF、已应用修改、OCR 校对与流式段落结构，可通过“打开”继续编辑。PDF 用于交付，工程用于续编；工程保留原始内容与修改记录。</p>`,
+    `<p>JSON 包含层级、颜色、字形和跳转参数。TXT 适合在 Excel 或文本编辑器中整理。</p><div class="callout">跨文件导入时，原始动作字典不会复制。可解析的本地目标会转为显式目标；不可解析的动作会提示并定位第 1 页。PDF-XChange 专用书签交换格式暂未实现。</div><div class="xchg-section"><h4>导出</h4><div class="xchg-grid"><button id="export-json" class="xchg-card"><i data-icon="export"></i><span><b>导出 Folio JSON</b><small>完整保留层级、样式与跳转参数</small></span></button><button id="export-txt" class="xchg-card"><i data-icon="contents"></i><span><b>导出目录 TXT</b><small>纯文本目录，可在 Excel 中整理</small></span></button><button id="export-html" class="xchg-card"><i data-icon="globe"></i><span><b>导出书签 HTML</b><small>可在浏览器中查看的书签页</small></span></button></div></div><div class="xchg-section"><h4>导入</h4><div class="xchg-grid"><button id="import-json" class="xchg-card"><i data-icon="launch"></i><span><b>导入 Folio JSON</b><small>恢复完整的书签结构</small></span></button><button id="import-txt" class="xchg-card"><i data-icon="file"></i><span><b>导入目录 TXT</b><small>从目录文本创建书签</small></span></button></div></div><div class="xchg-section"><h4>工作工程</h4><div class="xchg-grid xchg-wide"><button id="export-project" class="xchg-card"><i data-icon="layers"></i><span><b>保存工作工程 .folio</b><small>含原 PDF、已应用修改与 OCR 校对，可继续编辑</small></span></button></div></div><p class="hint">工作工程包含原 PDF、已应用修改、OCR 校对与流式段落结构，可通过“打开”继续编辑。PDF 用于交付，工程用于续编；工程保留原始内容与修改记录。</p>`,
     [{ text: "完成", run: closeModal }],
   );
   $("#export-project").onclick = saveProject;
@@ -2418,7 +2441,7 @@ async function settingsDialog() {
   const network = (await window.desktop?.updateInfo?.())?.settings;
   modal(
     "偏好设置",
-    `<div class="preferences-language"><span>界面语言</span>${languagePicker("settings-language")}<small>立即生效，并记住选择。不会改变文档文字或 OCR 语言。</small></div>${paletteControls()}<div class="form-grid"><label>默认留白单位<select id="set-whitespace-unit"><option value="mm">毫米 mm</option><option value="pt">点 pt</option></select></label><label>外观主题<select id="set-theme"><option value="system">跟随系统</option><option value="light">浅色</option><option value="dark">深色</option></select></label><label>滚轮滚动量<select id="set-wheel-preset"><option value="1">精细 · 1 行</option><option value="3">标准 · 3 行（推荐）</option><option value="6">快速 · 6 行</option><option value="custom">自定义</option></select></label><label>每次滚动行数<input id="set-wheel-lines" type="number" min="1" max="30" value="${settings.wheelLines||3}"></label><label>书签侧栏宽度（px）<input id="set-sidebar" type="number" min="220" max="520" value="${settings.sidebar}"></label><label>书签行高<select id="set-row"><option value="28">紧凑 · 28 px</option><option value="34">标准 · 34 px</option><option value="40">宽松 · 40 px</option></select></label><label>渲染像素倍率上限<select id="set-quality"><option value="1">1× · 节省内存</option><option value="2">2× · 推荐</option><option value="3">3× · 高清</option></select></label><label>磁盘缓存上限（MB，默认2048）<input id="set-disk-budget" type="number" min="64" max="262144" value="${diskBudget?.limitMB||2048}"></label><label>撤销步数上限<input id="set-undo" type="number" min="5" max="100" value="${settings.undo}"></label></div>${ai ? `<fieldset class="preferences-ai"><legend>AI 文档辅助</legend><p class="hint">API、服务商和模型在 Chatbox 原生设置中配置；以下选项管理 Folio 文档操作。</p><div class="form-grid"><label>操作审批<select id="set-ai-approval"><option value="manual">手动审批</option><option value="auto">自动审批</option></select></label><label>Chatbox 显示方式<select id="set-ai-display"><option value="sidebar">侧栏</option><option value="window">独立窗口</option></select></label><label>OCR 低置信度复核阈值（%）<input id="set-ai-threshold" type="number" min="0" max="100" step="1" value="${ai.threshold}"></label></div><p class="hint">优先本地 Paddle；低于阈值的结果可按需交给所选模型复核。默认 95%。自动审批仅在本次会话生效，启用需二次确认，自动审批盾牌图标标红。</p></fieldset>` : ""}<label class="check"><input id="set-outline" type="checkbox" ${settings.showBookmarks ? "checked" : ""}>保存后建议阅读器显示书签面板</label><label class="check"><input id="set-protect" type="checkbox" ${settings.protect ? "checked" : ""}>原文件保护：首次保存为副本，之后更新副本</label><label class="check"><input id="set-restore" type="checkbox" ${settings.restoreView ? "checked" : ""}>记住每本文档的阅读位置、缩放和布局（关闭后尊重文档初始视图）</label><label class="check"><input id="set-ignore-zoom" type="checkbox" ${settings.ignoreZoom ? "checked" : ""}>忽略书签的缩放要求（不修改 PDF 目标）</label><label class="check"><input id="set-wrap" type="checkbox" ${settings.wrap ? "checked" : ""}>长书签标题显示两行</label><div class="form-grid"><label class="check"><input id="set-target-marker" type="checkbox" ${settings.showTargetMarker!==false?"checked":""}>显示书签跳转定位线</label><label>定位线颜色<input id="set-target-color" type="color" value="${/^#[0-9a-f]{6}$/i.test(settings.targetMarkerColor||"")?settings.targetMarkerColor:"#db8c36"}"></label></div><label>保存方式<select id="set-save-mode"><option value="auto">快速增量保存</option><option value="compact">完整重写（兼容模式）</option></select></label><label class="check"><input id="set-summary" type="checkbox" ${settings.saveSummary ? "checked" : ""}>保存前显示修改摘要</label><label class="check"><input id="set-gpu" type="checkbox" ${software ? "checked" : ""} ${window.desktop?.graphics ? "" : "disabled"}>显卡兼容：关闭硬件加速（重新启动后生效）</label><label>HTTP 代理（更新共用）<input id="set-http-proxy" placeholder="留空使用系统代理"></label><button data-action="shortcuts">自定义快捷键…</button><button id="ocr-cache-open">OCR 任务记录与缓存…</button><p class="hint">撤销快照受 32 MB 预算限制；画布按可见范围加载，高清画布与分块按约 128 MB 预算回收，当前可见区域优先，缩放期间保留已完成画面。恢复快照在编辑停止 0.7 秒后保存在本机。缓存超限按最近使用时间轮替；大文件处理中临时扩容，当前文档、原子保存及未保存草稿受保护。</p>`,
+    `<div class="preferences-language"><span>界面语言</span>${languagePicker("settings-language")}<small>立即生效，并记住选择。不会改变文档文字或 OCR 语言。</small></div>${paletteControls()}<div class="pref-color-row"><div><b>文字选取颜色</b><small>划选 PDF 文字时的高亮色</small></div><div class="selection-presets">${["#5370f5","#0a84ff","#30b0a0","#34c759","#ffb020","#ff6b57","#bf5af2"].map(c=>`<button type="button" class="cp-swatch" data-sel="${c}" style="--c:${c}" aria-label="${c}"></button>`).join("")}<input id="set-selection-color" type="color" aria-label="自定义文字选取颜色" value="${settings.selectionColor}"></div></div><div class="form-grid"><label>默认留白单位<select id="set-whitespace-unit"><option value="mm">毫米 mm</option><option value="pt">点 pt</option></select></label><label>外观主题<select id="set-theme"><option value="system">跟随系统</option><option value="light">浅色</option><option value="dark">深色</option></select></label><label>滚轮滚动量<select id="set-wheel-preset"><option value="1">精细 · 1 行</option><option value="3">标准 · 3 行（推荐）</option><option value="6">快速 · 6 行</option><option value="custom">自定义</option></select></label><label>每次滚动行数<input id="set-wheel-lines" type="number" min="1" max="30" value="${settings.wheelLines||3}"></label><label>书签侧栏宽度（px）<input id="set-sidebar" type="number" min="220" max="520" value="${settings.sidebar}"></label><label>书签行高<select id="set-row"><option value="28">紧凑 · 28 px</option><option value="34">标准 · 34 px</option><option value="40">宽松 · 40 px</option></select></label><label>渲染像素倍率上限<select id="set-quality"><option value="1">1× · 节省内存</option><option value="2">2× · 推荐</option><option value="3">3× · 高清</option></select></label><label>磁盘缓存上限（MB，默认2048）<input id="set-disk-budget" type="number" min="64" max="262144" value="${diskBudget?.limitMB||2048}"></label><label>撤销步数上限<input id="set-undo" type="number" min="5" max="100" value="${settings.undo}"></label></div>${ai ? `<fieldset class="preferences-ai"><legend>AI 文档辅助</legend><p class="hint">API、服务商和模型在 Chatbox 原生设置中配置；以下选项管理 Folio 文档操作。</p><div class="form-grid"><label>操作审批<select id="set-ai-approval"><option value="manual">手动审批</option><option value="auto">自动审批</option></select></label><label>Chatbox 显示方式<select id="set-ai-display"><option value="sidebar">侧栏</option><option value="window">独立窗口</option></select></label><label>OCR 低置信度复核阈值（%）<input id="set-ai-threshold" type="number" min="0" max="100" step="1" value="${ai.threshold}"></label></div><p class="hint">优先本地 Paddle；低于阈值的结果可按需交给所选模型复核。默认 95%。自动审批仅在本次会话生效，启用需二次确认，自动审批盾牌图标标红。</p></fieldset>` : ""}<label class="check"><input id="set-outline" type="checkbox" ${settings.showBookmarks ? "checked" : ""}>保存后建议阅读器显示书签面板</label><label class="check"><input id="set-protect" type="checkbox" ${settings.protect ? "checked" : ""}>原文件保护：首次保存为副本，之后更新副本</label><label class="check"><input id="set-restore" type="checkbox" ${settings.restoreView ? "checked" : ""}>记住每本文档的阅读位置、缩放和布局（关闭后尊重文档初始视图）</label><label class="check"><input id="set-ignore-zoom" type="checkbox" ${settings.ignoreZoom ? "checked" : ""}>忽略书签的缩放要求（不修改 PDF 目标）</label><label class="check"><input id="set-wrap" type="checkbox" ${settings.wrap ? "checked" : ""}>长书签标题显示两行</label><div class="form-grid"><label class="check"><input id="set-target-marker" type="checkbox" ${settings.showTargetMarker!==false?"checked":""}>显示书签跳转定位线</label><label>定位线颜色<input id="set-target-color" type="color" value="${/^#[0-9a-f]{6}$/i.test(settings.targetMarkerColor||"")?settings.targetMarkerColor:"#db8c36"}"></label></div><label>保存方式<select id="set-save-mode"><option value="auto">快速增量保存</option><option value="compact">完整重写（兼容模式）</option></select></label><label class="check"><input id="set-summary" type="checkbox" ${settings.saveSummary ? "checked" : ""}>保存前显示修改摘要</label><label class="check"><input id="set-gpu" type="checkbox" ${software ? "checked" : ""} ${window.desktop?.graphics ? "" : "disabled"}>显卡兼容：关闭硬件加速（重新启动后生效）</label><label>HTTP 代理（更新共用）<input id="set-http-proxy" placeholder="留空使用系统代理"></label><button data-action="shortcuts">自定义快捷键…</button><button id="ocr-cache-open">OCR 任务记录与缓存…</button><p class="hint">撤销快照受 32 MB 预算限制；画布按可见范围加载，高清画布与分块按约 128 MB 预算回收，当前可见区域优先，缩放期间保留已完成画面。恢复快照在编辑停止 0.7 秒后保存在本机。缓存超限按最近使用时间轮替；大文件处理中临时扩容，当前文档、原子保存及未保存草稿受保护。</p>`,
     [
       { text: "取消", run: closeModal },
       {
@@ -2442,7 +2465,7 @@ async function settingsDialog() {
             });
           Object.assign(settings, {
             whitespaceUnit: $("#set-whitespace-unit").value,
-            saveSummary: $("#set-summary").checked,showTargetMarker:$("#set-target-marker").checked,targetMarkerColor:$("#set-target-color").value,saveMode:$("#set-save-mode").value,
+            saveSummary: $("#set-summary").checked,showTargetMarker:$("#set-target-marker").checked,targetMarkerColor:$("#set-target-color").value,selectionColor:$("#set-selection-color").value,saveMode:$("#set-save-mode").value,
             protect: $("#set-protect").checked,
             restoreView: $("#set-restore").checked,
             ignoreZoom: $("#set-ignore-zoom").checked,
@@ -2475,13 +2498,16 @@ async function settingsDialog() {
   $("#set-theme").value = settings.theme;$("#set-save-mode").value=settings.saveMode||"auto";
   const preview = () => applyAppearance({...settings, theme:$("#set-theme").value,
     palette:$('input[name="palette"]:checked').value, customAccent:$("#custom-accent").value});
+  const selInput=$("#set-selection-color"),livesel=()=>document.documentElement.style.setProperty("--text-selection",selInput.value);
+  selInput.oninput=livesel;
+  $(".pref-color-row").onclick=e=>{const b=e.target.closest("[data-sel]");if(b){selInput.value=b.dataset.sel;livesel();}};
   $("#custom-accent").oninput = () => { $('input[value="custom"][name="palette"]').checked = true; preview(); };
   $(".palette-options").onchange = preview;
   $("#set-theme").onchange = preview;
   $("#set-wheel-preset").value=[1,3,6].includes(settings.wheelLines||3)?String(settings.wheelLines||3):"custom";
   $("#set-wheel-preset").onchange=e=>{if(e.target.value!=="custom")$("#set-wheel-lines").value=e.target.value;};
   $("#set-wheel-lines").oninput=()=>$("#set-wheel-preset").value="custom";
-  modalCleanup = () => applyAppearance(settings);
+  modalCleanup = () => {applyAppearance(settings);document.documentElement.style.setProperty("--text-selection",settings.selectionColor);};
   $("#set-row").value = settings.row;
   $("#set-quality").value = settings.quality;
 }
@@ -2802,6 +2828,26 @@ function treeNavigate(e) {
       tree.scrollTop = pos + rowHeight() - tree.clientHeight;
   }
 }
+// Icon / emphasis for context-menu rows, keyed by label. Unlisted rows stay text-only.
+const MENU_META = {
+  "编辑标题": ["pen", ""], "新增同级书签": ["bookmark-plus", "accent"], "新增子书签": ["bookmark-child", "accent"],
+  "剪切": ["cut", ""], "复制": ["copy", ""], "粘贴为子书签": ["paste", ""], "粘贴到前面": ["paste", ""], "粘贴到后面": ["paste", ""],
+  "更改书签缩放…": ["zoom", ""], "切换标题大小写…": ["case", ""], "设置当前视图为目标": ["target", "accent"],
+  "展开所选子树": ["unfold", ""], "折叠所选子树": ["fold", ""],
+  "删除所选与子项": ["trash", "danger"], "仅删除所选，保留子项": ["trash", "danger"], "仅删除子书签": ["trash", "danger"],
+  "调整跳转留白…": ["spacing", ""], "按标题校准目标…": ["crosshair", ""], "查找重复书签…": ["dedupe", ""], "正则拆分书签…": ["split", ""],
+  "属性": ["sliders", ""], "底层字典": ["code", ""],
+  "复制 Ctrl+C": ["copy", ""], "复制为单行": ["copy-line", ""], "从选中文字创建书签": ["bookmark-plus", "accent"],
+  "用选中文字位置设置目标": ["target", "accent"], "框选文字并复制…": ["select-text", ""], "当前视图设置为目标": ["target", "accent"],
+  "适合宽度": ["fit-width", ""], "适合页面": ["fit-page", ""], "页面缩略图": ["thumbs", ""],
+};
+function menuMeta(label) {
+  // "名称 · F2" and "名称 Ctrl+C" carry their shortcut; show it as a quiet right-aligned hint.
+  const m = /^(.*?)(?:\s·\s|\s)((?:Ctrl|Alt|Shift|F\d+)[\w+ ]*)$/.exec(label);
+  const text = m ? m[1].trim() : label, kbd = m ? m[2].trim() : "";
+  const [name, tone] = MENU_META[text] || MENU_META[label] || [];
+  return { text, kbd, icon: name || "", tone: tone || "" };
+}
 function contextMenu(e, items) {
   e.preventDefault();
   $("#context-menu")?.dispatchEvent(new Event("dismiss"));
@@ -2851,7 +2897,12 @@ function contextMenu(e, items) {
     }
     const [label, fn, disabled = false] = item;
     const b = document.createElement("button");
-    b.textContent = label;
+    const meta = menuMeta(label);
+    b.innerHTML = (meta.icon ? icon(meta.icon) : '<i class="mi-blank"></i>') + '<span class="mi-label"></span>' + (meta.kbd ? '<kbd></kbd>' : "");
+    b.querySelector(".mi-label").textContent = meta.text;
+    if (meta.kbd) b.querySelector("kbd").textContent = meta.kbd;
+    if (meta.tone) b.dataset.tone = meta.tone;
+    b.setAttribute("aria-label", label);
     b.role = "menuitem";
     b.disabled = disabled;
     b.onclick = () => {
@@ -2989,6 +3040,13 @@ async function thumbnailDialog() {
   modalCleanup = installPagePicker($("#thumb-range"), { S, surface });
   $("#modal .range-visual").open = true;
 }
+// One-click starting points for the most common heading numbering styles.
+const PATTERN_CHIPS = [
+  ["第 N 章", "^第[一二三四五六七八九十百零〇0-9]+章.*"], ["第 N 节", "^第[一二三四五六七八九十百零〇0-9]+节.*"],
+  ["一、二、", "^[一二三四五六七八九十]+、.*"], ["（一）", "^[（(][一二三四五六七八九十]+[）)].*"],
+  ["1.1 编号", "^\\d+(\\.\\d+)+\\s+.+"], ["1. 数字", "^\\d+[.、]\\s*.+"],
+  ["Chapter N", "^(Chapter|CHAPTER)\\s+\\d+.*"], ["附录", "^附录.*"],
+];
 function multiGenerateDialog() {
   const draftKey = "folio-rule-draft-" + (S.fingerprint || S.name);
   let storedDraft = null;
@@ -3206,7 +3264,7 @@ function multiGenerateDialog() {
     $("#rule-list").innerHTML = rules
       .map(
         (r, i) =>
-          `<div class="rule-card" data-rule="${i}" ><div class="rule-toolbar"><label class="check"><input data-field="enabled" type="checkbox" ${r.enabled ? "checked" : ""}>启用</label><input data-field="name" value="${esc(r.name)}" aria-label="规则名称"><label>层级 <input data-field="level" type="number" min="1" value="${r.level}" readonly></label><button data-move="-1">↑</button><button data-move="1">↓</button><button data-delete>删除</button></div><label>正则表达式<input data-field="pattern" value="${esc(r.pattern)}" spellcheck="false" autocomplete="off"></label><small class="rule-pattern-error" role="status"></small><div class="form-grid"><label>标题来源<select data-field="titleMode"><option value="template" ${!r.titleMode || r.titleMode === "template" ? "selected" : ""}>捕获组模板</option><option value="line" ${r.titleMode === "line" ? "selected" : ""}>完整行</option><option value="match" ${r.titleMode === "match" ? "selected" : ""}>匹配部分</option></select></label><label>标题模板（$0 / $1 / $2 / {page}）<input data-field="template" value="${esc(r.template)}"></label><label>定位捕获组（0 为匹配开头）<input data-field="targetGroup" type="number" min="0" value="${r.targetGroup || 0}"></label><label>顶部留白<input data-field="offset" type="number" step="any" value="${r.offset}"></label></div><label class="check"><input data-field="requireGroups" type="checkbox" ${r.requireGroups !== false ? "checked" : ""}>模板中的捕获组不能为空</label><div class="property-row"><label><input data-field="bold" type="checkbox" ${r.bold ? "checked" : ""}>粗体</label><label><input data-field="italic" type="checkbox" ${r.italic ? "checked" : ""}>斜体</label><input data-field="color" type="color" value="${r.color}"></div></div>`,
+          `<div class="rule-card" data-rule="${i}" ><div class="rule-toolbar"><label class="check"><input data-field="enabled" type="checkbox" ${r.enabled ? "checked" : ""}>启用</label><input data-field="name" value="${esc(r.name)}" aria-label="规则名称"><label>层级 <input data-field="level" type="number" min="1" value="${r.level}" readonly></label><span class="rule-actions"><button data-move="-1" title="上移" aria-label="上移">${icon("up")}</button><button data-move="1" title="下移" aria-label="下移">${icon("down")}</button><button data-delete class="danger" title="删除此规则" aria-label="删除此规则">${icon("trash")}</button></span></div><label>正则表达式<input data-field="pattern" value="${esc(r.pattern)}" spellcheck="false" autocomplete="off"></label><small class="rule-pattern-error" role="status"></small><div class="pattern-chips" role="group" aria-label="常用模式">${PATTERN_CHIPS.map(([label, pattern]) => `<button type="button" translate="no" data-pattern="${esc(pattern)}" title="${esc(pattern)}">${label}</button>`).join("")}</div><div class="form-grid"><label>标题来源<select data-field="titleMode"><option value="template" ${!r.titleMode || r.titleMode === "template" ? "selected" : ""}>捕获组模板</option><option value="line" ${r.titleMode === "line" ? "selected" : ""}>完整行</option><option value="match" ${r.titleMode === "match" ? "selected" : ""}>匹配部分</option></select></label><label>标题模板（$0 / $1 / $2 / {page}）<input data-field="template" value="${esc(r.template)}"></label><label>定位捕获组（0 为匹配开头）<input data-field="targetGroup" type="number" min="0" value="${r.targetGroup || 0}"></label><label>顶部留白<input data-field="offset" type="number" step="any" value="${r.offset}"></label></div><label class="check"><input data-field="requireGroups" type="checkbox" ${r.requireGroups !== false ? "checked" : ""}>模板中的捕获组不能为空</label><div class="property-row"><label><input data-field="bold" type="checkbox" ${r.bold ? "checked" : ""}>粗体</label><label><input data-field="italic" type="checkbox" ${r.italic ? "checked" : ""}>斜体</label><input data-field="color" type="color" value="${r.color}"></div></div>`,
       )
       .join("");
     activeRule = Math.max(0, Math.min(activeRule, rules.length - 1));
@@ -3257,12 +3315,18 @@ function multiGenerateDialog() {
     const card = e.target.closest("[data-rule]");
     if (!card) return;
     const i = +card.dataset.rule;
-    if (e.target.hasAttribute("data-delete")) {
+    const chip = e.target.closest("[data-pattern]"), move = e.target.closest("[data-move]");
+    if (chip) {
+      const input = card.querySelector('[data-field="pattern"]');
+      input.value = chip.dataset.pattern;
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.focus();
+    } else if (e.target.closest("[data-delete]")) {
       rememberRules();
       rules.splice(i, 1);
       render();
-    } else if (e.target.dataset.move) {
-      const j = i + Number(e.target.dataset.move);
+    } else if (move) {
+      const j = i + Number(move.dataset.move);
       if (j >= 0 && j < rules.length) {
         rememberRules();
         [rules[i], rules[j]] = [rules[j], rules[i]];
@@ -4487,6 +4551,7 @@ for (const side of ["left", "right"]) {
   handle.onpointerdown = (e) => {
     e.preventDefault();
     handle.setPointerCapture(e.pointerId);
+    handle.classList.add("drag");
   };
   handle.onpointermove = (e) => {
     if (!handle.hasPointerCapture(e.pointerId)) return;
@@ -4501,12 +4566,18 @@ for (const side of ["left", "right"]) {
     );
   };
   const originalMove = handle.onpointermove;
+  let moveFrame = 0;
   handle.onpointermove = (e) => {
     originalMove(e);
-    fitPanels();
-    handle.setAttribute("aria-valuenow", settings[widthKey]);
+    if (moveFrame) return;
+    moveFrame = requestAnimationFrame(() => {
+      moveFrame = 0;
+      fitPanels();
+      handle.setAttribute("aria-valuenow", settings[widthKey]);
+    });
   };
   handle.onpointerup = (e) => {
+    handle.classList.remove("drag");
     handle.releasePointerCapture(e.pointerId);
     applySettings();
   };
@@ -4711,6 +4782,6 @@ window.desktop?.updateStarted?.().catch(() => {});
 import {installAI} from './ai-ui.mjs';
 import {installPrinting} from './printing.mjs';
 installPrinting({S,pdfjs,session:documentSession,exportPDF:async()=>{await S.flowEdit?.flush();await S.imageEdit?.flush();return rpc('save',await buildExportSnapshot(S,settings,documentSession));}});
-const aiUI=installAI({S,surface,commit,writeFile,saveProject,getViewContext:()=>surface.context(),getLargeDocument:()=>largeWorkspace,session:documentSession,applyContent:async(edits,ocr)=>{await refreshNative(edits,ocr);commit(clone(S.nodes),{nativeEdits:edits,ocr});},exportPDF:async()=>rpc('save',await buildExportSnapshot(S,settings,documentSession)),undo:()=>restoreHistory('undo'),redo:()=>restoreHistory('redo')});
+const aiUI=installAI({S,surface,commit,writeFile,replaceDocument:async bytes=>{const ok=await loadPDF(bytes,S.name);if(ok){setDirty(true);toast('页面整理已应用到当前文档；保存时写入文件');}return ok;},saveProject,getViewContext:()=>surface.context(),getLargeDocument:()=>largeWorkspace,session:documentSession,applyContent:async(edits,ocr)=>{await refreshNative(edits,ocr);commit(clone(S.nodes),{nativeEdits:edits,ocr});},exportPDF:async()=>rpc('save',await buildExportSnapshot(S,settings,documentSession)),undo:()=>restoreHistory('undo'),redo:()=>restoreHistory('redo')});
 import {installWindowChrome} from './window-chrome.mjs';
 installWindowChrome().catch(console.error);

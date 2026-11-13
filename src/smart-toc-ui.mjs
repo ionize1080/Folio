@@ -90,6 +90,27 @@ export function smartTocDialog({
     busy = false;
     if (!closed) buttons();
   }
+  // Three-step rail (identify → review → generate) and a located / pending / review meter.
+  function syncFlow() {
+    const located = entries.filter((e) => e.target).length,
+      review = entries.filter((e) => e.target && e.status !== "high").length,
+      pending = entries.length - located,
+      total = Math.max(1, entries.length),
+      selected = entries.filter((e) => e.selected).length;
+    const step = !entries.length ? 1 : selected && !pending && !review ? 3 : 2;
+    for (const li of document.querySelectorAll(".st-steps li")) {
+      const n = +li.dataset.step;
+      li.dataset.state = n < step ? "done" : n === step ? "now" : "next";
+    }
+    const meter = $(".st-meter");
+    if (meter) {
+      meter.style.setProperty("--a", ((located - review) / total) * 100 + "%");
+      meter.style.setProperty("--b", (review / total) * 100 + "%");
+      meter.style.setProperty("--c", (pending / total) * 100 + "%");
+      meter.hidden = !entries.length;
+    }
+    $("#modal-body").dataset.stage = entries.length ? "review" : "start";
+  }
   function buttons() {
     for (const box of document.querySelectorAll("[data-toc-page]"))
       box.disabled = busy || stale();
@@ -137,6 +158,7 @@ export function smartTocDialog({
         2: entries.filter((e) => e.status !== "high").length,
       },
     );
+    syncFlow();
     $("#st-prev").disabled = group === 0;
     $("#st-next").disabled = (group + 1) * 30 >= visible.length;
     for (const input of $("#st-rows").querySelectorAll("input,select,button"))
@@ -204,6 +226,11 @@ export function smartTocDialog({
   );
   $("#modal").classList.add("native-dialog");
   $("#modal").classList.add("smart-toc-dialog");
+  $("#modal-body > p").insertAdjacentHTML(
+    "afterend",
+    `<ol class="st-steps" aria-label="${esc(t("进度"))}">${["识别目录", "复核条目", "生成书签"].map((s, i) => `<li data-step="${i + 1}" data-state="${i ? "next" : "now"}"><i>${i + 1}</i><span>${esc(t(s))}</span></li>`).join("")}</ol>`,
+  );
+  $("#st-summary").insertAdjacentHTML("afterend", `<div class="st-meter" aria-hidden="true" hidden><i class="a"></i><i class="b"></i><i class="c"></i></div>`);
   // Keep the append/replace choice beside Create, visible even on long lists.
   $("#modal-footer").prepend($("#st-merge").closest("label"));
   async function read(p, r, contents = false) {
