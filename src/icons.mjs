@@ -1,6 +1,6 @@
 const paths = {
   archive: 'M4 3h16v5H4z M6 8v13h12V8 M10 12h4',
-  print: 'M7 8V3h10v5 M7 17H3V9h18v8h-4 M7 14h10v7H7z M17 11h1',
+  print: "M7 9V4h10v5 M7 17H5.5A1.5 1.5 0 0 1 4 15.5v-5A1.5 1.5 0 0 1 5.5 9h13a1.5 1.5 0 0 1 1.5 1.5v5a1.5 1.5 0 0 1-1.5 1.5H17 M7 14h10v6H7z",
   'rotate-left': 'M4 7V2 M4 7h5 M4 7a9 9 0 1 1-1 9',
   'rotate-half': 'M3 9a9 9 0 0 1 17-2 M20 3v4h-4 M21 15a9 9 0 0 1-17 2 M4 21v-4h4 M9 9h6v6H9z',
   'bookmark-qc': 'M5 3h11v10 M5 3v18l5-3 M14 18l3 3 5-7 M8 7h5 M8 10h4',
@@ -27,6 +27,11 @@ const paths = {
   brush: 'M14 4a3 3 0 0 1 4 4l-8 8-4-4 8-8 M6 13c-3 0-3 5-5 6 4 2 8 0 8-3',
   nodes: 'M5 6h3v3H5z M16 15h3v3h-3z M8 7c8 0 0 9 8 9 M3 19l4-4 M17 9l4-4 M3 18v3h3 M18 3h3v3',
   launch: 'M14 4h6v6 M20 4l-9 9 M10 5H5v15h15v-5',
+  "chevron-left": "m15 6-6 6 6 6",
+  play: "M8 5.5v13l11-6.5z",
+  stop: "M7.5 7.5h9v9h-9z",
+  eye: "M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z M14.5 12a2.5 2.5 0 1 0-5 0 2.5 2.5 0 0 0 5 0",
+  alert: "M12 4 3 19.5h18z M12 10v4.5 M12 17.2h.01",
   export: 'M12 15V3 M7 8l5-5 5 5 M4 13v7h16v-7',
   word: 'M6 3h9l4 4v14H6z M15 3v5h4 M8 11l1 7 3-5 2 5 2-7',
   excel: 'M6 3h9l4 4v14H6z M15 3v5h4 M9 11l6 7 M15 11l-6 7',
@@ -53,8 +58,8 @@ const paths = {
   more: "M6 12a1 1 0 1 0-2 0 1 1 0 0 0 2 0 M13 12a1 1 0 1 0-2 0 1 1 0 0 0 2 0 M20 12a1 1 0 1 0-2 0 1 1 0 0 0 2 0",
   unlock: "M7 10V7a5 5 0 0 1 9-3 M4 10h16v11H4z M12 14v3",
 
-  text: "M4 5h16 M12 5v14 M8 19h8 M4 3v4 M20 3v4",
-  scan: "M3 8V3h5 M16 3h5v5 M21 16v5h-5 M8 21H3v-5 M7 8h10 M7 12h10 M7 16h6",
+  text: "M5 7V5h14v2 M12 5v14 M9 19h6",
+  scan: "M4 8V5.5A1.5 1.5 0 0 1 5.5 4H8 M16 4h2.5A1.5 1.5 0 0 1 20 5.5V8 M20 16v2.5a1.5 1.5 0 0 1-1.5 1.5H16 M8 20H5.5A1.5 1.5 0 0 1 4 18.5V16 M8 9h8 M8 12.5h8 M8 16h5",
   table: "M3 4h18v16H3z M3 9h18 M3 14h18 M10 4v16",
   link: "M10 14l4-4 M8 16l-1 1a4 4 0 0 1-6-6l5-5a4 4 0 0 1 6 0 M16 8l1-1a4 4 0 0 1 6 6l-5 5a4 4 0 0 1-6 0",
   check: "M4 12l5 5L20 6",
@@ -64,11 +69,11 @@ const paths = {
   sidebar: "M3 4h18v16H3z M9 4v16 M5 8h2 M5 12h2",
   "save-as": "M4 3h14l3 3v7 M7 3v6h10V3 M3 3v18h9 M14 18l5-5 3 3-5 5-4 1z",
 
-  file: "M6 3h8l4 4v14H6z M14 3v5h4 M9 12h6 M9 16h6",
-  folder: "M3 7V5h6l2 2h10v13H3z",
-  save: "M4 3h14l3 3v15H3V3z M7 3v6h10V3 M7 21v-8h10v8",
-  undo: "M8 4 3 9l5 5 M3 9h10a6 6 0 0 1 0 12",
-  redo: "M16 4l5 5-5 5 M21 9H11a6 6 0 0 0 0 12",
+  file: "M7 3.5h6.5L18 8v11.5a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1v-15a1 1 0 0 1 1-1z M13.5 3.5V8H18 M9 13h6 M9 16.5h6",
+  folder: "M3 7.5A1.5 1.5 0 0 1 4.5 6H9l2 2.5h8.5A1.5 1.5 0 0 1 21 10v8.5a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18.5z",
+  save: "M5 4h11l3 3v11.5a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 5 18.5z M8 4v4.5h6V4 M8 20v-6h8v6",
+  undo: "M9 14 4 9l5-5 M4 9h10a6 6 0 0 1 0 12h-3",
+  redo: "M15 14l5-5-5-5 M20 9H10a6 6 0 0 0 0 12h3",
   spark:
     "m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5z M20 2v4 M18 4h4",
   sliders:
@@ -76,15 +81,15 @@ const paths = {
   exchange: "M3 7h17l-4-4 M21 17H4l4 4 M20 7l-4 4 M4 17l4-4",
   pages: "M8 3h13v16H8z M3 7v15h13",
   info: "M12 8h.01 M12 11v6 M22 12a10 10 0 1 0-20 0 10 10 0 0 0 20 0",
-  search: "M21 21l-5-5 M18 10a8 8 0 1 0-16 0 8 8 0 0 0 16 0",
+  search: "M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15z M16 16l5 5",
   plus: "M12 5v14 M5 12h14",
   disclose: "m9 6 6 6-6 6",
   chevron: "m6 9 6 6 6-6",
-  bookmark: "M6 3h12v19l-6-4-6 4z",
+  bookmark: "M7 3.5h10a1 1 0 0 1 1 1V21l-6-4-6 4V4.5a1 1 0 0 1 1-1z",
   branch: "M6 3v13a3 3 0 0 0 3 3h10 M6 7h13 M16 4l3 3-3 3 M16 16l3 3-3 3",
   copy: "M8 8h12v13H8z M4 16H2V2h12v2",
   refresh: "M20 7V2m0 5h-5 M4 17v5m0-5h5 M20 7a9 9 0 0 0-15-2 M4 17a9 9 0 0 0 15 2",
-  trash: "M3 6h18 M9 6V3h6v3 M5 6l1 15h12l1-15 M10 10v7 M14 10v7",
+  trash: "M4 7h16 M9.5 7V4.5h5V7 M6.5 7l.8 12.2a1.5 1.5 0 0 0 1.5 1.3h6.4a1.5 1.5 0 0 0 1.5-1.3L17.5 7 M10 11v6 M14 11v6",
   pen: "m4 16 12-12 4 4L8 20l-5 1z M14 6l4 4",
   rotate: "M20 7V2 M20 7h-5 M20 7a9 9 0 1 0 1 9",
   shield: "m12 2 9 4v6c0 6-9 10-9 10S3 18 3 12V6z m-5 10 3 3 6-6",
@@ -93,9 +98,35 @@ const paths = {
     "M12 2v4 M12 18v4 M2 12h4 M18 12h4 M19 12a7 7 0 1 0-14 0 7 7 0 0 0 14 0",
   sun: "M12 2v2 M12 20v2 M2 12h2 M20 12h2 M5 5l1 1 M18 18l1 1 M5 19l1-1 M18 6l1-1 M17 12a5 5 0 1 0-10 0 5 5 0 0 0 10 0",
 };
+const duo = {
+  folder: "M3 7.5A1.5 1.5 0 0 1 4.5 6H9l2 2.5h8.5A1.5 1.5 0 0 1 21 10v8.5a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18.5z",
+  save: "M5 4h11l3 3v11.5a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 5 18.5z",
+  file: "M7 3.5h6.5L18 8v11.5a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1v-15a1 1 0 0 1 1-1z",
+  print: "M5.5 9h13a1.5 1.5 0 0 1 1.5 1.5v5a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 15.5v-5A1.5 1.5 0 0 1 5.5 9z",
+  search: "M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15z",
+  trash: "M6.5 7h11l-.8 12.2a1.5 1.5 0 0 1-1.5 1.3H8.8a1.5 1.5 0 0 1-1.5-1.3z",
+  bookmark: "M7 3.5h10a1 1 0 0 1 1 1V21l-6-4-6 4V4.5a1 1 0 0 1 1-1z",
+  "auto-bookmark": "M6 3h9a1 1 0 0 1 1 1v17l-5.5-3.5L5 21V4a1 1 0 0 1 1-1z",
+  spark: "m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5z",
+  shield: "m12 2 9 4v6c0 6-9 10-9 10S3 18 3 12V6z",
+  info: "M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z",
+  table: "M3 4h18v5H3z",
+  contents: "M5 4h14v16H5z",
+  sidebar: "M3 4h6v16H3z",
+  "sidebar-right": "M15 4h6v16h-6z",
+  layers: "m3 7 9-4 9 4-9 4z",
+  word: "M6 3h9l4 4v14H6z",
+  excel: "M6 3h9l4 4v14H6z",
+  pages: "M8 3h13v16H8z",
+  play: "M8 5.5v13l11-6.5z",
+  stop: "M7.5 7.5h9v9h-9z",
+  chat: "M21 11.5a8.5 8.5 0 0 1-8.5 8.5H4l-2 2V11.5A8.5 8.5 0 0 1 10.5 3h2a8.5 8.5 0 0 1 8.5 8.5Z",
+  "image-edit": "M3 4h14v9H3z",
+};
 export function icon(name) {
   const key=Object.hasOwn(paths,name)?name:"bookmark";
-  return `<svg data-symbol="${key}" viewBox="0 0 24 24" aria-hidden="true"><path d="${paths[key]}"/></svg>`;
+  const fill = Object.hasOwn(duo, key) ? `<path class="duo" d="${duo[key]}"/>` : "";
+  return `<svg data-symbol="${key}" viewBox="0 0 24 24" aria-hidden="true">${fill}<path d="${paths[key]}"/></svg>`;
 }
 export function icons(root = document) {
   root

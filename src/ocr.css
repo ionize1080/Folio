@@ -1,0 +1,179 @@
+/* OCR workbench: preview on the left, job + settings/review on the right.
+ * Restyle-only. Element IDs and behaviour are owned by ocr-ui.mjs. */
+
+#modal.ocr-dialog {
+  width: min(1500px, 97vw);
+  max-width: none;
+  height: min(960px, 95vh);
+  max-height: none;
+  display: flex;
+  flex-direction: column;
+}
+#modal.ocr-dialog:not([open]) { display: none; }
+#modal.ocr-dialog .modal-header { padding: 14px 22px 12px; flex: none; }
+#modal.ocr-dialog .modal-header h2 { font-size: 18px; margin: 2px 0 0; }
+#modal.ocr-dialog #modal-body {
+  flex: 1; min-height: 0; height: auto; max-height: none; padding: 0; overflow: hidden;
+  display: flex; flex-direction: column;
+}
+.ocr-shell { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+
+/* ── Toolbar ── */
+.ocr-dialog .ocr-toolbar, .ocr-dialog .ocr-review-nav {
+  position: static; flex: none; display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 10px 22px; background: var(--panel); border-bottom: 1px solid var(--line);
+}
+.ocr-nav { display: inline-flex; align-items: center; gap: 2px; padding: 3px; background: var(--panel2); border: 1px solid var(--line); border-radius: var(--r-md); }
+.ocr-nav button { width: 30px; height: 30px; padding: 0; border-radius: var(--r-sm); }
+.ocr-nav input { width: 52px; height: 30px; text-align: center; border: 0; background: transparent; font-weight: 650; padding: 0 2px; box-shadow: none; }
+.ocr-nav input:focus { background: var(--panel); box-shadow: var(--ring); }
+.ocr-total { color: var(--muted); font-size: 12px; padding-right: 6px; font-variant-numeric: tabular-nums; }
+.ocr-views { display: inline-flex; gap: 4px; padding: 3px; background: var(--panel2); border: 1px solid var(--line); border-radius: var(--r-md); }
+.ocr-chip { position: relative; display: inline-flex; margin: 0; cursor: pointer; }
+.ocr-chip input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; width: 100%; height: 100%; }
+.ocr-chip span { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px; border-radius: var(--r-sm); font-size: 12px; font-weight: 550; color: var(--muted); transition: background-color var(--t-fast), color var(--t-fast); }
+.ocr-chip span svg { width: 16px; height: 16px; }
+.ocr-chip:hover span { color: var(--text); background: var(--hover); }
+.ocr-chip:has(input:checked) span { background: var(--panel); color: var(--accent); box-shadow: var(--shadow-1), inset 0 0 0 1px var(--selected-line); }
+.ocr-chip:has(input:focus-visible) span { outline: 2px solid var(--accent); outline-offset: 1px; }
+.ocr-toolbar select { height: 36px; min-height: 36px; border-radius: var(--r-md); background: var(--panel2); }
+.ocr-pages { white-space: nowrap; flex: none; display: inline-flex; align-items: center; gap: 8px; margin: 0; font-size: 12px; color: var(--muted); flex-direction: row; }
+#ocr-review-lock { font-size: 12px; color: var(--accent); font-weight: 600; }
+#ocr-review-lock:empty { display: none; }
+
+/* ── Workspace ── */
+.ocr-dialog .native-workspace {
+  flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) clamp(340px, 30vw, 440px);
+  gap: 0; overflow: hidden; background: var(--bg);
+}
+.ocr-dialog .native-preview {
+  border: 0; border-radius: 0; padding: 20px 24px 28px; min-height: 0; overflow: auto; max-height: none;
+  background:
+    radial-gradient(700px 300px at 50% -60px, color-mix(in oklab, var(--accent) 10%, transparent), transparent 70%),
+    var(--bg);
+}
+.ocr-dialog .native-properties.ocr-side {
+  position: static; max-height: none; height: 100%; padding: 0; display: flex; flex-direction: column; gap: 0;
+  background: var(--panel); border-left: 1px solid var(--line); overflow: hidden; align-content: initial;
+}
+
+/* ── Job card ── */
+.ocr-job { flex: none; padding: 16px 18px 14px; border-bottom: 1px solid var(--line); display: grid; gap: 10px; }
+.ocr-job-head { display: flex; align-items: baseline; justify-content: space-between; }
+.ocr-job-head strong { font-size: 15px; font-weight: 700; letter-spacing: -.01em; }
+.ocr-pct { font-size: 22px; font-weight: 750; font-variant-numeric: tabular-nums; color: var(--accent); letter-spacing: -.02em; }
+.ocr-pct:empty { display: none; }
+.ocr-bar { height: 8px; border-radius: 99px; background: var(--accent-soft); overflow: hidden; box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--accent) 12%, transparent); }
+.ocr-bar > i { display: block; height: 100%; width: 0; border-radius: inherit; background: linear-gradient(90deg, color-mix(in oklab, var(--accent) 70%, #fff), var(--accent)); transition: width 400ms var(--ease); }
+.ocr-bar[data-state=run] > i {
+  background-image: linear-gradient(90deg, color-mix(in oklab, var(--accent) 70%, #fff), var(--accent)),
+    repeating-linear-gradient(135deg, #ffffff40 0 8px, transparent 8px 16px);
+  background-blend-mode: overlay; background-size: 100% 100%, 22px 22px; animation: ocr-flow 900ms linear infinite;
+}
+.ocr-bar[data-state=stop] > i { background: var(--muted); }
+@keyframes ocr-flow { to { background-position: 0 0, 22px 0; } }
+.ocr-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.ocr-stats:empty { display: none; }
+.ocr-stats > div { display: grid; gap: 1px; padding: 8px 8px 7px; border-radius: var(--r-sm); background: var(--panel2); border: 1px solid var(--line); min-width: 0; }
+.ocr-stats b { font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -.01em; white-space: nowrap; }
+.ocr-stats span { font-size: 10.5px; color: var(--muted); line-height: 1.25; }
+.ocr-job .callout, .ocr-dialog #ocr-status { margin: 0; padding: 8px 10px; font-size: 12px; line-height: 1.55; border-radius: var(--r-sm); background: var(--accent-soft); color: var(--text); border: 0; }
+.ocr-actions { display: flex; gap: 8px; }
+.ocr-actions button { flex: 1; height: 36px; border-radius: var(--r-md); }
+.ocr-actions button.primary { flex: 1.3; }
+.ocr-actions svg { width: 16px; height: 16px; }
+.ocr-actions button:not(.primary):enabled { background: var(--panel2); box-shadow: inset 0 0 0 1px var(--line-strong); }
+.ocr-actions button:not(.primary):enabled:hover { background: var(--hover); box-shadow: inset 0 0 0 1px var(--selected-line); }
+#ocr-errors { margin: 0; background: color-mix(in oklab, var(--danger) 10%, var(--panel)); border-radius: var(--r-sm); padding: 8px 10px; font-size: 12px; }
+#ocr-errors summary { color: var(--danger); font-weight: 600; }
+
+/* ── Tabs ── */
+.ocr-tabs { flex: none; display: flex; gap: 4px; padding: 10px 18px 0; border-bottom: 1px solid var(--line); }
+.ocr-tabs button {
+  position: relative; height: 34px; padding: 0 12px; border-radius: var(--r-sm) var(--r-sm) 0 0; color: var(--muted);
+  font-weight: 600; gap: 6px;
+}
+.ocr-tabs button svg { width: 16px; height: 16px; }
+.ocr-tabs button:hover { color: var(--text); background: var(--hover); }
+.ocr-tabs button[aria-selected=true] { color: var(--accent); background: transparent; }
+.ocr-tabs button[aria-selected=true]::after { content: ""; position: absolute; left: 8px; right: 8px; bottom: -1px; height: 2px; border-radius: 2px; background: var(--accent); }
+.ocr-count { min-width: 18px; height: 18px; padding: 0 5px; border-radius: 99px; background: var(--accent); color: var(--on-accent); font-size: 10.5px; font-weight: 700; display: inline-grid; place-items: center; font-variant-numeric: tabular-nums; }
+.ocr-count[hidden] { display: none; }
+
+.ocr-pane { flex: 1; min-height: 0; overflow: auto; padding: 14px 18px 18px; display: flex; flex-direction: column; gap: 12px; }
+.ocr-pane[hidden] { display: none; }
+.ocr-pane label { margin: 0; color: var(--muted); font-size: 12px; font-weight: 550; display: flex; flex-direction: column; gap: 6px; }
+.ocr-pane label.check { flex-direction: row; align-items: center; gap: 8px; color: var(--text); font-weight: 500; }
+.ocr-pane .form-grid { margin: 0; gap: 10px; }
+.ocr-pane .menu-grid { display: grid; gap: 8px; margin: 0; }
+.ocr-pane details { border: 1px solid var(--line); border-radius: var(--r-md); padding: 0; background: var(--panel2); }
+.ocr-pane details > summary { padding: 9px 12px; font-weight: 600; font-size: 12.5px; }
+.ocr-pane details[open] > summary { border-bottom: 1px solid var(--line); }
+.ocr-pane details > :not(summary) { margin-inline: 12px; }
+.ocr-pane details > :last-child { margin-bottom: 12px; }
+.ocr-pane details > summary + * { margin-top: 10px; }
+.ocr-pane p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.65; }
+.ocr-pane small { color: var(--muted); font-size: 11.5px; line-height: 1.5; }
+.ocr-pane textarea { resize: vertical; min-height: 64px; line-height: 1.55; }
+
+/* Review pane */
+#ocr-confidence { font-size: 12px; font-weight: 600; color: var(--text); padding: 7px 10px; border-radius: var(--r-sm); background: var(--panel2); border: 1px solid var(--line); }
+#ocr-pane-review #ocr-results {
+  flex: 1 1 180px; min-height: 150px; height: auto; padding: 4px; border-radius: var(--r-md); background: var(--panel2); border: 1px solid var(--line-strong); font-size: 12.5px;
+}
+#ocr-results option { padding: 7px 10px; border-radius: 6px; margin-bottom: 1px; font-variant-numeric: tabular-nums; border-left: 3px solid transparent; }
+#ocr-results option.low { border-left-color: #d89a2b; background: color-mix(in oklab, #f0b64a 16%, transparent); }
+#ocr-results option.x { color: var(--muted); text-decoration: line-through; opacity: .7; }
+#ocr-results option:checked { background: var(--accent) linear-gradient(0deg, var(--accent), var(--accent)); color: var(--on-accent); }
+.ocr-review-actions { display: grid; grid-template-columns: 1fr 1.3fr auto; gap: 8px; }
+.ocr-review-actions button { height: 34px; border-radius: var(--r-md); background: var(--panel2); box-shadow: inset 0 0 0 1px var(--line-strong); }
+.ocr-review-actions button.primary { background: var(--accent); box-shadow: 0 2px 8px var(--accent-glow); }
+#ocr-candidates { display: flex; flex-wrap: wrap; gap: 6px; }
+#ocr-candidates button { height: 28px; padding: 0 9px; font-size: 12px; border-radius: 99px; background: var(--accent-soft); color: var(--accent); }
+#ocr-evidence { font-size: 11px; max-height: 140px; overflow: auto; background: var(--panel); border-radius: var(--r-sm); padding: 8px; user-select: text; }
+#ocr-correct { height: 34px; border-radius: var(--r-md); background: var(--accent-soft); color: var(--accent); font-weight: 650; }
+#ocr-correct:enabled:hover { background: var(--selected); }
+
+/* ── Preview pages & boxes ── */
+.ocr-stream-page { border-radius: 10px; margin-bottom: 22px; box-shadow: var(--page-shadow); background: #fff; padding-top: 34px; }
+.ocr-stream-label {
+  height: 34px; padding: 0 14px; display: flex; align-items: center; font-weight: 600; letter-spacing: .01em;
+  background: color-mix(in oklab, var(--panel) 88%, var(--bg)); color: var(--muted); border-bottom: 1px solid var(--line);
+}
+.ocr-stream-page.active .ocr-stream-label { background: var(--accent-soft); color: var(--accent); }
+.ocr-passive-boxes { top: 34px; height: calc(100% - 34px); }
+.ocr-dialog .native-preview .ocr-hit, .native-preview .ocr-hit {
+  border: 1px solid color-mix(in oklab, var(--accent) 55%, transparent); border-radius: 3px; background: color-mix(in oklab, var(--accent) 6%, transparent);
+  transition: background-color var(--t-fast), box-shadow var(--t-fast), border-color var(--t-fast);
+}
+.ocr-dialog .native-preview .ocr-hit:hover { background: color-mix(in oklab, var(--accent) 18%, transparent); border-color: var(--accent); }
+.ocr-dialog .native-preview .ocr-hit.show-text { background: #ffffffe8; color: #1b2440; }
+.ocr-dialog .native-preview .ocr-hit.selected, .native-preview .ocr-hit.selected {
+  outline: 0; border: 2px solid var(--accent); background: color-mix(in oklab, var(--accent) 16%, transparent);
+  box-shadow: 0 0 0 3px var(--accent-glow); z-index: 2;
+}
+.ocr-low-hit, .ocr-dialog .native-preview .ocr-low-hit { border: 1px dashed #d89a2b !important; background: color-mix(in oklab, #f0b64a 14%, transparent) !important; }
+.native-preview .ocr-hit.excluded { opacity: .35; border-style: dotted; border-color: var(--danger); }
+
+/* ── Footer ── */
+#modal.ocr-dialog #modal-footer { flex: none; display: flex; align-items: center; gap: 8px; padding: 12px 22px; }
+#modal.ocr-dialog #modal-footer button { height: 36px; border-radius: var(--r-md); padding-inline: 16px; }
+#modal.ocr-dialog #modal-footer button:first-child { margin-right: auto; }
+#modal.ocr-dialog #modal-footer button:not(.primary) { background: var(--panel); box-shadow: inset 0 0 0 1px var(--line-strong); }
+#modal.ocr-dialog #modal-footer button:not(.primary):enabled:hover { background: var(--hover); box-shadow: inset 0 0 0 1px var(--selected-line); }
+#modal.ocr-dialog #modal-footer #ocr-apply { padding-inline: 20px; }
+
+/* ── Narrow windows: stack the side panel under the preview ── */
+@media (max-width: 1080px) {
+  #modal.ocr-dialog { width: 99vw; height: 98vh; }
+  .ocr-dialog .native-workspace { grid-template-columns: 1fr; grid-template-rows: minmax(130px, 28%) minmax(0, 1fr); }
+  .ocr-job { padding: 10px 14px; gap: 8px; }
+  .ocr-job .callout, .ocr-stats { display: none; }
+  .ocr-dialog .native-properties.ocr-side { border-left: 0; border-top: 1px solid var(--line); }
+  .ocr-dialog .ocr-toolbar { padding-inline: 14px; }
+  .ocr-stats { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+@media (prefers-reduced-motion: reduce) { .ocr-bar[data-state=run] > i { animation: none; } .ocr-bar > i { transition: none; } }
+@media (forced-colors: active) {
+  .ocr-chip:has(input:checked) span, .ocr-tabs button[aria-selected=true] { outline: 2px solid Highlight; }
+}

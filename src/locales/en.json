@@ -2685,5 +2685,9 @@
   "正在发送到打印机…": "Sending to printer…",
   "打印机不可用，请重新选择": "Printer unavailable; select another printer",
   "选择打印机后使用当前设置打印。若改用系统对话框，请确认纸张方向、尺寸与预览一致。讲义与小册子已排版，打印机的“每张页数”请保持 1。": "Select a printer to use these settings. If using the system dialog, confirm that paper size and orientation match the preview. Handouts and booklets are already arranged; keep the printer’s pages per sheet at 1.",
-  "页面尺寸不一致。打印机使用统一纸张时请选择固定纸张；存为 PDF 可保留各页大小。": "Page sizes differ. Choose a fixed paper size for printers using one sheet size; Save as PDF preserves each page size."
+  "页面尺寸不一致。打印机使用统一纸张时请选择固定纸张；存为 PDF 可保留各页大小。": "Page sizes differ. Choose a fixed paper size for printers using one sheet size; Save as PDF preserves each page size.",
+  "校对": "Review",
+  "识别设置": "Recognition settings",
+  "速度（页/分）": "Speed (pages/min)",
+  "预计剩余（分钟）": "Time left (min)"
 }
