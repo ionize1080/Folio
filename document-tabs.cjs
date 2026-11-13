@@ -23,18 +23,32 @@ class DocumentTabs {
     this.configure(wc);
     this.resetReady(tab);
     wc.on("did-start-navigation", (_event, details) => {
-      if (details.isMainFrame && !details.isSameDocument) this.resetReady(tab);
+      if (details.isMainFrame && !details.isSameDocument) {
+        tab.gone = false;
+        this.resetReady(tab);
+      }
+    });
+    // A crashed renderer never replies. Without this, request() waits forever
+    // and the shared operations queue (open/close/window close) stalls behind it.
+    wc.on("render-process-gone", () => {
+      tab.gone = true;
+      this.rejectWaiting(tab, "Document process exited");
+      tab.resolveReady?.();
+      tab.resolveReady = null;
     });
     wc.once("destroyed", () => {
       this.entries.delete(wc);
-      for (const [id, pending] of this.waiting) {
-        if (pending.tab === tab) {
-          this.waiting.delete(id);
-          pending.reject(Error("Document closed"));
-        }
-      }
+      this.rejectWaiting(tab, "Document closed");
     });
     return tab;
+  }
+  rejectWaiting(tab, message) {
+    for (const [id, pending] of this.waiting) {
+      if (pending.tab === tab) {
+        this.waiting.delete(id);
+        pending.reject(Error(message));
+      }
+    }
   }
   resetReady(tab) {
     if (!tab.resolveReady) tab.initialized = new Promise(resolve => { tab.resolveReady = resolve; });
@@ -110,6 +124,7 @@ class DocumentTabs {
   }
   async request(tab, action, file) {
     await tab.initialized;
+    if (tab.gone || tab.wc.isDestroyed()) throw Error("Document process exited");
     return new Promise((resolve,reject) => {
       const id = randomUUID();
       this.waiting.set(id, {tab,resolve,reject});
@@ -140,12 +155,14 @@ class DocumentTabs {
   }
   async closeOne(id) {
     const tab = this.byId(id);
+    // Unsaved state died with the renderer; there is nothing left to confirm.
+    if (tab.gone) return this.remove(tab);
     if (tab.dirty || tab.busy) this.select(tab);
     if (await this.request(tab, "confirm-close")) this.remove(tab);
   }
   async confirmWindow() {
     for (const tab of this.documents()) {
-      if (!tab.dirty && !tab.busy) continue;
+      if (tab.gone || (!tab.dirty && !tab.busy)) continue;
       this.select(tab);
       if (!await this.request(tab, "confirm-close")) return false;
     }

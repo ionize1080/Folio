@@ -18,6 +18,7 @@ export class PageSurface {
     this.future = [];
     host.tabIndex = 0;
     host.addEventListener("scroll", () => this.schedule(), { passive: true });
+    this.activated = null;
     host.addEventListener("pointerdown", (e) => {
       if (
         !e.target.closest(
@@ -255,6 +256,13 @@ export class PageSurface {
       }
       this.stage.style.width = totalW + "px";
       this.stage.style.height = totalH + "px";
+      // Boxes are laid out in page order along one axis; updateVisible()
+      // binary-searches that axis instead of scanning every page per frame.
+      this.boxAxis = horizontal ? "x" : "y";
+      this.boxExtent = this.boxes.reduce(
+        (v, b) => Math.max(v, horizontal ? b.w : b.h),
+        0,
+      );
     }
     for (const [p, e] of this.fallback) {
       const b = this.boxes.find((b) => b.page === p);
@@ -275,10 +283,13 @@ export class PageSurface {
     if (this.frame) return;
     this.frame = requestAnimationFrame(() => {
       this.frame = 0;
-      this.update().catch(this.onError);
+      this.update(false).catch(this.onError);
     });
   }
-  async update() {
+  // Scroll-driven updates (force = false) skip re-activating the page that is
+  // already active; any other caller keeps the full onActive refresh.
+  async update(force = true) {
+    if (force) this.forceActivate = true;
     this.updateAgain = true;
     if (this.updatePromise) return this.updatePromise;
     this.updatePromise = (async () => {
@@ -300,14 +311,28 @@ export class PageSurface {
       y = host.scrollTop,
       w = host.clientWidth,
       h = host.clientHeight;
-    const wanted = this.boxes
-      .filter(
-        (b) =>
-          b.x + b.w > x - 150 &&
-          b.x < x + w + 150 &&
-          b.y + b.h > y - h * 0.65 &&
-          b.y < y + h * 1.65,
-      )
+    const near = (b) =>
+      b.x + b.w > x - 150 &&
+      b.x < x + w + 150 &&
+      b.y + b.h > y - h * 0.65 &&
+      b.y < y + h * 1.65;
+    const boxes = this.boxes,
+      axis = this.boxAxis || "y",
+      low = axis === "x" ? x - 150 : y - h * 0.65,
+      high = axis === "x" ? x + w + 150 : y + h * 1.65,
+      extent = this.boxExtent ?? Infinity;
+    // First box whose leading edge could still reach the window.
+    let lo = 0,
+      hi = boxes.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (boxes[mid][axis] + extent > low) hi = mid;
+      else lo = mid + 1;
+    }
+    const candidates = [];
+    for (let i = lo; i < boxes.length && boxes[i][axis] < high; i++)
+      if (near(boxes[i])) candidates.push(boxes[i]);
+    const wanted = candidates
       .sort(
         (a, b) =>
           this.distance(a, x + w / 2, y + h / 2) -
@@ -344,8 +369,14 @@ export class PageSurface {
       (b) => this.distance(b, x + w / 2, y + h / 2) === 0,
     );
     const b = visible.find((b) => b.page === this.s.page) || wanted[0];
-    if (editingBox) this.activate(editingPage);
-    else if (b&&!this.navigating) this.activate(b.page);
+    const force = this.forceActivate;
+    this.forceActivate = false;
+    const activatePage = editingBox ? editingPage : b && !this.navigating ? b.page : null;
+    // Each scroll frame used to re-run activate(): strip/reassign the ids of
+    // every cached page (style invalidation) and the app's onActive callback
+    // (marks, overlays, toolbar sync). Skip it when nothing it depends on changed.
+    if (activatePage != null && (force || !this.isActive(activatePage)))
+      this.activate(activatePage);
     this.scheduleTiles();
   }
   async ensure(b) {
@@ -626,9 +657,23 @@ export class PageSurface {
       0,
     );
   }
+  isActive(page) {
+    const e = this.entries.get(page),
+      a = this.activated;
+    return (
+      !!a &&
+      a.entry === e &&
+      a.page === page &&
+      this.s.page === page &&
+      this.s.view === e.viewport &&
+      this.s.currentText === e.content &&
+      e.shell.id === "page-shell"
+    );
+  }
   activate(page) {
     const e = this.entries.get(page);
     if (!e?.viewport || e.cancelled) return;
+    this.activated = { entry: e, page };
     for (const a of this.entries.values())
       for (const el of [a.shell, a.canvas, a.text, a.marks, a.draw])
         el.removeAttribute("id");

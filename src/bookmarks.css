@@ -118,8 +118,10 @@ label.has-choice > .choice { margin-top: 0; }
 .st-meter .b { width: var(--b, 0); background: #e0a526; }
 .st-meter .c { width: var(--c, 0); background: color-mix(in oklab, var(--danger) 70%, #fff); }
 /* before recognition: calm start screen; hide the review table chrome */
-#modal-body[data-stage=start] :is(.st-controls, .st-column-head, #st-rows, #st-prev, #st-paging, #st-next, #st-best, #st-resolve, #st-add, #st-count) { display: none; }
-#modal-body[data-stage=start] .pc-toolbar:has(#st-best), #modal-body[data-stage=start] .pc-toolbar:has(#st-prev), #modal-body[data-stage=start] .st-controls + .hint { display: none; }
+#modal-body[data-stage=start] :is(.st-controls, .st-column-head, #st-rows, #st-prev, #st-paging, #st-next, #st-best, #st-resolve, #st-count) { display: none; }
+/* Manual entry stays available when nothing was detected. */
+#modal-body[data-stage=start] #st-add { margin-left: auto; }
+#modal-body[data-stage=start] .pc-toolbar:has(#st-prev), #modal-body[data-stage=start] .st-controls + .hint { display: none; }
 #modal-body[data-stage=start] .st-steps ~ .hint:not(:first-of-type) { margin: 0; }
 .st-controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; position: sticky; top: -16px; z-index: 2; padding: 8px 0; background: var(--panel); }
 .st-controls #st-search { flex: 1; min-width: 160px; }

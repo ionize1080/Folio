@@ -30,7 +30,8 @@ export function bindUnit(
       if (el.value === "") continue;
       remember(el);
       const val = exact.get(el);
-      el.value = String(Number(fromPoints(val.pt, next).toFixed(6)));
+      // Display a readable value; the exact point size stays in `exact` for round trips.
+      el.value = String(Number(fromPoints(val.pt, next).toFixed(next === "mm" ? 2 : 3)));
       val.display = el.value;
       el.step = next === "mm" ? "0.1" : "0.5";
     }

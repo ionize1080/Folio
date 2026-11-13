@@ -5,7 +5,10 @@ export function installDropOpen({ open, openMany, toast, isBusy }) {
   veil.textContent = "松开以打开 PDF 或 Folio 工程";
   document.body.append(veil);
   let depth = 0;
-  const isFile = (e) => [...(e.dataTransfer?.types || [])].includes("Files");
+  // Regions marked [data-file-drop] (e.g. the page organizer) handle dropped files themselves.
+  const isFile = (e) =>
+    [...(e.dataTransfer?.types || [])].includes("Files") &&
+    !e.target?.closest?.("[data-file-drop]");
   const hide = () => {
     depth = 0;
     veil.hidden = true;

@@ -111,10 +111,11 @@ export async function ocrDialogV4(ctx) {
 <section id="ocr-pane-settings" class="ocr-pane ocr-settings" role="tabpanel" hidden>
 <label>处理页面<input id="ocr-range" value="${S.page}"></label><div class="form-grid three"><label>模型<select id="ocr-profile"><option value="v6">PP-OCRv6 small</option><option value="v5">PP-OCRv5 mobile</option></select></label><label>分辨率<select id="ocr-dpi"><option>180</option><option>240</option><option>300</option></select></label><label>资源模式<select id="ocr-mode"><option value="auto">自动 · 兼顾内存与响应</option><option value="low">低占用</option><option value="high">高性能</option><option value="custom">自定义</option></select></label></div><div class="form-grid three" id="ocr-custom" hidden><label>并行页数<input id="ocr-workers" type="number" min="1" max="16" value="2"></label><label>每进程线程<input id="ocr-threads" type="number" min="1" value="2"></label><label>文字行批量<input id="ocr-batch" type="number" min="1" max="32" value="6"></label></div><div class="menu-grid"><label class="check"><input id="ocr-skip" type="checkbox" checked>跳过已有文字的整页</label><select id="ocr-skip-mode" aria-label="跳过策略"><option value="coverage">智能：正文文字充足才跳过</option><option value="any">任意已有文字（旧版策略）</option></select><label class="check"><input id="ocr-resume" type="checkbox" checked>续做相同文档与设置的已完成页</label></div><details><summary>语言与输出文字</summary><div class="menu-grid"><label class="check"><input type="checkbox" name="ocr-language" value="zh-Hans" checked>简体中文</label><label class="check"><input type="checkbox" name="ocr-language" value="zh-Hant">繁体中文</label><label class="check"><input type="checkbox" name="ocr-language" value="en" checked>英文</label></div><label class="check"><input id="ocr-other-language" type="checkbox" checked>保留引擎识别出的其他文字</label><label>输出字形<select id="ocr-output-script"><option value="preserve">保留原始识别</option><option value="simplified">统一为简体</option><option value="traditional">统一为繁体</option></select></label><p>语言勾选用于校对提示；不扩展模型的语言能力。字形转换在识别后进行，原始文字保留，置信度仍是引擎原始分数。</p></details><details><summary>局部识别区域</summary><p>相对左上角百分比：左、上、宽、高。局部识别不会因页面其他区域有文字而跳过。</p><input id="ocr-region" placeholder="例如 0,10,100,80"><button id="ocr-region-pick">在左侧拖框选择区域</button><button id="ocr-region-clear">清除区域</button></details></section>
 <section id="ocr-pane-review" class="ocr-pane" role="tabpanel">
-<p id="ocr-confidence"></p>
+<div class="ocr-review-head"><p id="ocr-confidence"></p><div class="ocr-filter" role="group" aria-label="筛选识别结果"><button type="button" data-ocr-filter="all" aria-pressed="true">全部<span data-count-all></span></button><button type="button" data-ocr-filter="low" aria-pressed="false">待复核<span data-count-low></span></button></div></div>
 <select id="ocr-results" size="7" aria-label="本页识别结果"></select>
+<p id="ocr-empty" class="ocr-empty" hidden></p>
 <div class="ocr-review-actions"><button id="ocr-low" title="Alt+↓">下一处待复核</button><button id="ocr-reviewed" class="primary" title="Ctrl+Enter">确认并下一处</button><button id="ocr-defer">暂缓</button></div>
-<label>校对文字<textarea id="ocr-correction" rows="3"></textarea></label>
+<label>校对文字<textarea id="ocr-correction" rows="3" placeholder="在页面或列表中选择一条文字"></textarea></label>
 <label class="check"><input id="ocr-exclude" type="checkbox">不写入此条</label>
 <details id="ocr-diagnostics"><summary>方向与识别诊断</summary><pre id="ocr-evidence"></pre><div id="ocr-candidates"></div></details>
 <details><summary>调整四角 PDF 坐标</summary><textarea id="ocr-quad" rows="3"></textarea></details>
@@ -223,16 +224,65 @@ export async function ocrDialogV4(ctx) {
     bar.setAttribute("aria-valuenow", String(pct));
     bar.dataset.state = running ? "run" : info.stopped ? "stop" : "done";
     $("#ocr-job-pct").textContent = pct + "%";
+    const finished = !running && completed >= info.total;
     $("#ocr-job-title").textContent = running ? "识别中" : info.stopped ? "已停止" : "已完成";
-    $("#ocr-stats").innerHTML = [
-      [`${completed} / ${info.total}`, "已完成"],
-      [info.rate.toFixed(1), "速度（页/分）"],
-      [info.eta == null ? "—" : (info.eta / 60).toFixed(1), "预计剩余（分钟）"],
-      [lowPages, "待复核"],
-    ]
+    // While running, speed and time left matter; afterwards only the outcome does.
+    $("#ocr-stats").innerHTML = (running
+      ? [
+          [`${completed} / ${info.total}`, "已完成页"],
+          [info.rate ? info.rate.toFixed(1) : "—", "页 / 分钟"],
+          [duration(info.eta), "预计剩余"],
+          [lowPages, "待复核"],
+        ]
+      : [
+          [`${completed} / ${info.total}`, "已完成页"],
+          [lowPages, "待复核"],
+          [info.failed?.length || 0, "失败页"],
+        ]
+    )
       .map(([v, l]) => `<div><b>${v}</b><span>${l}</span></div>`)
       .join("");
+    $("#ocr-stats").dataset.columns = running ? "4" : "3";
+    // After a complete run, applying is the next step and re-running becomes secondary.
+    $("#ocr-start").classList.toggle("primary", !finished);
+    $("#ocr-start").lastChild.textContent = finished || info.stopped ? "重新识别" : "开始识别";
+    $("#ocr-apply")?.classList.toggle("ready", finished);
   }
+  function duration(seconds) {
+    if (seconds == null || !Number.isFinite(seconds)) return "—";
+    if (seconds < 60) return "< 1 分钟";
+    const m = Math.round(seconds / 60);
+    return m < 60 ? `${m} 分钟` : `${Math.floor(m / 60)} 小时 ${m % 60} 分`;
+  }
+  const label = (b) =>
+    `${b.excluded ? "× " : ""}${Math.round(b.confidence * 100)}% · ${b.text.slice(0, 400)}`;
+  let filter = "all";
+  function applyFilter() {
+    const options = $("#ocr-results").options;
+    let low = 0;
+    for (let i = 0; i < pageBlocks.length; i++) {
+      const pending = isLow(reviewPage, pageBlocks[i]);
+      if (pending) low++;
+      if (options[i]) options[i].hidden = filter === "low" && !pending && i !== selected;
+    }
+    $("[data-count-all]").textContent = pageBlocks.length;
+    $("[data-count-low]").textContent = low;
+    const empty = $("#ocr-empty");
+    empty.hidden = !(pageBlocks.length === 0 || (filter === "low" && low === 0));
+    empty.textContent = pageBlocks.length
+      ? "本页没有待复核的文字。"
+      : states.get(reviewPage)?.state === "skipped"
+        ? "本页已有文字，已跳过识别。"
+        : "本页还没有识别结果。";
+    $("#ocr-results").hidden = !pageBlocks.length;
+  }
+  for (const b of document.querySelectorAll("[data-ocr-filter]"))
+    b.onclick = () => {
+      filter = b.dataset.ocrFilter;
+      for (const x of document.querySelectorAll("[data-ocr-filter]"))
+        x.setAttribute("aria-pressed", String(x === b));
+      applyFilter();
+    };
   const disposePicker = installPagePicker($("#ocr-range"), { S, surface });
   $("#ocr-mode").onchange = () =>
     ($("#ocr-custom").hidden = $("#ocr-mode").value !== "custom");
@@ -270,8 +320,10 @@ export async function ocrDialogV4(ctx) {
     const option = $("#ocr-results").querySelector(
       `option[value="${selected}"]`,
     );
-    if (option)
-      option.textContent = `${pageBlocks[selected].excluded ? "× " : ""}${Math.round(old.confidence * 100)}% · ${pageBlocks[selected].text.slice(0, 65)}`;
+    if (option) {
+      option.textContent = label(pageBlocks[selected]);
+      option.className = pageBlocks[selected].excluded ? "x" : isLow(reviewPage, pageBlocks[selected]) ? "low" : "";
+    }
   }
   async function savePage() {
     captureDraft();
@@ -396,9 +448,10 @@ export async function ocrDialogV4(ctx) {
     $("#ocr-results").innerHTML = pageBlocks
       .map(
         (b, i) =>
-          `<option value="${i}"${b.excluded ? ' class="x"' : isLow(reviewPage, b) ? ' class="low"' : ""}>${b.excluded ? "× " : ""}${Math.round(b.confidence * 100)}% · ${esc(b.text.slice(0, 65))}</option>`,
+          `<option value="${i}"${b.excluded ? ' class="x"' : isLow(reviewPage, b) ? ' class="low"' : ""}>${esc(label(b))}</option>`,
       )
       .join("");
+    applyFilter();
     $("#ocr-confidence").textContent =
       `第 ${reviewPage} 页 · ${pageBlocks.length} 条文字`;
     selected = -1;
@@ -669,15 +722,23 @@ export async function ocrDialogV4(ctx) {
     if (closed || !mergeInfo(next)) return;
     running = info.running;
     const completed = info.counts.done + info.counts.skipped;
-    $("#ocr-status").textContent =
-      `${running ? "后台识别" : info.stopped ? "已停止" : "已完成"} ${completed}/${info.total} 页 · 活动页 ${info.active.join(", ") || "—"} · 近期 ${info.rate.toFixed(1)} 页/分 · 实际 ${info.actualWorkers} / 目标 ${info.targetWorkers} 个进程 × ${info.plan.threads} 线程${info.reason ? `（${info.reason}）` : ""} · 续用 ${info.restored} 页 · 失败 ${info.failed.length}`;
+    // One complete sentence per state so the message translates as a whole;
+    // failures are counted in the stats and listed under "失败详情".
+    $("#ocr-status").dataset.state = running ? "run" : info.stopped ? "stop" : "done";
+    $("#ocr-status").textContent = running
+      ? info.active.length
+        ? `正在识别第 ${info.active.join("、")} 页`
+        : "正在识别"
+      : info.stopped
+        ? `已停止，保留 ${completed} 页结果。再次开始会从中断处继续。`
+        : "识别完成。校对后点击“应用 OCR 文字层”写入 PDF。";
+    // Scheduling details stay available for diagnosis without crowding the panel.
+    const technical = `近期 ${info.rate.toFixed(1)} 页/分 · ${info.actualWorkers} / ${info.targetWorkers} 个进程 × ${info.plan.threads} 线程${info.reason ? `（${info.reason}）` : ""}`;
     $("#ocr-start").disabled = running;
     $("#ocr-stop").disabled = !running;
     $("#ocr-apply").disabled = running || applying;
     $("#ocr-skip-review").disabled = running || applying;
-    $("#ocr-status").title = info.failed
-      .map((f) => `第 ${f.page} 页：${f.error}`)
-      .join("\n");
+    $("#ocr-status").title = [technical, ...info.failed.map((f) => `第 ${f.page} 页：${f.error}`)].join("\n");
     const errors = $("#ocr-errors"),
       detail = $("#ocr-error-detail");
     errors.hidden = !info.failed.length;

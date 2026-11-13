@@ -102,5 +102,8 @@ contextBridge.exposeInMainWorld("desktop", {
   checkBookmarkLinks: items=>ipcRenderer.invoke('bookmark-links',items),
   setDirty: (value) => ipcRenderer.invoke("dirty", value),
   close: () => ipcRenderer.invoke("close"),
-  onClose: (callback) => ipcRenderer.on("request-close", () => callback()),
+  // Returns an unsubscribe function like the other listeners. Previously this
+  // returned ipcRenderer itself (EventEmitter#on returns `this`), so the page
+  // received a contextBridge copy of the raw IPC object and its own methods.
+  onClose: (callback) => listen("request-close", () => callback()),
 });

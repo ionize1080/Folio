@@ -380,6 +380,7 @@ const MODAL_META = [
   ["每 N 页生成", "bookmark-plus", "书签 · 按页生成", "form"], ["导入 / 导出", "exchange", "书签 · 交换", "form"],
   ["偏好设置", "settings", "偏好", "form-lg"], ["查找重复", "dedupe", "书签 · 去重", "form-lg"],
   ["更改书签缩放", "zoom", "书签 · 缩放", "form"], ["切换标题大小写", "case", "书签 · 标题", "form"],
+  ["离线 OCR", "scan", "文字识别", "auto"],
 ];
 function applyModalChrome(title) {
   const m = MODAL_META.find(([k]) => title.includes(k)), box = $("#modal");
@@ -984,6 +985,9 @@ function rebuild() {
   S.index = new Map(S.nodes.map((n) => [n.id, n]));
   S.depth = depths(S.nodes);
   S.children = childrenMap(S.nodes);
+  // Position among siblings, used by every rendered row (indexOf was O(siblings) per row).
+  S.position = new Map();
+  for (const list of S.children.values()) list.forEach((n, i) => S.position.set(n.id, i));
   S.selected = new Set([...S.selected].filter((id) => S.index.has(id)));
   const visible = [],
     hidden = new Set(),
@@ -1056,7 +1060,8 @@ function renderTree() {
       kids = S.children.has(n.id),
       selected = S.selected.has(n.id),
       // Everything the row paints; unchanged rows keep their DOM while scrolling.
-      sig = [n.title, n.color, n.bold, n.italic, n.target.page, d, siblings.indexOf(n), siblings.length, kids, kids && S.collapsed.has(n.id), selected, !!matching?.has(n.id), height].join("");
+      position = S.position?.get(n.id) ?? siblings.indexOf(n),
+      sig = [n.title, n.color, n.bold, n.italic, n.target.page, d, position, siblings.length, kids, kids && S.collapsed.has(n.id), selected, !!matching?.has(n.id), height].join("");
     let cached = rowCache.get(n.id), row;
     if (cached && cached.sig === sig) {
       row = cached.row;
@@ -1071,7 +1076,7 @@ function renderTree() {
       row.draggable = true;
       row.role = "treeitem";
       row.id = "tree-node-" + n.id;
-      row.setAttribute("aria-posinset", siblings.indexOf(n) + 1);
+      row.setAttribute("aria-posinset", position + 1);
       row.setAttribute("aria-setsize", siblings.length);
       row.setAttribute("aria-level", d + 1);
       row.setAttribute("aria-selected", selected);
@@ -3502,6 +3507,23 @@ function multiGenerateDialog() {
     });
   $("#gen-other").onclick = () => generateDialog();
   let autoTimer;
+  // Text lines depend only on the page and extraction options, never on the rules, so
+  // editing a pattern re-runs matching without re-reading page text.
+  const lineCache = new Map();
+  let lineCacheOCR = S.ocr;
+  const extractionKey = (c) =>
+    JSON.stringify([c.source, c.right, c.left, c.visualRows, c.gapFactor, c.lineMode, c.lineTolerance, c.joinLines]);
+  const cachedPages = (pages, key) =>
+    S.ocr === lineCacheOCR && pages.every((p) => lineCache.has(p + "|" + surface.rotation(p) + "|" + key));
+  // Preview the whole chosen range automatically when that is cheap; otherwise the current page.
+  const autoPreview = () => {
+    let pages = [];
+    try {
+      pages = pageRange($("#multi-range").value, S.info.pageCount, $("#multi-parity").value);
+    } catch {}
+    const whole = pages.length > 0 && (pages.length <= 150 || cachedPages(pages, extractionKey(config())));
+    return run(!whole);
+  };
   const inputListener = (e) => {
     if (
       !e.target.closest("#multi-preview,#multi-results-nav") &&
@@ -3514,9 +3536,9 @@ function multiGenerateDialog() {
         autoTimer = setTimeout(() => {
           if (!cancelled && !running) {
             pendingPreview = false;
-            guarded(() => run(true));
+            guarded(autoPreview);
           }
-        }, 300);
+        }, 350);
     }
   };
   const compositionStart = () => {
@@ -3560,13 +3582,21 @@ function multiGenerateDialog() {
     $("#multi-cancel-task").hidden = false;
     $("#multi-run").disabled = $("#multi-current").disabled = true;
     try {
-      const lines = [];
+      const lines = [],
+        key = extractionKey(c);
+      if (S.ocr !== lineCacheOCR) {
+        lineCache.clear();
+        lineCacheOCR = S.ocr;
+      }
+      let yielded = performance.now();
       for (const page of pages) {
         if (cancelled || taskCancelled || rev !== revision) return;
-        $("#multi-summary").textContent =
-          `提取文字 ${page} 页 · ${lines.length} 行`;
-        lines.push(
-          ...(await extractLines(S.pdf, page, surface.rotation(page), {
+        const cacheKey = page + "|" + surface.rotation(page) + "|" + key;
+        let pageLines = lineCache.get(cacheKey);
+        if (!pageLines) {
+          $("#multi-summary").textContent =
+            `正在读取第 ${page} 页文字 · 已得 ${lines.length} 行`;
+          pageLines = await extractLines(S.pdf, page, surface.rotation(page), {
             ocr: S.ocr,
             source: c.source,
             right: c.right,
@@ -3576,10 +3606,17 @@ function multiGenerateDialog() {
             lineMode: c.lineMode,
             lineTolerance: c.lineTolerance,
             joinLines: c.joinLines,
-          })),
-        );
+          });
+          if (lineCache.size > 4000) lineCache.delete(lineCache.keys().next().value);
+          lineCache.set(cacheKey, pageLines);
+        }
+        for (const line of pageLines) lines.push(line);
         if (lines.length > 500000) throw Error("文字行过多，请缩小范围");
-        await new Promise((r) => setTimeout(r, 0));
+        // Yield to input every ~30 ms instead of after every page.
+        if (performance.now() - yielded > 30) {
+          await new Promise((r) => setTimeout(r, 0));
+          yielded = performance.now();
+        }
       }
       if (cancelled || taskCancelled || rev !== revision) return;
       result = await new Promise((resolve, reject) => {
@@ -3737,8 +3774,8 @@ function multiGenerateDialog() {
           clearTimeout(autoTimer);
           autoTimer = setTimeout(() => {
             pendingPreview = false;
-            if (!cancelled) guarded(() => run(true));
-          }, 300);
+            if (!cancelled) guarded(autoPreview);
+          }, 350);
         }
       }
     }
@@ -3787,6 +3824,10 @@ function multiGenerateDialog() {
   $("#multi-run").textContent = "预览所选范围";
   $("#multi-current").textContent = "仅测试当前页";
   clearTimeout(autoTimer);
+  // Show matches right away instead of an empty "preview pending" pane.
+  autoTimer = setTimeout(() => {
+    if (!cancelled && !running) guarded(autoPreview);
+  }, 0);
 }
 
 const actions = {

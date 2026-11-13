@@ -134,6 +134,6 @@ dialog input[type=checkbox]{min-height:0}
 #qc-delete,#qc-delete-tree{color:#c43d36}
 .update-hero{background:var(--accent-soft);color:var(--text)}.update-settings{border-color:var(--line)}
 .markdown-body code{background:var(--panel2);color:var(--text)}.markdown-body a{color:var(--accent)}
-.organizer-actions{flex-wrap:wrap}.organizer-controls{flex-wrap:wrap;gap:12px}
+
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;transition-duration:.01ms!important}}
 @media(forced-colors:active){.text-selection-overlay{fill:Highlight!important;mix-blend-mode:normal!important}.qc-row{border-color:CanvasText}}

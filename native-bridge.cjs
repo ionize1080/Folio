@@ -24,6 +24,11 @@ class NativeBridge {
     this.pending = null;
     this.cache = new Map();
     this.cacheRoot = null;
+    // Requests accepted but not yet settled (running or queued).
+    this.outstanding = 0;
+  }
+  get busy() {
+    return this.outstanding > 0;
   }
   start() {
     if (this.process) return;
@@ -51,6 +56,11 @@ class NativeBridge {
       pending?.reject(e);
       child.kill();
     };
+    // Writing a request to a worker that has just exited raises EPIPE/EOF on
+    // stdin. Without a listener that error is an uncaught exception in main.
+    child.stdin.on("error", (e) =>
+      fail(Error("本地引擎连接中断：" + (e.code || e.message))),
+    );
     const decoder = new StringDecoder("utf8");
     let buffer = "";
     child.stdout.on("data", (chunk) => {
@@ -148,7 +158,8 @@ class NativeBridge {
           },
         );
       });
-    const p = this.queue.then(job, job);
+    this.outstanding++;
+    const p = this.queue.then(job, job).finally(() => this.outstanding--);
     this.queue = p.catch(() => {});
     return p;
   }
@@ -231,7 +242,7 @@ class NativeBridge {
           output = path.join(dir, "output.pdf");
         if (!source) await fs.writeFile(input, Buffer.from(bytes));
         const args = { ...options, command, input };
-        for (const key of ["resolvedForms", "requestId", "epoch", "bytes"])
+        for (const key of ["resolvedForms", "requestId", "epoch", "bytes", "cacheInput"])
           delete args[key];
         delete args.source;
         delete args.target;
@@ -274,7 +285,11 @@ class NativeBridge {
         }
         return result;
       } finally {
-        await fs.rm(dir, { recursive: true, force: true }).catch(() => {});
+        // A just-killed or cancelled worker may still hold input.pdf open on
+        // Windows; retry briefly instead of silently leaking a full PDF copy.
+        await fs
+          .rm(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 })
+          .catch((e) => console.warn("Native temp cleanup failed:", dir, e.code || e.message));
       }
     } finally {
       await source?.release();

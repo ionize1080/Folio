@@ -21,8 +21,9 @@ const errors = [],
     page = await app.firstWindow();
     page.setDefaultTimeout(180000);
     page.on("pageerror", (e) => errors.push(e.message));
-    await page.waitForSelector("#language-select");
-    await page.locator("#language-select").selectOption("zh-Hans");
+    // The language picker now lives in Preferences; set the UI language directly.
+    await page.waitForSelector("#ribbon-tab-photo");
+    await page.evaluate(async () => (await import("./i18n.mjs")).setLanguage("zh-Hans"));
     const bytes = await page.evaluate(async () => {
       const { PDFDocument } = await import("./vendor/pdf-lib.js");
       const d = await PDFDocument.create();

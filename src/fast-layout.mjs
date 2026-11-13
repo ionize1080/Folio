@@ -17,6 +17,13 @@ export function canFast(m) {
     !["down", "right", "auto"].includes(m.growth)
   );
 }
+const noStyle = {},
+  geometryDefaults = {
+    charSpacing: 0,
+    wordSpacing: 0,
+    horizontalScale: 100,
+    fontKey: null,
+  };
 export function fastLayout(m, measure) {
   if (!canFast(m)) throw Error("此文字需要复杂字形排版，使用精排模式");
   const f = m.frame,
@@ -153,12 +160,8 @@ export function fastLayout(m, measure) {
     "wordSpacing",
     "horizontalScale",
   ];
-  const geometryValue = (style, key, parent = {}) =>
-    style?.[key] ??
-    parent[key] ??
-    { charSpacing: 0, wordSpacing: 0, horizontalScale: 100, fontKey: null }[
-      key
-    ];
+  const geometryValue = (style, key, parent = noStyle) =>
+    style?.[key] ?? parent[key] ?? geometryDefaults[key];
   // Formatting a paragraph adds runs for its nonpainting newline separators.
   // Compare the actual glyphs and effective defaults, not just run boundaries.
   let geometryRun = 0;
@@ -192,6 +195,7 @@ export function fastLayout(m, measure) {
   if (geometrySame && m.layoutMode !== "reflow") {
     const inherited = original.map((g) => ({ ...g, ...g.style }));
     for (let i = 0; i < inherited.length; i++) {
+      if (!ligatureStart(inherited[i])) continue;
       const cluster = sourceLigature(inherited, i, ligatureCoverage);
       if (cluster.count < 2) continue;
       const group = inherited.slice(i, i + cluster.count);
@@ -489,6 +493,21 @@ export function fastLayout(m, measure) {
         : "快速排版",
   };
 }
+// Every source ligature (ffi, ffl, ff, fi, fl, st) starts with "f" or "s";
+// a cluster cannot start at any other glyph.
+const ligatureStart = (g) =>
+  !g.text || g.text[0] === "f" || g.text[0] === "s";
+// Uint8Array.from(atob(s), mapFn) walks the string through the iterator
+// protocol with a callback per byte: ~600 ms for an 8 MB CJK fallback face,
+// on the main thread. A plain loop is ~40x faster.
+export function decodeBase64(text) {
+  if (typeof Uint8Array.fromBase64 === "function")
+    return Uint8Array.fromBase64(text);
+  const binary = atob(text),
+    bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
 const fontCache = new Map();
 function loadFastFont(call, key) {
   if (!fontCache.has(key))
@@ -497,10 +516,7 @@ function loadFastFont(call, key) {
       (async () => {
         const data = await call("font-fast", { fontKey: key });
         const family = "FolioFast_" + data.key;
-        const face = new FontFace(
-          family,
-          Uint8Array.from(atob(data.base64), (c) => c.charCodeAt(0)),
-        );
+        const face = new FontFace(family, decodeBase64(data.base64));
         await face.load();
         document.fonts.add(face);
         return {
@@ -639,10 +655,18 @@ export class FastFonts {
     const runs = m.runs || [],
       requests = new Map();
     let ri = 0,
-      offset = 0;
+      offset = 0,
+      run,
+      s = null;
     for (const ch of m.text) {
       while (ri < runs.length && runs[ri].end <= offset) ri++;
-      const s = { ...m, ...(runs[ri]?.start <= offset ? runs[ri] : {}) };
+      const next = runs[ri]?.start <= offset ? runs[ri] : null;
+      // Spreading the whole model per character dominated typing in long
+      // paragraphs; the effective style only changes at run boundaries.
+      if (s === null || next !== run) {
+        run = next;
+        s = { ...m, ...run };
+      }
       offset += ch.length;
       if (!ch.trim()) continue;
       const key =
@@ -831,6 +855,14 @@ export class FastFonts {
       c.rect(clipFrame.x, clipFrame.y, clipFrame.width, clipFrame.height);
       c.clip();
     }
+    // Per-glyph save()/restore() and re-parsing the same CSS font string cost
+    // more than fillText itself on long paragraphs. Reset only the transform
+    // (the clip is unaffected) and set font/colour when they change.
+    const ex = -l * z,
+      ey = -t * z;
+    let font = null,
+      color = null,
+      lineWidth = null;
     for (let index = 0; index < layout.glyphs.length; index++) {
       const g = layout.glyphs[index];
       if (
@@ -844,21 +876,27 @@ export class FastFonts {
       if (!g.text.trim()) continue;
       const f = this.fonts.get(g.fontKey);
       if (!f) continue;
-      const cluster = sourceLigature(layout.glyphs, index, f.coverage);
+      const cluster = ligatureStart(g)
+        ? sourceLigature(layout.glyphs, index, f.coverage)
+        : { text: g.text, count: 1 };
       index += cluster.count - 1;
-      c.save();
+      c.setTransform(z, 0, 0, z, ex, ey);
       c.translate(g.originX, g.baseline);
-      c.rotate((g.rotation * Math.PI) / 180);
-      c.transform(g.scale, 0, g.italic && !g.fontItalic ? -0.22 : 0, 1, 0, 0);
-      c.font = `${g.size}px "${f.family}"`;
-      c.fillStyle = g.color;
-      c.strokeStyle = g.color;
+      if (g.rotation) c.rotate((g.rotation * Math.PI) / 180);
+      const skew = g.italic && !g.fontItalic ? -0.22 : 0;
+      if (g.scale !== 1 || skew) c.transform(g.scale, 0, skew, 1, 0, 0);
+      const nextFont = `${g.size}px "${f.family}"`;
+      if (nextFont !== font) c.font = font = nextFont;
+      const fill = g.color || "#000000";
+      if (fill !== color) {
+        c.fillStyle = c.strokeStyle = color = fill;
+      }
       c.fillText(cluster.text, 0, 0);
       if (g.bold && !g.fontBold) {
-        c.lineWidth = g.strokeWidth || g.size * 0.025;
+        const width = g.strokeWidth || g.size * 0.025;
+        if (width !== lineWidth) c.lineWidth = lineWidth = width;
         c.strokeText(cluster.text, 0, 0);
       }
-      c.restore();
     }
     c.restore();
   }

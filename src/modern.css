@@ -195,7 +195,7 @@ button.secondary:enabled:hover { background: var(--selected); color: var(--accen
 
 /* Menus and popovers: floating glass cards. */
 .more-tools-menu, #context-menu, .view-options > div, .studio-placement > div, .studio-view-popover,
-.studio-command-popover, .organizer-options > div, .filter-options {
+.studio-command-popover, .filter-options {
   border: 1px solid var(--line-strong); border-radius: var(--r-md); box-shadow: var(--shadow-3);
   background: color-mix(in oklab, var(--panel) 94%, transparent);
   backdrop-filter: blur(14px) saturate(1.2);
@@ -352,7 +352,7 @@ dialog {
 }
 dialog[open] { animation: m-dialog var(--t-med) var(--ease); }
 dialog::backdrop { background: color-mix(in oklab, #0b1220 42%, transparent); backdrop-filter: blur(5px) saturate(1.1); animation: m-fade var(--t-med) ease; }
-.organizer-dialog, .creative-dialog, .document-tools { border-radius: var(--r-xl); }
+.creative-dialog, .document-tools { border-radius: var(--r-xl); }
 .modal-header, dialog header { border-bottom-color: var(--line); }
 dialog header h2, #modal-title { font-weight: 700; letter-spacing: -.02em; }
 #modal-close, dialog [data-close] { border-radius: 99px; color: var(--muted); }
@@ -374,8 +374,8 @@ dialog button:not(.primary):not(.secondary):not([data-close]):not(#modal-close):
 progress { accent-color: var(--accent); border-radius: 99px; height: 8px; }
 
 /* ───────────── 8. Misc controls ───────────── */
-.page-tile, .organizer-page { border-radius: var(--r-md); }
-.page-tile.selected, .organizer-page[aria-selected=true] { background: var(--selected); border-color: var(--accent); }
+.page-tile { border-radius: var(--r-md); }
+.page-tile.selected { background: var(--selected); border-color: var(--accent); }
 .qc-list { border-radius: var(--r-md); }
 .palette-options label { border-radius: 99px; }
 input[type=range] { accent-color: var(--accent); }
@@ -584,8 +584,6 @@ label:has(> input[type=color]) { flex-direction: row !important; align-items: ce
 .pref-color-row .cp-swatch { width: 24px; flex: none; border-radius: 50%; }
 .pref-color-row .selection-presets { gap: 6px; flex-wrap: nowrap; }
 .pref-color-row input[type=color] { margin-left: 4px; }
-.organizer-dialog footer [data-apply] { min-width: 150px; }
-.organizer-dialog footer [data-save] { background: var(--panel); box-shadow: inset 0 0 0 1px var(--line-strong); }
 
 /* 9.9 Context menu rows: icon, label, quiet shortcut; emphasis by intent. */
 #context-menu { min-width: 224px; }
@@ -638,8 +636,8 @@ label:has(> input[type=color]) { flex-direction: row !important; align-items: ce
 #modal-body :where(button:not([class]):not(#modal-close)):enabled:hover { background: var(--accent-soft); color: var(--accent); box-shadow: inset 0 0 0 1px var(--selected-line); }
 #modal-body details { background: var(--panel2); border: 1px solid var(--line); }
 #modal-body details > summary { padding: 9px 14px; cursor: pointer; list-style: none; display: flex; align-items: center; gap: 8px; }
-#modal-body details > summary::before { content: ""; width: 6px; height: 6px; border-right: 1.8px solid currentColor; border-bottom: 1.8px solid currentColor; transform: rotate(-45deg); transition: transform var(--t-fast) var(--ease); opacity: .6; margin-right: 2px; flex: none; }
-#modal-body details[open] > summary::before { transform: rotate(45deg); }
+#modal-body details > summary::before { width: 12px; height: 12px; flex: 0 0 12px; border: 0; transform: rotate(-90deg); transition: transform var(--t-fast) var(--ease); opacity: .55; }
+#modal-body details[open] > summary::before { transform: none; }
 #modal-body details > summary::-webkit-details-marker { display: none; }
 #modal-body details > :not(summary) { margin-inline: 14px; }
 #modal-body details > :last-child { margin-bottom: 14px; }
@@ -697,3 +695,6 @@ label:has(> input[type=color]) { flex-direction: row !important; align-items: ce
 #modal-body .prefs-nav button:enabled:hover { background: var(--hover); color: var(--text); box-shadow: none; }
 #modal-body .prefs-nav button[aria-current=true] { background: var(--accent-soft); color: var(--accent); box-shadow: inset 0 0 0 1px var(--selected-line); }
 .cp-pop { background: color-mix(in oklab, var(--panel) 98%, transparent); }
+/* Preferences: the language picker reads as one ordinary select, like its neighbours. */
+#modal-body .pref-control .language-picker { flex-direction: row; align-items: center; justify-content: flex-start; padding: 0 0 0 10px; height: 36px; min-height: 36px; border: 1px solid var(--line-strong); background: var(--panel); }
+#modal-body .pref-control .language-picker select { flex: 1; min-width: 0; max-width: none; height: 34px; justify-content: flex-start; text-align: left; background: transparent !important; box-shadow: none !important; border: 0; }

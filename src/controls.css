@@ -123,7 +123,7 @@ button>svg,summary>svg{flex:none;display:block;}
 .studio-canvas-handles polygon{stroke:var(--accent);stroke-width:1.5;vector-effect:non-scaling-stroke;}
 .studio-canvas-handles rect{fill:var(--panel);stroke:var(--accent);stroke-width:1.5;pointer-events:all;touch-action:none;}
 .studio-navigation [aria-pressed=true]{color:var(--accent);background:var(--accent-soft);}
-.organizer-marquee{position:fixed;z-index:10000;pointer-events:none;border:1px solid var(--accent);background:color-mix(in srgb,var(--accent) 14%,transparent);border-radius:3px;}
+
 .print-dialog{width:min(1020px,calc(100vw - 40px));max-height:calc(100vh - 48px);padding:0;border-radius:16px;overflow:hidden}
 .print-dialog[open]{display:flex;flex-direction:column}.print-dialog [hidden]{display:none!important}
 .print-dialog header{padding:20px 24px 14px;border-bottom:1px solid var(--line);flex-shrink:0}.print-dialog header .hint{margin:5px 0 0 32px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:800px}
