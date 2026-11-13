@@ -28,7 +28,7 @@ const path=require('node:path'),fs=require('node:fs'),assert=require('node:asser
    for(const m of metrics)assert.equal(m.gap,'8px',JSON.stringify(m));
    await page.locator('.tree-row').first().click();
    const selection=await page.locator('.tree-row.selected').first().evaluate(e=>({shadow:getComputedStyle(e).boxShadow,radius:getComputedStyle(e).borderRadius}));
-   assert.equal(selection.shadow,'none');assert.equal(selection.radius,'6px');
+   assert.equal(selection.shadow,'none');assert.equal(selection.radius,'8px');
 
    if(lang==='zh-Hans'&&size[0]===800&&!dark){
    await page.locator('#tree').focus();await page.keyboard.press('ArrowDown');

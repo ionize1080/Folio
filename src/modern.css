@@ -1,0 +1,403 @@
+/* Folio "Modern" visual layer.
+ *
+ * Loaded last. It only restyles: no markup, class names, IDs or behaviour are
+ * changed, so every existing selector, test hook and script keeps working.
+ * Colour is derived from the user's palette (--accent, --on-accent, --bg set by
+ * appearance.mjs), so Cobalt / Celadon / Amber / Mulberry / Graphite / custom
+ * all pick up the same design. PDF page colours are never touched.
+ */
+
+/* ───────────── 1. Design tokens ───────────── */
+:root {
+  --r-xs: 6px;
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 16px;
+  --r-xl: 22px;
+  --ease: cubic-bezier(.2, .8, .2, 1);
+  --t-fast: 120ms;
+  --t-med: 200ms;
+  --control-radius: var(--r-sm);
+}
+body {
+  --panel: color-mix(in oklab, var(--bg) 24%, #fff);
+  --panel2: color-mix(in oklab, var(--bg) 62%, #fff);
+  --text: #19212e;
+  --muted: #5a6577;
+  --line: color-mix(in oklab, var(--text) 9%, var(--panel));
+  --line-strong: color-mix(in oklab, var(--text) 16%, var(--panel));
+  --hover: color-mix(in oklab, var(--accent) 7%, var(--panel));
+  --accent-soft: color-mix(in oklab, var(--accent) 10%, var(--panel));
+  --selected: color-mix(in oklab, var(--accent) 15%, var(--panel));
+  --selected-line: color-mix(in oklab, var(--accent) 38%, var(--panel));
+  --accent-strong: color-mix(in oklab, var(--accent) 86%, #000);
+  --accent-glow: color-mix(in oklab, var(--accent) 34%, transparent);
+  --ring: 0 0 0 3px color-mix(in oklab, var(--accent) 26%, transparent);
+  --shadow-1: 0 1px 2px #101a2a0f, 0 1px 1px #101a2a08;
+  --shadow-2: 0 4px 14px #101a2a14, 0 1px 3px #101a2a0d;
+  --shadow-3: 0 18px 50px #101a2a29, 0 4px 14px #101a2a14;
+  --shadow: var(--shadow-2);
+  --page-shadow: 0 0 0 1px #101a2a12, 0 2px 4px #101a2a0d, 0 12px 32px #101a2a1f;
+  --ok: #1f9d6b;
+  --danger: #c9372c;
+  color: var(--text);
+}
+body.dark {
+  --panel: color-mix(in oklab, var(--bg) 91%, #fff);
+  --panel2: color-mix(in oklab, var(--bg) 96%, #fff);
+  --text: #e9edf4;
+  --muted: #a4aebf;
+  --line: color-mix(in oklab, var(--text) 11%, var(--panel));
+  --line-strong: color-mix(in oklab, var(--text) 20%, var(--panel));
+  --hover: color-mix(in oklab, var(--accent) 12%, var(--panel));
+  --accent-soft: color-mix(in oklab, var(--accent) 16%, var(--panel));
+  --selected: color-mix(in oklab, var(--accent) 24%, var(--panel));
+  --selected-line: color-mix(in oklab, var(--accent) 50%, var(--panel));
+  --accent-strong: color-mix(in oklab, var(--accent) 88%, #fff);
+  --shadow-1: 0 1px 2px #0006;
+  --shadow-2: 0 6px 18px #00000066, 0 1px 3px #0004;
+  --shadow-3: 0 24px 64px #000a, 0 4px 14px #0006;
+  --shadow: var(--shadow-2);
+  --page-shadow: 0 0 0 1px #ffffff14, 0 2px 6px #0006, 0 16px 40px #0008;
+  --ok: #4cc79a;
+  --danger: #ff8277;
+}
+
+/* ───────────── 2. Base ───────────── */
+body {
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: "tnum" 0, "kern";
+  background:
+    radial-gradient(1200px 520px at 12% -10%, color-mix(in oklab, var(--accent) 9%, transparent), transparent 70%),
+    radial-gradient(900px 480px at 100% 0%, color-mix(in oklab, var(--accent) 6%, transparent), transparent 65%),
+    var(--bg);
+}
+::selection { background: color-mix(in oklab, var(--accent) 30%, transparent); color: inherit; }
+
+button {
+  font-weight: 500;
+  transition:
+    background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease),
+    box-shadow var(--t-fast) var(--ease), transform 80ms var(--ease),
+    border-color var(--t-fast) var(--ease);
+}
+button:enabled:active { transform: scale(.975); }
+button:disabled { opacity: .42; }
+
+input, textarea, select {
+  border-radius: var(--r-sm);
+  border: 1px solid var(--line-strong);
+  background: var(--panel);
+  transition: border-color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease), background-color var(--t-fast) var(--ease);
+}
+input:hover:enabled, textarea:hover:enabled, select:hover:enabled { border-color: color-mix(in oklab, var(--accent) 36%, var(--line-strong)); }
+input:focus, textarea:focus, select:focus { border-color: var(--accent); box-shadow: var(--ring); }
+body :is(button, summary, select, input, textarea):focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+body :is(input, textarea, select):focus-visible { outline-offset: 0; }
+input::placeholder, textarea::placeholder { color: color-mix(in oklab, var(--muted) 80%, transparent); }
+
+kbd {
+  opacity: 1;
+  font-size: 11px;
+  font-family: inherit;
+  color: var(--muted);
+  background: var(--panel2);
+  border: 1px solid var(--line);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  padding: 0 5px;
+  line-height: 16px;
+}
+.eyebrow { font-size: 10px; letter-spacing: .14em; font-weight: 650; color: var(--muted); text-transform: uppercase; }
+h2 { letter-spacing: -.01em; }
+
+/* Primary actions: confident, with a soft coloured glow. */
+button.primary, body.dark button.primary {
+  background: linear-gradient(180deg, color-mix(in oklab, var(--accent) 92%, #fff) 0%, var(--accent) 100%);
+  color: var(--on-accent) !important;
+  box-shadow: 0 1px 0 #ffffff33 inset, 0 2px 8px var(--accent-glow);
+  font-weight: 600;
+}
+button.primary:enabled:hover { filter: none; background: linear-gradient(180deg, color-mix(in oklab, var(--accent) 80%, #fff) 0%, var(--accent-strong) 100%); box-shadow: 0 1px 0 #ffffff33 inset, 0 4px 14px var(--accent-glow); }
+button.primary:enabled:active { filter: none; background: var(--accent-strong); box-shadow: none; }
+button.primary:disabled { box-shadow: none; }
+button.secondary { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+button.secondary:enabled:hover { background: var(--selected); color: var(--accent); }
+
+/* Slim, quiet scrollbars. */
+* { scrollbar-width: thin; scrollbar-color: color-mix(in oklab, var(--text) 26%, transparent) transparent; }
+::-webkit-scrollbar { width: 12px; height: 12px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: color-mix(in oklab, var(--text) 24%, transparent);
+  border: 3px solid transparent; background-clip: padding-box; border-radius: 99px;
+}
+::-webkit-scrollbar-thumb:hover { background: color-mix(in oklab, var(--text) 42%, transparent); border: 3px solid transparent; background-clip: padding-box; }
+::-webkit-scrollbar-corner { background: transparent; }
+
+/* ───────────── 3. App bar, tabs and ribbon ───────────── */
+.appbar[data-ribbon], html[lang=en] .appbar[data-ribbon] {
+  background: linear-gradient(180deg, var(--panel) 0%, color-mix(in oklab, var(--panel) 90%, var(--bg)) 100%);
+  border-bottom: 1px solid var(--line);
+  box-shadow: var(--shadow-1);
+}
+.appbar .logo { border-radius: 8px; box-shadow: 0 2px 8px var(--accent-glow); }
+.appbar[data-ribbon] > .brand { font-weight: 650; letter-spacing: -.01em; }
+
+/* Document tabs: soft chips instead of boxes. */
+.document-tab { border-radius: var(--r-sm); border-color: transparent; transition: background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
+.document-tab:hover:not(.active) { background: var(--hover); color: var(--text); }
+.document-tab.active { background: var(--panel); color: var(--text); border-color: var(--line-strong); box-shadow: var(--shadow-1), 0 -2px 0 var(--accent) inset; }
+.document-tab.active svg { color: var(--accent); }
+.document-tab .tab-close { border-radius: 99px; color: var(--muted); }
+.document-tab .tab-close:enabled:hover { background: color-mix(in oklab, var(--danger) 14%, transparent); color: var(--danger); }
+.document-tab .modified::after { background: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+.doc-tab { border: 1px solid var(--line-strong); background: var(--panel); border-radius: var(--r-sm); box-shadow: var(--shadow-1); }
+
+/* Ribbon categories become pills. */
+.ribbon-tab-row { box-shadow: none; gap: 8px; }
+.ribbon-tabs { gap: 2px; }
+.ribbon-tabs button {
+  height: 28px; min-height: 28px; margin-block: 1px; padding: 0 14px;
+  border-radius: 99px; color: var(--muted); font-weight: 550;
+}
+.ribbon-tabs button:hover:not([aria-selected=true]) { background: var(--hover); color: var(--text); }
+.ribbon-tabs button[aria-selected=true] { background: var(--accent-soft); color: var(--accent); font-weight: 650; box-shadow: inset 0 0 0 1px var(--selected-line); }
+.ribbon-tabs button[aria-selected=true]::after { display: none; }
+
+/* Command row: tinted icons, softer groups. */
+.appbar[data-ribbon] > .toolbar { gap: 8px; }
+.appbar[data-ribbon] .toolbar .toolgroup { border-right: 0; padding-right: 0; gap: 2px; position: relative; }
+.appbar[data-ribbon] .toolbar .toolgroup:not(:last-child)::after {
+  content: ""; width: 1px; height: 20px; margin-left: 8px; background: var(--line-strong); align-self: center; flex: none;
+}
+.appbar[data-ribbon] .toolbar button {
+  border-radius: var(--r-sm); font-weight: 520; transition: background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease), transform 80ms var(--ease), box-shadow var(--t-fast) var(--ease);
+}
+.appbar[data-ribbon] .toolbar button svg { color: color-mix(in oklab, var(--accent) 78%, var(--text)); transition: transform var(--t-med) var(--ease); }
+.appbar[data-ribbon] .toolbar button:enabled:hover { background: var(--hover); color: var(--text); }
+.appbar[data-ribbon] .toolbar button:enabled:hover svg { transform: translateY(-1px); }
+.appbar[data-ribbon] .toolbar button.primary svg, .appbar[data-ribbon] .toolbar button:disabled svg { color: currentColor; }
+.appbar[data-ribbon] .toolbar button.primary { padding-inline: 14px; }
+.appbar[data-ribbon] .toolbar button[aria-pressed=true] { background: var(--selected); color: var(--accent); box-shadow: inset 0 0 0 1px var(--selected-line); }
+
+.app-actions button, .language-picker { border-radius: var(--r-sm); }
+.appbar[data-ribbon] .folio-ai-open {
+  background: linear-gradient(135deg, var(--accent-soft), color-mix(in oklab, var(--accent) 22%, var(--panel)));
+  border: 1px solid var(--selected-line); color: var(--accent); border-radius: 99px;
+  box-shadow: 0 1px 6px var(--accent-glow); font-weight: 700;
+}
+.appbar[data-ribbon] .folio-ai-open:hover { box-shadow: 0 2px 12px var(--accent-glow); background: linear-gradient(135deg, var(--selected), color-mix(in oklab, var(--accent) 30%, var(--panel))); }
+.appbar[data-ribbon] .folio-ai-open[aria-pressed=true] { background: var(--accent); color: var(--on-accent); }
+
+/* Menus and popovers: floating glass cards. */
+.more-tools-menu, #context-menu, .view-options > div, .studio-placement > div, .studio-view-popover,
+.studio-command-popover, .organizer-options > div, .filter-options {
+  border: 1px solid var(--line-strong); border-radius: var(--r-md); box-shadow: var(--shadow-3);
+  background: color-mix(in oklab, var(--panel) 94%, transparent);
+  backdrop-filter: blur(14px) saturate(1.2);
+}
+.more-tools-menu { animation: m-pop var(--t-med) var(--ease); transform-origin: top right; }
+.more-tools-menu button, #context-menu button { border-radius: var(--r-xs); }
+.more-tools-menu button:enabled:hover i, .more-tools-menu button:focus-visible i { color: var(--accent); }
+@keyframes m-pop { from { opacity: 0; transform: translateY(-4px) scale(.98); } to { opacity: 1; transform: none; } }
+
+/* ───────────── 4. Side panels ───────────── */
+.outline-panel, .inspector { background: var(--panel); }
+.outline-panel { border-right-color: var(--line); }
+.inspector { border-left-color: var(--line); }
+.panel-heading { padding: 18px 18px 12px; }
+.panel-heading h2 { font-size: 15px; font-weight: 700; margin-top: 4px; display: flex; align-items: center; gap: 8px; }
+h2 span, #node-count {
+  font-size: 11px; font-weight: 650; color: var(--accent); background: var(--accent-soft);
+  border-radius: 99px; padding: 1px 8px; margin-left: 0; font-variant-numeric: tabular-nums;
+}
+.panel-heading > button { width: 30px; height: 30px; padding: 0; border-radius: var(--r-sm); background: var(--accent-soft); color: var(--accent); }
+.panel-heading > button:enabled:hover { background: var(--selected); color: var(--accent); }
+
+.filter-wrap {
+  margin: 0 14px; border: 1px solid var(--line-strong); border-radius: var(--r-md); background: var(--panel2);
+  transition: border-color var(--t-fast) var(--ease), box-shadow var(--t-fast) var(--ease), background-color var(--t-fast) var(--ease);
+}
+.filter-wrap:hover { border-color: color-mix(in oklab, var(--accent) 36%, var(--line-strong)); }
+.filter-wrap:focus-within { border-color: var(--accent); background: var(--panel); box-shadow: var(--ring); }
+.filter-wrap input, .filter-wrap input:focus, .filter-wrap input:hover { border: 0; background: transparent; box-shadow: none; }
+.filter-wrap > svg, .filter-wrap > i { color: var(--muted); }
+.filter-wrap:focus-within > i, .filter-wrap:focus-within > svg { color: var(--accent); }
+
+.tree-tools { padding-block: 8px; }
+.tree-tools button { border-radius: 99px; padding: 3px 10px; color: var(--muted); font-size: 12px; }
+.tree-tools button:enabled:hover { background: var(--hover); color: var(--accent); }
+
+/* Bookmark rows: calm, fully tinted selection. */
+.tree-row { border-radius: var(--r-sm); transition: background-color var(--t-fast) var(--ease); }
+.tree-row:hover { background: var(--hover); }
+.tree-row.selected, #tree:focus-within .tree-row.selected { background: var(--selected); border-radius: var(--r-sm); box-shadow: none; }
+.tree-row.selected .title { font-weight: 600; }
+.tree-row .page {
+  font-size: 11px; color: var(--muted); background: transparent; border-radius: 99px; padding: 1px 7px; min-width: 24px; text-align: center;
+}
+.tree-row.selected .page { background: color-mix(in oklab, var(--accent) 16%, transparent); color: var(--accent); }
+.tree-row.filter-match { box-shadow: inset 0 0 0 1px var(--selected-line); }
+
+#tree-empty, #inspector-empty { color: var(--muted); }
+#tree-empty > i, #tree-empty svg { color: color-mix(in oklab, var(--accent) 55%, var(--muted)); }
+#tree-empty p, #inspector-empty h3 { color: var(--text); font-weight: 650; font-size: 14px; }
+.empty-orbit {
+  border: 0; width: 72px; height: 72px; color: var(--accent);
+  background:
+    radial-gradient(circle at 30% 25%, color-mix(in oklab, var(--accent) 22%, var(--panel)), var(--accent-soft) 70%);
+  box-shadow: 0 0 0 8px color-mix(in oklab, var(--accent) 6%, transparent), 0 0 0 18px color-mix(in oklab, var(--accent) 3%, transparent);
+}
+.outline-bottom { border-top: 1px solid var(--line); background: var(--panel); }
+.outline-bottom button, .tree-tools [data-action=tree-menu] { border-radius: var(--r-sm); }
+.outline-bottom [data-action=delete]:enabled:hover { background: color-mix(in oklab, var(--danger) 12%, transparent); color: var(--danger); }
+
+.panel-rail { background: var(--panel); }
+.panel-rail button { border-radius: var(--r-sm); }
+
+/* Inspector forms. */
+#properties label, .inspector label { color: var(--muted); font-size: 12px; font-weight: 550; }
+#properties .section-title, .section-title { font-weight: 700; font-size: 12px; letter-spacing: .02em; color: var(--text); }
+#properties textarea, #properties input:not([type=checkbox]), #properties select { background: var(--panel2); }
+#properties textarea:focus, #properties input:focus, #properties select:focus { background: var(--panel); }
+.sticky-apply { border-radius: var(--r-md); min-height: 38px; }
+.inspector-actions button { border-radius: var(--r-sm); background: var(--panel2); border: 1px solid var(--line); }
+.inspector-actions button:enabled:hover { background: var(--hover); border-color: var(--selected-line); color: var(--accent); }
+.inspector-footer { color: var(--muted); border-top: 1px solid var(--line); }
+.hint { color: var(--muted); }
+.page-edit-context { margin: 0 14px 12px; padding: 14px; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--panel2); }
+.page-edit-context button { border-radius: var(--r-sm); }
+
+/* ───────────── 5. Reading surface ───────────── */
+.viewer-panel { background: transparent; }
+.selection-toolbar {
+  gap: 2px; padding: 6px 12px; background: var(--panel); border-bottom: 1px solid var(--line);
+}
+.selection-toolbar button { border-radius: var(--r-sm); color: var(--muted); font-weight: 520; }
+.selection-toolbar button:enabled:hover { color: var(--text); }
+.selection-toolbar button[aria-pressed=true], body.dark .selection-toolbar button[aria-pressed=true] { color: var(--accent); background: var(--selected); box-shadow: inset 0 0 0 1px var(--selected-line); }
+
+.viewer-toolbar { background: var(--panel); border-bottom: 1px solid var(--line); gap: 3px; }
+.viewer-toolbar button { border-radius: var(--r-sm); color: color-mix(in oklab, var(--text) 80%, var(--muted)); }
+.viewer-toolbar button:enabled:hover { background: var(--hover); color: var(--accent); }
+.viewer-toolbar input, .viewer-toolbar select { background: var(--panel2); border-color: var(--line); border-radius: var(--r-sm); }
+.viewer-toolbar #page-number { font-weight: 650; }
+.viewer-toolbar .separator { background: var(--line-strong); }
+#page-total { color: var(--muted); font-variant-numeric: tabular-nums; }
+
+#canvas-host, .dark #canvas-host {
+  background:
+    radial-gradient(900px 420px at 50% -80px, color-mix(in oklab, var(--accent) 10%, transparent), transparent 70%),
+    linear-gradient(180deg, color-mix(in oklab, var(--bg) 92%, var(--text)) 0%, var(--bg) 160px),
+    var(--bg);
+}
+.pdf-page, #page-shell { box-shadow: var(--page-shadow); border-radius: 3px; }
+.pdf-page.page-edit-mode, body.page-edit-mode :is(.pdf-page, #page-shell):has(.page-edit-layer) { box-shadow: var(--page-shadow), 0 0 0 2px var(--accent-glow); }
+
+#findbar {
+  background: color-mix(in oklab, var(--panel) 92%, transparent); backdrop-filter: blur(14px);
+  border: 1px solid var(--line-strong); border-radius: var(--r-md); box-shadow: var(--shadow-3);
+}
+#findbar button { border-radius: var(--r-sm); }
+
+.viewer-bottom { color: var(--muted); font-size: 11px; background: transparent; }
+.statusbar { height: 26px; background: var(--panel); border-top: 1px solid var(--line); font-size: 11px; }
+.status-led { width: 7px; height: 7px; background: var(--ok); box-shadow: 0 0 0 3px color-mix(in oklab, var(--ok) 22%, transparent); }
+
+/* ───────────── 6. Welcome screen ───────────── */
+#welcome {
+  max-width: 760px; margin: 7vh auto 0; padding: 12px 24px 40px; position: relative;
+  animation: m-rise 520ms var(--ease) both;
+}
+#welcome::before {
+  content: ""; position: absolute; inset: -40px -10% auto; height: 340px; z-index: -1; pointer-events: none;
+  background: radial-gradient(closest-side, color-mix(in oklab, var(--accent) 18%, transparent), transparent);
+  filter: blur(8px);
+}
+.welcome-mark {
+  width: 76px; height: 76px; margin-bottom: 26px; border: 1px solid var(--selected-line); border-radius: 22px;
+  background: linear-gradient(145deg, color-mix(in oklab, var(--accent) 18%, var(--panel)), var(--panel));
+  box-shadow: 0 10px 30px var(--accent-glow), 0 1px 0 #fff8 inset; transform: rotate(-6deg);
+  transition: transform var(--t-med) var(--ease);
+}
+.welcome-mark:hover { transform: rotate(0deg) scale(1.04); }
+#welcome > .eyebrow { color: var(--accent); font-size: 11px; letter-spacing: .22em; }
+#welcome h1 {
+  font-size: clamp(30px, 4.4vw, 44px); line-height: 1.15; letter-spacing: -.03em; font-weight: 750; margin: 14px 0 12px;
+  background: linear-gradient(120deg, var(--text) 30%, var(--accent) 100%); -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+#welcome p { font-size: 15px; line-height: 1.8; color: var(--muted); }
+#welcome button.primary.large { border-radius: 99px; padding: 14px 30px; font-size: 15px; box-shadow: 0 1px 0 #fff4 inset, 0 8px 26px var(--accent-glow); }
+#welcome button.primary.large:enabled:hover { transform: translateY(-2px); }
+.welcome-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; margin-top: 52px; text-align: left; }
+.welcome-cards > div {
+  align-items: flex-start; gap: 6px; padding: 18px; border: 1px solid var(--line); border-radius: var(--r-lg);
+  background: color-mix(in oklab, var(--panel) 80%, transparent); backdrop-filter: blur(8px); box-shadow: var(--shadow-1);
+  transition: transform var(--t-med) var(--ease), box-shadow var(--t-med) var(--ease), border-color var(--t-med) var(--ease);
+}
+.welcome-cards > div:hover { transform: translateY(-3px); box-shadow: var(--shadow-2); border-color: var(--selected-line); }
+.welcome-cards svg { color: var(--accent); width: 22px; height: 22px; margin-bottom: 6px; }
+.welcome-cards b { font-size: 13px; font-weight: 650; color: var(--text); }
+.welcome-cards small { font-size: 12px; color: var(--muted); line-height: 1.5; }
+@keyframes m-rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+
+/* ───────────── 7. Dialogs, toast, busy ───────────── */
+dialog {
+  border: 1px solid var(--line-strong); border-radius: var(--r-xl); box-shadow: var(--shadow-3);
+  background: var(--panel); overflow: hidden;
+}
+dialog[open] { animation: m-dialog var(--t-med) var(--ease); }
+dialog::backdrop { background: color-mix(in oklab, #0b1220 42%, transparent); backdrop-filter: blur(5px) saturate(1.1); animation: m-fade var(--t-med) ease; }
+.organizer-dialog, .creative-dialog, .document-tools { border-radius: var(--r-xl); }
+.modal-header, dialog header { border-bottom-color: var(--line); }
+dialog header h2, #modal-title { font-weight: 700; letter-spacing: -.02em; }
+#modal-close, dialog [data-close] { border-radius: 99px; color: var(--muted); }
+#modal-close:enabled:hover, dialog [data-close]:enabled:hover { background: var(--hover); color: var(--text); }
+#modal-footer, dialog footer { background: color-mix(in oklab, var(--panel2) 70%, var(--panel)); border-top: 1px solid var(--line); }
+dialog button:not(.primary):not(.secondary):not([data-close]):not(#modal-close):enabled { border: 1px solid transparent; }
+.document-tools nav { background: color-mix(in oklab, var(--panel2) 70%, var(--panel)); }
+.document-tools nav button[aria-pressed=true] { background: var(--selected); color: var(--accent); font-weight: 650; box-shadow: inset 0 0 0 1px var(--selected-line); }
+.document-tools nav h4 { letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+@keyframes m-dialog { from { opacity: 0; transform: translateY(10px) scale(.985); } to { opacity: 1; transform: none; } }
+@keyframes m-fade { from { opacity: 0; } to { opacity: 1; } }
+
+#toast {
+  border-radius: var(--r-md); box-shadow: var(--shadow-3); border: 1px solid var(--line-strong);
+  background: color-mix(in oklab, var(--panel) 94%, transparent); color: var(--text); backdrop-filter: blur(14px);
+}
+#busy { backdrop-filter: blur(4px); background: color-mix(in oklab, var(--bg) 62%, transparent); }
+#busy .spinner { border-color: var(--accent-soft); border-top-color: var(--accent); }
+progress { accent-color: var(--accent); border-radius: 99px; height: 8px; }
+
+/* ───────────── 8. Misc controls ───────────── */
+.page-tile, .organizer-page { border-radius: var(--r-md); }
+.page-tile.selected, .organizer-page[aria-selected=true] { background: var(--selected); border-color: var(--accent); }
+.qc-list { border-radius: var(--r-md); }
+.palette-options label { border-radius: 99px; }
+input[type=range] { accent-color: var(--accent); }
+details > summary { border-radius: var(--r-sm); }
+.update-hero { border-radius: var(--r-lg); background: linear-gradient(135deg, var(--accent-soft), color-mix(in oklab, var(--accent) 20%, var(--panel))); }
+.page-edit-bar { border-radius: var(--r-md); box-shadow: var(--shadow-2); }
+
+/* ───────────── 9. Responsive and accessibility ───────────── */
+@media (max-width: 1000px) {
+  .appbar[data-ribbon] .toolbar .toolgroup:not(:last-child)::after { margin-left: 4px; }
+  .welcome-cards { grid-template-columns: 1fr; margin-top: 32px; }
+  #welcome { margin-top: 3vh; }
+}
+@media (max-height: 640px) { #welcome { margin-top: 1vh; } .welcome-cards { display: none; } }
+@media (prefers-reduced-motion: reduce) {
+  #welcome, dialog[open], dialog::backdrop, .more-tools-menu { animation: none !important; }
+  button:enabled:active, .welcome-cards > div:hover, #welcome button.primary.large:enabled:hover,
+  .appbar[data-ribbon] .toolbar button:enabled:hover svg { transform: none !important; }
+}
+@media (prefers-contrast: more) {
+  body { --line: color-mix(in oklab, var(--text) 30%, var(--panel)); --line-strong: color-mix(in oklab, var(--text) 52%, var(--panel)); }
+}
+@media (forced-colors: active) {
+  button.primary, .ribbon-tabs button[aria-selected=true], .document-tab.active { forced-color-adjust: auto; border: 1px solid ButtonText; }
+  #welcome h1 { background: none; color: CanvasText; }
+}
+@media print { body { background: #fff; } }
