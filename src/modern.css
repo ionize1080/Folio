@@ -407,3 +407,70 @@ details > summary { border-radius: var(--r-sm); }
 /* Duotone icon layer: closed shapes get a soft tinted fill under the stroke. */
 svg .duo { fill: currentColor; fill-opacity: .15; stroke: none; }
 svg[data-symbol] { stroke-linejoin: round; stroke-linecap: round; }
+
+/* ───────────── 10. Generic dialog content ───────────── */
+.callout {
+  border: 0; border-radius: var(--r-md); padding: 10px 14px; line-height: 1.65; font-size: 12.5px;
+  background: var(--accent-soft); color: var(--text); box-shadow: inset 3px 0 0 var(--accent);
+}
+.callout.error, #modal-error { background: color-mix(in oklab, var(--danger) 10%, var(--panel)); box-shadow: inset 3px 0 0 var(--danger); }
+.callout.warn, .callout.warning { background: color-mix(in oklab, #f0b64a 16%, var(--panel)); box-shadow: inset 3px 0 0 #d89a2b; }
+
+#modal-body :is(h3, h4), .document-tool-detail :is(h3) { letter-spacing: -.005em; }
+#modal-body label { color: var(--muted); font-size: 12px; font-weight: 550; }
+#modal-body label.check, #modal-body label:has(> input[type=checkbox]), #modal-body label:has(> input[type=radio]) { color: var(--text); font-weight: 500; }
+#modal-body :is(input:not([type=checkbox], [type=radio], [type=color], [type=range], [type=file]), select) { min-height: 36px; border-radius: var(--r-sm); background: var(--panel2); }
+#modal-body :is(input, select, textarea):focus { background: var(--panel); }
+#modal-body textarea { padding: 9px 12px; line-height: 1.55; background: var(--panel2); }
+#modal-body details { border-radius: var(--r-md); }
+#modal-body details > summary { font-weight: 600; padding-block: 6px; }
+#modal-body details[open] > summary { color: var(--accent); }
+
+/* Plain (class-less) action buttons inside dialogs become outlined controls. */
+:where(#modal-body) button:not([class]):not(#modal-close),
+#modal-footer button:not(.primary) {
+  min-height: 34px; padding-inline: 14px; border-radius: var(--r-md);
+  background: var(--panel); box-shadow: inset 0 0 0 1px var(--line-strong); color: var(--text); font-weight: 520;
+}
+:where(#modal-body) button:not([class]):not(#modal-close):enabled:hover,
+#modal-footer button:not(.primary):enabled:hover { background: var(--hover); box-shadow: inset 0 0 0 1px var(--selected-line); color: var(--accent); }
+:where(#modal-body) button:not([class]):not(#modal-close):disabled { background: var(--panel2); box-shadow: inset 0 0 0 1px var(--line); }
+#modal-footer { padding: 14px 22px; gap: 10px; justify-content: flex-end; }
+#modal-footer button.primary { padding-inline: 20px; min-height: 36px; border-radius: var(--r-md); }
+.modal-header { padding: 18px 24px 14px; }
+.modal-header .eyebrow, #modal-kicker { color: var(--accent); letter-spacing: .16em; }
+#modal-body { padding: 16px 24px 20px; }
+.menu-grid { gap: 8px; }
+table { border-collapse: separate; border-spacing: 0; }
+table th { color: var(--muted); font-weight: 600; font-size: 12px; text-align: left; border-bottom: 1px solid var(--line-strong); padding: 8px 10px; }
+table td { padding: 8px 10px; border-bottom: 1px solid var(--line); }
+table tbody tr:hover td { background: var(--hover); }
+hr { border: 0; border-top: 1px solid var(--line); }
+
+/* ───────────── 11. Page-edit toolbar, menus, inspector ───────────── */
+.page-edit-bar {
+  background: color-mix(in oklab, var(--panel) 94%, transparent); backdrop-filter: blur(14px);
+  border: 0; border-bottom: 1px solid var(--line); border-radius: 0; box-shadow: var(--shadow-1);
+}
+.page-edit-bar strong { color: var(--accent); font-weight: 700; letter-spacing: -.01em; }
+.page-edit-bar :is(input, select) { min-height: 30px; border-radius: var(--r-xs); background: var(--panel2); font-size: 12px; }
+.page-edit-bar button { border-radius: var(--r-sm); font-size: 12px; }
+.page-edit-bar #pe-done, .page-edit-bar button.primary { background: linear-gradient(180deg, color-mix(in oklab, var(--accent) 92%, #fff), var(--accent)); color: var(--on-accent); box-shadow: 0 2px 8px var(--accent-glow); }
+.page-edit-bar #pe-done { color: var(--on-accent) !important; font-weight: 650; }
+.page-edit-bar .pe-status-row, .page-edit-bar #pe-status { color: var(--muted); font-size: 12px; }
+.page-edit-bar #pe-status.error { color: var(--danger); }
+.page-edit-frame, .page-edit-layer .page-edit-frame { outline: 2px solid var(--accent); box-shadow: 0 0 0 4px var(--accent-glow); border-radius: 2px; }
+.page-edit-caret { background: var(--accent); }
+
+#context-menu { padding: 6px; border: 1px solid var(--line-strong); border-radius: var(--r-md); background: color-mix(in oklab, var(--panel) 94%, transparent); backdrop-filter: blur(14px); box-shadow: var(--shadow-3); }
+#context-menu button { border-radius: var(--r-xs); }
+#context-menu button:enabled:hover { background: var(--accent-soft); color: var(--accent); }
+#context-menu :is(hr, .separator, .sep) { margin: 5px 6px; border: 0; border-top: 1px solid var(--line); height: 0; background: none; }
+
+.inspector #properties { padding: 0 18px 18px; }
+.inspector .panel-heading h2 { font-size: 15px; font-weight: 700; }
+#target-badge { font-size: 10.5px; font-weight: 700; color: var(--accent); background: var(--accent-soft); border-radius: 99px; padding: 1px 8px; }
+#properties .property-row { gap: 10px; align-items: center; }
+#properties input[type=color] { width: 40px; height: 32px; border-radius: var(--r-sm); border: 1px solid var(--line-strong); padding: 3px; background: var(--panel2); }
+.more-tools-menu .more-tools-search, .more-tools-menu input[type=search] { border-radius: var(--r-md); background: var(--panel2); }
+.more-tools-menu h4, .more-tools-menu .group-title { color: var(--muted); letter-spacing: .08em; text-transform: uppercase; font-size: 10.5px; font-weight: 700; }
