@@ -278,3 +278,20 @@ label.has-choice, #modal-body label.has-choice { grid-column: 1 / -1; }
 .rules-workspace .rule-card .rule-toolbar > input[data-field=name] { flex: 1 1 auto; }
 .st-pages label > *:not(input) { background: none !important; border: 0 !important; box-shadow: none !important; padding: 0 !important; min-height: 0 !important; border-radius: 0 !important; }
 .st-pages label { cursor: pointer; }
+
+/* ───────────── 12. Target thumbnail ───────────── */
+.target-thumb { margin: 0 0 4px; display: flex; flex-direction: column; gap: 6px; }
+.target-thumb[hidden] { display: none; }
+.tt-frame { position: relative; width: 232px; max-width: 100%; margin-inline: auto; border-radius: 8px; overflow: hidden; background: #fff; box-shadow: 0 0 0 1px var(--line-strong), var(--shadow-2); line-height: 0; min-height: 72px; }
+.tt-frame canvas { display: block; max-width: 100%; height: auto !important; }
+.tt-frame canvas[hidden] { display: none; }
+.tt-empty { position: absolute; inset: 0; display: grid; place-items: center; font-size: 12px; line-height: 1.4; color: var(--muted); background: var(--panel2); }
+.tt-empty[hidden] { display: none; }
+.tt-mark { position: absolute; pointer-events: none; --m: #e5484d; }
+.tt-mark[hidden] { display: none; }
+.tt-mark[data-kind=point] { width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; background: color-mix(in srgb, var(--m) 28%, transparent); box-shadow: 0 0 0 1.5px var(--m), 0 0 0 5px color-mix(in srgb, var(--m) 18%, transparent); }
+.tt-mark[data-kind=point][data-loose=true] { border-style: dashed; opacity: .7; }
+.tt-mark[data-kind=line] { left: 0; right: 0; height: 0; border-top: 2px solid var(--m); box-shadow: 0 0 0 3px color-mix(in srgb, var(--m) 14%, transparent); }
+.tt-mark[data-kind=vline] { top: 0; bottom: 0; width: 0; border-left: 2px solid var(--m); box-shadow: 0 0 0 3px color-mix(in srgb, var(--m) 14%, transparent); }
+.tt-mark[data-kind=rect] { border: 2px solid var(--m); background: color-mix(in srgb, var(--m) 14%, transparent); border-radius: 2px; }
+.target-thumb figcaption { text-align: center; font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums; }

@@ -23,6 +23,7 @@ const path = require("node:path"), fs = require("node:fs");
     // tree + inspector
     await page.locator(".tree-row").nth(2).click(); await page.evaluate(() => document.querySelector("[data-action=right-expand]")?.click());
     await shot("tree-inspector");
+    await page.locator("#prop-mode").selectOption("XYZ"); await page.locator(".coord").first().fill("120"); await page.locator(".coord").nth(1).fill("600"); await page.waitForTimeout(600); await shot("target-thumb");
 
     // generate with preview
     await openCmd("generate");

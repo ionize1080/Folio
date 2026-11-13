@@ -2,6 +2,7 @@ import {annotationPalette} from "./annotation-style.mjs";
 import {applyAppearance, paletteControls, palettes} from "./appearance.mjs";
 import {installColorPicker} from "./color-picker.mjs";
 import {enhanceChoices} from "./choice-chips.mjs";
+import {installTargetThumb} from "./target-thumb.mjs";
 import { pdfLoadingOptions } from './pdf-loading.mjs';
 import { bookmarkHTML } from "./bookmark-html.mjs";
 import { buildExportSnapshot } from "./export-snapshot.mjs";
@@ -1126,6 +1127,21 @@ function coordinates(mode, args = []) {
   $("#coord-fields").innerHTML =
     `<div class="coord-grid">${(coordNames[mode] || []).map((s, i) => `<label>${s}<input class="coord" type="number" step="any" placeholder="null" value="${args[i] === null || args[i] === undefined ? "" : Number(args[i].toFixed(5))}"></label>`).join("")}</div>`;
 }
+const targetThumb = installTargetThumb({
+  S,
+  host: $("#target-thumb-host"),
+  read() {
+    const n = selectedNode(), preserved = $("#prop-mode").value === "preserve";
+    return {
+      page: preserved ? n?.target.page : Number($("#prop-page").value),
+      mode: preserved ? n?.target.mode : $("#prop-mode").value,
+      args: preserved ? n?.target.args || [] : $$(".coord").map((e) => (e.value === "" ? null : Number(e.value))),
+    };
+  },
+});
+$("#prop-page").addEventListener("input", () => targetThumb.refresh());
+$("#coord-fields").addEventListener("input", () => targetThumb.refresh());
+$("#prop-mode").addEventListener("change", () => targetThumb.refresh());
 let styleDirty = new Set();
 for (const key of ["bold", "italic", "color"])
   $("#prop-" + key).addEventListener("input", () => styleDirty.add(key));
@@ -1175,6 +1191,8 @@ function fillProperties() {
   coordinates($("#prop-mode").value, n.target.args);
   $("#prop-page").disabled = multi || n.target.kind === "preserve";
   $$(".coord").forEach((el) => (el.disabled = multi));
+  targetThumb.show(!multi && !!S.pdf);
+  if (!multi) targetThumb.refresh(true);
 }
 function applyProperty(event) {
   event?.preventDefault();

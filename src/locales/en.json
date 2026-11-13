@@ -2715,5 +2715,13 @@
   "深邃": "Deep",
   "柔和": "Soft",
   "淡彩": "Pastel",
-  "墨与纸": "Ink & paper"
+  "墨与纸": "Ink & paper",
+  "无有效目标页": "No valid target page",
+  "无法生成预览": "Preview unavailable",
+  "定位点": "Landing point",
+  "顶端对齐线": "Top alignment line",
+  "左侧对齐线": "Left alignment line",
+  "适合区域": "Fit region",
+  "整页显示": "Whole page",
+  "（部分为 null）": " (partly null)"
 }
