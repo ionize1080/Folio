@@ -65,6 +65,7 @@ const path=require('node:path'),fs=require('node:fs'),assert=require('node:asser
   assert.equal(await page.locator('.file-drop-veil').isVisible(),false);
   checks.push('File dropped from Explorer is inserted after the target page, global drop handler stays out');
   assert.deepEqual(errors,[]);
+  fs.writeFileSync('tests/output/organizer-features.json',JSON.stringify({status:'passed',checks,errors},null,2));
   console.log('PASS organizer features',checks);
  }finally{await app.evaluate(({app})=>app.exit(0)).catch(()=>{});}
 })().catch(e=>{console.error(e);process.exitCode=1;});

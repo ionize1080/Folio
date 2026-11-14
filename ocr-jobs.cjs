@@ -650,8 +650,7 @@ class OCRJobs {
     // Original job inputs and old JSONL snapshots are reproducible caches.
     // Keep reviewed page JSON, corrections, current job and live history refs.
     await fs.mkdir(this.store, { recursive: true });
-    const candidates = [],
-      pinnedSnapshots = new Set(this.references.values());
+    const candidates = [];
     for (const e of await fs.readdir(this.store, { withFileTypes: true })) {
       if (!e.isDirectory()) continue;
       if (e.name === "snapshots") {
@@ -668,7 +667,7 @@ class OCRJobs {
             file,
             bytes: stat.size,
             time: stat.mtimeMs,
-            pinned: pinnedSnapshots.has(file),
+            reference: name.slice(0, -6),
           });
         }
       } else if (/^[a-f0-9]{64}$/.test(e.name)) {
@@ -679,7 +678,7 @@ class OCRJobs {
             file,
             bytes: stat.size,
             time: stat.mtimeMs,
-            pinned: e.name === this.job?.id || e.name === this.startingId,
+            jobId: e.name,
           });
         } catch {}
       }
@@ -688,7 +687,10 @@ class OCRJobs {
       removed = 0;
     for (const e of candidates.sort((a, b) => a.time - b.time)) {
       if (total <= budget) break;
-      if (e.pinned) continue;
+      // References/jobs can become live during the asynchronous directory scan.
+      // Recheck at the deletion boundary, not against a stale scan-time snapshot.
+      if (e.reference ? this.references.has(e.reference) :
+          e.jobId === this.job?.id || e.jobId === this.startingId) continue;
       try {
         await fs.rm(e.file, { force: true });
       } catch (error) {

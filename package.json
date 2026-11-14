@@ -1,7 +1,7 @@
 {
   "name": "folio-pdf-studio",
   "productName": "Folio PDF Studio",
-  "version": "2.7.0",
+  "version": "2.8.0",
   "description": "Offline PDF editing, bookmark rules and OCR review for Windows",
   "type": "module",
   "main": "main.cjs",
@@ -24,7 +24,7 @@
   "devDependencies": {
     "@electron-internal/extract-zip": "1.0.5",
     "@electron/asar": "^3.4.1",
-    "electron": "44.3.0",
+    "electron": "44.11.3",
     "fake-indexeddb": "^6.2.5",
     "playwright": "^1.63.0",
     "prettier": "^3.6.2",

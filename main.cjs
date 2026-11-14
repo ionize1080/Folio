@@ -262,8 +262,10 @@ app.whenReady().then(async () => {
     if (!Array.isArray(paths) || paths.some(p => typeof p !== "string")) throw Error("Invalid documents");
     return tabs.enqueue(() => tabs.open(paths));
   });
-  ipc("tabs-meta", ({name,busy,handle}) => {
+  ipc("tabs-meta", ({name,busy,handle,attention}) => {
     const tab = tabs.entries.get(sender());
+    // Password/recovery prompts in a preparing editor must be reachable.
+    if (attention === true && tab.loading) tabs.select(tab, true);
     if (typeof busy === "boolean") tab.busy = busy;
     const file = fileStore?.handles.get(handle);
     if (file) tab.key = process.platform === "win32" ? file.toLowerCase() : file;

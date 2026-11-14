@@ -24,7 +24,7 @@ export function installTargetThumb({ S, host, read }) {
   fig.innerHTML = '<div class="tt-frame"><canvas aria-hidden="true"></canvas><i class="tt-mark" hidden></i><span class="tt-empty" hidden></span></div><figcaption></figcaption>';
   host.append(fig);
   const canvas = fig.querySelector("canvas"), mark = fig.querySelector(".tt-mark"), empty = fig.querySelector(".tt-empty"), cap = fig.querySelector("figcaption");
-  let token = 0, timer = 0, task = null;
+  let token = 0, timer = 0, task = null, rendered = null;
 
   async function draw(t) {
     const { page: pageNumber, mode, args, note } = read();
@@ -34,20 +34,26 @@ export function installTargetThumb({ S, host, read }) {
       cap.textContent = note || "";
       return;
     }
-    const page = await S.pdf.getPage(pageNumber);
-    if (t !== token) return;
-    const base = page.getViewport({ scale: 1 });
-    const scale = W / base.width, view = page.getViewport({ scale });
-    const ratio = Math.min(devicePixelRatio || 1, 2);
-    const off = document.createElement("canvas");
-    off.width = Math.ceil(view.width * ratio); off.height = Math.ceil(view.height * ratio);
-    task?.cancel?.();
-    task = page.render({ canvasContext: off.getContext("2d"), viewport: view, transform: ratio !== 1 ? [ratio, 0, 0, ratio, 0, 0] : null, background: "#ffffff" });
-    try { await task.promise; } catch (e) { if (e?.name === "RenderingCancelledException") return; throw e; }
-    if (t !== token) return;
-    canvas.width = off.width; canvas.height = off.height;
-    canvas.style.width = view.width + "px"; canvas.style.height = view.height + "px";
-    canvas.getContext("2d").drawImage(off, 0, 0);
+    const pdf = S.pdf;
+    let view = rendered?.view;
+    if (rendered?.pdf !== pdf || rendered?.pageNumber !== pageNumber) {
+      const page = await pdf.getPage(pageNumber);
+      if (t !== token) return;
+      const base = page.getViewport({ scale: 1 });
+      const scale = W / base.width;
+      view = page.getViewport({ scale });
+      const ratio = Math.min(devicePixelRatio || 1, 2);
+      const off = document.createElement("canvas");
+      off.width = Math.ceil(view.width * ratio); off.height = Math.ceil(view.height * ratio);
+      task?.cancel?.();
+      task = page.render({ canvasContext: off.getContext("2d"), viewport: view, transform: ratio !== 1 ? [ratio, 0, 0, ratio, 0, 0] : null, background: "#ffffff" });
+      try { await task.promise; } catch (e) { if (e?.name === "RenderingCancelledException") return; throw e; }
+      if (t !== token) return;
+      canvas.width = off.width; canvas.height = off.height;
+      canvas.style.width = view.width + "px"; canvas.style.height = view.height + "px";
+      canvas.getContext("2d").drawImage(off, 0, 0);
+      rendered = { pdf, pageNumber, view };
+    }
     canvas.hidden = false; empty.hidden = true;
 
     const m = markerFor(mode, args), px = (x, y) => view.convertToViewportPoint(x ?? 0, y ?? 0);
@@ -72,12 +78,13 @@ export function installTargetThumb({ S, host, read }) {
   return {
     // Call whenever inputs change; cheap to call repeatedly.
     refresh(immediate = false) {
+      if (fig.hidden) return;
       const t = ++token;
       clearTimeout(timer);
       const run = () => draw(t).catch(() => { if (t === token) { empty.hidden = false; empty.textContent = "无法生成预览"; canvas.hidden = true; mark.hidden = true; } });
       if (immediate) run(); else timer = setTimeout(run, 140);
     },
-    show(visible) { fig.hidden = !visible; if (!visible) { token++; clearTimeout(timer); task?.cancel?.(); } },
-    destroy() { token++; clearTimeout(timer); task?.cancel?.(); fig.remove(); },
+    show(visible) { fig.hidden = !visible; if (!visible) { token++; clearTimeout(timer); task?.cancel?.(); rendered = null; canvas.width = canvas.height = 0; } },
+    destroy() { token++; clearTimeout(timer); task?.cancel?.(); rendered = null; fig.remove(); },
   };
 }

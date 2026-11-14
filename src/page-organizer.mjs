@@ -163,6 +163,7 @@ export function installPageOrganizer({S, session, run, exportPDF, replaceDocumen
       try { await task.promise; } finally { renderTasks.delete(task); }
       const bitmap = await createImageBitmap(canvas);
       canvas.width = canvas.height = 0;
+      if (closed) { bitmap.close(); throw cancelled(); }
       const value = {bitmap, page, close: () => bitmap.close()};
       keepBitmap(bitmapKey(item), value);
       return value;
@@ -255,7 +256,9 @@ export function installPageOrganizer({S, session, run, exportPDF, replaceDocumen
       let node = grid.firstElementChild;
       order.forEach((item, i) => {
         const tile = tiles.get(item.key) || makeTile(item), el = tile.el, position = i + 1;
-        if (el === node) node = node.nextElementSibling; else grid.insertBefore(el, node);
+        if (el === node) node = node.nextElementSibling;
+        else if (el.isConnected && grid.moveBefore) grid.moveBefore(el, node);
+        else grid.insertBefore(el, node);
         if (el.dataset.position !== String(position)) el.dataset.position = position;
         tile.number.textContent = position;
         tile.note.textContent = describe(item);
@@ -756,6 +759,8 @@ export function installPageOrganizer({S, session, run, exportPDF, replaceDocumen
     // ---- dialog lifecycle ---------------------------------------------------------------
     function dispose() {
       closed = true;
+      endMarquee();
+      peekToken++;
       observer.disconnect();
       for (const t of renderTasks) t.cancel();
       for (const value of bitmaps.values()) value.close?.();

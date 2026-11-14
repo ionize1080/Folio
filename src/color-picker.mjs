@@ -92,7 +92,7 @@ function closePicker(commit = true) {
   if (!open) return;
   const { root, input, start, cleanup } = open;
   open = null;
-  cleanup();
+  cleanup(commit);
   root.remove();
   if (commit && input.value !== start) {
     remember(input.value);
@@ -151,7 +151,7 @@ function openPicker(input) {
       // One event per animation frame keeps live previews (page colour, text
       // colour) smooth while dragging.
       cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(() => input.dispatchEvent(new Event("input", { bubbles: true })));
+      frame = requestAnimationFrame(() => { frame = 0; input.dispatchEvent(new Event("input", { bubbles: true })); });
     }
   };
   const setHex = hex => {
@@ -205,7 +205,7 @@ function openPicker(input) {
     const sw = e.target.closest(".cp-swatch");
     if (sw) { setHex(sw.dataset.hex); closePicker(); return; }
     if (e.target.closest(".cp-eye")) {
-      new window.EyeDropper().open().then(r => { setHex(normalizeHex(r.sRGBHex) || input.value); }).catch(() => {});
+      new window.EyeDropper().open().then(r => { if (open?.root === root) setHex(normalizeHex(r.sRGBHex) || input.value); }).catch(() => {});
     }
   });
 
@@ -235,7 +235,10 @@ function openPicker(input) {
   document.addEventListener("pointerdown", onDown, true);
   document.addEventListener("keydown", onKey, true);
   addEventListener("resize", onMove);
-  open = { root, input, start, cleanup: () => {
+  open = { root, input, start, cleanup: commit => {
+    // A preset closes in the same event turn as publish(). Flush its pending
+    // input before change so bookmark style tracking sees the chosen colour.
+    if (commit && frame) input.dispatchEvent(new Event("input", { bubbles: true }));
     cancelAnimationFrame(frame);
     document.removeEventListener("pointerdown", onDown, true);
     document.removeEventListener("keydown", onKey, true);
