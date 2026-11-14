@@ -102,7 +102,11 @@ class OCRJobs {
   async start(args) {
     await this.stop();
     await this.prune();
-    return this.startJob(args);
+    try {
+      return await this.startJob(args);
+    } finally {
+      this.startingId = null;
+    }
   }
   async startJob({
     bytes,
@@ -188,6 +192,8 @@ class OCRJobs {
         .digest("hex"),
       dir = path.join(this.store, id),
       input = path.join(dir, "input.pdf");
+    // Not yet this.job: keep a concurrent prune away from the new input.pdf.
+    this.startingId = id;
     await fs.mkdir(dir, { recursive: true });
     try {
       await fs.access(input);
@@ -361,6 +367,7 @@ class OCRJobs {
             const r = await bridge.request({
               command: "ocr",
               input: j.input,
+              cacheInput: true,
               page,
               ...j.options,
               threads: j.plan.threads,
@@ -611,19 +618,27 @@ class OCRJobs {
       dir = path.join(this.store, "snapshots");
     await fs.mkdir(dir, { recursive: true });
     const file = path.join(dir, reference + ".jsonl");
-    const h = await fs.open(file, "wx");
-    try {
-      for (let i = 0; i < blocks.length; i += 250)
-        await h.write(
-          blocks
-            .slice(i, i + 250)
-            .map((b) => JSON.stringify(b))
-            .join("\n") + "\n",
-        );
-    } finally {
-      await h.close();
-    }
+    // Pin before the first byte: a concurrent prune (storage-budget IPC, or the
+    // post-command prune in main) must not delete a snapshot being written.
     this.references.set(reference, file);
+    try {
+      const h = await fs.open(file, "wx");
+      try {
+        for (let i = 0; i < blocks.length; i += 250)
+          await h.write(
+            blocks
+              .slice(i, i + 250)
+              .map((b) => JSON.stringify(b))
+              .join("\n") + "\n",
+          );
+      } finally {
+        await h.close();
+      }
+    } catch (error) {
+      this.references.delete(reference);
+      await fs.rm(file, { force: true }).catch(() => {});
+      throw error;
+    }
     return { ok: true, reference, blocks, issues, count, cleaned, skippedReview: pending.length };
   }
   resolveReference(id) {
@@ -641,13 +656,18 @@ class OCRJobs {
       if (e.name === "snapshots") {
         for (const name of await fs.readdir(path.join(this.store, e.name))) {
           if (!/^[a-f0-9-]{36}\.jsonl$/.test(name)) continue;
-          const file = path.join(this.store, e.name, name),
+          const file = path.join(this.store, e.name, name);
+          let stat;
+          try {
             stat = await fs.stat(file);
+          } catch {
+            continue; // removed concurrently
+          }
           candidates.push({
             file,
             bytes: stat.size,
             time: stat.mtimeMs,
-            pinned: [...this.references.values()].includes(file),
+            reference: name.slice(0, -6),
           });
         }
       } else if (/^[a-f0-9]{64}$/.test(e.name)) {
@@ -658,7 +678,7 @@ class OCRJobs {
             file,
             bytes: stat.size,
             time: stat.mtimeMs,
-            pinned: e.name === this.job?.id,
+            jobId: e.name,
           });
         } catch {}
       }
@@ -667,8 +687,17 @@ class OCRJobs {
       removed = 0;
     for (const e of candidates.sort((a, b) => a.time - b.time)) {
       if (total <= budget) break;
-      if (e.pinned) continue;
-      await fs.rm(e.file, { force: true });
+      // References/jobs can become live during the asynchronous directory scan.
+      // Recheck at the deletion boundary, not against a stale scan-time snapshot.
+      if (e.reference ? this.references.has(e.reference) :
+          e.jobId === this.job?.id || e.jobId === this.startingId) continue;
+      try {
+        await fs.rm(e.file, { force: true });
+      } catch (error) {
+        // Windows: a file still open elsewhere (EBUSY/EPERM). Skip, retry next prune.
+        console.warn("OCR cache entry not removed:", e.file, error.code || error.message);
+        continue;
+      }
       total -= e.bytes;
       removed += e.bytes;
     }

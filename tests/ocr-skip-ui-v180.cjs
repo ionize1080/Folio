@@ -21,8 +21,9 @@ const errors = [],
     page = await app.firstWindow();
     page.setDefaultTimeout(180000);
     page.on("pageerror", (e) => errors.push(e.message));
-    await page.waitForSelector("#language-select");
-    await page.locator("#language-select").selectOption("zh-Hans");
+    // The language picker now lives in Preferences; set the UI language directly.
+    await page.waitForSelector("#ribbon-tab-photo");
+    await page.evaluate(async () => (await import("./i18n.mjs")).setLanguage("zh-Hans"));
     const bytes = await page.evaluate(async () => {
       const { PDFDocument } = await import("./vendor/pdf-lib.js");
       const d = await PDFDocument.create();
@@ -39,7 +40,11 @@ const errors = [],
           filePaths: [f],
         });
       }, file);
-      await page.locator("[data-action=open]").first().click();
+      await page.evaluate(() => window.desktop.openDocuments());
+      for (const candidate of app.context().pages()) {
+        const state = await candidate.evaluate(() => window.desktop?.tabsState?.()).catch(() => null);
+        if (state?.self === state?.activeDocumentId) { page = candidate; break; }
+      }
       await page.waitForFunction(
         (n) =>
           document.querySelector("#doc-name").textContent === n &&
@@ -102,7 +107,7 @@ const errors = [],
     await open(input);
     await open(saved);
     const text = await page.evaluate(async () => {
-      const p = await window.__S.pdf.getPage(1);
+      const p = await (await import("./app.mjs")).S.pdf.getPage(1);
       return (await p.getTextContent()).items.map((x) => x.str).join(" ");
     });
     assert(

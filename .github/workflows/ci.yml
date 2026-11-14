@@ -48,3 +48,26 @@ jobs:
       - run: node scripts/acceptance.mjs native
         env:
           FOLIO_TEST_SHARD: ${{ matrix.shard }}/3
+
+  modern:
+    name: Windows modern workspace regressions
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: ./.github/actions/setup-workbench
+        with:
+          ai: 'false'
+          conversion: 'false'
+          models: 'false'
+          creative: 'false'
+          fixtures: 'false'
+      - run: native/runtime/python.exe tests/workflow-250-fixture.py
+      - run: native/runtime/python.exe tests/page-organization.py
+      - run: native/runtime/python.exe tests/creative-native.py
+      - run: node tests/ribbon-280.cjs
+      - run: node tests/tabs-280.cjs
+      - run: node tests/modern-280.cjs
+      - run: node tests/organizer-features.cjs

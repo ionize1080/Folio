@@ -36,6 +36,16 @@ SUITES = {
     'live': ['document-live-report.json', 'conversion-live-report.json', 'context-live-report.json', 'graphics-220-live.json', 'ai-workflows-210.json', 'live-202.json'],
 }
 
+
+# Keep historic release manifests intact while binding the 2.8 package checks to
+# their own ZIP hashes and report names.
+SUITES['modern280'] = ['ribbon-280.json', 'tabs-280.json', 'modern-280.json', 'organizer-features.json']
+SUITES['build280'] = list(SUITES['build270'])
+for shard in range(1, 5):
+    SUITES['packaged280' + str(shard)] = [
+        f'packaged-{shard}-280.json', *SUITES['packaged' + str(shard)][1:]
+    ] + {1: [], 2: ['modern-280.json', 'organizer-features.json'], 3: ['ribbon-280.json'], 4: ['tabs-280.json']}[shard]
+
 def valid(name, value):
     if name == 'web-pdf-report.json':
         return isinstance(value, list) and {'reader', 'original'} <= {r.get('mode') for r in value} and all(r.get('bytes', 0) > 0 for r in value)

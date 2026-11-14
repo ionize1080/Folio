@@ -57,8 +57,8 @@ export function readSettings(defaults, text) {
           ranges[key][1],
           Math.max(ranges[key][0], Math.round(v)),
         );
-    } else if (key === "customAccent" && /^#[0-9a-f]{6}$/i.test(v)) {
-      out[key] = v;
+    } else if (["customAccent", "targetMarkerColor", "selectionColor"].includes(key)) {
+      if (typeof v === "string" && /^#[0-9a-f]{6}$/i.test(v)) out[key] = v;
     } else if (typeof defaults[key] === "boolean") {
       if (typeof v === "boolean") out[key] = v;
     } else if (

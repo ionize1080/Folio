@@ -2,7 +2,12 @@ import { boundedCanvasScale } from "./canvas-budget.mjs";
 import { pdfLoadingOptions } from './pdf-loading.mjs';
 import { constrainedDelta, nudgeDelta } from "./object-movement.mjs";
 import { editWarnings } from "./edit-warnings.mjs";
-import { FastFonts, fastLayout, canFast } from "./fast-layout.mjs";
+import {
+  FastFonts,
+  fastLayout,
+  canFast,
+  decodeBase64,
+} from "./fast-layout.mjs";
 import { nativeRequest, releaseSource } from "./native-source.mjs";
 import {createPageInspectionCache} from './page-inspection-cache.mjs';
 import { fontLabel } from "./font-label.mjs";
@@ -497,7 +502,12 @@ export function installFlowUI(ctx) {
       });
       status("已恢复自动结构；退出本段后重新选择");
     });
+    // renderFast() writes styles between several scale() reads; each read
+    // would force a synchronous layout. The layer size cannot change inside
+    // one renderFast() call, so it pins the value for its duration.
+    let pinnedScale = null;
     function scale() {
+      if (pinnedScale != null) return pinnedScale;
       return (
         layer.getBoundingClientRect().width /
           (turn(surface.rotation(page)) % 180 ? h : w) || 1
@@ -945,7 +955,7 @@ export function installFlowUI(ctx) {
       }
       model.growth ||= "fixed";
       delete model.typingStyle;
-      initial = JSON.stringify({ ...model, fastLayout: undefined });
+      setInitial();
       history = [];
       future = [];
       preview = null;
@@ -1084,7 +1094,7 @@ export function installFlowUI(ctx) {
         if (stale()) return;
         const nextBackground = await surface.pdfjs.getDocument({
           ...pdfLoadingOptions,
-          data: Uint8Array.from(atob(r.pdf), (c) => c.charCodeAt(0)),
+          data: decodeBase64(r.pdf),
         }).promise;
         if (stale()) {
           await nextBackground.destroy();
@@ -1158,10 +1168,53 @@ export function installFlowUI(ctx) {
         collisionMarks.append(box);
       }
     }
+    // originalLayout (per-glyph source geometry, ~99% of a long paragraph's
+    // model) is replaced or deleted but never mutated in place, so undo
+    // snapshots and the dirty baseline share it by reference instead of
+    // deep-cloning/serialising it on every keystroke.
+    function snapshotModel(m) {
+      const { fastLayout: _f, originalLayout, ...rest } = m,
+        copy = clone(rest);
+      if (originalLayout !== undefined) copy.originalLayout = originalLayout;
+      return copy;
+    }
+    const lightJSON = (m) =>
+      JSON.stringify({ ...m, fastLayout: undefined, originalLayout: undefined });
+    let dirtyBase = null;
+    function setInitial() {
+      initial = JSON.stringify({ ...model, fastLayout: undefined });
+      dirtyBase = {
+        source: initial,
+        light: lightJSON(model),
+        original: model.originalLayout,
+      };
+    }
+    // Same result as JSON.stringify({...model, fastLayout: undefined}) !==
+    // initial, without serialising originalLayout on every keystroke.
+    function draftDirty() {
+      if (!model || initial == null) return true;
+      if (dirtyBase?.source !== initial) {
+        const parsed = JSON.parse(initial);
+        dirtyBase = {
+          source: initial,
+          light: lightJSON(parsed),
+          original: parsed.originalLayout,
+        };
+      }
+      if (lightJSON(model) !== dirtyBase.light) return true;
+      if (model.originalLayout === dirtyBase.original) return false;
+      if (
+        JSON.stringify(model.originalLayout) !==
+        JSON.stringify(dirtyBase.original)
+      )
+        return true;
+      dirtyBase.original = model.originalLayout;
+      return false;
+    }
     function remember() {
       if (!model) return;
       history.push({
-        model: clone({ ...model, fastLayout: undefined }),
+        model: snapshotModel(model),
         start: input.selectionStart,
         end: input.selectionEnd,
       });
@@ -1175,8 +1228,7 @@ export function installFlowUI(ctx) {
       clearTimeout(timer);
       clearTimeout(preciseTimer);
       bar.querySelector("#pe-refine").disabled = true;
-      S.flowDraftDirty =
-        JSON.stringify({ ...model, fastLayout: undefined }) !== initial;
+      S.flowDraftDirty = draftDirty();
       window.desktop?.setDirty?.(S.dirty || S.flowDraftDirty);
       ctx.scheduleRecovery?.();
       precise = null;
@@ -1221,6 +1273,8 @@ export function installFlowUI(ctx) {
     }
     function renderFast() {
       if (!model || composing || closed) return;
+      pinnedScale = null;
+      pinnedScale = scale();
       try {
         const t = performance.now(),
           res = fastLayout(model, fastFonts.measure);
@@ -1256,6 +1310,8 @@ export function installFlowUI(ctx) {
       } catch (e) {
         validRevision = -1;
         status(e.message, true);
+      } finally {
+        pinnedScale = null;
       }
     }
     function fastConflicts(res) {
@@ -1312,8 +1368,7 @@ export function installFlowUI(ctx) {
       }
       const rev = revision,
         active = id,
-        m = clone(model);
-      delete m.fastLayout;
+        m = snapshotModel(model);
       m.layoutMode = "reflow";
       preciseRunning = true;
       const button = bar.querySelector("#pe-refine");
@@ -1585,8 +1640,7 @@ export function installFlowUI(ctx) {
               candidateButtons();
             }
             positionFrame();
-            if (!S.flowDraftDirty)
-              initial = JSON.stringify({ ...model, fastLayout: undefined });
+            if (!S.flowDraftDirty) setInitial();
           }
           preview = res;
           sizeInk(res);
@@ -1813,7 +1867,17 @@ export function installFlowUI(ctx) {
       composition.style.left = c.x * z + "px";
       composition.style.top = c.y * z + "px";
       composition.style.fontSize = model.size * z + "px";
-      if (!caret.hidden && document.activeElement === input) {
+      if (!caret.hidden && document.activeElement === input) revealCaret();
+    }
+    // Keep the caret in view. Measured in the next animation frame, so the
+    // style writes of a keystroke cost one layout instead of a forced one.
+    let revealFrame = 0;
+    function revealCaret() {
+      if (revealFrame) return;
+      revealFrame = requestAnimationFrame(() => {
+        revealFrame = 0;
+        if (closed || !model || caret.hidden || document.activeElement !== input)
+          return;
         const v = surface.host.getBoundingClientRect(),
           r = caret.getBoundingClientRect();
         const dx =
@@ -1830,7 +1894,34 @@ export function installFlowUI(ctx) {
               : 0;
         if (dx || dy)
           surface.host.scrollBy({ left: dx, top: dy, behavior: "instant" });
+      });
+    }
+    // Splice soft breaks and style runs for the textarea's new value; shared by
+    // input and compositionend.
+    function applyTextChange() {
+      const old = model.text;
+      model.softBreaks = editSoftBreaks(model.softBreaks, old, input.value);
+      model.runs = editStyles(model.runs || [], old, input.value, model);
+      if (model.typingStyle) {
+        let a = 0,
+          b = 0;
+        while (
+          a < old.length &&
+          a < input.value.length &&
+          old[a] === input.value[a]
+        )
+          a++;
+        while (
+          b < old.length - a &&
+          b < input.value.length - a &&
+          old.at(-1 - b) === input.value.at(-1 - b)
+        )
+          b++;
+        const draft = { ...model, text: input.value };
+        rangeStyle(draft, a, input.value.length - b, model.typingStyle);
+        model.runs = draft.runs;
       }
+      model.text = input.value;
     }
     listen(input, "beforeinput", (e) => {
       if (!composing && !e.isComposing) {
@@ -1849,33 +1940,12 @@ export function installFlowUI(ctx) {
       }
       if (!pendingHistory && !composing) remember();
       pendingHistory = false;
-      const old = model.text;
-      model.softBreaks = editSoftBreaks(model.softBreaks, old, input.value);
-      model.runs = editStyles(model.runs || [], old, input.value, model);
-      if (model.typingStyle) {
-        let a = 0,
-          b = 0;
-        while (
-          a < old.length &&
-          a < input.value.length &&
-          old[a] === input.value[a]
-        )
-          a++;
-        while (
-          b < old.length - a &&
-          b < input.value.length - a &&
-          old.at(-1 - b) === input.value.at(-1 - b)
-        )
-          b++;
-        const draft = { ...model, text: input.value };
-        rangeStyle(draft, a, input.value.length - b, model.typingStyle);
-        model.runs = draft.runs;
+      applyTextChange();
+      if (!composing) queue(); // queue() refreshes the dirty flag
+      else {
+        S.flowDraftDirty = draftDirty();
+        window.desktop?.setDirty?.(S.dirty || S.flowDraftDirty);
       }
-      model.text = input.value;
-      S.flowDraftDirty =
-        JSON.stringify({ ...model, fastLayout: undefined }) !== initial;
-      window.desktop?.setDirty?.(S.dirty || S.flowDraftDirty);
-      if (!composing) queue();
     });
     listen(input, "select", selection);
     listen(input, "keyup", selection);
@@ -1893,32 +1963,7 @@ export function installFlowUI(ctx) {
       composing = false;
       composition.hidden = true;
       composition.textContent = "";
-      const old = model.text;
-      model.softBreaks = editSoftBreaks(model.softBreaks, old, input.value);
-      model.runs = editStyles(model.runs || [], old, input.value, model);
-      if (model.typingStyle) {
-        let a = 0,
-          b = 0;
-        while (
-          a < old.length &&
-          a < input.value.length &&
-          old[a] === input.value[a]
-        )
-          a++;
-        while (
-          b < old.length - a &&
-          b < input.value.length - a &&
-          old.at(-1 - b) === input.value.at(-1 - b)
-        )
-          b++;
-        const draft = { ...model, text: input.value };
-        rangeStyle(draft, a, input.value.length - b, model.typingStyle);
-        model.runs = draft.runs;
-      }
-      model.text = input.value;
-      S.flowDraftDirty =
-        JSON.stringify({ ...model, fastLayout: undefined }) !== initial;
-      window.desktop?.setDirty?.(S.dirty || S.flowDraftDirty);
+      applyTextChange();
       queue();
     });
     function restoreDraftHistory(redo) {
@@ -1927,7 +1972,7 @@ export function installFlowUI(ctx) {
         entry = from.pop();
       if (!entry) return;
       to.push({
-        model: clone({ ...model, fastLayout: undefined }),
+        model: snapshotModel(model),
         start: input.selectionStart,
         end: input.selectionEnd,
       });
@@ -2765,9 +2810,7 @@ export function installFlowUI(ctx) {
                     const family = "FolioPreview_" + key;
                     const face = new FontFace(
                       family,
-                      Uint8Array.from(atob(data.base64), (c) =>
-                        c.charCodeAt(0),
-                      ),
+                      decodeBase64(data.base64),
                     );
                     await face.load();
                     document.fonts.add(face);
@@ -3137,7 +3180,7 @@ export function installFlowUI(ctx) {
           ? {
               page,
               id,
-              model: clone({ ...model, fastLayout: undefined }),
+              model: snapshotModel(model),
               initial,
               start: input.selectionStart,
               end: input.selectionEnd,

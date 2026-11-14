@@ -27,14 +27,14 @@ class SourceStore {
     if (this.entries.size + this.registering >= 16)
       throw Error("打开的原文过多，请关闭文档后重试");
     const generation = this.generation;
-    let finish, file;
+    let finish, file, handle;
     const pending = new Promise((resolve) => (finish = resolve));
     this.pendingRegistrations.add(pending);
     this.registering++;
     try {
       const data = Buffer.from(bytes),
-        hash = crypto.createHash("sha256").update(data).digest("hex"),
-        handle = crypto.randomUUID();
+        hash = crypto.createHash("sha256").update(data).digest("hex");
+      handle = crypto.randomUUID();
       if (!this.rootPromise)
         this.rootPromise = makeTemp("folio-source-").then(
           (p) => (this.root = p),
@@ -56,6 +56,12 @@ class SourceStore {
       await storageBudget.add(file,{pinned:true});
       return { handle, sha256: hash, size: data.length };
     } catch (error) {
+      // storageBudget.add can fail after the entry was published; do not leave
+      // a handle (counted against the 16-source limit) pointing at a deleted file.
+      if (handle && this.entries.get(handle)?.file === file) {
+        this.entries.delete(handle);
+        storageBudget.forget(file);
+      }
       if (file) await fs.rm(file, { force: true }).catch(() => {});
       throw error;
     } finally {
@@ -89,7 +95,10 @@ class SourceStore {
     if (e?.released && !e.leases) {
       this.entries.delete(handle);
       storageBudget.forget(e.file);
-      await fs.rm(e.file, { force: true }).catch(() => {});
+      // Workers killed on release may still hold the file for a moment (Windows).
+      await fs
+        .rm(e.file, { force: true, maxRetries: 5, retryDelay: 100 })
+        .catch((error) => console.warn("Source cleanup failed:", e.file, error.code || error.message));
     }
   }
   async clear() {

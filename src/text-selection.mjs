@@ -3,19 +3,26 @@
 // transformed PDF spans otherwise produces dark stripes and left-margin bars.
 export function installTextSelection(surface){
   const host=surface.host;let anchor=null,dragging=false,frame=0,lastEvent;
-  const spans=()=>[...host.querySelectorAll('.pdf-page:not(.page-fallback) .textLayer span')].filter(el=>el.firstChild?.nodeType===3&&el.textContent.trim());
+  const spans=(root=host)=>[...root.querySelectorAll(root===host?'.pdf-page:not(.page-fallback) .textLayer span':'.textLayer span')].filter(el=>el.firstChild?.nodeType===3&&el.textContent.trim());
+  const segmenter=typeof Intl.Segmenter==='function'?new Intl.Segmenter(undefined,{granularity:'grapheme'}):null;
+  const overlays=new Set();
+  // Only the page under the pointer can hold the nearest glyph; measuring every span on
+  // every rendered page made dragging cost grow with the number of visible pages.
+  const pageAt=(x,y)=>{const el=document.elementFromPoint(x,y)?.closest('.pdf-page:not(.page-fallback)');return el&&host.contains(el)?el:host;};
   const distance=(r,x,y)=>Math.max(r.left-x,0,x-r.right)**2+Math.max(r.top-y,0,y-r.bottom)**2;
   function caret(x,y,strict=false){
     let best=null,cost=Infinity;
-    for(const el of spans()){const r=el.getBoundingClientRect(),d=distance(r,x,y);if(d<cost){best=el;cost=d;}}
+    for(const el of spans(pageAt(x,y))){const r=el.getBoundingClientRect(),d=distance(r,x,y);if(d<cost){best=el;cost=d;}}
     if(!best||strict&&cost>144)return null;
     const node=best.firstChild,text=node.data,range=document.createRange();let answer=null,score=Infinity;
-    const pieces=typeof Intl.Segmenter==='function'?[...new Intl.Segmenter(undefined,{granularity:'grapheme'}).segment(text)].map(s=>[s.index,s.index+s.segment.length]):Array.from(text).reduce((a,c)=>{const start=a.at(-1)?.[1]||0;a.push([start,start+c.length]);return a;},[]);
+    const pieces=segmenter?[...segmenter.segment(text)].map(s=>[s.index,s.index+s.segment.length]):Array.from(text).reduce((a,c)=>{const start=a.at(-1)?.[1]||0;a.push([start,start+c.length]);return a;},[]);
     for(const [start,end] of pieces){range.setStart(node,start);range.setEnd(node,end);const r=range.getBoundingClientRect();if(!r.width&&!r.height)continue;const d=distance(r,x,y);if(d<score){const rtl=getComputedStyle(best).direction==='rtl',after=(x>(r.left+r.right)/2)!==rtl;answer={node,offset:after?end:start};score=d;}}
     return answer;
   }
-  function paint(){frame=0;const sel=getSelection();for(const old of host.querySelectorAll('.text-selection-overlay'))old.remove();
-    if(!sel?.rangeCount||sel.isCollapsed)return;const selected=sel.getRangeAt(0),paths=new Map();
+  function paint(){frame=0;const sel=getSelection(),empty=!sel?.rangeCount||sel.isCollapsed;
+    if(empty&&!overlays.size)return;
+    for(const old of overlays)old.remove();overlays.clear();
+    if(empty)return;const selected=sel.getRangeAt(0),paths=new Map();
     for(const el of spans()){
       const node=el.firstChild;if(!selected.intersectsNode(node))continue;
       let start=selected.startContainer===node?selected.startOffset:0,end=selected.endContainer===node?selected.endOffset:node.length;
@@ -30,7 +37,7 @@ export function installTextSelection(surface){
         if(w>0&&h>0)path+=`M${x},${y}h${w}v${h}h${-w}Z`;
       }paths.set(shell,path);
     }
-    for(const [shell,d] of paths){const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.classList.add('text-selection-overlay');svg.setAttribute('aria-hidden','true');const p=document.createElementNS(svg.namespaceURI,'path');p.setAttribute('d',d);svg.append(p);shell.append(svg);}
+    for(const [shell,d] of paths){const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.classList.add('text-selection-overlay');svg.setAttribute('aria-hidden','true');const p=document.createElementNS(svg.namespaceURI,'path');p.setAttribute('d',d);svg.append(p);shell.append(svg);overlays.add(svg);}
   }
   const schedule=()=>{if(!frame)frame=requestAnimationFrame(paint);};
   document.addEventListener('selectionchange',schedule);host.addEventListener('scroll',schedule,{passive:true});

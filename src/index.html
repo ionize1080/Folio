@@ -7,7 +7,7 @@
       http-equiv="Content-Security-Policy"
       content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' blob: data:; connect-src 'self' blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'none'"
     />
-    <title>Folio PDF Studio 2.7.0</title>
+    <title>Folio PDF Studio 2.8.0</title>
     <link rel="stylesheet" href="style.css" />
     <link rel="stylesheet" href="vendor/pdf_viewer.css" />
     <link rel="stylesheet" href="chrome.css" />
@@ -15,13 +15,17 @@
     <link rel="stylesheet" href="document-tools.css" />
     <link rel="stylesheet" href="ribbon.css" />
     <link rel="stylesheet" href="refinements.css" />
+    <link rel="stylesheet" href="modern.css" />
+    <link rel="stylesheet" href="ocr.css" />
+    <link rel="stylesheet" href="bookmarks.css" />
+    <link rel="stylesheet" href="organizer.css" />
   </head>
   <body>
     <header class="appbar">
       <div class="brand">
         <img class="logo" src="brand.svg" alt="Folio">
         <div>Folio <b>PDF Studio</b></div>
-        <span class="version">2.7.0</span>
+        <span class="version">2.8.0</span>
       </div>
       <div class="doc-tab">
         <i data-icon="file"></i><span id="doc-name">未打开文档</span
@@ -421,7 +425,7 @@
             坐标使用 PDF 原生单位 pt，原点通常在左下角。留空表示
             null，继承阅读器当前值。
           </p>
-          <label>物理页码<input id="prop-page" type="number" min="1" /></label
+          <div id="target-thumb-host"></div><label>物理页码<input id="prop-page" type="number" min="1" /></label
           ><label
             >视图模式<select id="prop-mode">
               <option value="preserve">保留原始目标 / 动作</option>
@@ -466,8 +470,9 @@
     </footer>
     <dialog aria-labelledby="modal-title" id="modal">
       <div class="modal-header">
+        <span class="modal-glyph" id="modal-glyph" aria-hidden="true" hidden></span>
         <div>
-          <span class="eyebrow" id="modal-kicker">FOLIO 2.7.0</span>
+          <span class="eyebrow" id="modal-kicker"></span>
           <h2 id="modal-title"></h2>
         </div>
         <button id="modal-close" aria-label="关闭">×</button>

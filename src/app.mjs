@@ -1,5 +1,8 @@
 import {annotationPalette} from "./annotation-style.mjs";
 import {applyAppearance, paletteControls, palettes} from "./appearance.mjs";
+import {installColorPicker} from "./color-picker.mjs";
+import {enhanceChoices} from "./choice-chips.mjs";
+import {installTargetThumb} from "./target-thumb.mjs";
 import { pdfLoadingOptions } from './pdf-loading.mjs';
 import { bookmarkHTML } from "./bookmark-html.mjs";
 import { buildExportSnapshot } from "./export-snapshot.mjs";
@@ -98,7 +101,7 @@ const settings = readSettings(
     cover: true,
     shortcuts: {},
     theme: "system",
-    palette:"cobalt", customAccent:"#165DDB",
+    palette:"cobalt", customAccent:"#165DDB", selectionColor:"#5370f5", targetThumb:true, showTargetMarker:true, targetMarkerColor:"#db8c36",
     sidebar: 250,
     row: 34,
     quality: 2,
@@ -108,6 +111,7 @@ const settings = readSettings(
   localStorage.getItem("folio-settings"),
 );
 installLocalization();
+installColorPicker();
 const documentSession = new DocumentSession();
 const S = {
   sessionId: documentSession.id,
@@ -341,6 +345,7 @@ function fitPanels() {
 window.addEventListener("resize", fitPanels);
 function applySettings(redraw = true) {
   applyAppearance(settings);
+  document.documentElement.style.setProperty("--text-selection", settings.selectionColor);
   document.documentElement.style.setProperty(
     "--sidebar",
     settings.sidebar + "px",
@@ -366,10 +371,29 @@ window.addEventListener("storage", e => {
   if (e.key !== "folio-settings") return;
   Object.assign(settings, readSettings(settings,e.newValue));
   applyAppearance(settings);
+  document.documentElement.style.setProperty("--text-selection", settings.selectionColor);
 });
+// Per-dialog chrome: glyph chip, context kicker, and a width class so short forms don't sprawl.
+const MODAL_META = [
+  ["多级规则", "rules", "书签 · 自动生成", "wide"], ["智能目录识别", "contents", "书签 · 目录识别", "wide"],
+  ["书签统计与质量", "shield", "书签 · 质量检查", "form-lg"], ["按标题校准", "target", "书签 · 目标校准", "form-lg"],
+  ["调整书签跳转留白", "spacing", "书签 · 跳转留白", "form"], ["批量规则", "sliders", "书签 · 批量规则", "wide"],
+  ["每 N 页生成", "bookmark-plus", "书签 · 按页生成", "form"], ["导入 / 导出", "exchange", "书签 · 交换", "form"],
+  ["偏好设置", "settings", "偏好", "form-lg"], ["查找重复", "dedupe", "书签 · 去重", "form-lg"],
+  ["更改书签缩放", "zoom", "书签 · 缩放", "form"], ["切换标题大小写", "case", "书签 · 标题", "form"],
+  ["离线 OCR", "scan", "文字识别", "auto"],
+];
+function applyModalChrome(title) {
+  const m = MODAL_META.find(([k]) => title.includes(k)), box = $("#modal");
+  if (m) box.dataset.size = m[3]; else delete box.dataset.size;
+  $("#modal-kicker").textContent = m ? m[2] : "";
+  $("#modal-glyph").innerHTML = m ? icon(m[1]) : "";
+  $("#modal-glyph").hidden = !m;
+}
 function modal(title, body, buttons = []) {
   closeModal();
   $("#modal-title").textContent = title;
+  applyModalChrome(title);
   $("#modal-body").innerHTML =
     `<div id="modal-error" class="callout error" role="alert" hidden></div>` +
     DOMPurify.sanitize(body, {
@@ -395,7 +419,9 @@ function modal(title, body, buttons = []) {
     $("#modal-footer").append(el);
   }
   icons($("#modal"));
+  enhanceChoices($("#modal-body"));
   $("#modal").showModal();
+  window.desktop?.tabMeta?.({attention:true}).catch(() => {});
 }
 function closeModal() {
   modalCleanup?.();
@@ -961,6 +987,9 @@ function rebuild() {
   S.index = new Map(S.nodes.map((n) => [n.id, n]));
   S.depth = depths(S.nodes);
   S.children = childrenMap(S.nodes);
+  // Position among siblings, used by every rendered row (indexOf was O(siblings) per row).
+  S.position = new Map();
+  for (const list of S.children.values()) list.forEach((n, i) => S.position.set(n.id, i));
   S.selected = new Set([...S.selected].filter((id) => S.index.has(id)));
   const visible = [],
     hidden = new Set(),
@@ -1009,7 +1038,8 @@ function rebuild() {
       `${S.info.pageCount} 页 · ${S.nodes.length.toLocaleString()} 个书签`,
     );
 }
-let treeFrame = 0;
+let treeFrame = 0,
+  rowCache = new Map();
 function rowHeight() {
   return settings.wrap ? Math.max(58, settings.row) : settings.row;
 }
@@ -1021,39 +1051,57 @@ function renderTree() {
       S.visible.length,
       start + Math.ceil(tree.clientHeight / rowHeight()) + 12,
     );
-  const fragment = document.createDocumentFragment();
+  const rows = $("#tree-rows");
+  let cursor = rows.firstElementChild;
+  const nextCache = new Map(),
+    height = rowHeight(),
+    matching = filterReady() ? filterCache.matchSet : null;
   for (let i = start; i < end; i++) {
     const n = S.visible[i],
       d = S.depth.get(n.id) || 0,
+      siblings = S.children.get(n.parent) || [],
+      kids = S.children.has(n.id),
+      selected = S.selected.has(n.id),
+      // Everything the row paints; unchanged rows keep their DOM while scrolling.
+      position = S.position?.get(n.id) ?? siblings.indexOf(n),
+      sig = [n.title, n.color, n.bold, n.italic, n.target.page, d, position, siblings.length, kids, kids && S.collapsed.has(n.id), selected, !!matching?.has(n.id), height].join("");
+    let cached = rowCache.get(n.id), row;
+    if (cached && cached.sig === sig) {
+      row = cached.row;
+      row.classList.remove("keyboard-current", "drop-before", "drop-after", "drop-inside");
+    } else {
       row = document.createElement("div");
-    row.className =
-      "tree-row" +
-      (S.selected.has(n.id) ? " selected" : "") +
-      (filterReady() && filterCache.matchSet.has(n.id) ? " filter-match" : "");
-    row.dataset.id = n.id;
-    row.style.top = i * rowHeight() + "px";
-    row.style.height = rowHeight() + "px";
-    row.style.paddingLeft = Math.min(d, 24) * 16 + 4 + "px";
-    row.draggable = true;
-    row.role = "treeitem";
-    row.id = "tree-node-" + n.id;
-    const siblings = S.children.get(n.parent) || [];
-    row.setAttribute("aria-posinset", siblings.indexOf(n) + 1);
-    row.setAttribute("aria-setsize", siblings.length);
-    row.setAttribute("aria-level", d + 1);
-    row.setAttribute("aria-selected", S.selected.has(n.id));
-    if (S.children.has(n.id))
-      row.setAttribute("aria-expanded", !S.collapsed.has(n.id));
-    row.title = n.title;
-    row.innerHTML = `<button class="toggle" tabindex="-1">${S.children.has(n.id) ? icon(S.collapsed.has(n.id) ? "disclose" : "chevron") : ""}</button><span class="bm">${icon("bookmark")}</span><span class="title"></span><span class="page">${n.target.page || "↗"}</span>`;
-    const title = row.querySelector(".title");
-    title.textContent = n.title;
-    title.style.color = n.color;
-    title.style.fontWeight = n.bold ? "700" : "400";
-    title.style.fontStyle = n.italic ? "italic" : "normal";
-    fragment.append(row);
+      row.className = "tree-row" + (selected ? " selected" : "") + (matching?.has(n.id) ? " filter-match" : "");
+      row.dataset.id = n.id;
+      row.style.height = height + "px";
+      row.style.paddingLeft = Math.min(d, 24) * 16 + 4 + "px";
+      row.style.setProperty("--d", Math.min(d, 24));
+      row.draggable = true;
+      row.role = "treeitem";
+      row.id = "tree-node-" + n.id;
+      row.setAttribute("aria-posinset", position + 1);
+      row.setAttribute("aria-setsize", siblings.length);
+      row.setAttribute("aria-level", d + 1);
+      row.setAttribute("aria-selected", selected);
+      if (kids) row.setAttribute("aria-expanded", !S.collapsed.has(n.id));
+      row.title = n.title;
+      row.innerHTML = `<button class="toggle" tabindex="-1">${kids ? icon(S.collapsed.has(n.id) ? "disclose" : "chevron") : ""}</button><span class="bm">${icon("bookmark")}</span><span class="title"></span><span class="page">${n.target.page || "↗"}</span>`;
+      const title = row.querySelector(".title");
+      title.textContent = n.title;
+      title.style.color = n.color;
+      title.style.fontWeight = n.bold ? "700" : "400";
+      title.style.fontStyle = n.italic ? "italic" : "normal";
+    }
+    const top = i * height + "px";
+    if (row.style.top !== top) row.style.top = top;
+    nextCache.set(n.id, { sig, row });
+    if (row === cursor) cursor = cursor.nextElementSibling;
+    else if (row.isConnected && rows.moveBefore) rows.moveBefore(row, cursor);
+    else rows.insertBefore(row, cursor);
   }
-  $("#tree-rows").replaceChildren(fragment);
+  for (const row of [...rows.children])
+    if (nextCache.get(row.dataset.id)?.row !== row) row.remove();
+  rowCache = nextCache;
   const active = document.getElementById(
     "tree-node-" + (S.activeId || S.selected.values().next().value),
   );
@@ -1103,6 +1151,21 @@ function coordinates(mode, args = []) {
   $("#coord-fields").innerHTML =
     `<div class="coord-grid">${(coordNames[mode] || []).map((s, i) => `<label>${s}<input class="coord" type="number" step="any" placeholder="null" value="${args[i] === null || args[i] === undefined ? "" : Number(args[i].toFixed(5))}"></label>`).join("")}</div>`;
 }
+const targetThumb = installTargetThumb({
+  S,
+  host: $("#target-thumb-host"),
+  read() {
+    const n = selectedNode(), preserved = $("#prop-mode").value === "preserve";
+    return {
+      page: preserved ? n?.target.page : Number($("#prop-page").value),
+      mode: preserved ? n?.target.mode : $("#prop-mode").value,
+      args: preserved ? n?.target.args || [] : $$(".coord").map((e) => (e.value === "" ? null : Number(e.value))),
+    };
+  },
+});
+$("#prop-page").addEventListener("input", () => targetThumb.refresh());
+$("#coord-fields").addEventListener("input", () => targetThumb.refresh());
+$("#prop-mode").addEventListener("change", () => targetThumb.refresh());
 let styleDirty = new Set();
 for (const key of ["bold", "italic", "color"])
   $("#prop-" + key).addEventListener("input", () => styleDirty.add(key));
@@ -1111,7 +1174,7 @@ function fillProperties() {
   const n = selectedNode();
   $("#properties").hidden = !n;
   $("#inspector-empty").hidden = !!n;
-  if (!n) return;
+  if (!n) { targetThumb.show(false); return; }
   $("#prop-title").value = n.title;
   $("#prop-bold").checked = n.bold;
   $("#prop-italic").checked = n.italic;
@@ -1152,6 +1215,8 @@ function fillProperties() {
   coordinates($("#prop-mode").value, n.target.args);
   $("#prop-page").disabled = multi || n.target.kind === "preserve";
   $$(".coord").forEach((el) => (el.disabled = multi));
+  targetThumb.show(!multi && !!S.pdf && settings.targetThumb !== false);
+  if (!multi) targetThumb.refresh(true);
 }
 function applyProperty(event) {
   event?.preventDefault();
@@ -1932,7 +1997,7 @@ function saveProject(){
 function exchangeDialog() {
   modal(
     "导入 / 导出与工作工程",
-    `<p>JSON 包含层级、颜色、字形和跳转参数。TXT 适合在 Excel 或文本编辑器中整理。</p><div class="callout">跨文件导入时，原始动作字典不会复制。可解析的本地目标会转为显式目标；不可解析的动作会提示并定位第 1 页。PDF-XChange 专用书签交换格式暂未实现。</div><div class="menu-grid"><button id="export-json">导出 Folio JSON</button><button id="export-txt">导出目录 TXT</button><button id="export-html">导出书签 HTML</button><button id="import-json">导入 Folio JSON</button><button id="import-txt">导入目录 TXT</button><button id="export-project">保存工作工程 .folio</button></div><p class="hint">工作工程包含原 PDF、已应用修改、OCR 校对与流式段落结构，可通过“打开”继续编辑。PDF 用于交付，工程用于续编；工程保留原始内容与修改记录。</p>`,
+    `<p>JSON 包含层级、颜色、字形和跳转参数。TXT 适合在 Excel 或文本编辑器中整理。</p><div class="callout">跨文件导入时，原始动作字典不会复制。可解析的本地目标会转为显式目标；不可解析的动作会提示并定位第 1 页。PDF-XChange 专用书签交换格式暂未实现。</div><div class="xchg-section"><h4>导出</h4><div class="xchg-grid"><button id="export-json" class="xchg-card"><i data-icon="export"></i><span><b>导出 Folio JSON</b><small>完整保留层级、样式与跳转参数</small></span></button><button id="export-txt" class="xchg-card"><i data-icon="contents"></i><span><b>导出目录 TXT</b><small>纯文本目录，可在 Excel 中整理</small></span></button><button id="export-html" class="xchg-card"><i data-icon="globe"></i><span><b>导出书签 HTML</b><small>可在浏览器中查看的书签页</small></span></button></div></div><div class="xchg-section"><h4>导入</h4><div class="xchg-grid"><button id="import-json" class="xchg-card"><i data-icon="launch"></i><span><b>导入 Folio JSON</b><small>恢复完整的书签结构</small></span></button><button id="import-txt" class="xchg-card"><i data-icon="file"></i><span><b>导入目录 TXT</b><small>从目录文本创建书签</small></span></button></div></div><div class="xchg-section"><h4>工作工程</h4><div class="xchg-grid xchg-wide"><button id="export-project" class="xchg-card"><i data-icon="layers"></i><span><b>保存工作工程 .folio</b><small>含原 PDF、已应用修改与 OCR 校对，可继续编辑</small></span></button></div></div><p class="hint">工作工程包含原 PDF、已应用修改、OCR 校对与流式段落结构，可通过“打开”继续编辑。PDF 用于交付，工程用于续编；工程保留原始内容与修改记录。</p>`,
     [{ text: "完成", run: closeModal }],
   );
   $("#export-project").onclick = saveProject;
@@ -2418,7 +2483,7 @@ async function settingsDialog() {
   const network = (await window.desktop?.updateInfo?.())?.settings;
   modal(
     "偏好设置",
-    `<div class="preferences-language"><span>界面语言</span>${languagePicker("settings-language")}<small>立即生效，并记住选择。不会改变文档文字或 OCR 语言。</small></div>${paletteControls()}<div class="form-grid"><label>默认留白单位<select id="set-whitespace-unit"><option value="mm">毫米 mm</option><option value="pt">点 pt</option></select></label><label>外观主题<select id="set-theme"><option value="system">跟随系统</option><option value="light">浅色</option><option value="dark">深色</option></select></label><label>滚轮滚动量<select id="set-wheel-preset"><option value="1">精细 · 1 行</option><option value="3">标准 · 3 行（推荐）</option><option value="6">快速 · 6 行</option><option value="custom">自定义</option></select></label><label>每次滚动行数<input id="set-wheel-lines" type="number" min="1" max="30" value="${settings.wheelLines||3}"></label><label>书签侧栏宽度（px）<input id="set-sidebar" type="number" min="220" max="520" value="${settings.sidebar}"></label><label>书签行高<select id="set-row"><option value="28">紧凑 · 28 px</option><option value="34">标准 · 34 px</option><option value="40">宽松 · 40 px</option></select></label><label>渲染像素倍率上限<select id="set-quality"><option value="1">1× · 节省内存</option><option value="2">2× · 推荐</option><option value="3">3× · 高清</option></select></label><label>磁盘缓存上限（MB，默认2048）<input id="set-disk-budget" type="number" min="64" max="262144" value="${diskBudget?.limitMB||2048}"></label><label>撤销步数上限<input id="set-undo" type="number" min="5" max="100" value="${settings.undo}"></label></div>${ai ? `<fieldset class="preferences-ai"><legend>AI 文档辅助</legend><p class="hint">API、服务商和模型在 Chatbox 原生设置中配置；以下选项管理 Folio 文档操作。</p><div class="form-grid"><label>操作审批<select id="set-ai-approval"><option value="manual">手动审批</option><option value="auto">自动审批</option></select></label><label>Chatbox 显示方式<select id="set-ai-display"><option value="sidebar">侧栏</option><option value="window">独立窗口</option></select></label><label>OCR 低置信度复核阈值（%）<input id="set-ai-threshold" type="number" min="0" max="100" step="1" value="${ai.threshold}"></label></div><p class="hint">优先本地 Paddle；低于阈值的结果可按需交给所选模型复核。默认 95%。自动审批仅在本次会话生效，启用需二次确认，自动审批盾牌图标标红。</p></fieldset>` : ""}<label class="check"><input id="set-outline" type="checkbox" ${settings.showBookmarks ? "checked" : ""}>保存后建议阅读器显示书签面板</label><label class="check"><input id="set-protect" type="checkbox" ${settings.protect ? "checked" : ""}>原文件保护：首次保存为副本，之后更新副本</label><label class="check"><input id="set-restore" type="checkbox" ${settings.restoreView ? "checked" : ""}>记住每本文档的阅读位置、缩放和布局（关闭后尊重文档初始视图）</label><label class="check"><input id="set-ignore-zoom" type="checkbox" ${settings.ignoreZoom ? "checked" : ""}>忽略书签的缩放要求（不修改 PDF 目标）</label><label class="check"><input id="set-wrap" type="checkbox" ${settings.wrap ? "checked" : ""}>长书签标题显示两行</label><div class="form-grid"><label class="check"><input id="set-target-marker" type="checkbox" ${settings.showTargetMarker!==false?"checked":""}>显示书签跳转定位线</label><label>定位线颜色<input id="set-target-color" type="color" value="${/^#[0-9a-f]{6}$/i.test(settings.targetMarkerColor||"")?settings.targetMarkerColor:"#db8c36"}"></label></div><label>保存方式<select id="set-save-mode"><option value="auto">快速增量保存</option><option value="compact">完整重写（兼容模式）</option></select></label><label class="check"><input id="set-summary" type="checkbox" ${settings.saveSummary ? "checked" : ""}>保存前显示修改摘要</label><label class="check"><input id="set-gpu" type="checkbox" ${software ? "checked" : ""} ${window.desktop?.graphics ? "" : "disabled"}>显卡兼容：关闭硬件加速（重新启动后生效）</label><label>HTTP 代理（更新共用）<input id="set-http-proxy" placeholder="留空使用系统代理"></label><button data-action="shortcuts">自定义快捷键…</button><button id="ocr-cache-open">OCR 任务记录与缓存…</button><p class="hint">撤销快照受 32 MB 预算限制；画布按可见范围加载，高清画布与分块按约 128 MB 预算回收，当前可见区域优先，缩放期间保留已完成画面。恢复快照在编辑停止 0.7 秒后保存在本机。缓存超限按最近使用时间轮替；大文件处理中临时扩容，当前文档、原子保存及未保存草稿受保护。</p>`,
+    `<div class="prefs"><nav class="prefs-nav" aria-label="偏好设置分类"><button type="button" data-pref-nav="general" aria-current="true">${icon("settings")}<span>通用</span></button><button type="button" data-pref-nav="reading" aria-current="false">${icon("book")}<span>阅读与滚动</span></button><button type="button" data-pref-nav="bookmarks" aria-current="false">${icon("bookmark")}<span>书签</span></button><button type="button" data-pref-nav="saving" aria-current="false">${icon("save")}<span>保存与文件</span></button><button type="button" data-pref-nav="performance" aria-current="false">${icon("sliders")}<span>性能与缓存</span></button>${ai ? `<button type="button" data-pref-nav="ai" aria-current="false">${icon("spark")}<span>AI 文档辅助</span></button>` : ""}<button type="button" data-pref-nav="advanced" aria-current="false">${icon("globe")}<span>网络与快捷键</span></button></nav><div class="prefs-scroll"><section class="pref-section" data-pref-section="general"><h3>通用</h3><div class="pref-row"><div class="pref-label"><b>界面语言</b><small>立即生效，并记住选择。不会改变文档文字或 OCR 语言。</small></div><div class="pref-control">${languagePicker("settings-language")}</div></div><div class="pref-row"><div class="pref-label"><b>外观主题</b></div><div class="pref-control"><select id="set-theme"><option value="system">跟随系统</option><option value="light">浅色</option><option value="dark">深色</option></select></div></div>${paletteControls()}<div class="pref-color-row"><div><b>文字选取颜色</b><small>划选 PDF 文字时的高亮色</small></div><div class="selection-presets">${["#5370f5","#0a84ff","#30b0a0","#34c759","#ffb020","#ff6b57","#bf5af2"].map(c=>`<button type="button" class="cp-swatch" data-sel="${c}" style="--c:${c}" aria-label="${c}"></button>`).join("")}<input id="set-selection-color" type="color" aria-label="自定义文字选取颜色" value="${settings.selectionColor}"></div></div><div class="pref-row"><div class="pref-label"><b>默认留白单位</b></div><div class="pref-control"><select id="set-whitespace-unit"><option value="mm">毫米 mm</option><option value="pt">点 pt</option></select></div></div></section><section class="pref-section" data-pref-section="reading"><h3>阅读与滚动</h3><div class="pref-row"><div class="pref-label"><b>滚轮滚动量</b></div><div class="pref-control"><select id="set-wheel-preset"><option value="1">精细 · 1 行</option><option value="3">标准 · 3 行（推荐）</option><option value="6">快速 · 6 行</option><option value="custom">自定义</option></select></div></div><div class="pref-row"><div class="pref-label"><b>每次滚动行数</b></div><div class="pref-control"><input id="set-wheel-lines" type="number" min="1" max="30" value="${settings.wheelLines||3}"></div></div><div class="pref-row"><div class="pref-label"><b>渲染像素倍率上限</b></div><div class="pref-control"><select id="set-quality"><option value="1">1× · 节省内存</option><option value="2">2× · 推荐</option><option value="3">3× · 高清</option></select></div></div><label class="check"><input id="set-restore" type="checkbox" ${settings.restoreView?"checked":""} >记住每本文档的阅读位置、缩放和布局（关闭后尊重文档初始视图）</label></section><section class="pref-section" data-pref-section="bookmarks"><h3>书签</h3><div class="pref-row"><div class="pref-label"><b>书签侧栏宽度（px）</b></div><div class="pref-control"><input id="set-sidebar" type="number" min="220" max="520" value="${settings.sidebar}"></div></div><div class="pref-row"><div class="pref-label"><b>书签行高</b></div><div class="pref-control"><select id="set-row"><option value="28">紧凑 · 28 px</option><option value="34">标准 · 34 px</option><option value="40">宽松 · 40 px</option></select></div></div><label class="check"><input id="set-wrap" type="checkbox" ${settings.wrap?"checked":""} >长书签标题显示两行</label><label class="check"><input id="set-ignore-zoom" type="checkbox" ${settings.ignoreZoom?"checked":""} >忽略书签的缩放要求（不修改 PDF 目标）</label><label class="check"><input id="set-outline" type="checkbox" ${settings.showBookmarks?"checked":""} >保存后建议阅读器显示书签面板</label><label class="check"><input id="set-target-thumb" type="checkbox" ${settings.targetThumb!==false?"checked":""} >在属性栏显示跳转目标页缩略图（实时预览落点）</label><label class="check"><input id="set-target-marker" type="checkbox" ${settings.showTargetMarker!==false?"checked":""} >跳转后在页面上显示定位线</label><div class="pref-row"><div class="pref-label"><b>定位线颜色</b></div><div class="pref-control"><input id="set-target-color" type="color" value="${/^#[0-9a-f]{6}$/i.test(settings.targetMarkerColor||"")?settings.targetMarkerColor:"#db8c36"}"></div></div></section><section class="pref-section" data-pref-section="saving"><h3>保存与文件</h3><div class="pref-row"><div class="pref-label"><b>保存方式</b></div><div class="pref-control"><select id="set-save-mode"><option value="auto">快速增量保存</option><option value="compact">完整重写（兼容模式）</option></select></div></div><label class="check"><input id="set-protect" type="checkbox" ${settings.protect?"checked":""} >原文件保护：首次保存为副本，之后更新副本</label><label class="check"><input id="set-summary" type="checkbox" ${settings.saveSummary?"checked":""} >保存前显示修改摘要</label></section><section class="pref-section" data-pref-section="performance"><h3>性能与缓存</h3><div class="pref-row"><div class="pref-label"><b>磁盘缓存上限（MB，默认2048）</b></div><div class="pref-control"><input id="set-disk-budget" type="number" min="64" max="262144" value="${diskBudget?.limitMB||2048}"></div></div><div class="pref-row"><div class="pref-label"><b>撤销步数上限</b></div><div class="pref-control"><input id="set-undo" type="number" min="5" max="100" value="${settings.undo}"></div></div><label class="check"><input id="set-gpu" type="checkbox" ${software?"checked":""} ${window.desktop?.graphics ? "" : "disabled"}>显卡兼容：关闭硬件加速（重新启动后生效）</label><button id="ocr-cache-open">OCR 任务记录与缓存…</button><p class="hint">撤销快照受 32 MB 预算限制；画布按可见范围加载，高清画布与分块按约 128 MB 预算回收，当前可见区域优先，缩放期间保留已完成画面。恢复快照在编辑停止 0.7 秒后保存在本机。缓存超限按最近使用时间轮替；大文件处理中临时扩容，当前文档、原子保存及未保存草稿受保护。</p></section>${ai ? `<section class="pref-section" data-pref-section="ai"><h3>AI 文档辅助</h3><div class="pref-block"><p class="hint">API、服务商和模型在 Chatbox 原生设置中配置；以下选项管理 Folio 文档操作。</p><div class="form-grid"><label>操作审批<select id="set-ai-approval"><option value="manual">手动审批</option><option value="auto">自动审批</option></select></label><label>Chatbox 显示方式<select id="set-ai-display"><option value="sidebar">侧栏</option><option value="window">独立窗口</option></select></label><label>OCR 低置信度复核阈值（%）<input id="set-ai-threshold" type="number" min="0" max="100" step="1" value="${ai.threshold}"></label></div><p class="hint">优先本地 Paddle；低于阈值的结果可按需交给所选模型复核。默认 95%。自动审批仅在本次会话生效，启用需二次确认，自动审批盾牌图标标红。</p></div></section>` : ""}<section class="pref-section" data-pref-section="advanced"><h3>网络与快捷键</h3><div class="pref-row"><div class="pref-label"><b>HTTP 代理（更新共用）</b></div><div class="pref-control"><input id="set-http-proxy" placeholder="留空使用系统代理"></div></div><button data-action="shortcuts">自定义快捷键…</button></section></div></div>`,
     [
       { text: "取消", run: closeModal },
       {
@@ -2442,7 +2507,7 @@ async function settingsDialog() {
             });
           Object.assign(settings, {
             whitespaceUnit: $("#set-whitespace-unit").value,
-            saveSummary: $("#set-summary").checked,showTargetMarker:$("#set-target-marker").checked,targetMarkerColor:$("#set-target-color").value,saveMode:$("#set-save-mode").value,
+            saveSummary: $("#set-summary").checked,showTargetMarker:$("#set-target-marker").checked,targetMarkerColor:$("#set-target-color").value,selectionColor:$("#set-selection-color").value,targetThumb:$("#set-target-thumb").checked,saveMode:$("#set-save-mode").value,
             protect: $("#set-protect").checked,
             restoreView: $("#set-restore").checked,
             ignoreZoom: $("#set-ignore-zoom").checked,
@@ -2457,11 +2522,37 @@ async function settingsDialog() {
             showBookmarks: $("#set-outline").checked,
           });
           applySettings();
+          fillProperties();
           closeModal();
         },
       },
     ],
   );
+  $("#modal").classList.add("prefs-dialog");
+  const prefsPane = $(".prefs-scroll"), prefsNav = [...$$("[data-pref-nav]")];
+  const sections = [...$$("[data-pref-section]")];
+  const mark = (id) => prefsNav.forEach((b) => b.setAttribute("aria-current", String(b.dataset.prefNav === id)));
+  let spyFrame = 0, jumping = false, jumpTimer = 0;
+  const spy = () => {
+    spyFrame = 0;
+    if (jumping) return;
+    const top = prefsPane.getBoundingClientRect().top + 24;
+    let current = sections[0];
+    for (const s of sections) if (s.getBoundingClientRect().top <= top) current = s;
+    if (prefsPane.scrollTop + prefsPane.clientHeight >= prefsPane.scrollHeight - 2) current = sections.at(-1);
+    mark(current.dataset.prefSection);
+  };
+  prefsPane.addEventListener("scroll", () => { spyFrame ||= requestAnimationFrame(spy); }, { passive: true });
+  $(".prefs-nav").onclick = (e) => {
+    const b = e.target.closest("[data-pref-nav]");
+    if (!b) return;
+    const target = sections.find((s) => s.dataset.prefSection === b.dataset.prefNav);
+    mark(b.dataset.prefNav);
+    jumping = true;
+    prefsPane.scrollTo({ top: target.offsetTop - prefsPane.offsetTop - 4, behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+    clearTimeout(jumpTimer);
+    jumpTimer = setTimeout(() => { jumping = false; }, 500);
+  };
   if (ai) {
     $("#set-ai-approval").value = ai.auto ? "auto" : "manual";
     $("#set-ai-display").value = ai.display;
@@ -2475,20 +2566,23 @@ async function settingsDialog() {
   $("#set-theme").value = settings.theme;$("#set-save-mode").value=settings.saveMode||"auto";
   const preview = () => applyAppearance({...settings, theme:$("#set-theme").value,
     palette:$('input[name="palette"]:checked').value, customAccent:$("#custom-accent").value});
+  const selInput=$("#set-selection-color"),livesel=()=>document.documentElement.style.setProperty("--text-selection",selInput.value);
+  selInput.oninput=livesel;
+  $(".pref-color-row").onclick=e=>{const b=e.target.closest("[data-sel]");if(b){selInput.value=b.dataset.sel;livesel();}};
   $("#custom-accent").oninput = () => { $('input[value="custom"][name="palette"]').checked = true; preview(); };
   $(".palette-options").onchange = preview;
   $("#set-theme").onchange = preview;
   $("#set-wheel-preset").value=[1,3,6].includes(settings.wheelLines||3)?String(settings.wheelLines||3):"custom";
   $("#set-wheel-preset").onchange=e=>{if(e.target.value!=="custom")$("#set-wheel-lines").value=e.target.value;};
   $("#set-wheel-lines").oninput=()=>$("#set-wheel-preset").value="custom";
-  modalCleanup = () => applyAppearance(settings);
+  modalCleanup = () => {cancelAnimationFrame(spyFrame);clearTimeout(jumpTimer);$("#modal").classList.remove("prefs-dialog");applyAppearance(settings);document.documentElement.style.setProperty("--text-selection",settings.selectionColor);};
   $("#set-row").value = settings.row;
   $("#set-quality").value = settings.quality;
 }
 function helpDialog() {
   modal(
     document.title,
-    `<p>面向 Windows 11 x64 的离线书签工作台。建议先用副本验证实际工作文档。</p><h3>快捷操作</h3><p>Ctrl+O 打开 · Ctrl+S 保存 · Ctrl+Shift+S 另存 · Ctrl+B 书签面板 · Ctrl+Shift+B 新建<br>Ctrl+Z 撤销 · Ctrl+Y 重做 · Ctrl+F 搜索正文 · Ctrl+滚轮缩放 · Alt+左右返回视图<br>Ctrl / Shift 多选 · Delete 删除 · F2 改名<br>书签树中 Ctrl+A 全选 · Alt+左右箭头 升降级 · Tab 移动焦点<br>拖动行：上部插在前面，中部成为子项，下部插在后面；左侧退级区域移至根层。悬停展开，Esc 取消</p><h3>精确目标</h3><p>PDF 坐标以 pt 为单位，使用原生页面坐标系。XYZ = [左, 顶, 缩放]；留空为 null。FitR = [左, 底, 右, 顶]。XYZ 的 zoom=0 由阅读器解释为保持缩放。原始动作默认保持；使用「整理 → 原始本地目标 → 可编辑目标」后可统一偏移。</p><h3>当前边界</h3><p>已实现书签、批注、旋转、页面提取与追加、文档属性编辑。已加入文字/路径对象编辑、离线 OCR、段落流式编辑和同页分栏续排；工作工程可续编。加密文件可通过更多工具导出无密码副本后编辑。尚未实现跨页文章重排、公式结构编辑、表单编辑、安全涂黑、数字签名，以及 PDF-XChange 专有书签导入导出。不是 PDF-XChange 全功能替代品。</p><h3>技术与许可</h3><p>Electron 44.3.0 · PDF.js 5.6.205（Apache-2.0）· pdf-lib 1.17.1（MIT）。源码及依赖许可随包附带。图像调整离线运行；更新访问 GitHub，AI 按需通过 Chatbox 联系所选模型。</p>`,
+    `<p>面向 Windows 11 x64 的离线书签工作台。建议先用副本验证实际工作文档。</p><h3>快捷操作</h3><p>Ctrl+O 打开 · Ctrl+S 保存 · Ctrl+Shift+S 另存 · Ctrl+B 书签面板 · Ctrl+Shift+B 新建<br>Ctrl+Z 撤销 · Ctrl+Y 重做 · Ctrl+F 搜索正文 · Ctrl+滚轮缩放 · Alt+左右返回视图<br>Ctrl / Shift 多选 · Delete 删除 · F2 改名<br>书签树中 Ctrl+A 全选 · Alt+左右箭头 升降级 · Tab 移动焦点<br>拖动行：上部插在前面，中部成为子项，下部插在后面；左侧退级区域移至根层。悬停展开，Esc 取消</p><h3>精确目标</h3><p>PDF 坐标以 pt 为单位，使用原生页面坐标系。XYZ = [左, 顶, 缩放]；留空为 null。FitR = [左, 底, 右, 顶]。XYZ 的 zoom=0 由阅读器解释为保持缩放。原始动作默认保持；使用「整理 → 原始本地目标 → 可编辑目标」后可统一偏移。</p><h3>当前边界</h3><p>已实现书签、批注、旋转、页面提取与追加、文档属性编辑。已加入文字/路径对象编辑、离线 OCR、段落流式编辑和同页分栏续排；工作工程可续编。加密文件可通过更多工具导出无密码副本后编辑。尚未实现跨页文章重排、公式结构编辑、表单编辑、安全涂黑、数字签名，以及 PDF-XChange 专有书签导入导出。不是 PDF-XChange 全功能替代品。</p><h3>技术与许可</h3><p>Electron 44.11.3 · PDF.js 5.6.205（Apache-2.0）· pdf-lib 1.17.1（MIT）。源码及依赖许可随包附带。图像调整离线运行；更新访问 GitHub，AI 按需通过 Chatbox 联系所选模型。</p>`,
     [
       {
         text: "检查更新",
@@ -2663,6 +2757,7 @@ function renameInline() {
   input.className = "inline-name";
   input.value = n.title;
   title.replaceChildren(input);
+  rowCache.delete(n.id); // this row no longer matches its cached markup
   row.draggable = false;
   input.focus();
   input.select();
@@ -2802,6 +2897,26 @@ function treeNavigate(e) {
       tree.scrollTop = pos + rowHeight() - tree.clientHeight;
   }
 }
+// Icon / emphasis for context-menu rows, keyed by label. Unlisted rows stay text-only.
+const MENU_META = {
+  "编辑标题": ["pen", ""], "新增同级书签": ["bookmark-plus", "accent"], "新增子书签": ["bookmark-child", "accent"],
+  "剪切": ["cut", ""], "复制": ["copy", ""], "粘贴为子书签": ["paste", ""], "粘贴到前面": ["paste", ""], "粘贴到后面": ["paste", ""],
+  "更改书签缩放…": ["zoom", ""], "切换标题大小写…": ["case", ""], "设置当前视图为目标": ["target", "accent"],
+  "展开所选子树": ["unfold", ""], "折叠所选子树": ["fold", ""],
+  "删除所选与子项": ["trash", "danger"], "仅删除所选，保留子项": ["trash", "danger"], "仅删除子书签": ["trash", "danger"],
+  "调整跳转留白…": ["spacing", ""], "按标题校准目标…": ["crosshair", ""], "查找重复书签…": ["dedupe", ""], "正则拆分书签…": ["split", ""],
+  "属性": ["sliders", ""], "底层字典": ["code", ""],
+  "复制 Ctrl+C": ["copy", ""], "复制为单行": ["copy-line", ""], "从选中文字创建书签": ["bookmark-plus", "accent"],
+  "用选中文字位置设置目标": ["target", "accent"], "框选文字并复制…": ["select-text", ""], "当前视图设置为目标": ["target", "accent"],
+  "适合宽度": ["fit-width", ""], "适合页面": ["fit-page", ""], "页面缩略图": ["thumbs", ""],
+};
+function menuMeta(label) {
+  // "名称 · F2" and "名称 Ctrl+C" carry their shortcut; show it as a quiet right-aligned hint.
+  const m = /^(.*?)(?:\s·\s|\s)((?:Ctrl|Alt|Shift|F\d+)[\w+ ]*)$/.exec(label);
+  const text = m ? m[1].trim() : label, kbd = m ? m[2].trim() : "";
+  const [name, tone] = MENU_META[text] || MENU_META[label] || [];
+  return { text, kbd, icon: name || "", tone: tone || "" };
+}
 function contextMenu(e, items) {
   e.preventDefault();
   $("#context-menu")?.dispatchEvent(new Event("dismiss"));
@@ -2851,7 +2966,12 @@ function contextMenu(e, items) {
     }
     const [label, fn, disabled = false] = item;
     const b = document.createElement("button");
-    b.textContent = label;
+    const meta = menuMeta(label);
+    b.innerHTML = (meta.icon ? icon(meta.icon) : '<i class="mi-blank"></i>') + '<span class="mi-label"></span>' + (meta.kbd ? '<kbd></kbd>' : "");
+    b.querySelector(".mi-label").textContent = meta.text;
+    if (meta.kbd) b.querySelector("kbd").textContent = meta.kbd;
+    if (meta.tone) b.dataset.tone = meta.tone;
+    b.setAttribute("aria-label", label);
     b.role = "menuitem";
     b.disabled = disabled;
     b.onclick = () => {
@@ -2989,6 +3109,13 @@ async function thumbnailDialog() {
   modalCleanup = installPagePicker($("#thumb-range"), { S, surface });
   $("#modal .range-visual").open = true;
 }
+// One-click starting points for the most common heading numbering styles.
+const PATTERN_CHIPS = [
+  ["第 N 章", "^第[一二三四五六七八九十百零〇0-9]+章.*"], ["第 N 节", "^第[一二三四五六七八九十百零〇0-9]+节.*"],
+  ["一、二、", "^[一二三四五六七八九十]+、.*"], ["（一）", "^[（(][一二三四五六七八九十]+[）)].*"],
+  ["1.1 编号", "^\\d+(\\.\\d+)+\\s+.+"], ["1. 数字", "^\\d+[.、]\\s*.+"],
+  ["Chapter N", "^(Chapter|CHAPTER)\\s+\\d+.*"], ["附录", "^附录.*"],
+];
 function multiGenerateDialog() {
   const draftKey = "folio-rule-draft-" + (S.fingerprint || S.name);
   let storedDraft = null;
@@ -3020,13 +3147,36 @@ function multiGenerateDialog() {
     JSON.parse(localStorage.getItem("folio-rule-presets") || "{}");
   modal(
     "多级规则 · 自动生成书签",
-    `<div class="form-grid three"><label>扫描物理页范围<input id="multi-range" value="${S.page}"></label><label>子集<select id="multi-parity"><option value="all">全部</option><option value="odd">奇数页</option><option value="even">偶数页</option></select></label><label>标题顶部留白单位<select id="multi-unit"><option value="pt">pt</option><option value="mm">mm</option></select></label></div><div class="form-grid three"><label>排除页眉高度（pt）<input id="multi-header" type="number" min="0" value="0"></label><label>排除页脚高度（pt）<input id="multi-footer" type="number" min="0" value="0"></label><label>文字区域右边界（pt，可留空）<input id="multi-right" type="number" placeholder="全宽"></label></div><p class="hint">规则按层级生成，父项取前面最近的有效上一级；停用的层级不参与生成，其余启用层级连续编号。多规则命中按列表优先级处理，可切换为跳过。缺少父项可跳过或提升层级。跨页范围从子级开始时，请把前面的父级页纳入扫描。</p><div class="rule-toolbar"><button id="rule-add">＋ 规则</button><button id="rule-default">通用层级示例</button><button id="rule-save">保存预设</button><select id="rule-presets"><option value="">加载预设…</option>${Object.keys(
-      presetList(),
-    )
-      .map((n) => `<option translate="no">${esc(n)}</option>`)
-      .join(
-        "",
-      )}</select><button id="rule-import">导入</button><button id="rule-export">导出</button><button id="gen-other">字号 / 目录 / 页间隔…</button></div><div class="form-grid"><label>多规则冲突<select id="multi-conflict"><option value="first">优先使用第一条命中规则</option><option value="skip">跳过并诊断</option></select></label><label>缺少父级<select id="multi-orphan"><option value="skip">跳过并诊断</option><option value="promote">提升至最近有效层级</option></select></label><label>文字来源<select id="multi-source"><option value="auto">自动（已校对 OCR 优先）</option><option value="pdf">PDF 文字层</option><option value="ocr">已应用的 OCR 结果</option></select></label><label class="check"><input id="multi-join" type="checkbox">合并相邻跨行标题（最多 3 行，需核对预览）</label></div><div id="rule-list"></div><div class="form-grid"><label>插入方式<select id="multi-merge"><option value="append">根层末尾追加</option><option value="replace">替换所有书签</option><option value="before">所选书签之前</option><option value="after">所选书签之后</option><option value="child">所选书签的首个子项</option></select></label><label class="check"><input id="multi-dedupe" type="checkbox" checked>跳过同父项、同标题、同页的重复匹配（含现有书签）</label></div><div id="multi-summary" class="callout">先测试当前页或扫描范围，再应用。预览中的书签可点击检查页面位置。</div><canvas id="multi-target-preview" hidden></canvas><div id="multi-preview" class="preview-list"></div><details><summary>命中与忽略诊断（最多 3,000 行）</summary><div id="multi-diagnostics" class="preview-list"></div></details>`,
+    `<div class="generation-scope-bar rg-scope"><label class="page-range-label">扫描范围<input id="multi-range" value="${S.page}"></label><select id="multi-parity" hidden><option value="all">全部</option><option value="odd">奇数页</option><option value="even">偶数页</option></select></div>
+<div class="rules-workspace">
+<nav class="rules-nav" aria-label="书签层级">
+<div class="rg-pane-head"><h3>层级</h3><button type="button" id="rule-add" title="在末尾添加下一层级"><i data-icon="plus"></i><span>添加层级</span></button></div>
+<div id="rule-levels" class="rg-levels"></div>
+<div class="rg-nav-foot"><button type="button" id="rule-undo" title="撤销规则列表修改" aria-label="撤销规则"><i data-icon="undo"></i></button><button type="button" id="rule-redo" title="重做规则列表修改" aria-label="重做规则"><i data-icon="redo"></i></button>
+<details class="rg-menu"><summary>预设与导入</summary><div class="rg-menu-list"><button type="button" id="rule-default">载入通用层级示例</button><button type="button" id="rule-save">将当前规则存为预设</button><label>加载预设<select id="rule-presets"><option value="">选择预设…</option>${Object.keys(presetList()).map((n) => `<option translate="no">${esc(n)}</option>`).join("")}</select></label><hr><button type="button" id="rule-import">导入规则文件…</button><button type="button" id="rule-export">导出规则文件…</button><hr><button type="button" id="gen-other">按字号、目录或页间隔生成…</button></div></details></div>
+</nav>
+<section class="rules-editor" aria-label="层级规则">
+<div id="rule-list"></div>
+<details class="rules-settings"><summary>扫描与匹配设置</summary><div class="rg-settings">
+<div class="form-grid"><label>文字来源<select id="multi-source"><option value="auto">自动（已校对 OCR 优先）</option><option value="pdf">PDF 文字层</option><option value="ocr">已应用的 OCR 结果</option></select></label><label>留白单位<select id="multi-unit"><option value="pt">pt</option><option value="mm">mm</option></select></label></div>
+<div class="form-grid"><label>多条规则同时命中<select id="multi-conflict"><option value="first">采用排在前面的层级</option><option value="skip">跳过并列入诊断</option></select></label><label>找不到上一级<select id="multi-orphan"><option value="skip">跳过并列入诊断</option><option value="promote">提升到最近的有效层级</option></select></label></div>
+<label class="check"><input id="multi-join" type="checkbox">合并相邻的跨行标题（最多 3 行）</label>
+<details class="generation-advanced"><summary>文字区域与分行</summary>
+<div class="form-grid three"><label>排除页眉高度（pt）<input id="multi-header" type="number" min="0" value="0"></label><label>排除页脚高度（pt）<input id="multi-footer" type="number" min="0" value="0"></label><label>左边界（pt）<input id="multi-left" type="number" placeholder="不限"></label></div>
+<div class="form-grid three"><label>右边界（pt）<input id="multi-right" type="number" placeholder="全宽"></label><label>大间隔阈值（字高倍数）<input id="multi-gap" type="number" min="0.5" max="20" step="0.5" value="2"></label><label class="check"><input id="multi-columns" type="checkbox">按阅读栏分开</label></div>
+<div class="form-grid"><label>同行判断<select id="multi-line-mode"><option value="auto">自动 · 参考局部字高和行距</option><option value="strict">严格</option><option value="relaxed">宽松</option><option value="manual">手动容差</option></select></label><label>手动基线容差（字高倍数）<input id="multi-line-tolerance" type="number" min="0.05" max="1" step="0.05" value="0.4"></label></div>
+</details>
+<p class="hint">层级按列表顺序编号，停用的层级不参与生成。若范围从子级开始，请把父级所在页也纳入扫描。</p>
+</div></details>
+</section>
+<section class="rules-results" aria-label="匹配预览">
+<div class="rg-pane-head"><h3>预览</h3><div class="rg-segment" role="group" aria-label="预览范围"></div></div>
+<div id="multi-summary" role="status">正在准备预览…</div>
+<canvas id="multi-target-preview" hidden></canvas>
+<div id="multi-preview" class="preview-list" role="list"></div>
+<details class="rg-diagnostics"><summary>未生成的行与原因</summary><div id="multi-diagnostics" class="preview-list"></div></details>
+</section>
+</div>`,
     [
       { text: "关闭", run: closeModal },
       {
@@ -3041,8 +3191,8 @@ function multiGenerateDialog() {
           $("#multi-summary").textContent = "任务已取消，可继续修改规则";
         },
       },
-      { text: "测试当前页", id: "multi-current", run: () => run(true) },
-      { text: "生成范围预览", id: "multi-run", run: () => run(false) },
+      { text: "当前页", id: "multi-current", run: () => run(true) },
+      { text: "所选范围", id: "multi-run", run: () => run(false) },
       {
         text: "应用书签",
         id: "multi-apply",
@@ -3078,93 +3228,43 @@ function multiGenerateDialog() {
       },
     ],
   );
-  const advanced = document.createElement("details");
-  advanced.className = "generation-advanced";
-  advanced.innerHTML = "<summary>高级：文字区域、来源与冲突处理</summary>";
-  const headerGrid = $("#multi-header").closest(".form-grid"),
-    hint = headerGrid.nextElementSibling,
-    optionsGrid = $("#multi-conflict").closest(".form-grid");
-  headerGrid.before(advanced);
-  advanced.append(headerGrid, hint, optionsGrid);
-  advanced.insertAdjacentHTML(
-    "beforeend",
-    `<div class="form-grid three"><label class="check"><input id="multi-columns" type="checkbox">按阅读栏分开（默认拼接同行）</label><label>大间隔阈值（字高倍数）<input id="multi-gap" type="number" min="0.5" max="20" step="0.5" value="2"></label><label>左侧边界（pt，可留空）<input id="multi-left" type="number"></label></div>`,
-  );
-  advanced.insertAdjacentHTML(
-    "beforeend",
-    `<div class="form-grid"><label>同行判断<select id="multi-line-mode"><option value="auto">自动 · 参考局部字高和行距</option><option value="strict">严格</option><option value="relaxed">宽松</option><option value="manual">手动容差</option></select></label><label>手动基线容差（字高倍数）<input id="multi-line-tolerance" type="number" min="0.05" max="1" step="0.05" value="0.4"></label></div><p class="hint">容差只用于候选同行；仍检查邻行与重叠，避免跨行串接。规则不依赖文档行业或词语。</p>`,
-  );
-  $("#multi-parity").closest("label").hidden = true;
   const disposePicker = installPagePicker($("#multi-range"), { S, surface });
-  $("#modal").classList.add("rules-workspace-dialog");
-  const workspace = document.createElement("div");
-  workspace.className = "rules-workspace";
-  const nav = document.createElement("nav");
-  nav.className = "rules-nav";
-  nav.setAttribute("aria-label", "书签规则列表");
-  const editor = document.createElement("section");
-  editor.className = "rules-editor";
-  const results = document.createElement("section");
-  results.className = "rules-results";
-  results.setAttribute("aria-label", "匹配预览");
-  const settingsPanel = document.createElement("details");
-  settingsPanel.className = "rules-settings";
-  settingsPanel.innerHTML = "<summary>高级匹配与插入方式</summary>";
-  const body = $("#modal-body"),
-    rangeGrid = $("#multi-range").closest(".form-grid"),
-    toolbar = $("#rule-add").parentElement,
-    mergeGrid = $("#multi-merge").closest(".form-grid"),
-    diagnostics = $("#multi-diagnostics").parentElement;
-  settingsPanel.append(advanced, mergeGrid);
-  rangeGrid.classList.add("generation-scope-bar");
-  const rangeMore = document.createElement("details");
-  rangeMore.className = "range-more";
-  rangeMore.innerHTML = "<summary>更多范围选择</summary>";
-  const picker = rangeGrid.querySelector(".page-picker");
-  rangeMore.append(
-    picker.querySelector(".page-ends"),
-    picker.querySelector(".range-visual"),
-  );
-  picker.append(rangeMore);
-  editor.append(settingsPanel, toolbar, $("#rule-list"));
-  results.append(
-    $("#multi-summary"),
-    $("#multi-target-preview"),
-    $("#multi-preview"),
-    diagnostics,
-  );
-  workspace.append(nav, editor, results);
-  body.append(rangeGrid, workspace);
-  const tabs = document.createElement("div");
-  tabs.className = "rules-view-tabs";
-  tabs.innerHTML =
-    '<button data-view="edit" aria-pressed="true">规则设置</button><button data-view="results" aria-pressed="false">匹配结果</button>';
-  body.insertBefore(tabs, workspace);
-  workspace.dataset.view = "edit";
-  tabs.onclick = (e) => {
-    const b = e.target.closest("[data-view]");
-    if (!b) return;
-    workspace.dataset.view = b.dataset.view;
-    tabs
-      .querySelectorAll("button")
-      .forEach((q) => q.setAttribute("aria-pressed", q === b));
-  };
+  $("#modal").classList.add("rules-workspace-dialog", "rules-v2");
+  // Range presets stay visible; the end-page and visual range pickers fold away.
+  const picker = $(".rg-scope .page-picker");
+  if (picker) {
+    const rangeMore = document.createElement("details");
+    rangeMore.className = "range-more";
+    rangeMore.innerHTML = "<summary>更多范围选择</summary>";
+    for (const el of [picker.querySelector(".page-ends"), picker.querySelector(".range-visual")]) if (el) rangeMore.append(el);
+    picker.append(rangeMore);
+  }
+  // Preview scope buttons live in the preview header; insertion options lead the footer.
+  $(".rules-results .rg-segment").append($("#multi-current"), $("#multi-run"));
+  $("#multi-current").title = "只在当前页测试规则";
+  $("#multi-run").title = "预览整个扫描范围";
+  const footerOptions = document.createElement("div");
+  footerOptions.className = "rg-footer-options";
+  footerOptions.innerHTML = `<label>插入到<select id="multi-merge"><option value="append">现有书签之后</option><option value="replace">替换所有书签</option><option value="before">所选书签之前</option><option value="after">所选书签之后</option><option value="child">所选书签内（首个子项）</option></select></label><label class="check" title="同一父级下、标题和页码都相同的匹配只保留一个（含现有书签）"><input id="multi-dedupe" type="checkbox" checked>跳过重复</label>`;
+  $("#modal-footer").prepend(footerOptions);
   $("#multi-cancel-task").hidden = true;
+  const nav = $("#rule-levels");
   const drawNav = () => {
     nav.replaceChildren();
     rules.forEach((r, i) => {
       const b = document.createElement("button");
+      b.type = "button";
       b.className = "rule-nav-item";
       b.dataset.ruleIndex = i;
+      b.dataset.level = Math.min(i + 1, 6);
+      b.dataset.enabled = String(!!r.enabled);
       b.setAttribute("aria-current", String(i === activeRule));
-      b.innerHTML = `<span translate="no">${i + 1}  ${esc(r.name || t("未命名规则"))}</span><span>${r.enabled ? "" : " · 已停用"}</span>`;
       const count = generated?.filter((n) => n.origin?.rule === r.name).length;
-      if (count != null) {
-        const small = document.createElement("small");
-        small.textContent = `第 ${r.level} 层 · ${count} 项`;
-        b.append(small);
-      }
-
+      b.innerHTML = `<span class="rg-dot" aria-hidden="true"></span><span class="rg-name" translate="no"></span><span class="rg-count"></span><code class="rg-pattern" translate="no"></code>`;
+      b.querySelector(".rg-name").textContent = r.name || t("未命名规则");
+      b.querySelector(".rg-count").textContent = !r.enabled ? "已停用" : count == null ? "" : String(count);
+      b.querySelector(".rg-pattern").textContent = r.pattern || "（未设置匹配）";
+      b.title = `第 ${i + 1} 层`;
       nav.append(b);
     });
     $("#rule-list")
@@ -3178,6 +3278,15 @@ function multiGenerateDialog() {
       drawNav();
     }
   };
+  nav.onkeydown = (e) => {
+    if (!["ArrowUp", "ArrowDown"].includes(e.key)) return;
+    e.preventDefault();
+    activeRule = Math.max(0, Math.min(rules.length - 1, activeRule + (e.key === "ArrowDown" ? 1 : -1)));
+    drawNav();
+    nav.querySelector(`[data-rule-index="${activeRule}"]`)?.focus();
+  };
+  const unitLabel = () => $("#multi-unit").value;
+
 
   const invalidate = () => {
     revision++;
@@ -3206,7 +3315,11 @@ function multiGenerateDialog() {
     $("#rule-list").innerHTML = rules
       .map(
         (r, i) =>
-          `<div class="rule-card" data-rule="${i}" ><div class="rule-toolbar"><label class="check"><input data-field="enabled" type="checkbox" ${r.enabled ? "checked" : ""}>启用</label><input data-field="name" value="${esc(r.name)}" aria-label="规则名称"><label>层级 <input data-field="level" type="number" min="1" value="${r.level}" readonly></label><button data-move="-1">↑</button><button data-move="1">↓</button><button data-delete>删除</button></div><label>正则表达式<input data-field="pattern" value="${esc(r.pattern)}" spellcheck="false" autocomplete="off"></label><small class="rule-pattern-error" role="status"></small><div class="form-grid"><label>标题来源<select data-field="titleMode"><option value="template" ${!r.titleMode || r.titleMode === "template" ? "selected" : ""}>捕获组模板</option><option value="line" ${r.titleMode === "line" ? "selected" : ""}>完整行</option><option value="match" ${r.titleMode === "match" ? "selected" : ""}>匹配部分</option></select></label><label>标题模板（$0 / $1 / $2 / {page}）<input data-field="template" value="${esc(r.template)}"></label><label>定位捕获组（0 为匹配开头）<input data-field="targetGroup" type="number" min="0" value="${r.targetGroup || 0}"></label><label>顶部留白<input data-field="offset" type="number" step="any" value="${r.offset}"></label></div><label class="check"><input data-field="requireGroups" type="checkbox" ${r.requireGroups !== false ? "checked" : ""}>模板中的捕获组不能为空</label><div class="property-row"><label><input data-field="bold" type="checkbox" ${r.bold ? "checked" : ""}>粗体</label><label><input data-field="italic" type="checkbox" ${r.italic ? "checked" : ""}>斜体</label><input data-field="color" type="color" value="${r.color}"></div></div>`,
+          `<div class="rule-card" data-rule="${i}" data-level="${Math.min(i + 1, 6)}"><div class="rule-toolbar"><input class="rg-level" data-field="level" type="number" min="1" value="${r.level}" readonly aria-label="层级" tabindex="-1"><input data-field="name" value="${esc(r.name)}" aria-label="层级名称"><label class="check rg-switch"><input data-field="enabled" type="checkbox" ${r.enabled ? "checked" : ""}>启用</label><span class="rule-actions"><button type="button" data-move="-1" title="上移一级" aria-label="上移">${icon("up")}</button><button type="button" data-move="1" title="下移一级" aria-label="下移">${icon("down")}</button><button type="button" data-delete class="danger" title="删除此层级" aria-label="删除此层级">${icon("trash")}</button></span></div>
+<section class="rg-section"><h4>匹配哪些行</h4><input data-field="pattern" value="${esc(r.pattern)}" spellcheck="false" autocomplete="off" aria-label="正则表达式" placeholder="正则表达式，例如 ^第.+章"><small class="rule-pattern-error" role="status"></small><div class="pattern-chips" role="group" aria-label="常用模式">${PATTERN_CHIPS.map(([label, pattern]) => `<button type="button" translate="no" data-pattern="${esc(pattern)}" title="${esc(pattern)}">${label}</button>`).join("")}</div></section>
+<section class="rg-section"><h4>书签标题</h4><div class="form-grid"><label>标题取自<select data-field="titleMode"><option value="template" ${!r.titleMode || r.titleMode === "template" ? "selected" : ""}>模板</option><option value="line" ${r.titleMode === "line" ? "selected" : ""}>整行文字</option><option value="match" ${r.titleMode === "match" ? "selected" : ""}>匹配部分</option></select></label><label>模板<input data-field="template" value="${esc(r.template)}" spellcheck="false" title="$0 整个匹配，$1 / $2 捕获组，{page} 页码"></label></div><label class="check"><input data-field="requireGroups" type="checkbox" ${r.requireGroups !== false ? "checked" : ""}>模板用到的捕获组为空时跳过</label></section>
+<section class="rg-section"><h4>跳转位置</h4><div class="form-grid"><label>标题上方留白<span class="rg-input-unit"><input data-field="offset" type="number" step="any" value="${r.offset}"><span class="rg-unit">${unitLabel()}</span></span></label><label>定位到捕获组<input data-field="targetGroup" type="number" min="0" value="${r.targetGroup || 0}" title="0 表示匹配开头"></label></div></section>
+<section class="rg-section"><h4>书签样式</h4><div class="property-row rg-style"><label class="rg-toggle" title="粗体"><input data-field="bold" type="checkbox" ${r.bold ? "checked" : ""}><b>B</b></label><label class="rg-toggle" title="斜体"><input data-field="italic" type="checkbox" ${r.italic ? "checked" : ""}><i>I</i></label><label class="rg-color" title="颜色"><input data-field="color" type="color" value="${r.color}"></label></div></section></div>`,
       )
       .join("");
     activeRule = Math.max(0, Math.min(activeRule, rules.length - 1));
@@ -3230,7 +3343,7 @@ function multiGenerateDialog() {
       } catch (err) {
         note.textContent = "正则尚未完整：" + err.message;
       }
-      if (["name", "enabled"].includes(f)) drawNav();
+      if (["name", "enabled", "pattern"].includes(f)) drawNav();
     }
     invalidate();
   };
@@ -3239,10 +3352,6 @@ function multiGenerateDialog() {
     if (ruleHistory.length > 50) ruleHistory.shift();
     ruleFuture.length = 0;
   };
-  $("#rule-add").insertAdjacentHTML(
-    "afterend",
-    '<button id="rule-undo" title="撤销规则列表修改">撤销规则</button><button id="rule-redo" title="重做规则列表修改">重做</button>',
-  );
   for (const [id, from, to] of [
     ["rule-undo", ruleHistory, ruleFuture],
     ["rule-redo", ruleFuture, ruleHistory],
@@ -3257,12 +3366,18 @@ function multiGenerateDialog() {
     const card = e.target.closest("[data-rule]");
     if (!card) return;
     const i = +card.dataset.rule;
-    if (e.target.hasAttribute("data-delete")) {
+    const chip = e.target.closest("[data-pattern]"), move = e.target.closest("[data-move]");
+    if (chip) {
+      const input = card.querySelector('[data-field="pattern"]');
+      input.value = chip.dataset.pattern;
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.focus();
+    } else if (e.target.closest("[data-delete]")) {
       rememberRules();
       rules.splice(i, 1);
       render();
-    } else if (e.target.dataset.move) {
-      const j = i + Number(e.target.dataset.move);
+    } else if (move) {
+      const j = i + Number(move.dataset.move);
       if (j >= 0 && j < rules.length) {
         rememberRules();
         [rules[i], rules[j]] = [rules[j], rules[i]];
@@ -3381,6 +3496,23 @@ function multiGenerateDialog() {
     });
   $("#gen-other").onclick = () => generateDialog();
   let autoTimer;
+  // Text lines depend only on the page and extraction options, never on the rules, so
+  // editing a pattern re-runs matching without re-reading page text.
+  const lineCache = new Map();
+  let lineCacheOCR = S.ocr;
+  const extractionKey = (c) =>
+    JSON.stringify([c.source, c.right, c.left, c.visualRows, c.gapFactor, c.lineMode, c.lineTolerance, c.joinLines]);
+  const cachedPages = (pages, key) =>
+    S.ocr === lineCacheOCR && pages.every((p) => lineCache.has(p + "|" + surface.rotation(p) + "|" + key));
+  // Preview the whole chosen range automatically when that is cheap; otherwise the current page.
+  const autoPreview = () => {
+    let pages = [];
+    try {
+      pages = pageRange($("#multi-range").value, S.info.pageCount, $("#multi-parity").value);
+    } catch {}
+    const whole = pages.length > 0 && (pages.length <= 150 || cachedPages(pages, extractionKey(config())));
+    return run(!whole);
+  };
   const inputListener = (e) => {
     if (
       !e.target.closest("#multi-preview,#multi-results-nav") &&
@@ -3393,9 +3525,9 @@ function multiGenerateDialog() {
         autoTimer = setTimeout(() => {
           if (!cancelled && !running) {
             pendingPreview = false;
-            guarded(() => run(true));
+            guarded(autoPreview);
           }
-        }, 300);
+        }, 350);
     }
   };
   const compositionStart = () => {
@@ -3409,6 +3541,8 @@ function multiGenerateDialog() {
   $("#modal-body").addEventListener("compositionstart", compositionStart);
   $("#modal-body").addEventListener("compositionend", compositionEnd);
   $("#modal-body").addEventListener("input", inputListener);
+  // This control lives in the footer, outside the editor's input listener.
+  $("#multi-dedupe").addEventListener("input", inputListener);
   const run = async (current) => {
     if (running || composingRule) return;
     clearTimeout(autoTimer);
@@ -3439,13 +3573,21 @@ function multiGenerateDialog() {
     $("#multi-cancel-task").hidden = false;
     $("#multi-run").disabled = $("#multi-current").disabled = true;
     try {
-      const lines = [];
+      const lines = [],
+        key = extractionKey(c);
+      if (S.ocr !== lineCacheOCR) {
+        lineCache.clear();
+        lineCacheOCR = S.ocr;
+      }
+      let yielded = performance.now();
       for (const page of pages) {
         if (cancelled || taskCancelled || rev !== revision) return;
-        $("#multi-summary").textContent =
-          `提取文字 ${page} 页 · ${lines.length} 行`;
-        lines.push(
-          ...(await extractLines(S.pdf, page, surface.rotation(page), {
+        const cacheKey = page + "|" + surface.rotation(page) + "|" + key;
+        let pageLines = lineCache.get(cacheKey);
+        if (!pageLines) {
+          $("#multi-summary").textContent =
+            `正在读取第 ${page} 页文字 · 已得 ${lines.length} 行`;
+          pageLines = await extractLines(S.pdf, page, surface.rotation(page), {
             ocr: S.ocr,
             source: c.source,
             right: c.right,
@@ -3455,10 +3597,17 @@ function multiGenerateDialog() {
             lineMode: c.lineMode,
             lineTolerance: c.lineTolerance,
             joinLines: c.joinLines,
-          })),
-        );
+          });
+          if (lineCache.size > 4000) lineCache.delete(lineCache.keys().next().value);
+          lineCache.set(cacheKey, pageLines);
+        }
+        for (const line of pageLines) lines.push(line);
         if (lines.length > 500000) throw Error("文字行过多，请缩小范围");
-        await new Promise((r) => setTimeout(r, 0));
+        // Yield to input every ~30 ms instead of after every page.
+        if (performance.now() - yielded > 30) {
+          await new Promise((r) => setTimeout(r, 0));
+          yielded = performance.now();
+        }
       }
       if (cancelled || taskCancelled || rev !== revision) return;
       result = await new Promise((resolve, reject) => {
@@ -3499,13 +3648,21 @@ function multiGenerateDialog() {
       drawNav();
       const previewNodes = generated;
       const d = depths(previewNodes);
-      $("#multi-summary").textContent =
-        `${current ? "仅测试当前页" : "已预览所选范围"} ${compactPages(pages)}（${pages.length} 页） · ${generated.length} 项 · ${result.conflicts} 个冲突 · ${result.orphans} 个缺失父级 · ${result.ignored} 行忽略（每组 100 项，可筛选）`;
+      // Lead with the outcome; problems appear only when there are any.
+      const issues = [
+        result.conflicts ? `${result.conflicts} 个冲突` : "",
+        result.orphans ? `${result.orphans} 个缺少上一级` : "",
+      ].filter(Boolean);
+      $("#multi-summary").dataset.state = generated.length ? (issues.length ? "warn" : "ok") : "empty";
+      $("#multi-summary").innerHTML =
+        `<strong>${generated.length ? `${generated.length} 个书签` : "没有匹配的行"}</strong><span>${esc(current ? `当前页 ${pages[0]}` : `${compactPages(pages)} · ${pages.length} 页`)}</span>` +
+        (issues.length ? `<span class="rg-issues">${esc(issues.join(" · "))}</span>` : "") +
+        (!generated.length && result.ignored ? `<span>${esc(`${result.ignored} 行未匹配，展开下方“未生成的行与原因”查看`)}</span>` : "");
       $("#multi-results-nav")?.remove();
       let previewPage = 0;
       $("#multi-preview").insertAdjacentHTML(
         "beforebegin",
-        `<div id="multi-results-nav" class="flow-toolbar"><input id="multi-search-results" placeholder="筛选生成的标题…"><button id="multi-prev-results">上一组</button><span id="multi-results-page"></span><button id="multi-next-results">下一组</button></div>`,
+        `<div id="multi-results-nav" class="rg-results-nav"${generated.length ? "" : " hidden"}><input id="multi-search-results" type="search" placeholder="筛选标题" aria-label="筛选生成的标题"><button type="button" id="multi-prev-results" aria-label="上一组">${icon("chevron-left")}</button><span id="multi-results-page"></span><button type="button" id="multi-next-results" aria-label="下一组">${icon("disclose")}</button></div>`,
       );
       const drawResults = () => {
         const query = $("#multi-search-results").value.toLowerCase();
@@ -3515,15 +3672,16 @@ function multiGenerateDialog() {
         const total = Math.max(1, Math.ceil(matches.length / 100));
         previewPage = Math.min(previewPage, total - 1);
         $("#multi-results-page").textContent =
-          `${previewPage + 1} / ${total} · ${matches.length} 项`;
+          total > 1 ? `${previewPage + 1} / ${total}` : `${matches.length} 项`;
+        $("#multi-prev-results").hidden = $("#multi-next-results").hidden = total <= 1;
         $("#multi-prev-results").disabled = !previewPage;
         $("#multi-next-results").disabled = previewPage >= total - 1;
         $("#multi-preview").innerHTML = matches
           .slice(previewPage * 100, (previewPage + 1) * 100)
-          .map(
-            ({ n, i }) =>
-              `<button title="${esc(n.origin?.text || n.title)}" class="preview-item" data-preview="${i}" style="padding-left:${12 + d.get(n.id) * 16}px"><span translate="no" class="preview-origin">${esc(n.origin?.text || n.title)}</span><strong translate="no">${esc(n.title)}</strong><small>第 ${d.get(n.id) + 1} 层 · 第 ${n.target.page} 页</small></button>`,
-          )
+          .map(({ n, i }) => {
+            const depth = d.get(n.id) || 0;
+            return `<button type="button" role="listitem" title="${esc(n.origin?.text || n.title)}" class="preview-item" data-preview="${i}" data-level="${Math.min(depth + 1, 6)}" style="--depth:${depth}"><span class="rg-dot" aria-hidden="true"></span><strong translate="no">${esc(n.title)}</strong><small>${n.target.page}</small></button>`;
+          })
           .join("");
       };
       $("#multi-search-results").oninput = () => {
@@ -3616,8 +3774,8 @@ function multiGenerateDialog() {
           clearTimeout(autoTimer);
           autoTimer = setTimeout(() => {
             pendingPreview = false;
-            if (!cancelled) guarded(() => run(true));
-          }, 300);
+            if (!cancelled) guarded(autoPreview);
+          }, 350);
         }
       }
     }
@@ -3628,7 +3786,7 @@ function multiGenerateDialog() {
     clearTimeout(autoTimer);
     cancelWorker?.();
     w?.terminate();
-    $("#modal").classList.remove("rules-workspace-dialog");
+    $("#modal").classList.remove("rules-workspace-dialog", "rules-v2");
     $("#modal-body").removeEventListener("compositionstart", compositionStart);
     $("#modal-body").removeEventListener("compositionend", compositionEnd);
     $("#modal-body").removeEventListener("input", inputListener);
@@ -3661,11 +3819,14 @@ function multiGenerateDialog() {
     document
       .querySelectorAll('[data-field="offset"]')
       .forEach((e, i) => (rules[i].offset = Number(e.value)));
+    for (const el of document.querySelectorAll("#rule-list .rg-unit")) el.textContent = unitLabel();
     invalidate();
   });
-  $("#multi-run").textContent = "预览所选范围";
-  $("#multi-current").textContent = "仅测试当前页";
   clearTimeout(autoTimer);
+  // Show matches right away instead of an empty "preview pending" pane.
+  autoTimer = setTimeout(() => {
+    if (!cancelled && !running) guarded(autoPreview);
+  }, 0);
 }
 
 const actions = {
@@ -3886,10 +4047,20 @@ $("#tree").addEventListener("click", (e) => {
     rebuild();
     return;
   }
+  // The first click re-renders the rows, so the browser never reports a native dblclick
+  // (the two clicks land on different elements). Detect the second click ourselves.
+  const now = performance.now(), plain = !e.ctrlKey && !e.shiftKey && !e.metaKey;
+  const second = plain && lastRowClick.id === id && now - lastRowClick.at < 450 && !!e.target.closest(".title");
+  lastRowClick = second ? { id: null, at: 0 } : { id, at: now };
+  if (second) {
+    selectNode(id, e);
+    renameInline();
+    return;
+  }
   selectNode(id, e);
-  if (!e.ctrlKey && !e.shiftKey && !e.metaKey)
-    guarded(() => jump(S.index.get(id)));
+  if (plain) guarded(() => jump(S.index.get(id)));
 });
+let lastRowClick = { id: null, at: 0 };
 let dragIds = null,
   dragChosen = null,
   dropState = null,
@@ -3925,6 +4096,7 @@ $("#tree").addEventListener("dragstart", (e) => {
   dragLabel = document.createElement("div");
   dragLabel.id = "drag-label";
   dragLabel.textContent = `移动 ${dragChosen.size} 个书签`;
+  dragLabel.style.visibility = "hidden"; // shown only once the pointer position is known
   document.body.append(dragLabel);
 });
 function dragTick() {
@@ -3992,6 +4164,7 @@ $("#tree").addEventListener("dragover", (e) => {
   dragPointer = { x: e.clientX, y: e.clientY };
   dragLabel.style.left = e.clientX + 16 + "px";
   dragLabel.style.top = e.clientY + 12 + "px";
+  dragLabel.style.visibility = "";
   if (!dragFrame) dragFrame = requestAnimationFrame(dragTick);
 });
 $("#tree").addEventListener("drop", (e) => {
@@ -4011,6 +4184,12 @@ $("#tree").addEventListener("drop", (e) => {
     });
 });
 $("#tree").addEventListener("dragend", clearDrag);
+// The dragged row can be re-rendered mid-drag (auto-expand, scroll), which swallows its own
+// dragend; these listeners guarantee the floating label never gets stranded.
+document.addEventListener("dragend", clearDrag, true);
+document.addEventListener("drop", () => setTimeout(() => dragLabel && clearDrag(), 0), true);
+document.addEventListener("mousemove", (e) => { if (dragLabel && e.buttons === 0) clearDrag(); }, true);
+window.addEventListener("blur", () => dragLabel && clearDrag());
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape" && dragIds) clearDrag();
 });
@@ -4381,7 +4560,7 @@ $("#tree").addEventListener("contextmenu", (e) => {
   ]);
 });
 $("#tree").addEventListener("dblclick", (e) => {
-  if (e.target.closest(".title") && !e.target.closest("input")) renameInline();
+  if (e.target.closest(".title") && !e.target.closest("input") && !$(".inline-name")) renameInline();
 });
 async function copyPageText(text) {
   if (window.desktop?.copyText) await window.desktop.copyText(text);
@@ -4487,6 +4666,7 @@ for (const side of ["left", "right"]) {
   handle.onpointerdown = (e) => {
     e.preventDefault();
     handle.setPointerCapture(e.pointerId);
+    handle.classList.add("drag");
   };
   handle.onpointermove = (e) => {
     if (!handle.hasPointerCapture(e.pointerId)) return;
@@ -4501,12 +4681,18 @@ for (const side of ["left", "right"]) {
     );
   };
   const originalMove = handle.onpointermove;
+  let moveFrame = 0;
   handle.onpointermove = (e) => {
     originalMove(e);
-    fitPanels();
-    handle.setAttribute("aria-valuenow", settings[widthKey]);
+    if (moveFrame) return;
+    moveFrame = requestAnimationFrame(() => {
+      moveFrame = 0;
+      fitPanels();
+      handle.setAttribute("aria-valuenow", settings[widthKey]);
+    });
   };
   handle.onpointerup = (e) => {
+    handle.classList.remove("drag");
     handle.releasePointerCapture(e.pointerId);
     applySettings();
   };
@@ -4711,6 +4897,6 @@ window.desktop?.updateStarted?.().catch(() => {});
 import {installAI} from './ai-ui.mjs';
 import {installPrinting} from './printing.mjs';
 installPrinting({S,pdfjs,session:documentSession,exportPDF:async()=>{await S.flowEdit?.flush();await S.imageEdit?.flush();return rpc('save',await buildExportSnapshot(S,settings,documentSession));}});
-const aiUI=installAI({S,surface,commit,writeFile,saveProject,getViewContext:()=>surface.context(),getLargeDocument:()=>largeWorkspace,session:documentSession,applyContent:async(edits,ocr)=>{await refreshNative(edits,ocr);commit(clone(S.nodes),{nativeEdits:edits,ocr});},exportPDF:async()=>rpc('save',await buildExportSnapshot(S,settings,documentSession)),undo:()=>restoreHistory('undo'),redo:()=>restoreHistory('redo')});
+const aiUI=installAI({S,surface,commit,writeFile,replaceDocument:async bytes=>{const ok=await loadPDF(bytes,S.name);if(ok){setDirty(true);toast('页面整理已应用到当前文档；保存时写入文件');}return ok;},saveProject,getViewContext:()=>surface.context(),getLargeDocument:()=>largeWorkspace,session:documentSession,applyContent:async(edits,ocr)=>{await refreshNative(edits,ocr);commit(clone(S.nodes),{nativeEdits:edits,ocr});},exportPDF:async()=>rpc('save',await buildExportSnapshot(S,settings,documentSession)),undo:()=>restoreHistory('undo'),redo:()=>restoreHistory('redo')});
 import {installWindowChrome} from './window-chrome.mjs';
 installWindowChrome().catch(console.error);

@@ -47,7 +47,7 @@ const { FileStore } = require("./file-store.cjs");
 const { NativeBridge } = require("./native-bridge.cjs");
 const { SourceStore } = require("./source-store.cjs");
 const sourceStore = new SourceStore();
-cleanupTemps().catch(() => {});
+cleanupTemps().catch(error => console.warn("Temporary store cleanup failed:", error));
 const native = new NativeBridge(
   app.isPackaged
     ? path.join(process.resourcesPath, "native")
@@ -56,6 +56,11 @@ const native = new NativeBridge(
   sourceStore,
 );
 const qpdfNative = new NativeBridge(native.root, native.python);
+// Windows atomic save replacement. It must not queue behind the first editor's
+// long apply/OCR/layout requests, nor be rejected by that editor's Cancel.
+const replaceNative = new NativeBridge(native.root, native.python);
+let replaceIdle;
+app.on("before-quit", () => { clearTimeout(replaceIdle); replaceNative.cancel(); });
 // app.quit() (including installation) does not emit window-all-closed.
 // Stop the primary worker as well, so its DLLs cannot lock the portable folder.
 app.on("before-quit", () => native.cancel());
@@ -98,6 +103,12 @@ function check(e) {
     !e.senderFrame.url.startsWith("folio://app/")
   )
     throw Error("Invalid sender");
+}
+// Cheap shape guard for generic channels whose payload is spread or destructured.
+function objectPayload(value, label) {
+  if (!value || typeof value !== "object" || Array.isArray(value))
+    throw Error("无效的" + label + "请求");
+  return value;
 }
 function ipc(name, fn) {
   ipcMain.handle(name, async (e, ...args) => {
@@ -251,8 +262,10 @@ app.whenReady().then(async () => {
     if (!Array.isArray(paths) || paths.some(p => typeof p !== "string")) throw Error("Invalid documents");
     return tabs.enqueue(() => tabs.open(paths));
   });
-  ipc("tabs-meta", ({name,busy,handle}) => {
+  ipc("tabs-meta", ({name,busy,handle,attention}) => {
     const tab = tabs.entries.get(sender());
+    // Password/recovery prompts in a preparing editor must be reachable.
+    if (attention === true && tab.loading) tabs.select(tab, true);
     if (typeof busy === "boolean") tab.busy = busy;
     const file = fileStore?.handles.get(handle);
     if (file) tab.key = process.platform === "win32" ? file.toLowerCase() : file;
@@ -323,7 +336,14 @@ app.whenReady().then(async () => {
       return r.canceled ? null : r.filePath;
     },
     process.platform === "win32"
-      ? (source, target) => native.replace(source, target)
+      ? (source, target) => {
+          clearTimeout(replaceIdle);
+          return replaceNative.replace(source, target).finally(() => {
+            if (replaceNative.busy) return;
+            replaceIdle = setTimeout(() => { if (!replaceNative.busy) replaceNative.cancel(); }, 30000);
+            replaceIdle.unref?.();
+          });
+        }
       : undefined,
   );
   win.webContents.setVisualZoomLevelLimits(1, 1);
@@ -383,7 +403,7 @@ app.whenReady().then(async () => {
     if((await fs.stat(file)).size>32*1024**2) throw Error("Image exceeds 32 MiB");
     return (await fs.readFile(file)).toString("base64");
   });
-  ipc("web-pdf", data => require("./web-pdf.cjs").render(data, aiHost.reviewConversion));
+  ipc("web-pdf", data => require("./web-pdf.cjs").render(objectPayload(data, "网页"), aiHost.reviewConversion));
   ipc("merge-files", async () => {
     const r=await dialog.showOpenDialog(win,{properties:['openFile','multiSelections'],filters:[{name:'Documents and images',extensions:['pdf','doc','docx','xls','xlsx','ppt','pptx','odt','ods','odp','rtf','txt','csv','md','html','png','jpg','jpeg','webp','bmp','tif','tiff','gif']}]});
     if(r.canceled)return [];
@@ -406,7 +426,15 @@ app.whenReady().then(async () => {
     native.root,
     path.join(app.getPath("userData"), "ocr-jobs"),
   );
-  ipc("ocr-job", async (data) => {const result=await ocrJobs.run(data);if(["start","stop","history","remove","collect"].includes(data.action))await ocrJobs.prune(Math.max(0,storageBudget.limit-storageBudget.status().bytes));return result;});
+  ipc("ocr-job", async (data) => {
+    objectPayload(data, " OCR ");
+    if (typeof data.action !== "string") throw Error("未知 OCR 操作");
+    const result=await ocrJobs.run(data);
+    // Housekeeping must not turn a completed start/collect into a reported failure.
+    if(["start","stop","history","remove","collect"].includes(data.action))
+      await ocrJobs.prune(Math.max(0,storageBudget.limit-storageBudget.status().bytes)).catch(error=>console.warn("OCR cache prune failed:",error));
+    return result;
+  });
   ipc("storage-budget",async value=>{if(value!==undefined)await storageBudget.setLimit(value);const ocr=await ocrJobs.prune(Math.max(0,storageBudget.limit-storageBudget.status().bytes));return {...storageBudget.status(),ocrBytes:ocr.bytes,pinnedOverBudget:ocr.pinnedOverBudget};});
   app.on("before-quit", () => ocrJobs.stop());
   ipc("qpdf", (data) => {
@@ -446,6 +474,8 @@ app.whenReady().then(async () => {
   });
   ipc("native", (data) => {
     const owner = sender();
+    objectPayload(data, "本地");
+    if (typeof data.command !== "string") throw Error("本地请求无效");
     const options = { ...data };
     if (options.command === 'font-warm-document') {
       if (!sources.get(owner)?.has(options.sourceHandle)) throw Error('原文句柄无效');

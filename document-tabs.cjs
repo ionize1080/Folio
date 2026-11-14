@@ -1,9 +1,10 @@
-const { WebContentsView } = require("electron");
+const { BaseWindow, WebContentsView } = require("electron");
 const { randomUUID } = require("node:crypto");
 const path = require("node:path");
 
 // Each editor retains its own PDF.js worker, history, selection and unapplied edits.
-// Only the foreground view participates in layout. The first editor also hosts Home.
+// Inactive editors stay alive. New editors paint in a hidden native host before
+// joining the visible window; the first editor also hosts Home.
 class DocumentTabs {
   constructor(win, options, configure, readFile) {
     Object.assign(this, {win, options, configure, readFile});
@@ -15,6 +16,7 @@ class DocumentTabs {
     win.on("resize", () => this.layout());
     win.on("closed", () => {
       for (const tab of this.entries.values()) tab.view?.webContents.close();
+      this.preparationWindow?.destroy();
     });
   }
   register(wc, view) {
@@ -22,25 +24,43 @@ class DocumentTabs {
     this.entries.set(wc, tab);
     this.configure(wc);
     this.resetReady(tab);
-    wc.on("did-start-navigation", (_event, details) => {
-      if (details.isMainFrame && !details.isSameDocument) this.resetReady(tab);
-    });
-    wc.once("destroyed", () => {
-      this.entries.delete(wc);
-      for (const [id, pending] of this.waiting) {
-        if (pending.tab === tab) {
-          this.waiting.delete(id);
-          pending.reject(Error("Document closed"));
-        }
+    wc.on("did-start-navigation", (details) => {
+      if (details.isMainFrame && !details.isSameDocument) {
+        tab.gone = false;
+        this.resetReady(tab);
       }
     });
+    // A crashed renderer never replies. Without this, request() waits forever
+    // and the shared operations queue (open/close/window close) stalls behind it.
+    wc.on("render-process-gone", () => {
+      tab.gone = true;
+      this.rejectWaiting(tab, "Document process exited");
+      tab.resolveReady?.();
+      tab.resolveReady = null;
+    });
+    wc.once("destroyed", () => {
+      tab.gone = true;
+      tab.resolveReady?.();
+      tab.resolveReady = null;
+      this.entries.delete(wc);
+      this.rejectWaiting(tab, "Document closed");
+    });
     return tab;
+  }
+  rejectWaiting(tab, message) {
+    for (const [id, pending] of this.waiting) {
+      if (pending.tab === tab) {
+        this.waiting.delete(id);
+        pending.reject(Error(message));
+      }
+    }
   }
   resetReady(tab) {
     if (!tab.resolveReady) tab.initialized = new Promise(resolve => { tab.resolveReady = resolve; });
   }
   ready(wc) {
     const tab = this.entries.get(wc);
+    if (!tab) return;
     tab.resolveReady?.();
     tab.resolveReady = null;
     this.onReady?.(tab);
@@ -50,7 +70,7 @@ class DocumentTabs {
   }
   snapshot() {
     return {activeDocumentId:this.active.id, documents:this.documents().map(t => ({
-      documentId:t.id, name:t.name, dirty:t.dirty
+      documentId:t.id, name:t.name, dirty:t.dirty, loading:!!t.loading
     }))};
   }
   publish() {
@@ -64,16 +84,27 @@ class DocumentTabs {
     return tab;
   }
   layout() {
-    if (this.active.view) {
-      const [width,height] = this.win.getContentSize();
-      this.active.view.setBounds({x:0,y:0,width,height});
-    }
+    const [width,height] = this.win.getContentSize();
+    this.preparationWindow?.setContentSize(width, height);
+    for (const tab of this.entries.values())
+      if (tab.view && (tab === this.active || tab.loading))
+        tab.view.setBounds({x:0,y:0,width,height});
   }
-  select(tab) {
-    if (this.active.view) this.win.contentView.removeChildView(this.active.view);
+  select(tab, attention = false) {
+    if (attention) tab.attention = true;
+    if (tab.loading && !tab.attention) { tab.requested = true; return; }
+    if (this.active === tab) { this.publish(); return; }
+    const previous = this.active;
     this.active = tab;
-    if (tab.view) this.win.contentView.addChildView(tab.view, 0);
+    // Attach a prepared frame before detaching the old view. There is never an
+    // intermediate frame exposing the home editor or an unstyled blank page.
     this.layout();
+    if (tab.view) {
+      this.preparationWindow?.contentView.removeChildView(tab.view);
+      this.win.contentView.addChildView(tab.view, 0);
+      tab.view.setVisible(true);
+    }
+    if (previous.view) this.win.contentView.removeChildView(previous.view);
     tab.wc.focus();
     this.publish();
     this.onSelect?.(tab);
@@ -91,25 +122,48 @@ class DocumentTabs {
         const key = process.platform === "win32" ? path.resolve(file).toLowerCase() : path.resolve(file);
         const existing = this.documents().find(t => t.key === key);
         if (existing) { this.select(existing); continue; }
-        const payload = await this.readFile(file);
+        const foreground = this.active;
         let tab = this.home;
         if (tab.name) {
-          const view = new WebContentsView({webPreferences:this.options});
+          const view = new WebContentsView({webPreferences:{...this.options, backgroundThrottling:false}});
           tab = this.register(view.webContents, view);
+          // A detached/offscreen View has no paintable viewport on Windows.
+          // A hidden native host gives PDF.js a real layout and animation clock
+          // without covering or resizing the document the user is reading.
+          this.preparationWindow ||= new BaseWindow({show:false, frame:false, skipTaskbar:true});
+          this.preparationWindow.contentView.addChildView(view);
         }
         tab.name = path.basename(file);
         tab.key = key;
-        this.select(tab);
+        tab.loading = true;
+        this.layout();
+        this.publish();
         try {
-          if (tab.view) await tab.wc.loadURL("folio://app/index.html");
-          if (!await this.request(tab, "load", payload)) this.remove(tab);
+          // Read the file and initialize its isolated editor concurrently while
+          // the current document stays visible and usable.
+          const [payload] = await Promise.all([
+            this.readFile(file),
+            tab.view ? tab.wc.loadURL("folio://app/index.html") : Promise.resolve(),
+          ]);
+          if (!await this.request(tab, "load", payload)) { this.remove(tab); continue; }
+          if (tab.view) {
+            // load() acknowledges the first PDF page, not just DOM readiness.
+            // capturePage also submits the prepared compositor frame while hidden.
+            await tab.wc.capturePage(undefined, {stayHidden:true, stayAwake:true});
+            tab.wc.setBackgroundThrottling(this.options.backgroundThrottling !== false);
+          }
+          tab.loading = false;
+          tab.attention = false;
+          if (this.active === foreground || this.active === tab || tab.requested) this.select(tab);
+          else this.publish();
         } catch (e) { this.remove(tab); throw e; }
       } catch (e) { errors.push(path.basename(file) + " — " + e.message); }
     }
-    if (errors.length) this.active.wc.send("tabs-error", errors.join("\n"));
+    if (errors.length && !this.active.wc.isDestroyed()) this.active.wc.send("tabs-error", errors.join("\n"));
   }
   async request(tab, action, file) {
     await tab.initialized;
+    if (tab.gone || tab.wc.isDestroyed()) throw Error("Document process exited");
     return new Promise((resolve,reject) => {
       const id = randomUUID();
       this.waiting.set(id, {tab,resolve,reject});
@@ -126,9 +180,11 @@ class DocumentTabs {
   remove(tab) {
     const order = this.documents(), index = order.indexOf(tab);
     this.onRemove?.(tab);
-    Object.assign(tab, {name:"",key:null,dirty:false,busy:false});
+    Object.assign(tab, {name:"",key:null,dirty:false,busy:false,loading:false,requested:false,attention:false});
     if (this.active === tab) this.select(order[index+1] || order[index-1] || this.home);
     if (tab.view) {
+      this.preparationWindow?.contentView.removeChildView(tab.view);
+      if (this.win.contentView.children.includes(tab.view)) this.win.contentView.removeChildView(tab.view);
       this.entries.delete(tab.wc);
       tab.wc.close();
     } else {
@@ -140,12 +196,14 @@ class DocumentTabs {
   }
   async closeOne(id) {
     const tab = this.byId(id);
+    // Unsaved state died with the renderer; there is nothing left to confirm.
+    if (tab.gone) return this.remove(tab);
     if (tab.dirty || tab.busy) this.select(tab);
     if (await this.request(tab, "confirm-close")) this.remove(tab);
   }
   async confirmWindow() {
     for (const tab of this.documents()) {
-      if (!tab.dirty && !tab.busy) continue;
+      if (tab.gone || (!tab.dirty && !tab.busy)) continue;
       this.select(tab);
       if (!await this.request(tab, "confirm-close")) return false;
     }

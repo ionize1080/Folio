@@ -96,7 +96,16 @@ async function printDocument({
         preferCSSPageSize: true,
         margins: { top: 0, bottom: 0, left: 0, right: 0 },
       });
-      await fs.writeFile(result.filePath, bytes);
+      // Write beside the target and rename, so a failed write (disk full,
+      // locked target) never leaves a truncated PDF over an existing file.
+      const tmp = result.filePath + ".folio-" + require("node:crypto").randomUUID() + ".tmp";
+      try {
+        await fs.writeFile(tmp, bytes, { flag: "wx" });
+        await fs.rename(tmp, result.filePath);
+      } catch (error) {
+        await fs.rm(tmp, { force: true }).catch(() => {});
+        throw error;
+      }
       return { saved: true };
     }
     const first = pages[0],
@@ -138,7 +147,10 @@ async function printDocument({
     });
   } finally {
     if (window && !window.isDestroyed()) window.destroy();
-    await fs.rm(directory, { recursive: true, force: true });
+    // Cleanup failure must not turn a completed print into an error.
+    await fs
+      .rm(directory, { recursive: true, force: true })
+      .catch((error) => console.warn("Print temp cleanup failed:", error));
   }
 }
 module.exports = { printDocument };

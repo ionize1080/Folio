@@ -422,7 +422,10 @@ def run(args, *, _preview=False):
   if args.get('imagePreviews') is not None:data=compact_preview(data)
   return {'pdf':data}
  import pypdfium2 as p
- if args.get('command')=='ocr' and 'input' in args:
+ # Keep a document open across requests only for OCR jobs (stable input path,
+ # worker killed when the job ends). One-off OCR inputs are per-request temp or
+ # source-store files; an open handle on Windows blocks their deletion.
+ if args.get('command')=='ocr' and 'input' in args and args.get('cacheInput'):
   if CACHED_PATH!=args['input']:
    if CACHED_PDF:CACHED_PDF.close()
    CACHED_PDF=p.PdfDocument(args['input']);CACHED_PATH=args['input']

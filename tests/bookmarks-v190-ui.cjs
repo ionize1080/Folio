@@ -302,8 +302,9 @@ checks.push = (...items) => {
     "底层字典",
   );
   await page.keyboard.press("Home");
+  // The shortcut is rendered in its own <kbd>; the accessible name keeps the full label.
   assert.equal(
-    await page.evaluate(() => document.activeElement.textContent),
+    await page.evaluate(() => document.activeElement.getAttribute("aria-label")),
     "编辑标题 · F2",
   );
   const rect = await page.locator("#context-menu").boundingBox();

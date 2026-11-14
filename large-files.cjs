@@ -82,7 +82,9 @@ class LargeFiles {
   }
   async page({ handle, page, scale = 1.5, textOnly = false }) {
     const e = await this.entry(handle);
-    if (!textOnly) e.bridge.cancel();
+    // Pre-empt only a stale in-flight render. Killing an idle worker forced a
+    // Python restart and a fresh PyMuPDF import for every page turn.
+    if (!textOnly && e.bridge.busy) e.bridge.cancel();
     const result = await e.bridge.request({
       command: textOnly ? "large-text" : "large-page",
       input: e.file,

@@ -261,7 +261,15 @@ class FileStore {
         await handle.sync();await handle.close();handle=null;
         await this.savedVersion(file,checked.hashState.update(chunk).digest('hex'));
         return {name:path.basename(file),handle:this.grant(file),working:true,sha256:this.versions.get(file).sha256,incremental:true};
-      }catch(err){if(handle&&started){await handle.truncate(options.baseLength);await handle.sync();}throw err;}
+      }catch(err){
+        if(handle&&started){
+          // Roll back the partial append. If rollback itself fails, report both:
+          // the original write error alone would hide that the file is now extended.
+          try{await handle.truncate(options.baseLength);await handle.sync();}
+          catch(rollback){throw Error(`增量保存失败（${err.message}），且无法恢复原长度（${rollback.message}）；请另存副本并检查原文件`,{cause:err});}
+        }
+        throw err;
+      }
       finally{await handle?.close();}
     }
     // Flush a same-directory temporary file before replacing. Failed replacement leaves original intact.

@@ -20,8 +20,8 @@ let app, page;
   page = await app.firstWindow();
   page.setDefaultTimeout(120000);
   page.on("pageerror", (e) => errors.push(e.message));
-  await page.waitForSelector("#language-select");
-  await page.locator("#language-select").selectOption("en");
+  await page.waitForSelector("#ribbon-tab-photo");
+  await page.evaluate(async () => (await import("./i18n.mjs")).setLanguage("en"));
   const bytes = await page.evaluate(async () => {
     const { PDFDocument } = await import("./vendor/pdf-lib.js");
     const d = await PDFDocument.create();

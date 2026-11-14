@@ -25,8 +25,8 @@ const files = fs
   });
   try {
     const page = await app.firstWindow();
-    await page.waitForSelector("#language-select");
-    await page.locator("#language-select").selectOption("zh-Hans");
+    await page.waitForSelector("#ribbon-tab-photo");
+    await page.evaluate(async () => (await import("./i18n.mjs")).setLanguage("zh-Hans"));
     await page.evaluate(async () => {
       window.__S = (await import("./app.mjs")).S;
     });

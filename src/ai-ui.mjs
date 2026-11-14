@@ -60,6 +60,7 @@ export function installAI({
   writeFile,
   saveProject,
   getViewContext,
+  replaceDocument,
 }) {
   const desktop = window.desktop;
   if (!desktop?.aiOpen) return;
@@ -187,7 +188,7 @@ export function installAI({
   const enqueueUI=fn=>{const work=queue.then(fn);queue=work.catch(()=>{});return work;};
   installGraphicsUI({...uiContext,imageTool:a=>a.action==='generate_new'?uiImage(a):enqueueUI(()=>uiImage(a)),vectorTool:a=>enqueueUI(()=>vectorTool(a,uiContext,Infinity)),applyContent:(edits,ocr)=>{const revision=rev();return enqueueUI(()=>{if(rev()!==revision)throw Error('文档已变化，请刷新');return applyContent(edits,ocr);});}});
   const documentUtilities=installDocumentUtilities({S,exportPDF,session,writeFile});
-  installPageOrganizer({S,session,run:documentUtilities,exportPDF});
+  installPageOrganizer({S,session,run:documentUtilities,exportPDF,replaceDocument});
   const studio=installCreativeTools({...uiContext,writeFile,exportPDF});
   installCreativeUI({S,surface,rev,studio,run:a=>enqueueUI(()=>studio(a))});
   new ResizeObserver(dockBounds).observe(document.querySelector('.studio-ai-dock'));
