@@ -16,7 +16,7 @@ const fs=require('node:fs'),path=require('node:path'),assert=require('node:asser
    await page.locator(`[data-utility-action=${action}]`).click();assert.equal(await page.locator('[data-key=ocr-policy] option').count(),3);
    await page.locator('[data-key=ocr-policy]').selectOption('skip');assert.equal(await page.locator('[data-key=ocr-policy]').inputValue(),'skip');
   }
-  await page.screenshot({path:'tests/output/refinements-251-dialog.png'});checks.push('Short windows keep footer and last navigation item reachable; both export modes expose OCR policies');
+  await require('./native-capture.cjs')(app,page,'tests/output/refinements-251-dialog.png');checks.push('Short windows keep footer and last navigation item reachable; both export modes expose OCR policies');
   await page.locator('.document-tools [data-close]').click();
   for(const kind of ['photo','vector']){
    const s=await call({action:'open',kind,settings:{width:200,height:100},visible:true});await page.locator('.studio-active').waitFor();
@@ -37,7 +37,7 @@ const fs=require('node:fs'),path=require('node:path'),assert=require('node:asser
    assert(Math.abs(Math.hypot(...resized.slice(0,2))/Math.hypot(...resized.slice(2,4))-2)<.001);
    const cancelBox=await page.locator('.placement-page-layer polygon').boundingBox();await page.mouse.move(cancelBox.x+cancelBox.width/2,cancelBox.y+cancelBox.height/2);await page.mouse.down();await page.mouse.move(cancelBox.x+cancelBox.width/2+15,cancelBox.y+cancelBox.height/2+15);await page.keyboard.press('Escape');await page.mouse.up();
    assert.deepEqual(await page.evaluate(async()=>{const {S}=await import('./app.mjs');return S.nativeEdits.at(-1).matrix;}),resized);
-   await page.screenshot({path:'tests/output/refinements-251-'+kind+'.png'});
+   await require('./native-capture.cjs')(app,page,'tests/output/refinements-251-'+kind+'.png');
 
    await page.locator('.placement-page-bar button').click();await page.locator('.studio-active').waitFor();await page.locator('[data-return]').click();
    checks.push(kind+' artwork moves and resizes with aspect lock on the PDF; Esc cancels a gesture');
