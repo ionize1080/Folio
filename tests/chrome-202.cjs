@@ -7,6 +7,7 @@ const {_electron:electron}=require('playwright'),path=require('node:path'),fs=re
   await app.evaluate(({dialog},file)=>{dialog.showOpenDialog=async()=>({canceled:false,filePaths:[file]})},path.resolve('tests/output/ai-202.pdf'));
   await p.locator('[data-action="open"]').first().click();await p.waitForFunction(()=>document.querySelector('#doc-name').textContent.includes('ai-202'));await p.locator('#busy').waitFor({state:'hidden'});
   for(const language of ['en','zh-Hans','zh-Hant'])for(const width of [1080,1250,1500])for(const dark of [false,true]){
+   console.log('Checking chrome',language,width,dark?'dark':'light');
    await p.locator('[data-action="settings"]').click();
    await p.locator('#settings-language').selectOption(language);
    await p.locator('#set-theme').selectOption(dark?'dark':'light');
@@ -15,11 +16,13 @@ const {_electron:electron}=require('playwright'),path=require('node:path'),fs=re
    assert.equal(await p.locator('.appbar [data-language-select]').count(),0);
    await p.waitForTimeout(100);
    const geometry=await p.evaluate(()=>{
-    const controls=[...document.querySelectorAll('.appbar > .toolbar button:not(.more-tools-menu button),.appbar > .toolbar summary')];
+    // Ribbon categories stay mounted; only the active category participates in layout.
+    const controls=[...document.querySelectorAll('.appbar > .toolbar button:not(.more-tools-menu button),.appbar > .toolbar summary')].filter(e=>e.checkVisibility());
     const rects=controls.map(e=>{const r=e.getBoundingClientRect();return {label:e.textContent.trim()||e.title,x:r.x,right:r.right,y:r.y,h:r.height}});
     return {width:innerWidth,overflow:document.documentElement.scrollWidth>innerWidth,rects};
    });
    assert(!geometry.overflow,JSON.stringify({language,width,dark,geometry}));
+   assert(geometry.rects.length>=8,'the active Home commands must remain visible');
    geometry.rects.forEach(r=>assert(r.x>=0&&r.right<=geometry.width&&r.h===32,JSON.stringify({language,width,dark,r})));
    const ribbon=await p.evaluate(()=>{
     const tabs=document.querySelector('.ribbon-tab-row').getBoundingClientRect(),commands=document.querySelector('#ribbon-home').getBoundingClientRect();
@@ -37,7 +40,7 @@ const {_electron:electron}=require('playwright'),path=require('node:path'),fs=re
    await p.keyboard.press('End');assert.equal(await p.locator('.more-tools-menu button').last().evaluate(e=>e===document.activeElement),true);
    const colors=await p.locator('.more-tools-menu button').first().evaluate(e=>({actual:getComputedStyle(e).color,expected:getComputedStyle(document.body).color}));
    assert.equal(colors.actual,colors.expected,'theme colors update while menu is closed');
-   if(width===1250)await p.screenshot({path:`tests/output/chrome-${language}-${dark?'dark':'light'}.png`});
+   if(width===1250)await require('./native-capture.cjs')(app,p,`tests/output/chrome-${language}-${dark?'dark':'light'}.png`);
    await p.keyboard.press('Escape');assert.equal(await p.locator('.more-tools > summary').evaluate(e=>e===document.activeElement),true);
    checks.push({language,width,theme:dark?'dark':'light',toolbarAligned:true,menuVisible:true,keyboard:true});
   }

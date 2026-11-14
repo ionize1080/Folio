@@ -60,7 +60,13 @@ const {configure}=require('./ai-live-support.cjs');
    fs.writeFileSync('tests/output/live-'+expected+'.txt',finalText);
    console.log(expected,JSON.stringify(trace.map(t=>({name:t.name,operation:t.arguments?.operation,action:t.arguments?.action}))),Math.round((Date.now()-start)/1000)+'s');
    assert(trace.some(t=>t.name===expected),'Natural request should select '+expected);
-   if(verify) await verify(trace,finalText);
+   if(verify) {
+    try { await verify(trace,finalText); }
+    catch(error) {
+     console.error('Failed live workflow',JSON.stringify({expected,answer:finalText.slice(-5000),tools:trace.map(t=>({name:t.name,action:t.arguments?.action,ms:t.ms,error:t.error}))}));
+     throw error;
+    }
+   }
    else if(expected==='folio_document'){const renders=trace.filter(t=>t.name==='folio_render'||(t.name==='folio_document'&&t.arguments?.action==='image'));assert.equal(renders.length,1,'page image should not require retries');assert(renders[0].images?.some(i=>i.mime==='image/png'&&i.bytes>100),'actual native image returned');assert(!renders[0].error);assert.equal(JSON.stringify(renders[0].arguments?.region),'[0,0,1,0.5]','exact requested crop');assert(body.includes('Chapter 1'));}
    checks.push({task,expected,apiRequests:(await app.evaluate(()=>globalThis.headerAudits.length))-apiStart,tools:trace.map(t=>({name:t.name,operation:t.arguments?.operation,action:t.arguments?.action,ms:t.ms,textBytes:t.textBytes,images:t.images,dimensions:t.dimensions,error:t.error})),seconds:(Date.now()-start)/1000,initialProgress:initial});
   }
@@ -93,7 +99,7 @@ const {configure}=require('./ai-live-support.cjs');
   }
   await require("./ai-live-workflows.cjs")({app,host,chat,ask});
   const audits=await app.evaluate(()=>globalThis.headerAudits);assert(audits.length);assert(audits.every(a=>a.bearer&&a.userAgent?.includes('ai-sdk')));
-  await chat.screenshot({path:'tests/output/live-202.png'});
+  await require('./native-capture.cjs')(app,chat,'tests/output/live-202.png',{url:chat.url()});
   fs.writeFileSync('tests/output/live-202.json',JSON.stringify({status:'passed',model,checks,headers:audits,independentStateChecks:true,errors},null,2));assert.deepEqual(errors,[]);
  } finally{await app.evaluate(({app})=>app.exit(0)).catch(()=>{})}
 })().catch(e=>{console.error(e);process.exitCode=1});
