@@ -162,8 +162,10 @@ app.whenReady().then(async () => {
   win = new BrowserWindow({
     frame: process.platform !== 'win32',
     show: process.env.FOLIO_TEST_BACKGROUND !== "1",
-    width: Math.min(1500,availableScreen.width),
-    height: Math.min(970,availableScreen.height),
+    // Stay clearly inside the work area so Restore is visibly different from Maximize and edges remain draggable.
+    width: Math.min(1500,Math.round(availableScreen.width*0.88)),
+    height: Math.min(970,Math.round(availableScreen.height*0.9)),
+    center: true,
     minWidth: Math.min(800,availableScreen.width),
     minHeight: Math.min(520,availableScreen.height),
     backgroundColor: "#f4f6fa",

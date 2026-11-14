@@ -2787,5 +2787,19 @@
   "书签 · 交换": "Bookmarks · Import / export",
   "书签 · 去重": "Bookmarks · Duplicates",
   "书签 · 缩放": "Bookmarks · Zoom",
-  "书签 · 标题": "Bookmarks · Titles"
+  "书签 · 标题": "Bookmarks · Titles",
+  "中英混排": "Mixed CJK/Latin",
+  "标点符号": "Punctuation",
+  "常用汉字": "Common Hanzi",
+  "样本文字预设": "Sample text presets",
+  "预览字号": "Preview size",
+  "从左侧选择一款字体，立即预览并检查字符覆盖。": "Pick a font on the left to preview it and check character coverage.",
+  "没有匹配的字体": "No matching fonts",
+  "正在读取字体…": "Reading font…",
+  "受限嵌入": "Embedding restricted",
+  "可嵌入": "Embeddable",
+  "字体样式": "Font style",
+  "PostScript 名称": "PostScript name",
+  "OpenType 特性": "OpenType features",
+  "预览字号范围 8–96 pt": "Preview size must be 8–96 pt"
 }

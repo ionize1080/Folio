@@ -698,3 +698,7 @@ label:has(> input[type=color]) { flex-direction: row !important; align-items: ce
 /* Preferences: the language picker reads as one ordinary select, like its neighbours. */
 #modal-body .pref-control .language-picker { flex-direction: row; align-items: center; justify-content: flex-start; padding: 0 0 0 10px; height: 36px; min-height: 36px; border: 1px solid var(--line-strong); background: var(--panel); }
 #modal-body .pref-control .language-picker select { flex: 1; min-width: 0; max-width: none; height: 34px; justify-content: flex-start; text-align: left; background: transparent !important; box-shadow: none !important; border: 0; }
+
+/* Review-02: close glyphs sit on the exact centre of their circle; svg icons use the same box everywhere. */
+#modal-close,dialog button[data-close]:has(>svg){display:inline-grid;place-items:center;width:32px;min-width:32px;height:32px;min-height:32px;padding:0;line-height:0;}
+#modal-close svg,dialog button[data-close]>svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;display:block;}

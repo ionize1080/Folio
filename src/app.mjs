@@ -3140,13 +3140,36 @@ function multiGenerateDialog() {
     JSON.parse(localStorage.getItem("folio-rule-presets") || "{}");
   modal(
     "多级规则 · 自动生成书签",
-    `<div class="form-grid three"><label>扫描物理页范围<input id="multi-range" value="${S.page}"></label><label>子集<select id="multi-parity"><option value="all">全部</option><option value="odd">奇数页</option><option value="even">偶数页</option></select></label><label>标题顶部留白单位<select id="multi-unit"><option value="pt">pt</option><option value="mm">mm</option></select></label></div><div class="form-grid three"><label>排除页眉高度（pt）<input id="multi-header" type="number" min="0" value="0"></label><label>排除页脚高度（pt）<input id="multi-footer" type="number" min="0" value="0"></label><label>文字区域右边界（pt，可留空）<input id="multi-right" type="number" placeholder="全宽"></label></div><p class="hint">规则按层级生成，父项取前面最近的有效上一级；停用的层级不参与生成，其余启用层级连续编号。多规则命中按列表优先级处理，可切换为跳过。缺少父项可跳过或提升层级。跨页范围从子级开始时，请把前面的父级页纳入扫描。</p><div class="rule-toolbar"><button id="rule-add">＋ 规则</button><button id="rule-default">通用层级示例</button><button id="rule-save">保存预设</button><select id="rule-presets"><option value="">加载预设…</option>${Object.keys(
-      presetList(),
-    )
-      .map((n) => `<option translate="no">${esc(n)}</option>`)
-      .join(
-        "",
-      )}</select><button id="rule-import">导入</button><button id="rule-export">导出</button><button id="gen-other">字号 / 目录 / 页间隔…</button></div><div class="form-grid"><label>多规则冲突<select id="multi-conflict"><option value="first">优先使用第一条命中规则</option><option value="skip">跳过并诊断</option></select></label><label>缺少父级<select id="multi-orphan"><option value="skip">跳过并诊断</option><option value="promote">提升至最近有效层级</option></select></label><label>文字来源<select id="multi-source"><option value="auto">自动（已校对 OCR 优先）</option><option value="pdf">PDF 文字层</option><option value="ocr">已应用的 OCR 结果</option></select></label><label class="check"><input id="multi-join" type="checkbox">合并相邻跨行标题（最多 3 行，需核对预览）</label></div><div id="rule-list"></div><div class="form-grid"><label>插入方式<select id="multi-merge"><option value="append">根层末尾追加</option><option value="replace">替换所有书签</option><option value="before">所选书签之前</option><option value="after">所选书签之后</option><option value="child">所选书签的首个子项</option></select></label><label class="check"><input id="multi-dedupe" type="checkbox" checked>跳过同父项、同标题、同页的重复匹配（含现有书签）</label></div><div id="multi-summary" class="callout">先测试当前页或扫描范围，再应用。预览中的书签可点击检查页面位置。</div><canvas id="multi-target-preview" hidden></canvas><div id="multi-preview" class="preview-list"></div><details><summary>命中与忽略诊断（最多 3,000 行）</summary><div id="multi-diagnostics" class="preview-list"></div></details>`,
+    `<div class="generation-scope-bar rg-scope"><label class="page-range-label">扫描范围<input id="multi-range" value="${S.page}"></label><select id="multi-parity" hidden><option value="all">全部</option><option value="odd">奇数页</option><option value="even">偶数页</option></select></div>
+<div class="rules-workspace">
+<nav class="rules-nav" aria-label="书签层级">
+<div class="rg-pane-head"><h3>层级</h3><button type="button" id="rule-add" title="在末尾添加下一层级"><i data-icon="plus"></i><span>添加层级</span></button></div>
+<div id="rule-levels" class="rg-levels"></div>
+<div class="rg-nav-foot"><button type="button" id="rule-undo" title="撤销规则列表修改" aria-label="撤销规则"><i data-icon="undo"></i></button><button type="button" id="rule-redo" title="重做规则列表修改" aria-label="重做规则"><i data-icon="redo"></i></button>
+<details class="rg-menu"><summary>预设与导入</summary><div class="rg-menu-list"><button type="button" id="rule-default">载入通用层级示例</button><button type="button" id="rule-save">将当前规则存为预设</button><label>加载预设<select id="rule-presets"><option value="">选择预设…</option>${Object.keys(presetList()).map((n) => `<option translate="no">${esc(n)}</option>`).join("")}</select></label><hr><button type="button" id="rule-import">导入规则文件…</button><button type="button" id="rule-export">导出规则文件…</button><hr><button type="button" id="gen-other">按字号、目录或页间隔生成…</button></div></details></div>
+</nav>
+<section class="rules-editor" aria-label="层级规则">
+<div id="rule-list"></div>
+<details class="rules-settings"><summary>扫描与匹配设置</summary><div class="rg-settings">
+<div class="form-grid"><label>文字来源<select id="multi-source"><option value="auto">自动（已校对 OCR 优先）</option><option value="pdf">PDF 文字层</option><option value="ocr">已应用的 OCR 结果</option></select></label><label>留白单位<select id="multi-unit"><option value="pt">pt</option><option value="mm">mm</option></select></label></div>
+<div class="form-grid"><label>多条规则同时命中<select id="multi-conflict"><option value="first">采用排在前面的层级</option><option value="skip">跳过并列入诊断</option></select></label><label>找不到上一级<select id="multi-orphan"><option value="skip">跳过并列入诊断</option><option value="promote">提升到最近的有效层级</option></select></label></div>
+<label class="check"><input id="multi-join" type="checkbox">合并相邻的跨行标题（最多 3 行）</label>
+<details class="generation-advanced"><summary>文字区域与分行</summary>
+<div class="form-grid three"><label>排除页眉高度（pt）<input id="multi-header" type="number" min="0" value="0"></label><label>排除页脚高度（pt）<input id="multi-footer" type="number" min="0" value="0"></label><label>左边界（pt）<input id="multi-left" type="number" placeholder="不限"></label></div>
+<div class="form-grid three"><label>右边界（pt）<input id="multi-right" type="number" placeholder="全宽"></label><label>大间隔阈值（字高倍数）<input id="multi-gap" type="number" min="0.5" max="20" step="0.5" value="2"></label><label class="check"><input id="multi-columns" type="checkbox">按阅读栏分开</label></div>
+<div class="form-grid"><label>同行判断<select id="multi-line-mode"><option value="auto">自动 · 参考局部字高和行距</option><option value="strict">严格</option><option value="relaxed">宽松</option><option value="manual">手动容差</option></select></label><label>手动基线容差（字高倍数）<input id="multi-line-tolerance" type="number" min="0.05" max="1" step="0.05" value="0.4"></label></div>
+</details>
+<p class="hint">层级按列表顺序编号，停用的层级不参与生成。若范围从子级开始，请把父级所在页也纳入扫描。</p>
+</div></details>
+</section>
+<section class="rules-results" aria-label="匹配预览">
+<div class="rg-pane-head"><h3>预览</h3><div class="rg-segment" role="group" aria-label="预览范围"></div></div>
+<div id="multi-summary" role="status">正在准备预览…</div>
+<canvas id="multi-target-preview" hidden></canvas>
+<div id="multi-preview" class="preview-list" role="list"></div>
+<details class="rg-diagnostics"><summary>未生成的行与原因</summary><div id="multi-diagnostics" class="preview-list"></div></details>
+</section>
+</div>`,
     [
       { text: "关闭", run: closeModal },
       {
@@ -3161,8 +3184,8 @@ function multiGenerateDialog() {
           $("#multi-summary").textContent = "任务已取消，可继续修改规则";
         },
       },
-      { text: "测试当前页", id: "multi-current", run: () => run(true) },
-      { text: "生成范围预览", id: "multi-run", run: () => run(false) },
+      { text: "当前页", id: "multi-current", run: () => run(true) },
+      { text: "所选范围", id: "multi-run", run: () => run(false) },
       {
         text: "应用书签",
         id: "multi-apply",
@@ -3198,93 +3221,43 @@ function multiGenerateDialog() {
       },
     ],
   );
-  const advanced = document.createElement("details");
-  advanced.className = "generation-advanced";
-  advanced.innerHTML = "<summary>高级：文字区域、来源与冲突处理</summary>";
-  const headerGrid = $("#multi-header").closest(".form-grid"),
-    hint = headerGrid.nextElementSibling,
-    optionsGrid = $("#multi-conflict").closest(".form-grid");
-  headerGrid.before(advanced);
-  advanced.append(headerGrid, hint, optionsGrid);
-  advanced.insertAdjacentHTML(
-    "beforeend",
-    `<div class="form-grid three"><label class="check"><input id="multi-columns" type="checkbox">按阅读栏分开（默认拼接同行）</label><label>大间隔阈值（字高倍数）<input id="multi-gap" type="number" min="0.5" max="20" step="0.5" value="2"></label><label>左侧边界（pt，可留空）<input id="multi-left" type="number"></label></div>`,
-  );
-  advanced.insertAdjacentHTML(
-    "beforeend",
-    `<div class="form-grid"><label>同行判断<select id="multi-line-mode"><option value="auto">自动 · 参考局部字高和行距</option><option value="strict">严格</option><option value="relaxed">宽松</option><option value="manual">手动容差</option></select></label><label>手动基线容差（字高倍数）<input id="multi-line-tolerance" type="number" min="0.05" max="1" step="0.05" value="0.4"></label></div><p class="hint">容差只用于候选同行；仍检查邻行与重叠，避免跨行串接。规则不依赖文档行业或词语。</p>`,
-  );
-  $("#multi-parity").closest("label").hidden = true;
   const disposePicker = installPagePicker($("#multi-range"), { S, surface });
-  $("#modal").classList.add("rules-workspace-dialog");
-  const workspace = document.createElement("div");
-  workspace.className = "rules-workspace";
-  const nav = document.createElement("nav");
-  nav.className = "rules-nav";
-  nav.setAttribute("aria-label", "书签规则列表");
-  const editor = document.createElement("section");
-  editor.className = "rules-editor";
-  const results = document.createElement("section");
-  results.className = "rules-results";
-  results.setAttribute("aria-label", "匹配预览");
-  const settingsPanel = document.createElement("details");
-  settingsPanel.className = "rules-settings";
-  settingsPanel.innerHTML = "<summary>高级匹配与插入方式</summary>";
-  const body = $("#modal-body"),
-    rangeGrid = $("#multi-range").closest(".form-grid"),
-    toolbar = $("#rule-add").parentElement,
-    mergeGrid = $("#multi-merge").closest(".form-grid"),
-    diagnostics = $("#multi-diagnostics").parentElement;
-  settingsPanel.append(advanced, mergeGrid);
-  rangeGrid.classList.add("generation-scope-bar");
-  const rangeMore = document.createElement("details");
-  rangeMore.className = "range-more";
-  rangeMore.innerHTML = "<summary>更多范围选择</summary>";
-  const picker = rangeGrid.querySelector(".page-picker");
-  rangeMore.append(
-    picker.querySelector(".page-ends"),
-    picker.querySelector(".range-visual"),
-  );
-  picker.append(rangeMore);
-  editor.append(settingsPanel, toolbar, $("#rule-list"));
-  results.append(
-    $("#multi-summary"),
-    $("#multi-target-preview"),
-    $("#multi-preview"),
-    diagnostics,
-  );
-  workspace.append(nav, editor, results);
-  body.append(rangeGrid, workspace);
-  const tabs = document.createElement("div");
-  tabs.className = "rules-view-tabs";
-  tabs.innerHTML =
-    '<button data-view="edit" aria-pressed="true">规则设置</button><button data-view="results" aria-pressed="false">匹配结果</button>';
-  body.insertBefore(tabs, workspace);
-  workspace.dataset.view = "edit";
-  tabs.onclick = (e) => {
-    const b = e.target.closest("[data-view]");
-    if (!b) return;
-    workspace.dataset.view = b.dataset.view;
-    tabs
-      .querySelectorAll("button")
-      .forEach((q) => q.setAttribute("aria-pressed", q === b));
-  };
+  $("#modal").classList.add("rules-workspace-dialog", "rules-v2");
+  // Range presets stay visible; the end-page and visual range pickers fold away.
+  const picker = $(".rg-scope .page-picker");
+  if (picker) {
+    const rangeMore = document.createElement("details");
+    rangeMore.className = "range-more";
+    rangeMore.innerHTML = "<summary>更多范围选择</summary>";
+    for (const el of [picker.querySelector(".page-ends"), picker.querySelector(".range-visual")]) if (el) rangeMore.append(el);
+    picker.append(rangeMore);
+  }
+  // Preview scope buttons live in the preview header; insertion options lead the footer.
+  $(".rules-results .rg-segment").append($("#multi-current"), $("#multi-run"));
+  $("#multi-current").title = "只在当前页测试规则";
+  $("#multi-run").title = "预览整个扫描范围";
+  const footerOptions = document.createElement("div");
+  footerOptions.className = "rg-footer-options";
+  footerOptions.innerHTML = `<label>插入到<select id="multi-merge"><option value="append">现有书签之后</option><option value="replace">替换所有书签</option><option value="before">所选书签之前</option><option value="after">所选书签之后</option><option value="child">所选书签内（首个子项）</option></select></label><label class="check" title="同一父级下、标题和页码都相同的匹配只保留一个（含现有书签）"><input id="multi-dedupe" type="checkbox" checked>跳过重复</label>`;
+  $("#modal-footer").prepend(footerOptions);
   $("#multi-cancel-task").hidden = true;
+  const nav = $("#rule-levels");
   const drawNav = () => {
     nav.replaceChildren();
     rules.forEach((r, i) => {
       const b = document.createElement("button");
+      b.type = "button";
       b.className = "rule-nav-item";
       b.dataset.ruleIndex = i;
+      b.dataset.level = Math.min(i + 1, 6);
+      b.dataset.enabled = String(!!r.enabled);
       b.setAttribute("aria-current", String(i === activeRule));
-      b.innerHTML = `<span translate="no">${i + 1}  ${esc(r.name || t("未命名规则"))}</span><span>${r.enabled ? "" : " · 已停用"}</span>`;
       const count = generated?.filter((n) => n.origin?.rule === r.name).length;
-      if (count != null) {
-        const small = document.createElement("small");
-        small.textContent = `第 ${r.level} 层 · ${count} 项`;
-        b.append(small);
-      }
-
+      b.innerHTML = `<span class="rg-dot" aria-hidden="true"></span><span class="rg-name" translate="no"></span><span class="rg-count"></span><code class="rg-pattern" translate="no"></code>`;
+      b.querySelector(".rg-name").textContent = r.name || t("未命名规则");
+      b.querySelector(".rg-count").textContent = !r.enabled ? "已停用" : count == null ? "" : String(count);
+      b.querySelector(".rg-pattern").textContent = r.pattern || "（未设置匹配）";
+      b.title = `第 ${i + 1} 层`;
       nav.append(b);
     });
     $("#rule-list")
@@ -3298,6 +3271,15 @@ function multiGenerateDialog() {
       drawNav();
     }
   };
+  nav.onkeydown = (e) => {
+    if (!["ArrowUp", "ArrowDown"].includes(e.key)) return;
+    e.preventDefault();
+    activeRule = Math.max(0, Math.min(rules.length - 1, activeRule + (e.key === "ArrowDown" ? 1 : -1)));
+    drawNav();
+    nav.querySelector(`[data-rule-index="${activeRule}"]`)?.focus();
+  };
+  const unitLabel = () => $("#multi-unit").value;
+
 
   const invalidate = () => {
     revision++;
@@ -3326,7 +3308,11 @@ function multiGenerateDialog() {
     $("#rule-list").innerHTML = rules
       .map(
         (r, i) =>
-          `<div class="rule-card" data-rule="${i}" ><div class="rule-toolbar"><label class="check"><input data-field="enabled" type="checkbox" ${r.enabled ? "checked" : ""}>启用</label><input data-field="name" value="${esc(r.name)}" aria-label="规则名称"><label>层级 <input data-field="level" type="number" min="1" value="${r.level}" readonly></label><span class="rule-actions"><button data-move="-1" title="上移" aria-label="上移">${icon("up")}</button><button data-move="1" title="下移" aria-label="下移">${icon("down")}</button><button data-delete class="danger" title="删除此规则" aria-label="删除此规则">${icon("trash")}</button></span></div><label>正则表达式<input data-field="pattern" value="${esc(r.pattern)}" spellcheck="false" autocomplete="off"></label><small class="rule-pattern-error" role="status"></small><div class="pattern-chips" role="group" aria-label="常用模式">${PATTERN_CHIPS.map(([label, pattern]) => `<button type="button" translate="no" data-pattern="${esc(pattern)}" title="${esc(pattern)}">${label}</button>`).join("")}</div><div class="form-grid"><label>标题来源<select data-field="titleMode"><option value="template" ${!r.titleMode || r.titleMode === "template" ? "selected" : ""}>捕获组模板</option><option value="line" ${r.titleMode === "line" ? "selected" : ""}>完整行</option><option value="match" ${r.titleMode === "match" ? "selected" : ""}>匹配部分</option></select></label><label>标题模板（$0 / $1 / $2 / {page}）<input data-field="template" value="${esc(r.template)}"></label><label>定位捕获组（0 为匹配开头）<input data-field="targetGroup" type="number" min="0" value="${r.targetGroup || 0}"></label><label>顶部留白<input data-field="offset" type="number" step="any" value="${r.offset}"></label></div><label class="check"><input data-field="requireGroups" type="checkbox" ${r.requireGroups !== false ? "checked" : ""}>模板中的捕获组不能为空</label><div class="property-row"><label><input data-field="bold" type="checkbox" ${r.bold ? "checked" : ""}>粗体</label><label><input data-field="italic" type="checkbox" ${r.italic ? "checked" : ""}>斜体</label><input data-field="color" type="color" value="${r.color}"></div></div>`,
+          `<div class="rule-card" data-rule="${i}" data-level="${Math.min(i + 1, 6)}"><div class="rule-toolbar"><input class="rg-level" data-field="level" type="number" min="1" value="${r.level}" readonly aria-label="层级" tabindex="-1"><input data-field="name" value="${esc(r.name)}" aria-label="层级名称"><label class="check rg-switch"><input data-field="enabled" type="checkbox" ${r.enabled ? "checked" : ""}>启用</label><span class="rule-actions"><button type="button" data-move="-1" title="上移一级" aria-label="上移">${icon("up")}</button><button type="button" data-move="1" title="下移一级" aria-label="下移">${icon("down")}</button><button type="button" data-delete class="danger" title="删除此层级" aria-label="删除此层级">${icon("trash")}</button></span></div>
+<section class="rg-section"><h4>匹配哪些行</h4><input data-field="pattern" value="${esc(r.pattern)}" spellcheck="false" autocomplete="off" aria-label="正则表达式" placeholder="正则表达式，例如 ^第.+章"><small class="rule-pattern-error" role="status"></small><div class="pattern-chips" role="group" aria-label="常用模式">${PATTERN_CHIPS.map(([label, pattern]) => `<button type="button" translate="no" data-pattern="${esc(pattern)}" title="${esc(pattern)}">${label}</button>`).join("")}</div></section>
+<section class="rg-section"><h4>书签标题</h4><div class="form-grid"><label>标题取自<select data-field="titleMode"><option value="template" ${!r.titleMode || r.titleMode === "template" ? "selected" : ""}>模板</option><option value="line" ${r.titleMode === "line" ? "selected" : ""}>整行文字</option><option value="match" ${r.titleMode === "match" ? "selected" : ""}>匹配部分</option></select></label><label>模板<input data-field="template" value="${esc(r.template)}" spellcheck="false" title="$0 整个匹配，$1 / $2 捕获组，{page} 页码"></label></div><label class="check"><input data-field="requireGroups" type="checkbox" ${r.requireGroups !== false ? "checked" : ""}>模板用到的捕获组为空时跳过</label></section>
+<section class="rg-section"><h4>跳转位置</h4><div class="form-grid"><label>标题上方留白<span class="rg-input-unit"><input data-field="offset" type="number" step="any" value="${r.offset}"><span class="rg-unit">${unitLabel()}</span></span></label><label>定位到捕获组<input data-field="targetGroup" type="number" min="0" value="${r.targetGroup || 0}" title="0 表示匹配开头"></label></div></section>
+<section class="rg-section"><h4>书签样式</h4><div class="property-row rg-style"><label class="rg-toggle" title="粗体"><input data-field="bold" type="checkbox" ${r.bold ? "checked" : ""}><b>B</b></label><label class="rg-toggle" title="斜体"><input data-field="italic" type="checkbox" ${r.italic ? "checked" : ""}><i>I</i></label><label class="rg-color" title="颜色"><input data-field="color" type="color" value="${r.color}"></label></div></section></div>`,
       )
       .join("");
     activeRule = Math.max(0, Math.min(activeRule, rules.length - 1));
@@ -3350,7 +3336,7 @@ function multiGenerateDialog() {
       } catch (err) {
         note.textContent = "正则尚未完整：" + err.message;
       }
-      if (["name", "enabled"].includes(f)) drawNav();
+      if (["name", "enabled", "pattern"].includes(f)) drawNav();
     }
     invalidate();
   };
@@ -3359,10 +3345,6 @@ function multiGenerateDialog() {
     if (ruleHistory.length > 50) ruleHistory.shift();
     ruleFuture.length = 0;
   };
-  $("#rule-add").insertAdjacentHTML(
-    "afterend",
-    '<button id="rule-undo" title="撤销规则列表修改">撤销规则</button><button id="rule-redo" title="重做规则列表修改">重做</button>',
-  );
   for (const [id, from, to] of [
     ["rule-undo", ruleHistory, ruleFuture],
     ["rule-redo", ruleFuture, ruleHistory],
@@ -3657,13 +3639,21 @@ function multiGenerateDialog() {
       drawNav();
       const previewNodes = generated;
       const d = depths(previewNodes);
-      $("#multi-summary").textContent =
-        `${current ? "仅测试当前页" : "已预览所选范围"} ${compactPages(pages)}（${pages.length} 页） · ${generated.length} 项 · ${result.conflicts} 个冲突 · ${result.orphans} 个缺失父级 · ${result.ignored} 行忽略（每组 100 项，可筛选）`;
+      // Lead with the outcome; problems appear only when there are any.
+      const issues = [
+        result.conflicts ? `${result.conflicts} 个冲突` : "",
+        result.orphans ? `${result.orphans} 个缺少上一级` : "",
+      ].filter(Boolean);
+      $("#multi-summary").dataset.state = generated.length ? (issues.length ? "warn" : "ok") : "empty";
+      $("#multi-summary").innerHTML =
+        `<strong>${generated.length ? `${generated.length} 个书签` : "没有匹配的行"}</strong><span>${esc(current ? `当前页 ${pages[0]}` : `${compactPages(pages)} · ${pages.length} 页`)}</span>` +
+        (issues.length ? `<span class="rg-issues">${esc(issues.join(" · "))}</span>` : "") +
+        (!generated.length && result.ignored ? `<span>${esc(`${result.ignored} 行未匹配，展开下方“未生成的行与原因”查看`)}</span>` : "");
       $("#multi-results-nav")?.remove();
       let previewPage = 0;
       $("#multi-preview").insertAdjacentHTML(
         "beforebegin",
-        `<div id="multi-results-nav" class="flow-toolbar"><input id="multi-search-results" placeholder="筛选生成的标题…"><button id="multi-prev-results">上一组</button><span id="multi-results-page"></span><button id="multi-next-results">下一组</button></div>`,
+        `<div id="multi-results-nav" class="rg-results-nav"${generated.length ? "" : " hidden"}><input id="multi-search-results" type="search" placeholder="筛选标题" aria-label="筛选生成的标题"><button type="button" id="multi-prev-results" aria-label="上一组">${icon("chevron-left")}</button><span id="multi-results-page"></span><button type="button" id="multi-next-results" aria-label="下一组">${icon("disclose")}</button></div>`,
       );
       const drawResults = () => {
         const query = $("#multi-search-results").value.toLowerCase();
@@ -3673,15 +3663,16 @@ function multiGenerateDialog() {
         const total = Math.max(1, Math.ceil(matches.length / 100));
         previewPage = Math.min(previewPage, total - 1);
         $("#multi-results-page").textContent =
-          `${previewPage + 1} / ${total} · ${matches.length} 项`;
+          total > 1 ? `${previewPage + 1} / ${total}` : `${matches.length} 项`;
+        $("#multi-prev-results").hidden = $("#multi-next-results").hidden = total <= 1;
         $("#multi-prev-results").disabled = !previewPage;
         $("#multi-next-results").disabled = previewPage >= total - 1;
         $("#multi-preview").innerHTML = matches
           .slice(previewPage * 100, (previewPage + 1) * 100)
-          .map(
-            ({ n, i }) =>
-              `<button title="${esc(n.origin?.text || n.title)}" class="preview-item" data-preview="${i}" style="padding-left:${12 + d.get(n.id) * 16}px"><span translate="no" class="preview-origin">${esc(n.origin?.text || n.title)}</span><strong translate="no">${esc(n.title)}</strong><small>第 ${d.get(n.id) + 1} 层 · 第 ${n.target.page} 页</small></button>`,
-          )
+          .map(({ n, i }) => {
+            const depth = d.get(n.id) || 0;
+            return `<button type="button" role="listitem" title="${esc(n.origin?.text || n.title)}" class="preview-item" data-preview="${i}" data-level="${Math.min(depth + 1, 6)}" style="--depth:${depth}"><span class="rg-dot" aria-hidden="true"></span><strong translate="no">${esc(n.title)}</strong><small>${n.target.page}</small></button>`;
+          })
           .join("");
       };
       $("#multi-search-results").oninput = () => {
@@ -3786,7 +3777,7 @@ function multiGenerateDialog() {
     clearTimeout(autoTimer);
     cancelWorker?.();
     w?.terminate();
-    $("#modal").classList.remove("rules-workspace-dialog");
+    $("#modal").classList.remove("rules-workspace-dialog", "rules-v2");
     $("#modal-body").removeEventListener("compositionstart", compositionStart);
     $("#modal-body").removeEventListener("compositionend", compositionEnd);
     $("#modal-body").removeEventListener("input", inputListener);
@@ -3819,10 +3810,9 @@ function multiGenerateDialog() {
     document
       .querySelectorAll('[data-field="offset"]')
       .forEach((e, i) => (rules[i].offset = Number(e.value)));
+    for (const el of document.querySelectorAll("#rule-list .rg-unit")) el.textContent = unitLabel();
     invalidate();
   });
-  $("#multi-run").textContent = "预览所选范围";
-  $("#multi-current").textContent = "仅测试当前页";
   clearTimeout(autoTimer);
   // Show matches right away instead of an empty "preview pending" pane.
   autoTimer = setTimeout(() => {

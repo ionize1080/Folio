@@ -75,9 +75,12 @@ def process(args):
         return {'unitsPerEm':f['head'].unitsPerEm,'yAxis':'up','glyphs':glyphs}
     if action == 'preview':
         import fitz
-        doc=fitz.open();page=doc.new_page(width=800,height=160)
+        size=o.get('size',24)
+        if type(size) not in (int,float) or not math.isfinite(size) or not 8<=size<=96: raise ValueError('预览字号范围 8–96 pt')
+        height=max(160,min(480,int(size*5.5)))
+        doc=fitz.open();page=doc.new_page(width=800,height=height)
         page.insert_font(fontname='Preview',fontbuffer=blob)
-        page.insert_textbox(fitz.Rect(16,16,784,144),text[:160],fontname='Preview',fontsize=24)
+        page.insert_textbox(fitz.Rect(16,16,784,height-16),text[:400],fontname='Preview',fontsize=size)
         image=page.get_pixmap(matrix=fitz.Matrix(1.5,1.5)).tobytes('png');doc.close()
         return {'image':base64.b64encode(image).decode(),'mimeType':'image/png','missing':missing}
     if action in ('subset','instance','repair-cmap'):

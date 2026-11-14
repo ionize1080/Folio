@@ -193,7 +193,8 @@
 
 /* ═════════ Refinement (review 2026-11) ═════════ */
 /* Preview page hugs its canvas, centred, like the reader. */
-.ocr-stream-page { width: fit-content; max-width: 100%; margin-inline: auto; overflow: hidden; }
+/* The card hugs the rendered page (the legacy sheet forced min-width: 95% of the pane). */
+.ocr-stream-page { width: fit-content; min-width: 0; max-width: 100%; margin-inline: auto; overflow: hidden; }
 .ocr-stream-page > canvas { display: block; }
 .ocr-stream-label { min-width: 200px; background: transparent; border-bottom: 1px solid var(--line); font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .ocr-stream-page.active .ocr-stream-label { background: transparent; color: var(--text); box-shadow: inset 3px 0 0 var(--accent); }
@@ -262,3 +263,5 @@ body.dark .ocr-filter [data-ocr-filter=low] span:not(:empty) { color: #f0b64a; }
 @media (prefers-reduced-motion: reduce) { #modal.ocr-dialog #ocr-status::before { animation: none !important; } }
 #modal.ocr-dialog #ocr-status { padding: 0; border: 0; }
 #modal.ocr-dialog #ocr-status::before { position: static; -webkit-mask: none; mask: none; }
+/* Pages not rendered yet keep the usual page width so the stream doesn't jump. */
+.ocr-stream-page:not([data-ready]) { width: min(680px, 100%); }

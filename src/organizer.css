@@ -129,3 +129,7 @@ body .organizer-options[open] > summary::before { transform: rotate(180deg); }
   .organizer-page[aria-selected=true] .organizer-paper canvas { outline: 3px solid Highlight; }
   .organizer-page[data-drop]::after { background: Highlight; }
 }
+
+/* Review-02: checkboxes never shrink; exchange cards align icons on one column; stacked field rows breathe. */
+.organizer-options input[type=checkbox]{width:16px;height:16px;min-width:16px;flex:none;}
+.organizer-options label:has([type=checkbox]){align-items:center;}
