@@ -371,6 +371,7 @@ window.addEventListener("storage", e => {
   if (e.key !== "folio-settings") return;
   Object.assign(settings, readSettings(settings,e.newValue));
   applyAppearance(settings);
+  document.documentElement.style.setProperty("--text-selection", settings.selectionColor);
 });
 // Per-dialog chrome: glyph chip, context kicker, and a width class so short forms don't sprawl.
 const MODAL_META = [
@@ -2574,7 +2575,7 @@ async function settingsDialog() {
   $("#set-wheel-preset").value=[1,3,6].includes(settings.wheelLines||3)?String(settings.wheelLines||3):"custom";
   $("#set-wheel-preset").onchange=e=>{if(e.target.value!=="custom")$("#set-wheel-lines").value=e.target.value;};
   $("#set-wheel-lines").oninput=()=>$("#set-wheel-preset").value="custom";
-  modalCleanup = () => {$("#modal").classList.remove("prefs-dialog");applyAppearance(settings);document.documentElement.style.setProperty("--text-selection",settings.selectionColor);};
+  modalCleanup = () => {cancelAnimationFrame(spyFrame);clearTimeout(jumpTimer);$("#modal").classList.remove("prefs-dialog");applyAppearance(settings);document.documentElement.style.setProperty("--text-selection",settings.selectionColor);};
   $("#set-row").value = settings.row;
   $("#set-quality").value = settings.quality;
 }

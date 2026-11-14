@@ -930,7 +930,7 @@ jobs:
       env:
         FOLIO_CI_REPORTS: ${{ needs.organizer.outputs.reports }}
     - name: Verify packaged1 provenance
-      run: python scripts/ci-reports.py import packaged2802801
+      run: python scripts/ci-reports.py import packaged2801
       env:
         FOLIO_CI_REPORTS: ${{ needs.packaged1.outputs.reports }}
     - name: Verify packaged2 provenance
@@ -1085,7 +1085,7 @@ jobs:
       env:
         FOLIO_EXE: ${{ github.workspace }}\dist\Folio-PDF-Studio-win-x64\Folio.exe
     - id: results
-      run: python scripts/ci-reports.py export packaged2802801
+      run: python scripts/ci-reports.py export packaged2801
   packaged2:
     name: Exact package acceptance 2/4
     needs:

@@ -1,4 +1,4 @@
-import importlib.util, json, tempfile, unittest, pathlib
+import importlib.util, json, tempfile, unittest, pathlib, re
 spec=importlib.util.spec_from_file_location('ci_reports',pathlib.Path(__file__).resolve().parents[1]/'scripts/ci-reports.py')
 module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
 class ReportGate(unittest.TestCase):
@@ -6,6 +6,11 @@ class ReportGate(unittest.TestCase):
   self.temp=tempfile.TemporaryDirectory();self.root=pathlib.Path(self.temp.name)
   for name in module.SUITES['integration']:(self.root/name).write_text(json.dumps({'status':'passed','sample':'中文'}),encoding='utf-8')
  def tearDown(self):self.temp.cleanup()
+ def test_workflows_reference_registered_report_suites(self):
+  workflows=pathlib.Path(__file__).resolve().parents[1]/'.github/workflows'
+  for path in workflows.glob('*.yml'):
+   for suite in re.findall(r'ci-reports\.py (?:import|export) ([a-zA-Z0-9]+)',path.read_text(encoding='utf-8')):
+    with self.subTest(workflow=path.name,suite=suite):self.assertIn(suite,module.SUITES)
  def test_round_trip(self):
   result=module.unpack(module.pack('integration',self.root,'abc','123'),'integration','abc','123');self.assertEqual(result['reports']['ai-settings.json']['sample'],'中文')
  def test_other_commit_rejected(self):

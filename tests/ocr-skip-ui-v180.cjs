@@ -40,7 +40,11 @@ const errors = [],
           filePaths: [f],
         });
       }, file);
-      await page.locator("[data-action=open]").first().click();
+      await page.evaluate(() => window.desktop.openDocuments());
+      for (const candidate of app.context().pages()) {
+        const state = await candidate.evaluate(() => window.desktop?.tabsState?.()).catch(() => null);
+        if (state?.self === state?.activeDocumentId) { page = candidate; break; }
+      }
       await page.waitForFunction(
         (n) =>
           document.querySelector("#doc-name").textContent === n &&
@@ -103,7 +107,7 @@ const errors = [],
     await open(input);
     await open(saved);
     const text = await page.evaluate(async () => {
-      const p = await window.__S.pdf.getPage(1);
+      const p = await (await import("./app.mjs")).S.pdf.getPage(1);
       return (await p.getTextContent()).items.map((x) => x.str).join(" ");
     });
     assert(

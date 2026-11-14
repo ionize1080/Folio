@@ -2852,5 +2852,12 @@
   "阅读与定位": "Reading & navigation",
   "保存与缓存": "Saving & cache",
   "网络与快捷键": "Network & shortcuts",
-  "书签与属性": "Bookmarks & properties"
+  "书签与属性": "Bookmarks & properties",
+  "偏好设置分类": "Preferences categories",
+  "阅读与滚动": "Reading & scrolling",
+  "保存与文件": "Saving & files",
+  "性能与缓存": "Performance & cache",
+  "自定义文字选取颜色": "Custom text selection colour",
+  "在属性栏显示跳转目标页缩略图（实时预览落点）": "Show the destination thumbnail in Properties (live landing-point preview)",
+  "跳转后在页面上显示定位线": "Show a destination marker after navigation"
 }
