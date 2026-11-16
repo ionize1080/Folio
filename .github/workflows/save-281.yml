@@ -1,0 +1,84 @@
+name: Folio 2.8.1 save and interaction preflight
+'on':
+  push:
+    branches: [fix/unprotected-save-281]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: folio-281-preflight-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  core:
+    name: Core contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    - uses: actions/setup-node@v4
+      with:
+        node-version: '24'
+        cache: npm
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+    - run: npm ci --ignore-scripts
+    - run: npm run test:quick
+    - run: python tests/ci-reports.py
+    - run: python tests/release-251-checks.py
+    - run: python tests/release-260-checks.py
+  save281:
+    name: Unprotected saves and independent integrity readers
+    needs: [core]
+    runs-on: windows-latest
+    timeout-minutes: 30
+    outputs:
+      reports: ${{ steps.results.outputs.reports }}
+    defaults:
+      run:
+        shell: cmd
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    - uses: ./.github/actions/setup-workbench
+      with:
+        ai: 'false'
+        conversion: 'false'
+        creative: 'false'
+        fixtures: 'false'
+        models: 'false'
+    - run: native\runtime\python.exe tests/save-281-native.py prepare
+    - run: node tests/save-corpus-281.mjs
+    - id: results
+      run: python scripts/ci-reports.py export save281
+  ui281:
+    name: Editing, preferences, performance and concurrent documents
+    needs: [core]
+    runs-on: windows-latest
+    timeout-minutes: 30
+    outputs:
+      reports: ${{ steps.results.outputs.reports }}
+    defaults:
+      run:
+        shell: cmd
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    - uses: ./.github/actions/setup-workbench
+      with:
+        ai: 'false'
+        conversion: 'false'
+        creative: 'false'
+        fixtures: 'false'
+        models: 'true'
+    - run: native\runtime\python.exe tests/save-281-native.py prepare
+    - run: node tests/performance-281.cjs
+    - run: node tests/interaction-281.cjs
+    - run: node tests/save-multitab-281.cjs
+    - run: node tests/font-tools-281.cjs
+    - id: results
+      run: python scripts/ci-reports.py export ui281

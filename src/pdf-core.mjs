@@ -496,6 +496,13 @@ export class PdfEngine {
     if(incrementalResult){
       working.incrementalSafe=reserveOriginalRefs(working.doc,bytes);
       working.bytes=bytes;this.pendingSave=working;
+      // The first unprotected save can append to the opened file too. Bind the
+      // immutable source bytes to the desktop ticket before selecting that
+      // path; a same-name file or a different Save As target is not evidence.
+      if(revision && baseHash && !base.baseHash){
+        const digest=await crypto.subtle.digest('SHA-256',base.bytes);
+        base.baseHash=Array.from(new Uint8Array(digest),b=>b.toString(16).padStart(2,'0')).join('');
+      }
       const append=!!revision && !!baseHash && baseHash===base.baseHash;
       return {bytes:append?revision.delta:bytes.slice(),append,baseLength:base.bytes.length,baseHash:base.baseHash,
         mode:revision?'incremental':'full',objects:revision?.objects,deltaBytes:revision?.delta.length,totalBytes:bytes.length};

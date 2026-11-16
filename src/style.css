@@ -1143,6 +1143,7 @@ body[data-right="hidden"] .inspector {
   flex-shrink: 0;
 }
 .wrap-titles .tree-row .title {
+  overflow-wrap: anywhere;
   white-space: normal;
   display: -webkit-box;
   -webkit-line-clamp: 2;

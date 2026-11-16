@@ -2873,5 +2873,8 @@
   "字体样式": "Font style",
   "PostScript 名称": "PostScript name",
   "OpenType 特性": "OpenType features",
-  "预览字号范围 8–96 pt": "Preview size must be 8–96 pt"
+  "预览字号范围 8–96 pt": "Preview size must be 8–96 pt",
+  "预览仅显示可容纳的文字": "Preview shows only the text that fits",
+  "显示文本选区边框": "Show text selection outline",
+  "在选区底色外显示深色轮廓，不影响复制内容。": "Show a dark outline around selected text. Copied content stays unchanged."
 }

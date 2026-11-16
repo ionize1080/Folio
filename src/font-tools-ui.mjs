@@ -14,9 +14,11 @@ export function installFontTools(){
    +'<label class="ft-size">预览字号<input type="range" data-size min="12" max="72" value="28"><output data-size-out>28 pt</output></label>'
    +'<p data-status role="status" aria-live="polite"></p><div class="ft-stage"><img data-image alt="字体样本预览" hidden><p data-empty class="ft-empty">从左侧选择一款字体，立即预览并检查字符覆盖。</p></div><dl data-info></dl></section></div>'
    +'<footer><span>字体更改通过编辑器应用；AI 可使用相同字体能力</span><button data-close>完成</button></footer>';
-  document.body.append(d);d.showModal();let closed=false,serial=0,pserial=0,key=null,offset=0,total=0,selected='',first=true;
+  document.body.append(d);d.showModal();let closed=false,serial=0,pserial=0,selection=0,key=null,offset=0,total=0,selected='',first=true;
   const q=s=>d.querySelector(s),fontList=q('[data-fonts]'),close=()=>{closed=true;d.close();d.remove();button.focus();};d.querySelectorAll('[data-close]').forEach(b=>b.onclick=close);d.oncancel=e=>{e.preventDefault();close();};
   const request=(action,options)=>nativeRequest({command:'font-tools',action,options});
+  const details=new Map();
+  const inspect=fontKey=>{if(!details.has(fontKey)){const pending=request('inspect',{fontKey});details.set(fontKey,pending);pending.catch(()=>{if(details.get(fontKey)===pending)details.delete(fontKey);});}return details.get(fontKey);};
   q('[data-sample]').value=SAMPLES[0][1];
   const rows=()=>[...fontList.querySelectorAll('[role=option]')];
   const mark=id=>{for(const r of rows()){const on=r.dataset.id===id;r.setAttribute('aria-selected',on);if(on)r.scrollIntoView({block:'nearest'});}};
@@ -28,19 +30,20 @@ export function installFontTools(){
     if(first&&r.fonts.length){first=false;choose(r.fonts[0].id);}
    }catch(e){if(!closed)q('[data-count]').textContent=e.message;}
   };
-  const choose=async id=>{selected=id;key=null;mark(id);q('[data-status]').textContent='正在读取字体…';
-   try{const r=await request('select',{fontId:id});if(closed||selected!==id)return;key=r.fontKey;q('[data-name]').textContent=r.fontName;preview();}catch(e){if(!closed)q('[data-status]').textContent=e.message;}};
+  const choose=async id=>{const run=++selection;++pserial;selected=id;key=null;mark(id);q('[data-status]').textContent='正在读取字体…';
+   try{const r=await request('select',{fontId:id});if(closed||run!==selection)return;key=r.fontKey;q('[data-name]').textContent=r.fontName;preview();}catch(e){if(!closed&&run===selection)q('[data-status]').textContent=e.message;}};
   const preview=async()=>{
    if(!key)return;const captured=key,run=++pserial,text=q('[data-sample]').value||' ',size=+q('[data-size]').value;
    q('[data-status]').textContent='正在检查字符与字形…';
-   try{const [pv,coverage,info]=await Promise.all([request('preview',{fontKey:key,text,size}),request('coverage',{fontKey:key,text}),request('inspect',{fontKey:key})]);if(closed||captured!==key||run!==pserial)return;
+   try{const [pv,info]=await Promise.all([request('preview',{fontKey:captured,text,size}),inspect(captured)]);if(closed||captured!==key||run!==pserial)return;
     q('[data-image]').src='data:image/png;base64,'+pv.image;q('[data-image]').hidden=false;q('[data-empty]').hidden=true;
-    q('[data-status]').textContent=coverage.complete?'样本文字全部覆盖':'缺少字符：'+coverage.missing.join('');q('[data-status]').dataset.state=coverage.complete?'ok':'warn';
+    q('[data-status]').textContent=!pv.missing.length?'样本文字全部覆盖':'缺少字符：'+pv.missing.join('');q('[data-status]').dataset.state=!pv.missing.length?'ok':'warn';
+    if(pv.truncated)q('[data-status]').append(' · 预览仅显示可容纳的文字');
     const restricted=!!(info.embeddingFlags&2),badge=q('[data-badge]');badge.hidden=false;badge.textContent=restricted?'受限嵌入':'可嵌入';badge.dataset.state=restricted?'warn':'ok';
     const dl=q('[data-info]');dl.replaceChildren();
     const feats=[...new Set(Object.values(info.features||{}).flat())];
     for(const [label,value] of [['字体家族',info.family],['字体样式',info.style],['PostScript 名称',info.postScriptName],['字形数',info.glyphs],['Unicode 字符',info.unicodeCharacters],['字体表',info.tables.map(t=>t.tag).join(', ')],['OpenType 特性',feats.join(', ')||'无'],['可变轴',info.axes.map(a=>`${a.tag} ${a.min}–${a.max}`).join(', ')||'无']]){if(value===undefined||value==='')continue;const dt=document.createElement('dt'),dd=document.createElement('dd');dt.textContent=label;dd.textContent=String(value);dl.append(dt,dd);}
-   }catch(e){if(!closed)q('[data-status]').textContent=e.message;}
+   }catch(e){if(!closed&&captured===key&&run===pserial)q('[data-status]').textContent=e.message;}
   };
   fontList.onclick=e=>{const r=e.target.closest('[role=option]');if(r)choose(r.dataset.id);};
   fontList.onkeydown=e=>{const all=rows();if(!all.length)return;let i=all.findIndex(r=>r.getAttribute('aria-selected')==='true');

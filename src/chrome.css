@@ -137,3 +137,8 @@ dialog input[type=checkbox]{min-height:0}
 
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation-duration:.01ms!important;transition-duration:.01ms!important}}
 @media(forced-colors:active){.text-selection-overlay{fill:Highlight!important;mix-blend-mode:normal!important}.qc-row{border-color:CanvasText}}
+
+/* Selection is document geometry, not an icon inheriting the global SVG stroke. */
+.pdf-page .text-selection-overlay{stroke:none}
+.pdf-page .text-selection-overlay path{stroke:none;stroke-width:1;stroke-linejoin:round;vector-effect:non-scaling-stroke}
+:root[data-selection-border="true"] .pdf-page .text-selection-overlay path{stroke:#263449}

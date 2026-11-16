@@ -80,9 +80,22 @@ def process(args):
         height=max(160,min(480,int(size*5.5)))
         doc=fitz.open();page=doc.new_page(width=800,height=height)
         page.insert_font(fontname='Preview',fontbuffer=blob)
-        page.insert_textbox(fitz.Rect(16,16,784,height-16),text[:400],fontname='Preview',fontsize=size)
+        sample=text[:400];rect=fitz.Rect(16,16,784,height-16)
+        def layout(value):
+            shape=page.new_shape()
+            return shape,shape.insert_textbox(rect,value,fontname='Preview',fontsize=size)>=0
+        shape,fits=layout(sample);truncated=not fits
+        if not fits:
+            # A textbox that overflows otherwise renders nothing. Find a fitting
+            # prefix and commit exactly one shape, keeping the bitmap bounded.
+            low,high=0,len(sample)
+            while low<high:
+                mid=(low+high+1)//2;candidate,ok=layout(sample[:mid])
+                if ok:low=mid;shape=candidate
+                else:high=mid-1
+        shape.commit()
         image=page.get_pixmap(matrix=fitz.Matrix(1.5,1.5)).tobytes('png');doc.close()
-        return {'image':base64.b64encode(image).decode(),'mimeType':'image/png','missing':missing}
+        return {'image':base64.b64encode(image).decode(),'mimeType':'image/png','missing':missing,'truncated':truncated}
     if action in ('subset','instance','repair-cmap'):
         flags=getattr(f.get('OS/2'),'fsType',0)
         if flags & 2: raise ValueError('字体标记为受限嵌入，不能生成修改副本')
