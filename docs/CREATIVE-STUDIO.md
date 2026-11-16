@@ -1,5 +1,14 @@
 # Folio artwork workspace
 
+Current guide: **2.8.3**. [Illustrated feature tour](FEATURES.md) · [Current build instructions](DEVELOPMENT.md).
+
+![Live image editor with synthetic artwork](images/2.8.3/11-image-workspace.png)
+
+![Live vector editor with synthetic artwork](images/2.8.3/12-vector-workspace.png)
+
+Both captures use generated content in isolated application profiles. Save `.folio` to retain editable studio sources; saving PDF alone stores the applied artwork.
+
+
 The **Image** and **Vector** ribbon categories open a workspace inside Folio. Choose an existing PDF object, import a file, or start a new artwork with custom dimensions. The original quick image adjustments and SVG controls remain available. **Bookmarks** and **Organize** have their own categories; the AI button remains in the application header.
 
 The workspace uses one Folio header and command row. Its canvas tools, contextual options and inspectors come from pinned PhotoCraft and VectorCraft source builds. The duplicate application menu, title bar, single-document tab and status bar are removed. **All tools** searches the localized command catalogue; commands requiring parameters open their native dialogs. The engines do not launch separate windows or desktop processes.
@@ -41,13 +50,13 @@ DOCX and XLSX exports are directly available in **Export**, with local processin
 
 `view` accepts `options.mode=fit/page/width/height/fill/selection/actual/center/center-x/center-y/zoom/in/out`; `zoom` accepts `percent`. `background` accepts `options.mode=checker/solid/pdf`, `color=#rrggbb`, `opacity=0..1`, and `refresh=true`. Neither changes PDF placement. The tools action describes the native methods. Vector batches can form one undo group, but a failure reports completed steps rather than promising transactional rollback.
 
-`folio_organize` exposes the same page assembly operations as the thumbnail UI: insertion, blank pages, deletion, extraction, replacement, copy, reverse, rotation, crop/resize, marks and split. Internal destinations and outlines are remapped to retained pages. The organizer snapshots current applied PDF edits and saves the assembled result as a PDF.
+`folio_organize` exposes the same page assembly operations as the thumbnail UI: insertion, blank pages, deletion, extraction, replacement, copy, reverse, rotation, crop/resize, marks and split. Internal destinations and outlines are remapped to retained pages. The organizer snapshots current applied PDF edits. It can apply the assembled pages back to the active document for a subsequent save, or save a separate assembled PDF.
 
 ## Reproducible build
 
 Use Rust 1.95 with `wasm32-unknown-unknown`, Python 3.12, and the locked source revisions. Run `python scripts/build-creative.py photo` and `python scripts/build-creative.py vector`; the builder installs the exact wasm-bindgen CLI version from each Cargo.lock. No platform editor binary is downloaded. Run `python scripts/verify-creative.py` before packaging. GitHub builds both engines concurrently, checks every asset hash, and passes the same artifacts to integration and packaged-executable tests.
 
-The 2.5 release workflow runs core contracts, dependency preparation and engine builds concurrently, followed by 15 independent test suites. Native regressions are partitioned without omissions into three jobs; failures in one partition do not cancel the others. Final packaged checks use two isolated application lanes. Every report is bound to the commit and Actions run before publishing. Optional cache writes retain the project's 8 GiB budget; the workflow does not raise paid storage limits.
+Historically, the 2.5 release workflow ran core contracts, dependency preparation and engine builds concurrently, followed by 15 independent test suites. Native regressions are partitioned without omissions into three jobs; failures in one partition do not cancel the others. Final packaged checks use two isolated application lanes. Every report is bound to the commit and Actions run before publishing. Optional cache writes retain the project's 8 GiB budget; the workflow does not raise paid storage limits.
 
 The real Qwen suite uses the shipped Chatbox transport and live tools to paint raster layers, unite vector paths, add gradients/text, adjust PDF backgrounds and maximum zoom, apply edits and organize pages. It imposes no output token limit, audits actual request parameters, and independently verifies exported pixels, vector paths, placement matrices and page order.
 

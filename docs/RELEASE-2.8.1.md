@@ -1,3 +1,5 @@
+> Historical record / 历史记录 / 歷史記錄。Applies to the version or date named below. For Folio 2.8.3, use the [current documentation](README.md) and [feature tour](FEATURES.md).
+
 # Folio PDF Studio 2.8.1
 
 Incremental saves with source protection disabled now append changes on the first save as well as later saves, after checking the original bytes. External changes still stop an unsafe overwrite.

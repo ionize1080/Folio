@@ -1,3 +1,5 @@
+> Historical record / 历史记录 / 歷史記錄。Applies to the version or date named below. For Folio 2.8.3, use the [current documentation](README.md) and [feature tour](FEATURES.md).
+
 # Folio PDF Studio 1.6.2
 
 本修补版进一步修复：新版窗口处于后台、被遮挡或最小化时，启动确认可能被误判失败并回滚。现改为界面模块初始化完成后确认，不再依赖动画帧或窗口可见性；新增真实最小化窗口回归。

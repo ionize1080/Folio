@@ -1,3 +1,5 @@
+> Historical record / 历史记录 / 歷史記錄。Applies to the version or date named below. For Folio 2.8.3, use the [current documentation](README.md) and [feature tour](FEATURES.md).
+
 # Folio PDF Studio 1.9.1
 
 This release improves editing of embedded Chinese fonts, paragraph detection, local insertions and deletions, and tagged PDF roundtrips.

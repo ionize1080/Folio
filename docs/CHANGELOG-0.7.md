@@ -1,3 +1,5 @@
+> Historical record / 历史记录 / 歷史記錄。Applies to the version or date named below. For Folio 2.8.3, use the [current documentation](README.md) and [feature tour](FEATURES.md).
+
 # Folio PDF Studio 0.7.0 · 页面内编辑重写
 
 顶部“页面编辑”现在直接在主阅读区工作，不打开文字编辑对话框。

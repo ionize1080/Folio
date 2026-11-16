@@ -1,3 +1,5 @@
+> Historical record / 历史记录 / 歷史記錄。Applies to the version or date named below. For Folio 2.8.3, use the [current documentation](README.md) and [feature tour](FEATURES.md).
+
 # Folio PDF Studio 1.9.1
 
 本版集中改进教材嵌入中文字体、分段、原位增删和带标签 PDF 的保存重开。

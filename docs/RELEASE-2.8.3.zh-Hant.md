@@ -7,3 +7,8 @@
 本機驗證涵蓋七類設定、十個核取方塊、23 個下拉選項、十二種主題配色、58 個面板狀態、九種縮放與五種閱讀版面。效能檢查涵蓋一萬個書籤、24 次工具列切換、捲動、縮放及反覆開關對話框。未改變設定時 PDF 重新繪製次數為零；耗時作為實測記錄，不代表所有裝置的速度保證。首次開啟面板與初始化編輯仍有短暫長任務。完整範圍與限制見[排查報告](UI-AUDIT-2026-11-16.zh-Hans.md)。
 
 GitHub Actions 重新建置完整 Windows 程式，平行執行既有原生引擎、編輯、儲存完整性、AI、更新器檢查與新增 UI 檢查。最終可攜 ZIP 須在六組平行任務中通過 38 個驗收腳本後才發佈。附件提供原始碼、綁定提交的驗收證據及 SHA-256 校驗值。CI 使用產生或公開樣本，不上傳使用者私人文件。
+
+
+[目前使用指南](../README.zh-Hant.md) · [功能與實際截圖](FEATURES.zh-Hant.md) · [下載與校驗值](https://github.com/ionize1080/Folio/releases/tag/v2.8.3)
+
+![Folio 2.8.3 preferences — isolated synthetic demonstration](images/2.8.3/08-preferences.png)

@@ -1,3 +1,5 @@
+> Historical record / 历史记录 / 歷史記錄。Applies to the version or date named below. For Folio 2.8.3, use the [current documentation](README.md) and [feature tour](FEATURES.md).
+
 # Folio 2.1.0 的真实模型与文档验收
 
 正式发布包另在 Windows Actions 上完成 12 个真实 Qwen 场景，结果和程序哈希见[发布验证](VALIDATION.md)。以下次数、耗时和像素数据取自本地运行。

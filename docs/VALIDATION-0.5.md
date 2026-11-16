@@ -1,3 +1,5 @@
+> Historical record / 历史记录 / 歷史記錄。Applies to the version or date named below. For Folio 2.8.3, use the [current documentation](README.md) and [feature tour](FEATURES.md).
+
 # 0.5.0 验证记录
 
 以下为此次工作副本的实际测试结果，使用合成样本，不含用户原年鉴。环境为 Linux CPU；浏览器为 Chromium 153 测试壳；Python 原生验证使用 pypdfium2 5.3.0、pypdf 6.10.0，OCR 使用 RapidOCR 3.9.2 / ONNX Runtime 1.30.0 与随包 ONNX 模型。Windows 包使用锁定的 pypdfium2 5.13.0，原生平台差异仍需 Windows 验收。

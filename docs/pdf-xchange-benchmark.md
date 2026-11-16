@@ -1,3 +1,5 @@
+> Historical record / 历史记录 / 歷史記錄。Applies to the version or date named below. For Folio 2.8.3, use the [current documentation](README.md) and [feature tour](FEATURES.md).
+
 # Practical PDF-XChange benchmark — 2026-11-06
 
 The installed PDF-XChange Editor was operated through its actual Windows UI. Tests used disposable generated/public fixtures, not user documents. These are observations from exercised paths, not a claim of complete feature parity.

@@ -1,3 +1,5 @@
+> Historical record / 历史记录 / 歷史記錄。Applies to the version or date named below. For Folio 2.8.3, use the [current documentation](README.md) and [feature tour](FEATURES.md).
+
 # RC1-P7 — 2026-09-28
 
 普通嵌套包装编辑、按调用隔离资源、双栏局部栏沟、ActualText 安全写回、流字典去重、紧框末字纠错、生成分隔空格与最低版本修复。见 [P7 审计](RC1-P7-editor-audit.md)。

@@ -1,3 +1,5 @@
+> Historical record / 历史记录 / 歷史記錄。Applies to the version or date named below. For Folio 2.8.3, use the [current documentation](README.md) and [feature tour](FEATURES.md).
+
 ## Folio PDF Studio 2.5.1
 
 - 书签筛选分为搜索、页码与匹配条件、结果操作；箭头与文字统一 8 像素间距。改善焦点反馈、明暗主题和放大界面的可达性。

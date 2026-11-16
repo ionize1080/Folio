@@ -1,3 +1,5 @@
+> Historical record / 历史记录 / 歷史記錄。Applies to the version or date named below. For Folio 2.8.3, use the [current documentation](README.md) and [feature tour](FEATURES.md).
+
 # Folio 2.0.0 — Chatbox and PDF AI
 
 Folio now includes Chatbox 1.20.3 as a sidebar with an optional separate window. The main toolbar has one AI button with a distinct chat icon; click it again to collapse the sidebar. The properties button restores the properties panel. OCR confidence, approval and display settings are grouped under Preferences → AI document assistance. API keys, providers and model selection use native Chatbox settings. The initial model is qwen3.8-flash; no API key is included.

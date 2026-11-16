@@ -1,3 +1,5 @@
+> Historical record / 历史记录 / 歷史記錄。Applies to the version or date named below. For Folio 2.8.3, use the [current documentation](README.md) and [feature tour](FEATURES.md).
+
 # Folio PDF Studio 2.7.0
 
 Folio now saves PDF revisions incrementally, offers bookmark quality checks and richer page organization, and gives more vertical space to the document.

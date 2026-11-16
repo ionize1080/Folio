@@ -1,3 +1,5 @@
+> Historical record / 历史记录 / 歷史記錄。Applies to the version or date named below. For Folio 2.8.3, use the [current documentation](README.md) and [feature tour](FEATURES.md).
+
 # 2026 年 10 月代码评审采纳与实现记录
 
 审阅输入为用户提供的《Folio 全面代码与体验评审》，固定基线 `da49537d7aeeb99057e3f3283240ff850c57e33b`，对应应用 1.7.1。本次以 1.7.2 的实际变更、反例和测试为交付范围。评审总体方向成立：先保证编辑、应用、预览和最终文件一致，再优化交互和资源。没有把静态风险写成已经发生的事故，也没有因为安全审查删除用户需要的解密功能。

@@ -1,3 +1,5 @@
+> Historical record / 历史记录 / 歷史記錄。Applies to the version or date named below. For Folio 2.8.3, use the [current documentation](README.md) and [feature tour](FEATURES.md).
+
 # 0.7 验证记录
 
 - Node：38 项核心回归通过，含新加的 0.05 文字矩阵、共享空白来源、字形命中及正文/表格线冲突。

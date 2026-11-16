@@ -1,3 +1,5 @@
+> Historical record / 历史记录 / 歷史記錄。Applies to the version or date named below. For Folio 2.8.3, use the [current documentation](README.md) and [feature tour](FEATURES.md).
+
 # Folio PDF Studio 2.6.0
 
 修正黃金新聞第 2 頁 Adrian Day 段落編輯錯誤及首字母遺漏。段落辨識支援 Chromium 段落標籤與單色 Type3 向量字型，連結底線不再誤拆段落，允許保留原有的小幅字形越界。

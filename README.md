@@ -4,15 +4,19 @@
 
 A local-first PDF workspace for Windows x64, built for **long-document bookmarks, in-page text and image editing, OCR review, and optional Chatbox AI assistance**. The portable package includes its runtime, fonts and models. No separate Python or Node.js installation is needed.
 
-Version 2.7 adds incremental saving, bookmark quality checks and batch tools, richer page organization, and booklet/handout printing with an editable preview. A compact title bar and bottom reading controls leave more room for documents. The [raster/vector studios](docs/CREATIVE-STUDIO.md) support canvas handles and automatic expansion; `.folio` projects preserve editable sources and layers.
+**Current release: 2.8.3.** The 2.8 series brings the modern ribbon, bookmark rule and OCR workbenches, keyboard-friendly page organization and a rebuilt font browser. Incremental saving now covers the first eligible save with original-file protection disabled; precise bookmark destinations survive paragraph edits. Version 2.8.3 fixes checkbox visibility and validates preferences without refreshing unchanged documents. [Release history](docs/HISTORY.md).
 
 [Download the Windows x64 portable ZIP](https://github.com/ionize1080/Folio/releases/download/v2.8.3/Folio-PDF-Studio-2.8.3-portable-win-x64.zip) · [2.8.3 release notes](docs/RELEASE-2.8.3.md) · [AI user guide](docs/AI.en.md) · [Documentation](docs/README.md)
+
+![Folio 2.8.3 reading a synthetic demonstration PDF](docs/images/2.8.3/01-reader.png)
+
+[Feature tour with real screenshots](docs/FEATURES.md) · [Download the synthetic demo PDF](docs/examples/Folio-Demo.pdf). All new screenshots use generated documents and an isolated profile; no private files, credentials or conversations are shown.
 
 ## Open your first documents
 
 1. Extract the entire portable ZIP and run `Folio.exe`. Keep the DLLs, `resources` and `locales` directories alongside the executable.
 2. Select several PDFs or `.folio` projects in **Open**, or drop them into the window together. Each tab keeps its reading position, selection, undo history and pending edits. Ctrl+Tab and Ctrl+Shift+Tab cycle through tabs. Ctrl+W closes the current document.
-3. Apply the edit, then choose **Save** to write the current PDF. With original-file protection enabled, the first save prompts for a copy. Closing an ordinary PDF with pending changes offers Save, Discard or Cancel. For continued work on paragraph structure or reviewed OCR, choose **More tools → Import / Export → Save .folio project**.
+3. Apply the edit, then choose **Save** to write the current PDF. With original-file protection enabled, the first save prompts for a copy. Closing an ordinary PDF with pending changes offers Save, Discard or Cancel. For continued work on paragraph structure or reviewed OCR, choose **Export → Save .folio project**.
 4. Open **Preferences** to choose Cobalt, Celadon, Amber, Mulberry, Graphite or a custom accent. Appearance supports system, light and dark modes. Interface language follows Windows by default. An explicit language choice takes precedence.
 
 The release also includes a [source archive](https://github.com/ionize1080/Folio/releases/download/v2.8.3/Folio-PDF-Studio-2.8.3-source.zip), [checksums](https://github.com/ionize1080/Folio/releases/download/v2.8.3/Folio-PDF-Studio-2.8.3-SHA256.txt) and a [validation report](https://github.com/ionize1080/Folio/releases/download/v2.8.3/Folio-PDF-Studio-2.8.3-validation.json). For an installed copy, use **About → Check for updates**.
@@ -29,7 +33,9 @@ For a photo, ask for a whole-image preview, then a close-up to check a curve or 
 
 Single, continuous, two-page and horizontal layouts; thumbnails, zoom, fit page/width, view history, text selection/copy, search, collapsible panels and themes. Pages and high-zoom tiles render on demand with cache budgets and stale-task cancellation.
 
-Annotations, rotation, extraction, PDF appending, PNG export, metadata editing, password handling and local qpdf/pikepdf password-free copies are included. Extraction uses the original PDF, excludes unsaved changes and does not copy the entire bookmark tree. Save before appending another PDF; its bookmarks are not merged automatically. Save and reopen before PNG export if new annotations must be included.
+Annotations, rotation, extraction, PDF appending, PNG export, metadata editing, password handling and local qpdf/pikepdf password-free copies are included. The legacy extraction/append commands have narrower behavior: extraction uses the original PDF and does not copy the entire bookmark tree; save first before appending. For assembling pages with applied edits, use **Organize → Page organizer**, preview the page order, then apply to the document or save the assembled PDF. Save and reopen before PNG export if new annotations must be included.
+
+![Page organizer with six synthetic pages](docs/images/2.8.3/04-page-organizer.png)
 
 ### Bookmarks and automatic outlines
 
@@ -51,6 +57,8 @@ Use **Auto bookmarks** for rule-based headings and **Smart table of contents** t
 
 Review ranges and coordinates before applying. Cross-file import converts resolvable local destinations rather than copying original action dictionaries blindly.
 
+![Bookmark rule workbench](docs/images/2.8.3/02-bookmark-rules.png)
+
 ### In-page text, fonts and tables
 
 Click a paragraph to edit. Character controls include font, size, bold/italic and color. Paragraph controls include alignment, spacing, indentation, columns and Format Painter. Shift-drag constrains frame movement; arrows nudge by 1 pt, or 10 pt with Shift.
@@ -61,6 +69,8 @@ Paragraphs can be split, merged, linked within a page and manually structured. O
 
 Simple ruled tables support cell text, row heights, row/column insertion/deletion, widths, rectangular merging/splitting, preview and undo. CSV/XLSX export preserves text, leading zeros and merged ranges. Structural editing stays within the original bounds and is limited to 1,000 cells.
 
+![In-page editing of synthetic text](docs/images/2.8.3/10-text-editing.png)
+
 ### Images and selection
 
 Choose **Edit image**, then click a page image. Changes preview in place and apply at source resolution. Tools include brightness/contrast, levels/histograms, curves, exposure, hue/saturation, vibrance, color balance, black-and-white, channel mixing, photo filters, LUTs, selective color, inversion, posterization, threshold, gradient maps, clarity, dehaze, blur, sharpening and grain.
@@ -69,11 +79,19 @@ Levels provide input/output handles, channels, numeric controls and samplers. Cu
 
 Hand, text and object-selection tools support box selection, Ctrl/Shift modifiers and batch edits. Replacement images support contain, fill and stretch. The quick image-adjustment path uses 8-bit RGB; the integrated artwork workspace also supports 16/32-bit source documents and color-managed workflows.
 
+![Integrated image studio with generated artwork](docs/images/2.8.3/11-image-workspace.png)
+
 ### Offline OCR
 
 RapidOCR and ONNX Runtime CPU provide PP-OCRv6 small and PP-OCRv5 mobile profiles. Select pages or a region, 180/240/300 DPI, and automatic/custom resource limits. Results save page by page; stop while retaining results and resume with the same settings.
 
 Review text against the scan, inspect orientation candidates, confirm/defer entries and correct text or geometry. Applying creates a searchable hidden text layer and retains the scan. Unconfirmed issues require review or exclusion. Language checkboxes guide notices and do not expand model capabilities. Simplified/Traditional conversion retains original recognition text and confidence. Hidden-text corrections do not change visible text in the image.
+
+![Local OCR review of a synthetic scan](docs/images/2.8.3/13-ocr-review.png)
+
+### Export and printing
+
+Use **Export → Word / Excel** for local DOCX/XLSX output. Review reading order, tables and pagination; coverage reports are not visual fidelity scores. **Print** provides booklet and handout layouts with a preview. See the [illustrated workflow](docs/FEATURES.md).
 
 ### Projects, recovery and large files
 
@@ -128,9 +146,9 @@ The original PDF remains the session baseline. Content is composed, bookmark pro
 
 ## Development and verification
 
-The Windows build uses Node.js 24, Python 3.12, pinned native resources and the Chatbox source integration. The release workflow verifies the packaged executable and exercises the exact portable ZIP in an update. The published validation report includes 12 real Qwen tasks, with independent checks on saved PDFs. Live testing of a separate image-generation provider remains open.
+The Windows build uses Node.js 24, Python 3.12, pinned native resources and the Chatbox source integration. The release workflow verifies the packaged executable and exercises the exact portable ZIP in an update. The 2.8.3 release passed 38 packaged acceptance scripts across six jobs, including real Qwen workflows and independent document-state checks. Image generation and reference-image editing have separate provider configuration and real Qwen acceptance; compatibility still depends on the selected provider and protocol.
 
-[Developer setup and test commands](docs/DEVELOPMENT.md) · [Earlier Windows release run](https://github.com/ionize1080/Folio/actions/runs/41994404438) · [Verification scope](docs/VALIDATION.md) · [Locale contributions](docs/LOCALIZATION.md)
+[Developer setup and test commands](docs/DEVELOPMENT.md) · [2.8.3 Windows release run](https://github.com/ionize1080/Folio/actions/runs/43830775610) · [Verification scope](docs/VALIDATION.md) · [Locale contributions](docs/LOCALIZATION.md)
 
 ## Scope for further work
 

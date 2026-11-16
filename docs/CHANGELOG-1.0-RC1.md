@@ -1,3 +1,5 @@
+> Historical record / 历史记录 / 歷史記錄。Applies to the version or date named below. For Folio 2.8.3, use the [current documentation](README.md) and [feature tour](FEATURES.md).
+
 # Folio PDF Studio 1.0 RC1 更新说明
 
 2026-09-15。基于 0.9.0 开发。RC1 为可供 Windows 实机验收的测试构建。

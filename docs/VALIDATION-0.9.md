@@ -1,3 +1,5 @@
+> Historical record / 历史记录 / 歷史記錄。Applies to the version or date named below. For Folio 2.8.3, use the [current documentation](README.md) and [feature tour](FEATURES.md).
+
 # 0.9.0 验证记录
 
 2026-09-14。当前为可测试构建，Windows 真机验收尚未执行。

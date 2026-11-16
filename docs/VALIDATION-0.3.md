@@ -1,3 +1,5 @@
+> Historical record / 历史记录 / 歷史記錄。Applies to the version or date named below. For Folio 2.8.3, use the [current documentation](README.md) and [feature tour](FEATURES.md).
+
 # Folio 0.3.0 validation
 
 2026-09-11. Runtime validation is performed on Linux Chromium and Python, not on a Windows desktop.

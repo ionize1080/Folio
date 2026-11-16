@@ -1,3 +1,5 @@
+> Historical record / 历史记录 / 歷史記錄。Applies to the version or date named below. For Folio 2.8.3, use the [current documentation](README.md) and [feature tour](FEATURES.md).
+
 # 1.1.0 RC1 更新说明
 
 基于 1.0.0 RC1 P2。交付完整源码 ZIP 和完整 Windows x64 portable ZIP。

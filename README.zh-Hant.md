@@ -1,18 +1,22 @@
 # Folio PDF Studio
 
-2.7 版新增增量保存、書籤 QC 與批量工具、更完整的頁面整理，以及帶可調整預覽的小冊子和講義打印。緊湊標題欄和底欄閱讀工具增加文檔可視高度。[圖像／矢量工作室](docs/CREATIVE-STUDIO.md) 支持畫布手柄與自動擴展，`.folio` 工程保留可編輯源文件和圖層。
-
 [English](README.md) · [简体中文](README.zh-Hans.md) · **繁體中文**
 
 Folio PDF Studio 2.8.3 是 Windows x64 上的本機 PDF 工作台。可以同時開啟多份文件，整理長文件的書籤、編輯頁面文字與圖片，或把掃描文件處理成可檢索 PDF。需要模型協助時，從工具列開啟 Chatbox。
 
+**目前版本：2.8.3。** 2.8 系列完善了現代功能區、書籤規則與 OCR 工作區、支援鍵盤操作的頁面組織器和字型工作台；關閉原件保護時，符合條件的首次儲存也可增量寫入，段落編輯保留書籤目標精度。2.8.3 修正核取方塊選取狀態顯示，驗證設定輸入，並避免未變更設定觸發文件重新繪製。[歷史版本](docs/HISTORY.md)。
+
 [下載 Windows x64 可攜版](https://github.com/ionize1080/Folio/releases/download/v2.8.3/Folio-PDF-Studio-2.8.3-portable-win-x64.zip) · [本版說明](docs/RELEASE-2.8.3.zh-Hant.md) · [AI 使用指南](docs/AI.zh-Hant.md) · [文件索引](docs/README.md)
+
+![Folio 2.8.3 閱讀合成示範 PDF](docs/images/2.8.3/01-reader.png)
+
+[主要功能與實際介面截圖](docs/FEATURES.zh-Hant.md) · [下載合成示範 PDF](docs/examples/Folio-Demo.pdf)。本次截圖全部使用產生的文件與獨立設定，不展示私人檔案、金鑰或個人聊天記錄。
 
 ## 開啟第一組檔案
 
 1. 下載可攜版 ZIP，解壓整個資料夾後執行 `Folio.exe`。保留同目錄的 DLL、`resources` 和 `locales`。完整可攜版已包含執行環境、字型和 OCR 模型。
 2. 在「開啟」對話方塊中多選 PDF 或 `.folio` 專案，也可以一起拖入視窗。用 Ctrl+Tab / Ctrl+Shift+Tab 切換分頁，用 Ctrl+W 或分頁上的關閉按鈕關閉目前文件。各檔案獨立儲存閱讀位置、選區和撤銷記錄。
-3. 編輯後先套用，再按 Ctrl+S 寫入目前 PDF。原件保護預設首次另存副本。關閉含未儲存修改的普通 PDF 時，可選擇儲存、放棄或取消。需要保留段落結構及 OCR 校對進度時，在「更多工具 → 匯入 / 匯出」儲存 `.folio` 專案。
+3. 編輯後先套用，再按 Ctrl+S 寫入目前 PDF。原件保護預設首次另存副本。關閉含未儲存修改的普通 PDF 時，可選擇儲存、放棄或取消。需要保留段落結構及 OCR 校對進度時，在「匯出 → 儲存工作專案」儲存 `.folio` 專案。
 4. 開啟「首選項」設定外觀。明暗模式可跟隨系統，內建鈷藍、青瓷、琥珀、桑葚、石墨五套配色，也可以自選重點色。介面語言預設跟隨 Windows，之前手動選擇的語言優先。
 
 同一釋出頁也提供[原始碼包](https://github.com/ionize1080/Folio/releases/download/v2.8.3/Folio-PDF-Studio-2.8.3-source.zip)、[校驗值](https://github.com/ionize1080/Folio/releases/download/v2.8.3/Folio-PDF-Studio-2.8.3-SHA256.txt)和[驗收報告](https://github.com/ionize1080/Folio/releases/download/v2.8.3/Folio-PDF-Studio-2.8.3-validation.json)。檢查更新可從「關於與使用說明 → 檢查更新」進入。
@@ -55,6 +59,10 @@ Folio PDF Studio 2.8.3 是 Windows x64 上的本機 PDF 工作台。可以同時
 
 **頁面工具的範圍：**提取以原始文件為基礎，不包含尚未另存的修改，也不復制整本書籤樹；追加 PDF 前先儲存當前編輯，追加檔案的書籤不自動合併。PNG 匯出以頁面畫布為基礎，未儲存批註應先儲存並重新開啟後再匯出。
 
+頁面組織器使用目前已套用修改的快照，支援縮圖排序、框選、插入、旋轉與預覽；可套用回目前文件後再儲存，或另存組合後的 PDF。上面的舊式提取／追加入口與頁面組織器的行為不同。
+
+![Page organizer](docs/images/2.8.3/04-page-organizer.png)
+
 **大檔案工作區：**超過 768 MiB 的 PDF 自動進入獨立通道，上限 8 GiB，支援按頁閱讀、跳頁/縮放、書籤增刪改/撤銷、正則自動書籤預覽追加及另存。當前不提供連續滾動、正文選區/全文搜尋、頁面編輯、OCR、工程或自動草稿恢復；關閉後回到普通會話。大於 4 GiB 的稀疏樣本驗證了偏移處理，尚不代表數 GB 真實年鑑的吞吐和記憶體驗收。
 
 ### 2. 書籤建立、批次編輯與自動生成
@@ -78,6 +86,8 @@ Folio PDF Studio 2.8.3 是 Windows x64 上的本機 PDF 工作台。可以同時
 
 座標、留白與頁範圍在預覽中核對後應用。跨檔案匯入不會照搬原始動作字典：可解析本地目標轉為顯式目標，不可解析動作會提示並回退定位，不能承諾跨檔案動作完全等價。
 
+![Folio 02-bookmark-rules](docs/images/2.8.3/02-bookmark-rules.png)
+
 ### 3. 頁面內段落編輯與字型處理
 
 - 直接在閱讀區點選段落編輯，支援輸入、退格、拖選、複製貼上及新建文字；輸入法組合階段保留草稿。
@@ -93,6 +103,8 @@ Folio PDF Studio 2.8.3 是 Windows x64 上的本機 PDF 工作台。可以同時
 
 現有字型匹配使用覆蓋、輪廓、形狀和字寬資訊。**未嵌入字型解析與混合字型保真仍存在已知問題**，並非任意原字型均能無損續寫。
 
+![Folio 10-text-editing](docs/images/2.8.3/10-text-editing.png)
+
 ### 4. 圖片、物件與簡單表格
 
 - 圖片支援亮度/對比度、直方圖與色階、曲線、模糊、銳化、掃描增強和原圖對照。
@@ -100,6 +112,8 @@ Folio PDF Studio 2.8.3 是 Windows x64 上的本機 PDF 工作台。可以同時
 - 簡單有線表格支援單元格文字、行高聯動、行列插入/刪除、列寬調整、矩形合併/拆分、排版預覽及撤銷。
 - 表格可匯出 CSV 和 XLSX。XLSX 單元格按文字寫入，保留前導零、長編號、日期原文和合並範圍；CSV 處理引號、換行及易被解釋為公式的開頭。
 - 表格結構調整約束在當前區域內，空間不足或物件對映不可靠時提示或保留原內容。複雜無框線、傾斜、巢狀及跨頁表格不屬於已完整支援範圍。
+
+![Folio 11-image-workspace](docs/images/2.8.3/11-image-workspace.png)
 
 ### 5. 離線 OCR、校對與雙層 PDF
 
@@ -119,6 +133,8 @@ Folio PDF Studio 2.8.3 是 Windows x64 上的本機 PDF 工作台。可以同時
 
 當前已支援框選區域性識別及疑難框方向候選；未確認疑點不能直接寫入最終文字層。下一步計劃中的「補識別」進一步要求複用既有檢測框、比較候選、保護人工校對並可靠合併結果，兩者不能等同。
 
+![Folio 13-ocr-review](docs/images/2.8.3/13-ocr-review.png)
+
 ### 6. 儲存、工程、撤銷與恢復
 
 - 原始 PDF 作為會話基線儲存，書籤、旋轉、批註、OCR 和內容修改作為獨立狀態參與合成。
@@ -134,7 +150,7 @@ Folio PDF Studio 2.8.3 是 Windows x64 上的本機 PDF 工作台。可以同時
 
 Folio 使用 PDF.js 渲染頁面，透過本地原生引擎處理物件、排版和 OCR。Chatbox 與 Folio 共用 Electron 執行時，文件修改按檔案 ID 和修訂號路由到對應編輯器。詳見[架構與資料流](docs/ARCHITECTURE.md)。
 
-先前 Windows 釋出任務透過了 12 個真實 Qwen 場景，並驗證打包程式、多文件切換和釋出 ZIP 升級。結果包含 2400 × 1600 彩色校樣、掃描頁 OCR、局部換圖以及流程圖重開編輯。[實測分析](docs/MCP-2.1.0-validation.zh-Hans.md) · [GitHub Actions](https://github.com/ionize1080/Folio/actions/runs/41994404438)
+2.8.3 正式包在六組任務中通過 38 個成品驗收腳本，涵蓋設定、閱讀、儲存完整性、原生編輯、實際 AI 呼叫與更新 ZIP。歷史 2.1.0 的 12 個 Qwen 場景保留為獨立證據，不等同於本版全部驗證。[本版驗證](docs/VALIDATION.md) · [發行任務](https://github.com/ionize1080/Folio/actions/runs/43830775610)
 
 ## 已知問題與適用邊界
 
@@ -155,7 +171,7 @@ Folio 使用 PDF.js 渲染頁面，透過本地原生引擎處理物件、排版
 其他當前邊界：
 
 - 同頁文字框連線和同一文字流分欄已實現；跨頁文章級自動續排、任意圖文繞排仍未完成。
-- 頁面佈局模型提供候選區域，不能替代完整語義結構；公式結構編輯、全文 DOCX/HTML/Markdown 結構化匯出尚未實現。
+- 頁面佈局模型提供候選區域，不能替代完整語義結構；Word（DOCX）與 Excel（XLSX）已提供本機匯出，需複核閱讀順序、表格與分頁；公式結構編輯及完整 HTML/Markdown 結構化匯出仍受限。
 - Folio 尚無完整的互動式表單、安全塗黑和簽名介面；檔案式 PDF MCP 提供對應上游工具，輸出應另存並複核。PDF-XChange 專有書籤格式仍未實現。對含簽名 PDF 的重寫可能影響原簽名有效性。
 - 隱藏 OCR 層的校對不等於掃描影象可見文字編輯；其他來源的文字層不會被無條件刪除。
 - Windows 自動化驗證已透過，但真實中文輸入法、混合 DPI 及所有 Windows 10/11 硬體組合未全部覆蓋。

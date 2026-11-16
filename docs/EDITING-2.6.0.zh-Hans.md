@@ -1,3 +1,5 @@
+> Historical record / 历史记录 / 歷史記錄。Applies to the version or date named below. For Folio 2.8.3, use the [current documentation](README.md) and [feature tour](FEATURES.md).
+
 # PDF 编辑瓶颈、改动与验证：2.6.0
 
 本轮从识别、字体准备、排版、写入、后台调度和发布验证六个环节改进。覆盖 32 份文件、95 页，303 次编辑成功，136 次明确记录为受限；没有出现完整性断言失败，全部原文件的 SHA-256 保持不变。受限操作没有计入成功。尚未开展与 Acrobat、PDF-XChange、Foxit 相同文件、相同操作的对照测试，因此不能据此宣称全面达到或超过它们。

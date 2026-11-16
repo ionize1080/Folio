@@ -1,3 +1,5 @@
+> Historical record / 历史记录 / 歷史記錄。Applies to the version or date named below. For Folio 2.8.3, use the [current documentation](README.md) and [feature tour](FEATURES.md).
+
 # Folio PDF Studio 0.5.0
 
 本版重点是内容编辑正确性、OCR 批量应用、校对数据保留和长任务内存。保留 0.4 的通用书签层级、目标校准、批量样式、拖拽、去重及可视化选页。

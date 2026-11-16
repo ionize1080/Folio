@@ -1,3 +1,5 @@
+> Historical record / 历史记录 / 歷史記錄。Applies to the version or date named below. For Folio 2.8.3, use the [current documentation](README.md) and [feature tour](FEATURES.md).
+
 ## Folio PDF Studio 2.2.0
 
 The built-in Chatbox can generate images concurrently, insert them into PDFs and edit existing images. Image service settings support custom endpoints, API keys, model names and OpenAI-compatible or Qwen native protocols. Explicit keys use Windows protected storage.

@@ -1,3 +1,5 @@
+> Historical record / 历史记录 / 歷史記錄。Applies to the version or date named below. For Folio 2.8.3, use the [current documentation](README.md) and [feature tour](FEATURES.md).
+
 # 0.8.0 验证记录
 
 样本：用户提供《巍山年鉴_2025_90.pdf》，共 12 页，含多栏正文、彩色照片、有线及合并单元格表格。未将用户样本打入运行包。

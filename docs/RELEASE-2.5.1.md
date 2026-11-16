@@ -1,3 +1,5 @@
+> Historical record / 历史记录 / 歷史記錄。Applies to the version or date named below. For Folio 2.8.3, use the [current documentation](README.md) and [feature tour](FEATURES.md).
+
 ## Folio PDF Studio 2.5.1
 
 - Bookmark filtering separates query, page/matching conditions and result actions. Disclosure arrows share an 8 px label gap, with consistent focus feedback and improved small-window accessibility.

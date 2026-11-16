@@ -1,3 +1,5 @@
+> Historical record / 历史记录 / 歷史記錄。Applies to the version or date named below. For Folio 2.8.3, use the [current documentation](README.md) and [feature tour](FEATURES.md).
+
 ## Folio PDF Studio 2.5.0
 
 - Page image editing keeps the original image visible under the pointer. A context menu opens quick adjustments, crop or Image Studio. Studio extraction and replacement preserve rotation, mirrors, crop paths and PDF placement.

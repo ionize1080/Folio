@@ -1,3 +1,5 @@
+> Historical record / 历史记录 / 歷史記錄。Applies to the version or date named below. For Folio 2.8.3, use the [current documentation](README.md) and [feature tour](FEATURES.md).
+
 ## Folio PDF Studio 2.3.0
 
 文檔工作臺加入本地 Office 轉換、AI 結構複核與歸檔驗證，並同步開放 MCP 能力。

@@ -1,3 +1,5 @@
+> Historical record / 历史记录 / 歷史記錄。Applies to the version or date named below. For Folio 2.8.3, use the [current documentation](README.md) and [feature tour](FEATURES.md).
+
 # RC1-P6 编辑修复与验收
 
 基线：RC1-P5，提交 `5af7eedfef348f72e1ceaa362902e68f0a88682a`。本轮依据 10 份公开文档、50 个抽样页和原始中文文档的编辑长测修复。公开语料地址、内容 SHA-256、页码和类型记录在 `tests/public-corpus-p6.json`；文件从发布者网站获取，不放入源码包。

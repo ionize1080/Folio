@@ -1,3 +1,5 @@
+> Historical record / 历史记录 / 歷史記錄。Applies to the version or date named below. For Folio 2.8.3, use the [current documentation](README.md) and [feature tour](FEATURES.md).
+
 # Folio PDF Studio 2.8.0
 
 保留並完善現代介面：功能區、三欄書籤規則編輯器、OCR 校對工作區和頁面組織器統一了視覺風格，支援明暗主題。

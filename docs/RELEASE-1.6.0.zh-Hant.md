@@ -1,3 +1,5 @@
+> Historical record / 历史记录 / 歷史記錄。Applies to the version or date named below. For Folio 2.8.3, use the [current documentation](README.md) and [feature tour](FEATURES.md).
+
 # Folio PDF Studio 1.6.0
 
 [English](RELEASE-1.6.0.md) · [简体中文](RELEASE-1.6.0.zh-Hans.md) · **繁體中文**

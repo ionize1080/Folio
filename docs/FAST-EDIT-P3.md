@@ -1,3 +1,5 @@
+> Historical record / 历史记录 / 歷史記錄。Applies to the version or date named below. For Folio 2.8.3, use the [current documentation](README.md) and [feature tour](FEATURES.md).
+
 # RC1-P3 快速编辑预发布
 
 本次围绕页面文字编辑改造。仍是预发布版本，不宣称覆盖 Acrobat 的全部编辑能力。

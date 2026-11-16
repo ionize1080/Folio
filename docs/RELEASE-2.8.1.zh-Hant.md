@@ -1,3 +1,5 @@
+> Historical record / 历史记录 / 歷史記錄。Applies to the version or date named below. For Folio 2.8.3, use the [current documentation](README.md) and [feature tour](FEATURES.md).
+
 # Folio PDF Studio 2.8.1
 
 關閉原檔保護時，首次儲存也會在核對原始位元組後直接附加修改，後續繼續增量儲存。外部程式變更過檔案時，仍會阻止不安全的覆寫。

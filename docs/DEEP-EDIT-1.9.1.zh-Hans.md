@@ -1,3 +1,5 @@
+> Historical record / 历史记录 / 歷史記錄。Applies to the version or date named below. For Folio 2.8.3, use the [current documentation](README.md) and [feature tour](FEATURES.md).
+
 # Folio 1.9.1 深度编辑实测
 
 本次直接使用用户提供的两本完整 PDF，在 20 个物理页执行 120 项分散位置的长短插入、删除，并增加整本保存、字体普查、实际界面输入和本机竞品对照。阻止和失败均不计成功；结论仅适用于列出的样本、操作和版本。

@@ -1,3 +1,5 @@
+> Historical record / 历史记录 / 歷史記錄。Applies to the version or date named below. For Folio 2.8.3, use the [current documentation](README.md) and [feature tour](FEATURES.md).
+
 # Folio PDF Studio 1.2.1
 
 Windows x64 正式通道；完整 portable 和离线源码分别交付。发布由同一次 Windows 测试运行门控，附件 validation.json 记录程序提交、测试范围及 EXE/app.asar 哈希。历史 RC 发布保留。

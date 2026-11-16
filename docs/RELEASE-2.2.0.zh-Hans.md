@@ -1,3 +1,5 @@
+> Historical record / 历史记录 / 歷史記錄。Applies to the version or date named below. For Folio 2.8.3, use the [current documentation](README.md) and [feature tour](FEATURES.md).
+
 ## Folio PDF Studio 2.2.0
 
 内置 Chatbox 可并行调用图片模型、把结果插入 PDF，并编辑原有图片。图片服务可配置接口地址、API 密钥和模型，支持 OpenAI 兼容接口及千问原生协议；直接填写的密钥由 Windows 加密保存。

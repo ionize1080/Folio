@@ -1,3 +1,5 @@
+> Historical record / 历史记录 / 歷史記錄。Applies to the version or date named below. For Folio 2.8.3, use the [current documentation](README.md) and [feature tour](FEATURES.md).
+
 # Folio PDF Studio 0.6.0
 
 本版完成主要保存、书签、阅读和 OCR 校对改进，并加入段落流式编辑初版。完整解压 Windows x64 运行包后双击 `Folio.exe`，无需另装 Python 或下载模型。不要只移动 EXE。建议使用新的解压目录，保留 0.5.1 以便比较。

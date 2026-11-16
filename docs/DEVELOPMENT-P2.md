@@ -1,3 +1,5 @@
+> Historical record / 历史记录 / 歷史記錄。Applies to the version or date named below. For Folio 2.8.3, use the [current documentation](README.md) and [feature tour](FEATURES.md).
+
 # RC1-P2 开发切片（尚未发布）
 
 基于 main `1fb19b327c495c9eeda49068f14dc7cbc5fae470`。跟进 #2、#3 及大年鉴需求；本分支不自动关闭 Issue，也不改变 Latest。

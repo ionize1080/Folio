@@ -1,4 +1,4 @@
-# Using AI in Folio 2.5.0
+# Using AI in Folio 2.8.3
 
 **English** · [简体中文](AI.md) · [繁體中文](AI.zh-Hant.md)
 
@@ -42,3 +42,12 @@ Changes applied to the document tab support undo. With original-file protection 
 Physical page numbers start at 1. Bookmark destinations use PDF points. Image regions use normalized `[left,top,width,height]` measured from the top left. Whole-page image requests use separate long-edge budgets of 960, 1600 or 2200 pixels for classification, contents reading or location. Use the returned `imageToPdf` transform to convert preview pixels to PDF coordinates.
 
 [Build and test](DEVELOPMENT.md) · [Release validation JSON](https://github.com/ionize1080/Folio/releases/download/v2.1.0/Folio-PDF-Studio-2.1.0-validation.json)
+
+
+## Studios, page organization and data boundaries
+
+The **Image** and **Vector** ribbon tabs open the embedded editors; `folio_studio` controls the same canvas, layers, tools and previews. `folio_organize` assembles pages from current applied edits. Use the current document ID and revision before applying changes. Save a `.folio` project when editable artwork sources are needed. [Illustrated workflows](FEATURES.md) · [Studio API](CREATIVE-STUDIO.md).
+
+Local reading, editing, OCR and default Word/Excel export do not require an AI provider. Chatbox requests may transmit selected document text or images to the configured provider. For a public demonstration, use the [synthetic PDF](examples/Folio-Demo.pdf), a fresh profile and no real credentials. The gallery shows actual UI states, not a fabricated model conversation.
+
+![Synthetic image in the live studio](images/2.8.3/11-image-workspace.png)

@@ -1,3 +1,5 @@
+> Historical record / 历史记录 / 歷史記錄。Applies to the version or date named below. For Folio 2.8.3, use the [current documentation](README.md) and [feature tour](FEATURES.md).
+
 # Folio PDF Studio 1.8.0
 
 OCR review can now be skipped in one action while retaining the recognized text. Smart contents recognition preserves more continuation pages and correctly nests chapters under part headings. The app has a new, consistent folded-page icon.

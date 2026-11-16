@@ -1,3 +1,5 @@
+> Historical record / 历史记录 / 歷史記錄。Applies to the version or date named below. For Folio 2.8.3, use the [current documentation](README.md) and [feature tour](FEATURES.md).
+
 # RC1-P7 系统缺陷审计与修复
 
 日期：2026-09-28。基线：main `8a8fdc5` / RC1-P6。P7 为 RC 修复版本。

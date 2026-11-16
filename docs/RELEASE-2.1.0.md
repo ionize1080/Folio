@@ -1,3 +1,5 @@
+> Historical record / 历史记录 / 歷史記錄。Applies to the version or date named below. For Folio 2.8.3, use the [current documentation](README.md) and [feature tour](FEATURES.md).
+
 ## Folio PDF Studio 2.1.0
 
 - Open several PDFs or Folio projects from the file picker or by dragging them into the window. Each tab keeps its reading position, selection, undo history and unsaved edits. Use Ctrl+Tab to switch and Ctrl+W to close the current document.

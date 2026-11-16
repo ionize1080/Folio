@@ -1,3 +1,5 @@
+> Historical record / 历史记录 / 歷史記錄。Applies to the version or date named below. For Folio 2.8.3, use the [current documentation](README.md) and [feature tour](FEATURES.md).
+
 # Folio PDF Studio 1.8.0
 
 本版支持一鍵跳過全部 OCR 待校對建議，修復目錄漏頁和書籤層級問題，並統一更換摺頁式圖標。

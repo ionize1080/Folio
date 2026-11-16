@@ -1,3 +1,5 @@
+> Historical record / 历史记录 / 歷史記錄。Applies to the version or date named below. For Folio 2.8.3, use the [current documentation](README.md) and [feature tour](FEATURES.md).
+
 # 图片、矢量图与文档组合
 
 「更多工具 → 图片 / 矢量图」可查看页面对象，设置目标页、位置、尺寸、旋转和不透明度，应用后支持撤销。坐标采用 PDF 点，原点在页面左下角。矢量图的描边和线宽修改作用于含描边的元素；更精细的节点、渐变色标、线端和路径参数使用 SVG 源码或 Chatbox 的按 ID 属性修改。

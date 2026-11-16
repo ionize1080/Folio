@@ -1,3 +1,5 @@
+> Historical record / 历史记录 / 歷史記錄。Applies to the version or date named below. For Folio 2.8.3, use the [current documentation](README.md) and [feature tour](FEATURES.md).
+
 # PDF editing architecture and verification, 2.6.0
 
 [简体中文分析与测试报告](EDITING-2.6.0.zh-Hans.md)

@@ -1,3 +1,5 @@
+> Historical record / 历史记录 / 歷史記錄。Applies to the version or date named below. For Folio 2.8.3, use the [current documentation](README.md) and [feature tour](FEATURES.md).
+
 # Folio PDF Studio 0.8.0
 
 本版针对多栏年鉴编辑、图片变色、表格、原字体匹配及页面空间进行修复。

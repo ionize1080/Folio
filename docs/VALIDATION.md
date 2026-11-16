@@ -1,4 +1,22 @@
-# Folio PDF Studio 2.5.0 验证
+# Folio PDF Studio — release validation
+
+## Current release: 2.8.3
+
+正式 Windows x64 包来自提交 `fe5b6a7b52350e908da9009142bb68129f7f09c2`，由 [Actions 43830775610](https://github.com/ionize1080/Folio/actions/runs/43830775610) 构建并于 2026-11-16 发布。最终便携 ZIP 分六组通过 38 个验收脚本。核对下载文件时使用同次发布的 [validation.json](https://github.com/ionize1080/Folio/releases/download/v2.8.3/Folio-PDF-Studio-2.8.3-validation.json) 和 [SHA-256](https://github.com/ionize1080/Folio/releases/download/v2.8.3/Folio-PDF-Studio-2.8.3-SHA256.txt)。
+
+| 范围 | 证据与边界 |
+| --- | --- |
+| 界面 | 七类设置、十个复选框、23 个下拉选项、十二种配色、58 个面板状态、九种缩放、五种阅读布局 |
+| 性能 | 一万个书签、24 次功能区切换、滚动及重复开关面板；未改变设置时不刷新 PDF。耗时是指定环境观测值 |
+| 保存 | 原生编辑、增量保存、目标来源核对、撤销重做、重开与多文档隔离进入发布回归 |
+| AI 与更新 | 真实 Qwen 验收和独立文档状态检查通过；最终便携包经过更新器验证 |
+| 文档配图 | 当前图集只用新生成的 PDF 和独立配置；截图展示功能入口与状态，不构成性能或任意 PDF 保真保证 |
+
+[完整 UI 审计](UI-AUDIT-2026-11-16.zh-Hans.md) · [功能图解](FEATURES.zh-Hans.md)。本次仅更新文档与演示素材，没有重新发布二进制。以下按版本保留历史验证，不能将不同版本的计数相加或视为本次测试结果。
+
+---
+
+## Historical validation: 2.5.0
 
 本机已通过 319 项 JavaScript 单元检查、31 组原生验收和 8 组浏览器回归。本版在真实年鉴、教材、财务报告及合成几何样本上检查段落原位修改、图片工作室、页面组织与 AI 调用。测试修改写入独立副本，用户原文件保持不变。具体测试方法和边界见 [工作流验证](WORKFLOW-2.5.0.md)。
 

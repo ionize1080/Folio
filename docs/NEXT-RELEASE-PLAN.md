@@ -1,3 +1,5 @@
+> Historical record / 历史记录 / 歷史記錄。Applies to the version or date named below. For Folio 2.8.3, use the [current documentation](README.md) and [feature tour](FEATURES.md).
+
 # 历史开发计划与评审记录
 
 以下计划按当时的版本保留。2.1.0 的已交付功能、实测范围和使用步骤请见[文档索引](README.md)和[发布验证](VALIDATION.md)。

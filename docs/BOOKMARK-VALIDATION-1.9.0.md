@@ -1,3 +1,5 @@
+> Historical record / 历史记录 / 歷史記錄。Applies to the version or date named below. For Folio 2.8.3, use the [current documentation](README.md) and [feature tour](FEATURES.md).
+
 # Folio 1.9.0 书签补充验收
 
 日期：2026-10-19。本记录针对继续测试期间发现的书签完整性与界面问题；桌面程序最终验收和发布结果以整体 release 验证报告为准。

@@ -1,3 +1,5 @@
+> Historical record / 历史记录 / 歷史記錄。Applies to the version or date named below. For Folio 2.8.3, use the [current documentation](README.md) and [feature tour](FEATURES.md).
+
 # Folio PDF Studio 2.7.0
 
 本版增加增量保存、書籤質量檢查和更完整的頁面整理，並壓縮界面橫欄，提高文檔的縱向可閱讀高度。

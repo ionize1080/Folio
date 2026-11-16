@@ -1,4 +1,8 @@
-# Folio PDF Studio 2.1.0 架构
+# Folio PDF Studio 2.8.3 架构
+
+当前架构同时包含 PDF 阅读与编辑、嵌入式图像／矢量工作室、页面组织器和可选 Chatbox。`folio_studio` 与人工操作使用同一编辑器；`folio_organize` 通过当前文档快照整理页面。导出 DOCX/XLSX 默认走本地转换。见[工作室](CREATIVE-STUDIO.md)与[功能图解](FEATURES.zh-Hans.md)。
+
+2.8.x 普通 PDF 保存可使用增量追加：先核对目标的基线字节，关闭原件保护时首次符合条件的保存也可追加；外部修改仍被拒绝。压缩／完整重写使用临时文件和替换路径。2.8.2 保留原始书签目标数值精度，内容预览仍核对真正的来源变化。这里的原子替换说明适用于完整写入，不表示每次增量保存都重写整个文件。
 
 每个打开的文件有自己的编辑器、PDF.js 工作者、选区、撤销记录和未保存状态。主进程管理标签和原生文件对话框。Chatbox 1.20.3 使用同一套 Electron 运行时，在侧栏和独立窗口之间切换时复用同一个聊天视图。[用户指南](../README.zh-Hans.md) · [AI 操作指南](AI.md)
 
@@ -26,7 +30,7 @@ flowchart LR
 | 模块 | 职责 |
 | --- | --- |
 | `ai-dock.cjs`、`integrations/chatbox/controls.js`、`progress.js` | 托管 Chatbox，切换侧栏或独立窗口，在输入框上方显示进度。Folio 菜单或弹窗出现时让出原生视图。 |
-| `integrations/chatbox/stdio.cjs`、`tool-schema.cjs` | 向聊天模型注册十个入口。六个用于文档、书签、留白、校准、图像和矢量，四个用于帮助和通用操作。 |
+| `integrations/chatbox/stdio.cjs`、`tool-schema.cjs` | 注册文档、书签、留白、校准、图像、矢量、工作室、页面组织及帮助／通用操作工具；完整列表以 `tool-schema.cjs` 为准。 |
 | `src/ai-ui.mjs`、`ai-tools.mjs`、`ai-efficient.mjs` | 处理审批、选区、修订和响应分页；用本地索引筛选及修改书签，用物理页码标识摘要证据。 |
 | `src/ai-images.mjs`、`native/image_adjustments.py` | 定位嵌入图像，返回候选像素和亮度分位数，按预览 ID 继续调整，在原图上应用色彩、曲线、滤镜或指定区域的替换。 |
 | `integrations/chatbox/image-generation.ts` | 用用户在图像创作中选择的服务商和模型生成候选。局部重绘需支持参考图输入。 |
@@ -44,7 +48,7 @@ MCP 使用本地 stdio 和认证命名管道。模型联网请求由 Chatbox 的
 
 ## 核心文档与编辑引擎
 
-原始 PDF 在一个文档会话内保持不变。编辑状态描述书签、批注、旋转、OCR 与内容修改；PDF.js 共享原始文档，只为已修改页面显示独立合成预览。工程打开完成解包、哈希核对、结构解析和预览准备后再替换活动文档。保存先合成内容，再核对原始动作并写结构，最后以同目录临时文件替换目标。
+原始 PDF 在一个文档会话内保持不变。编辑状态描述书签、批注、旋转、OCR 与内容修改；PDF.js 共享原始文档，只为已修改页面显示独立合成预览。工程打开完成解包、哈希核对、结构解析和预览准备后再替换活动文档。保存先合成内容，再核对原始动作并写结构；符合条件时增量追加，否则经同目录临时文件完成完整写入。
 
 | 模块 | 当前职责 |
 |---|---|
@@ -58,7 +62,7 @@ MCP 使用本地 stdio 和认证命名管道。模型联网请求由 Chatbox 的
 | `src/project.mjs` / `project-worker.mjs` / `zip-store.mjs` | 工程 v2 的 ZIP STORE、完整性清单和 Worker 编解码；继续读取 v1 JSON 工程 |
 | `src/portable-state.mjs` | PDF 碎片与文字几何的内容寻址资产、共享序列化缓存、状态验证 |
 | `src/recovery.mjs` | IndexedDB v3，多会话键、源/碎片去重、完整性核对、默认 2 GB 可配置预算，保护未保存草稿、失败保留旧快照 |
-| `file-store.cjs` | 文件选择票据、原件保护、分块写入、刷盘后替换；失败保留目标原内容 |
+| `file-store.cjs` | 文件选择票据、原件保护、基线核对、增量追加／分块完整写入；完整写入刷盘后替换 |
 | `temp-store.cjs` | 带进程所有者记录的临时目录；仅清理确认所有者已退出的本产品目录 |
 | `src/flow-ui.mjs` | 页上编辑、IME 草稿、连续选段意图、局部/整段排版、拆分合并与人工结构锁定 |
 | `src/fast-layout.mjs` / `native/fast_layout.py` | 编辑区即时排版和 PDF 字形写回，复用原字体分数字宽和局部行锚点；ActualText 保留逻辑文本 |

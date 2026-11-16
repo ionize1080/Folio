@@ -1,5 +1,16 @@
 # Folio 并行验收与发布
 
+## 当前流程：2.8.3
+
+以 [release-283.yml](../.github/workflows/release-283.yml)、[setup-workbench](../.github/actions/setup-workbench/action.yml) 和 [发布验证](VALIDATION.md) 为准。当前流程并行准备依赖和嵌入式编辑器，原生回归分六片；最终便携 ZIP 通过六组、38 个验收脚本后核对更新与发布。已发布记录：[43830775610](https://github.com/ionize1080/Folio/actions/runs/43830775610)。
+
+每组保留独立配置与输出，结果绑定同一提交、运行和最终包哈希。截图和本地配置不随 CI 报告上传。当前文档图集是另行审查的合成样本界面截图，详见[素材来源](SCREENSHOTS.md)。
+
+## 历史设计：2.3.0
+
+下文的五组验收、两条成品队列和当时测试数量描述 2.3.0，不是当前并行配置。额度与计费引用也保留其核对日期。
+
+
 本流程只服务于 Folio 的构建、测试与发布。采用 GitHub 标准托管运行器，不使用大型付费运行器、不改变缓存付费上限，也不使用多账号、多仓库或循环触发规避额度。
 
 此架构已在 [v2.3.0 正式发布运行](https://github.com/ionize1080/Folio/actions/runs/42262611856) 中全部通过。发行提交为 `5984385d846673ae7e2626f7762b9ce59209ceb8`；五个独立验收组、两个 MCP 工作进程、两条成品测试队列及实际 ZIP 更新验证均已完成。[公开验证报告](https://github.com/ionize1080/Folio/releases/download/v2.3.0/Folio-PDF-Studio-2.3.0-validation.json) 包含各组来源与结果。

@@ -1,5 +1,8 @@
 # Folio PDF Studio 1.0 RC1 P2
 
+> Historical P2 guide. Use the [current user guide](README.md) and [documentation index](docs/README.md) for 2.8.3.
+
+
 此页是历史补丁安装说明。使用当前便携版请从[简体中文用户指南](README.zh-Hans.md)开始。
 
 适用：此前交付的 **1.0.0 RC1 / RC1 P1 Windows x64 完整运行包**。已包含 P1 的书签拆分修复，无需先装 P1。

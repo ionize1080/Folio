@@ -1,3 +1,5 @@
+> Historical record / 历史记录 / 歷史記錄。Applies to the version or date named below. For Folio 2.8.3, use the [current documentation](README.md) and [feature tour](FEATURES.md).
+
 ## Folio PDF Studio 1.2.0 RC1-P7
 
 修复普通嵌套包装 PDF 无法编辑、标题使双栏串文、ActualText 旧语义、流资源误复用，以及紧文本框末字等宽替换的重排问题。同时移除带高危公告的构建解压依赖。新增嵌套文字诊断和与已知图形/替代文字特征相符的有效 PDF 版本声明。

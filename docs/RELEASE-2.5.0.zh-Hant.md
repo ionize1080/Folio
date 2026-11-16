@@ -1,3 +1,5 @@
+> Historical record / 历史记录 / 歷史記錄。Applies to the version or date named below. For Folio 2.8.3, use the [current documentation](README.md) and [feature tour](FEATURES.md).
+
 ## Folio PDF Studio 2.5.0
 
 - 修正編輯圖像時滑鼠停留使圖片變白；右鍵可直接進入快速調整、裁剪或圖像工作室。開啟工作室及替換回 PDF 時保持旋轉、鏡像、裁剪路徑與原有放置位置。

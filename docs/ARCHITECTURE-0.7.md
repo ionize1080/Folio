@@ -1,3 +1,5 @@
+> Historical record / 历史记录 / 歷史記錄。Applies to the version or date named below. For Folio 2.8.3, use the [current documentation](README.md) and [feature tour](FEATURES.md).
+
 # 0.7 页面编辑架构
 
 输入层：主阅读区中的透明本地 textarea 仅接收 IME/键盘/剪贴板；可见文字、选区和光标由矢量页面与精确坐标绘制，不由 textarea 的排版驱动。

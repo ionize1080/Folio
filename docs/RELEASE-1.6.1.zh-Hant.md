@@ -1,3 +1,5 @@
+> Historical record / 历史记录 / 歷史記錄。Applies to the version or date named below. For Folio 2.8.3, use the [current documentation](README.md) and [feature tour](FEATURES.md).
+
 # Folio PDF Studio 1.6.1
 
 修復 Windows 便攜版「安裝並重新啟動後沒有升級／程式結束」問題，保留 1.6.0 的編輯功能和三種介面語言。

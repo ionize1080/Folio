@@ -1,3 +1,5 @@
+> Historical record / 历史记录 / 歷史記錄。Applies to the version or date named below. For Folio 2.8.3, use the [current documentation](README.md) and [feature tour](FEATURES.md).
+
 # 0.6.0 架构增量
 
 保留原有 `ARCHITECTURE.md` 描述的 Electron + PDF.js 阅读、pdf-lib 结构编辑、PDFium/pypdf 原生内容写回与 OCR 任务服务。新增流式编辑与内容结果复用。

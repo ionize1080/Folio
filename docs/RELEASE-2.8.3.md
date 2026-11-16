@@ -7,3 +7,8 @@ Preferences now validate required numeric values, ranges and integers before app
 Local validation covered all seven preference categories, ten checkboxes, 23 dropdown choices, twelve theme/palette combinations, 58 panel states, nine zoom choices and five reader layouts. Performance checks exercise 10,000 bookmarks, 24 ribbon switches, scrolling, zooming and repeated dialog cycles. Unchanged preferences cause zero PDF refreshes; timings are recorded as observations rather than universal speed guarantees. Initial dialog and editing setup can still produce brief long tasks. See the [detailed audit](UI-AUDIT-2026-11-16.zh-Hans.md) for scope and limits.
 
 GitHub Actions rebuilds the complete Windows package and runs the existing native, editing, save-integrity, AI and updater gates alongside the new UI checks. The exact portable ZIP must pass 38 acceptance scripts across six parallel jobs before publication. Release attachments include the source archive, commit-bound validation evidence and SHA-256 checksums. CI uses generated or public fixtures; private user documents are not uploaded.
+
+
+[Current user guide](../README.md) · [Illustrated feature tour](FEATURES.md) · [Download and checksums](https://github.com/ionize1080/Folio/releases/tag/v2.8.3)
+
+![Folio 2.8.3 preferences — isolated synthetic demonstration](images/2.8.3/08-preferences.png)

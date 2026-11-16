@@ -1,3 +1,5 @@
+> Historical record / 历史记录 / 歷史記錄。Applies to the version or date named below. For Folio 2.8.3, use the [current documentation](README.md) and [feature tour](FEATURES.md).
+
 ## Folio PDF Studio 2.4.0
 
 - 图像与矢量工作室直接融入 Folio。支持新建、导入、编辑、复制、移动和删除；修复画笔、选区与蒙版、图层与智能滤镜、高位深色彩、路径节点、布尔运算、文字、渐变及效果均可通过人工界面与 MCP 操作。

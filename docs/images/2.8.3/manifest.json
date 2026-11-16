@@ -1,0 +1,112 @@
+{
+  "version": "2.8.3",
+  "sourceCommit": "fe5b6a7b52350e908da9009142bb68129f7f09c2",
+  "uiLanguage": "zh-Hans",
+  "capture": "Real Electron UI; reduced motion; isolated profiles; no model requests",
+  "fixtureGenerator": "scripts/docs-fixtures.py",
+  "assets": [
+    {
+      "path": "docs/images/2.8.3/01-reader.png",
+      "sha256": "ca08b17935e3a5b7e29a86cf1bf18713c446c8d580f2fd0f888c056071d5b34e",
+      "bytes": 147192,
+      "width": 1440,
+      "height": 960
+    },
+    {
+      "path": "docs/images/2.8.3/02-bookmark-rules.png",
+      "sha256": "62cc65a3e9838df365e20e71f6ee06bc7008328d87fb54964332a7cb40b38099",
+      "bytes": 153045,
+      "width": 1440,
+      "height": 960
+    },
+    {
+      "path": "docs/images/2.8.3/03-bookmark-review.png",
+      "sha256": "c279125d3a887b253d020d28e54c9cee483788ce2677aea1119f9285c7119021",
+      "bytes": 202074,
+      "width": 1440,
+      "height": 960
+    },
+    {
+      "path": "docs/images/2.8.3/04-page-organizer.png",
+      "sha256": "6f0612c5a97e0ff011944bb08811169aa4acbba29f87026fc5940202b7458b04",
+      "bytes": 87802,
+      "width": 1440,
+      "height": 960
+    },
+    {
+      "path": "docs/images/2.8.3/05-font-workbench.png",
+      "sha256": "9089bbb5077c96e6ddd611469e0f740a42777e6083f81138fa9bc8c10a9d3ad6",
+      "bytes": 171877,
+      "width": 1440,
+      "height": 960
+    },
+    {
+      "path": "docs/images/2.8.3/06-word-export.png",
+      "sha256": "6966b4aa7ae9d1c1c3ca19a146a37ccea048e9e44ff62b9d4936c2dcca082aa8",
+      "bytes": 161465,
+      "width": 1440,
+      "height": 960
+    },
+    {
+      "path": "docs/images/2.8.3/07-print.png",
+      "sha256": "4c00e041cd74e648c56fd06094ea91868d02b15ffabdb8f45d648eb19ee8f1c8",
+      "bytes": 161788,
+      "width": 1440,
+      "height": 960
+    },
+    {
+      "path": "docs/images/2.8.3/08-preferences.png",
+      "sha256": "0e72dbf72e0ceb7a3f791b42cc32662da6336da6d97b8b3ab08a76d0a975873c",
+      "bytes": 199484,
+      "width": 1440,
+      "height": 960
+    },
+    {
+      "path": "docs/images/2.8.3/09-dark-reader.png",
+      "sha256": "68a9fd4ef19fe7c9a70df851c51500c5a7c2c5eb091294182ded90b4ad3c1b9c",
+      "bytes": 140913,
+      "width": 1440,
+      "height": 960
+    },
+    {
+      "path": "docs/images/2.8.3/10-text-editing.png",
+      "sha256": "eb34dce963735121f8c4a9c08841ddf2668b78584692228b7fc15fdcdcfc720c",
+      "bytes": 166496,
+      "width": 1440,
+      "height": 960
+    },
+    {
+      "path": "docs/images/2.8.3/11-image-workspace.png",
+      "sha256": "7e7e3b7bfb4bc93a5e66483283869c5b9c1c72536ece9c7e366643b7ef060f4f",
+      "bytes": 152866,
+      "width": 1440,
+      "height": 960
+    },
+    {
+      "path": "docs/images/2.8.3/12-vector-workspace.png",
+      "sha256": "afdfd7856fb37e74ec84663ea426dee92131ecaa383c21fe7f0f1d8e9ac002ea",
+      "bytes": 214595,
+      "width": 1440,
+      "height": 960
+    },
+    {
+      "path": "docs/images/2.8.3/13-ocr-review.png",
+      "sha256": "fe0100223c9314d4914793b771c2011c6374e5bc1694d49e25e5d12181641814",
+      "bytes": 213483,
+      "width": 1440,
+      "height": 960
+    },
+    {
+      "path": "docs/examples/Folio-Demo.pdf",
+      "sha256": "2f873f38d9ab885377f9efc9fdd0bdcd93bb0fad0ac74076b0b77d41e3be1f1c",
+      "bytes": 27077,
+      "synthetic": true
+    },
+    {
+      "path": "docs/examples/Folio-Demo-Scan.pdf",
+      "sha256": "b58d36829310a9a95b90c5f078feb6f03eea4a39502d4eea25ad23e7e95f109f",
+      "bytes": 105925,
+      "synthetic": true
+    }
+  ]
+}

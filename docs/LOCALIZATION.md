@@ -1,4 +1,7 @@
-# Localization in 2.1.0
+# Localization in 2.8.3
+
+The three current user guides, AI guides and illustrated feature tours target 2.8.3. The screenshot gallery currently uses Simplified Chinese UI with synthetic bilingual documents; captions explain each workflow in all three guide languages. Document content is intentionally not translated by the application. [Feature tour](FEATURES.md) · [Screenshot policy](SCREENSHOTS.md).
+
 
 Folio follows the Windows display language by default. Preferences can override it with English, Simplified Chinese or Traditional Chinese. The System option reads the preferred Windows language through Electron. Chinese locale variants resolve to Simplified or Traditional Chinese. Other unsupported languages fall back to English. An explicit choice is stored locally and takes precedence on upgrade.
 
@@ -23,7 +26,7 @@ The UI observer updates changed subtrees, not the entire document on each input.
 1. Add the phrase to each catalog, preserving numbered placeholders and technical tokens.
 2. Keep document data out of UI labels; mark any user-content containers explicitly.
 3. Run `node scripts/build-locales.mjs` and `npm run test:unit`.
-4. Run the desktop checks in the [2.1.0 release workflow](../.github/workflows/release-210.yml), then run packaged Windows acceptance with `FOLIO_EXE` and inspect screenshots in all locales, at supported minimum widths and in both themes.
+4. Run the desktop checks in the [2.8.3 release workflow](../.github/workflows/release-283.yml), then run packaged Windows acceptance with `FOLIO_EXE` and inspect screenshots in all locales, at supported minimum widths and in both themes.
 5. Update the three user guides, AI guides and release-note sections together. Keep technical names, examples and coordinates consistent across languages.
 
 Do not add a language to the selector with a partial placeholder catalog. Older documents and release records remain historical sources; they are not silently rewritten. Native Windows dialogs follow OS language, and third-party technical diagnostics can retain original wording.

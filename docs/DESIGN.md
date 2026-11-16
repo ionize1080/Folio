@@ -1,4 +1,13 @@
-# Desktop interface conventions in 2.1.0
+# Desktop interface conventions in 2.8.3
+
+The current ribbon has Home, Read, Edit, Image, Vector, Bookmarks, Organize and Export categories. The title bar holds document tabs and AI; the bottom bar holds reading controls. Workbench dialogs provide separate navigation, settings and previews. Version 2.8.3 keeps focused checkbox checkmarks visible, validates preference inputs and avoids refreshing documents for unchanged preferences. [Current UI audit](UI-AUDIT-2026-11-16.zh-Hans.md) · [Screenshot tour](FEATURES.md).
+
+![Preferences in Folio 2.8.3](images/2.8.3/08-preferences.png)
+
+![Dark reader with a generated PDF](images/2.8.3/09-dark-reader.png)
+
+The dated 2.5/2.5.1 sections below record the design's evolution; use the current source and release audit for current measurements.
+
 
 ## Color and selection
 

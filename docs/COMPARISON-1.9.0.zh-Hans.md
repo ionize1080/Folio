@@ -1,3 +1,5 @@
+> Historical record / 历史记录 / 歷史記錄。Applies to the version or date named below. For Folio 2.8.3, use the [current documentation](README.md) and [feature tour](FEATURES.md).
+
 # Folio 1.9.0 本地对比测试与分析
 
 测试日期：2026-10-19。样本目录：`D:\APP\PDF Samples\Online Samples`。基线为 main 的 Folio 1.8.0（3295a6f），对照本机 Acrobat Pro 24.3.20112.0、PDF-XChange Editor 11.0.1.0。首轮之后按用户要求追加最多 90 分钟的测试、修复与发布。源 PDF 保持不变；完整文本、截图及日志仅留在本地 tests/output，发布附件只包含检查结果和哈希。

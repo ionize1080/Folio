@@ -1,3 +1,5 @@
+> Historical record / 历史记录 / 歷史記錄。Applies to the version or date named below. For Folio 2.8.3, use the [current documentation](README.md) and [feature tour](FEATURES.md).
+
 # Folio PDF Studio 2.8.2
 
 修复已有书签包含高精度跳转坐标或缩放值时，编辑段落后提示「内容预览的原始书签来源发生变化」而无法保存的问题。

@@ -1,5 +1,10 @@
 # Independent TOC page calibration
 
+Current entry: **Bookmarks → Calibrate TOC page numbers**; the existing More tools and generated-bookmark preview entries remain available. Review candidates before applying. [2.8.3 feature tour](FEATURES.md).
+
+![Current bookmark rule workbench; page calibration is a separate review step](images/2.8.3/02-bookmark-rules.png)
+
+
 Calibrate each bookmark against actual heading evidence across a user-selected
 body-page range. Every entry may have a different offset. Multiple headings can
 share a page; destinations may go backwards. The current target page and the
@@ -59,7 +64,7 @@ association, richer typography features and cross-page relation models remain
 separate follow-up work. Missing TOC page numbers outside the document still
 require correcting the initial import before opening calibration.
 
-## Using it alongside Chatbox in 2.1.0
+## Using it alongside Chatbox
 
 Use the independent calibration dialog to review candidate pages across a chosen body-page range. For a margin change or a heading near an existing target, Chatbox also provides the narrower `folio_whitespace` and `folio_calibrate` operations. When comparing two open PDFs, name the file whose bookmark targets should change. [Chatbox and MCP guide](AI.en.md)
 

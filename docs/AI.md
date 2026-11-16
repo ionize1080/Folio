@@ -1,4 +1,4 @@
-# 在 Folio 2.5.0 中使用 AI
+# 在 Folio 2.8.3 中使用 AI
 
 [English](AI.en.md) · **简体中文** · [繁體中文](AI.zh-Hant.md)
 
@@ -49,3 +49,12 @@ Folio 每次启动默认手动审批。切换为自动审批需要两次确认�
 物理页码从 1 开始。书签目标使用 PDF 点坐标，图像区域使用归一化的 `[左,上,宽,高]`。`folio_document` 的页面预览可按 `classify`、`toc`、`locate` 选择细节程度，默认长边预算分别为 960、1600、2200 像素。返回的 `imageToPdf` 用于将预览像素映射到 PDF 点坐标。
 
 [架构与本地通信](ARCHITECTURE.md) · [构建与测试](DEVELOPMENT.md) · [真实调用实测](MCP-2.1.0-validation.zh-Hans.md) · [发布包验收](VALIDATION.md)
+
+
+## 工作室、页面整理与数据范围
+
+「图像」「矢量」功能区打开嵌入式编辑器；`folio_studio` 操作同一画布、图层、工具和预览。`folio_organize` 基于当前已应用修改整理页面。应用前读取目标文档 ID 和最新修订号；需要保留作品源文件时保存 `.folio` 工程。[功能图解](FEATURES.zh-Hans.md) · [工作室工具说明](CREATIVE-STUDIO.md)。
+
+本地阅读、编辑、OCR 与默认 Word／Excel 导出不需要模型服务。Chatbox 请求可能将所需文字或图片发送至所配置服务商。公开演示请使用[合成 PDF](examples/Folio-Demo.pdf)、独立配置且不填写真实密钥。图集展示真实界面状态，不伪造模型对话或响应。
+
+![同一画布中的合成图像](images/2.8.3/11-image-workspace.png)

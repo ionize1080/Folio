@@ -1,3 +1,5 @@
+> Historical record / 历史记录 / 歷史記錄。Applies to the version or date named below. For Folio 2.8.3, use the [current documentation](README.md) and [feature tour](FEATURES.md).
+
 ## Folio PDF Studio 2.1.0
 
 - 在「打开」中多选 PDF 或 Folio 工程，也可把文件一起拖入窗口。每个文档独立保留阅读位置、书签选择、撤销记录和未保存编辑。Ctrl+Tab 切换文档，Ctrl+W 关闭当前标签。

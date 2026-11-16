@@ -1,3 +1,5 @@
+> Historical record / 历史记录 / 歷史記錄。Applies to the version or date named below. For Folio 2.8.3, use the [current documentation](README.md) and [feature tour](FEATURES.md).
+
 ## Folio PDF Studio 2.4.0
 
 - Raster and vector editing now lives directly inside Folio: create, import, edit, duplicate, move and delete artwork using the same manual and MCP tools. Integrated source engines provide repair, selections/masks, layers/smart filters, high-bit-depth color, Bezier nodes, Boolean operations, typography, gradients and effects.

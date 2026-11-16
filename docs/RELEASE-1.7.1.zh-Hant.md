@@ -1,3 +1,5 @@
+> Historical record / 历史记录 / 歷史記錄。Applies to the version or date named below. For Folio 2.8.3, use the [current documentation](README.md) and [feature tour](FEATURES.md).
+
 # Folio PDF Studio 1.7.1
 
 本版修正智能目錄識別的條目準確性，並簡化批量生成書籤的操作。入口仍是“更多工具 → 智能目錄識別”，菜單圖標已補齊。
