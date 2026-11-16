@@ -46,6 +46,13 @@ for shard in range(1, 5):
         f'packaged-{shard}-280.json', *SUITES['packaged' + str(shard)][1:]
     ] + {1: [], 2: ['modern-280.json', 'organizer-features.json'], 3: ['ribbon-280.json'], 4: ['tabs-280.json']}[shard]
 
+SUITES['save281'] = ['save-corpus-281.json','save-performance-281.json']
+SUITES['ui281'] = ['save-multitab-281.json','interaction-281.json','performance-281.json','font-tools-281.json']
+SUITES['build281'] = list(SUITES['build280'])
+for shard in range(1,5):
+    SUITES['packaged281'+str(shard)] = [f'packaged-{shard}-281.json',*SUITES['packaged280'+str(shard)][1:]]
+SUITES['packaged2815'] = ['packaged-5-281.json',*SUITES['ui281']]
+
 def valid(name, value):
     if name == 'web-pdf-report.json':
         return isinstance(value, list) and {'reader', 'original'} <= {r.get('mode') for r in value} and all(r.get('bytes', 0) > 0 for r in value)

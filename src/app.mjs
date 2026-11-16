@@ -1,3 +1,4 @@
+import {bookmarkRowLayout} from "./bookmark-row-layout.mjs";
 import {annotationPalette} from "./annotation-style.mjs";
 import {applyAppearance, paletteControls, palettes} from "./appearance.mjs";
 import {installColorPicker} from "./color-picker.mjs";
@@ -101,7 +102,7 @@ const settings = readSettings(
     cover: true,
     shortcuts: {},
     theme: "system",
-    palette:"cobalt", customAccent:"#165DDB", selectionColor:"#5370f5", targetThumb:true, showTargetMarker:true, targetMarkerColor:"#db8c36",
+    palette:"cobalt", customAccent:"#165DDB", selectionColor:"#5370f5", selectionBorder:false, targetThumb:true, showTargetMarker:true, targetMarkerColor:"#db8c36",
     sidebar: 250,
     row: 34,
     quality: 2,
@@ -346,6 +347,7 @@ window.addEventListener("resize", fitPanels);
 function applySettings(redraw = true) {
   applyAppearance(settings);
   document.documentElement.style.setProperty("--text-selection", settings.selectionColor);
+  document.documentElement.dataset.selectionBorder=String(settings.selectionBorder);
   document.documentElement.style.setProperty(
     "--sidebar",
     settings.sidebar + "px",
@@ -372,6 +374,7 @@ window.addEventListener("storage", e => {
   Object.assign(settings, readSettings(settings,e.newValue));
   applyAppearance(settings);
   document.documentElement.style.setProperty("--text-selection", settings.selectionColor);
+  document.documentElement.dataset.selectionBorder=String(settings.selectionBorder);
 });
 // Per-dialog chrome: glyph chip, context kicker, and a width class so short forms don't sprawl.
 const MODAL_META = [
@@ -1025,7 +1028,7 @@ function rebuild() {
     visible.push(n);
   }
   S.visible = visible;
-  $("#tree-spacer").style.height = visible.length * rowHeight() + "px";
+  updateTreeLayout();
   $("#tree-empty").hidden = !!visible.length;
   $("#node-count").textContent = S.nodes.length.toLocaleString();
   $("#selection-count").textContent = S.selected.size
@@ -1040,24 +1043,34 @@ function rebuild() {
 }
 let treeFrame = 0,
   rowCache = new Map();
-function rowHeight() {
-  return settings.wrap ? Math.max(58, settings.row) : settings.row;
+let treeLayout=null,treeLayoutNodes=null,treeLayoutKey='',treeTitleWidths=new Map();
+const treeMeasure=document.createElement('canvas').getContext('2d');
+function updateTreeLayout(){
+  const tree=$("#tree"),style=getComputedStyle(tree),width=tree.clientWidth;
+  const key=[width,settings.wrap,settings.row,style.fontFamily].join(':');
+  if(treeLayout&&treeLayoutNodes===S.visible&&treeLayoutKey===key)return treeLayout;
+  treeLayoutNodes=S.visible;treeLayoutKey=key;
+  const measure=(text,font)=>{const key=font+'\0'+text;let value=treeTitleWidths.get(key);if(value===undefined){treeMeasure.font=font;value=treeMeasure.measureText(text).width;if(treeTitleWidths.size>50000)treeTitleWidths.clear();treeTitleWidths.set(key,value);}return value;};
+  treeLayout=bookmarkRowLayout(S.visible.length,i=>{
+    if(!settings.wrap)return settings.row;
+    const n=S.visible[i],depth=Math.min(S.depth.get(n.id)||0,24),font=`${n.italic?'italic':'normal'} ${n.bold?700:400} 12px ${style.fontFamily}`;
+    const pageWidth=Math.max(28,16+measure(String(n.target.page||'↗'),`11px ${style.fontFamily}`));
+    const available=Math.max(20,width-77-depth*16-pageWidth);
+    return measure(n.title.replace(/\s+/g,' '),font)>available+.25?Math.max(48,settings.row):settings.row;
+  });
+  $("#tree-spacer").style.height=treeLayout.total+'px';return treeLayout;
 }
 function renderTree() {
   if (document.activeElement?.classList.contains("inline-name")) return;
-  const tree = $("#tree"),
-    start = Math.max(0, Math.floor(tree.scrollTop / rowHeight()) - 5),
-    end = Math.min(
-      S.visible.length,
-      start + Math.ceil(tree.clientHeight / rowHeight()) + 12,
-    );
+  const tree = $("#tree"),layout=updateTreeLayout(),
+    start = Math.max(0, layout.indexAt(tree.scrollTop) - 5),
+    end = Math.min(S.visible.length,layout.indexAt(tree.scrollTop+tree.clientHeight)+7);
   const rows = $("#tree-rows");
   let cursor = rows.firstElementChild;
   const nextCache = new Map(),
-    height = rowHeight(),
     matching = filterReady() ? filterCache.matchSet : null;
   for (let i = start; i < end; i++) {
-    const n = S.visible[i],
+    const n = S.visible[i],height=layout.height(i),
       d = S.depth.get(n.id) || 0,
       siblings = S.children.get(n.parent) || [],
       kids = S.children.has(n.id),
@@ -1092,7 +1105,7 @@ function renderTree() {
       title.style.fontWeight = n.bold ? "700" : "400";
       title.style.fontStyle = n.italic ? "italic" : "normal";
     }
-    const top = i * height + "px";
+    const top = layout.top(i) + "px";
     if (row.style.top !== top) row.style.top = top;
     nextCache.set(n.id, { sig, row });
     if (row === cursor) cursor = cursor.nextElementSibling;
@@ -1285,7 +1298,7 @@ function reveal(id) {
   }
   rebuild();
   const at = S.visible.findIndex((n) => n.id === id);
-  if (at >= 0) $("#tree").scrollTop = at * rowHeight();
+  if (at >= 0) $("#tree").scrollTop = updateTreeLayout().top(at);
 }
 async function deleteNodes() {
   if (!S.selected.size) return;
@@ -2483,7 +2496,7 @@ async function settingsDialog() {
   const network = (await window.desktop?.updateInfo?.())?.settings;
   modal(
     "偏好设置",
-    `<div class="prefs"><nav class="prefs-nav" aria-label="偏好设置分类"><button type="button" data-pref-nav="general" aria-current="true">${icon("settings")}<span>通用</span></button><button type="button" data-pref-nav="reading" aria-current="false">${icon("book")}<span>阅读与滚动</span></button><button type="button" data-pref-nav="bookmarks" aria-current="false">${icon("bookmark")}<span>书签</span></button><button type="button" data-pref-nav="saving" aria-current="false">${icon("save")}<span>保存与文件</span></button><button type="button" data-pref-nav="performance" aria-current="false">${icon("sliders")}<span>性能与缓存</span></button>${ai ? `<button type="button" data-pref-nav="ai" aria-current="false">${icon("spark")}<span>AI 文档辅助</span></button>` : ""}<button type="button" data-pref-nav="advanced" aria-current="false">${icon("globe")}<span>网络与快捷键</span></button></nav><div class="prefs-scroll"><section class="pref-section" data-pref-section="general"><h3>通用</h3><div class="pref-row"><div class="pref-label"><b>界面语言</b><small>立即生效，并记住选择。不会改变文档文字或 OCR 语言。</small></div><div class="pref-control">${languagePicker("settings-language")}</div></div><div class="pref-row"><div class="pref-label"><b>外观主题</b></div><div class="pref-control"><select id="set-theme"><option value="system">跟随系统</option><option value="light">浅色</option><option value="dark">深色</option></select></div></div>${paletteControls()}<div class="pref-color-row"><div><b>文字选取颜色</b><small>划选 PDF 文字时的高亮色</small></div><div class="selection-presets">${["#5370f5","#0a84ff","#30b0a0","#34c759","#ffb020","#ff6b57","#bf5af2"].map(c=>`<button type="button" class="cp-swatch" data-sel="${c}" style="--c:${c}" aria-label="${c}"></button>`).join("")}<input id="set-selection-color" type="color" aria-label="自定义文字选取颜色" value="${settings.selectionColor}"></div></div><div class="pref-row"><div class="pref-label"><b>默认留白单位</b></div><div class="pref-control"><select id="set-whitespace-unit"><option value="mm">毫米 mm</option><option value="pt">点 pt</option></select></div></div></section><section class="pref-section" data-pref-section="reading"><h3>阅读与滚动</h3><div class="pref-row"><div class="pref-label"><b>滚轮滚动量</b></div><div class="pref-control"><select id="set-wheel-preset"><option value="1">精细 · 1 行</option><option value="3">标准 · 3 行（推荐）</option><option value="6">快速 · 6 行</option><option value="custom">自定义</option></select></div></div><div class="pref-row"><div class="pref-label"><b>每次滚动行数</b></div><div class="pref-control"><input id="set-wheel-lines" type="number" min="1" max="30" value="${settings.wheelLines||3}"></div></div><div class="pref-row"><div class="pref-label"><b>渲染像素倍率上限</b></div><div class="pref-control"><select id="set-quality"><option value="1">1× · 节省内存</option><option value="2">2× · 推荐</option><option value="3">3× · 高清</option></select></div></div><label class="check"><input id="set-restore" type="checkbox" ${settings.restoreView?"checked":""} >记住每本文档的阅读位置、缩放和布局（关闭后尊重文档初始视图）</label></section><section class="pref-section" data-pref-section="bookmarks"><h3>书签</h3><div class="pref-row"><div class="pref-label"><b>书签侧栏宽度（px）</b></div><div class="pref-control"><input id="set-sidebar" type="number" min="220" max="520" value="${settings.sidebar}"></div></div><div class="pref-row"><div class="pref-label"><b>书签行高</b></div><div class="pref-control"><select id="set-row"><option value="28">紧凑 · 28 px</option><option value="34">标准 · 34 px</option><option value="40">宽松 · 40 px</option></select></div></div><label class="check"><input id="set-wrap" type="checkbox" ${settings.wrap?"checked":""} >长书签标题显示两行</label><label class="check"><input id="set-ignore-zoom" type="checkbox" ${settings.ignoreZoom?"checked":""} >忽略书签的缩放要求（不修改 PDF 目标）</label><label class="check"><input id="set-outline" type="checkbox" ${settings.showBookmarks?"checked":""} >保存后建议阅读器显示书签面板</label><label class="check"><input id="set-target-thumb" type="checkbox" ${settings.targetThumb!==false?"checked":""} >在属性栏显示跳转目标页缩略图（实时预览落点）</label><label class="check"><input id="set-target-marker" type="checkbox" ${settings.showTargetMarker!==false?"checked":""} >跳转后在页面上显示定位线</label><div class="pref-row"><div class="pref-label"><b>定位线颜色</b></div><div class="pref-control"><input id="set-target-color" type="color" value="${/^#[0-9a-f]{6}$/i.test(settings.targetMarkerColor||"")?settings.targetMarkerColor:"#db8c36"}"></div></div></section><section class="pref-section" data-pref-section="saving"><h3>保存与文件</h3><div class="pref-row"><div class="pref-label"><b>保存方式</b></div><div class="pref-control"><select id="set-save-mode"><option value="auto">快速增量保存</option><option value="compact">完整重写（兼容模式）</option></select></div></div><label class="check"><input id="set-protect" type="checkbox" ${settings.protect?"checked":""} >原文件保护：首次保存为副本，之后更新副本</label><label class="check"><input id="set-summary" type="checkbox" ${settings.saveSummary?"checked":""} >保存前显示修改摘要</label></section><section class="pref-section" data-pref-section="performance"><h3>性能与缓存</h3><div class="pref-row"><div class="pref-label"><b>磁盘缓存上限（MB，默认2048）</b></div><div class="pref-control"><input id="set-disk-budget" type="number" min="64" max="262144" value="${diskBudget?.limitMB||2048}"></div></div><div class="pref-row"><div class="pref-label"><b>撤销步数上限</b></div><div class="pref-control"><input id="set-undo" type="number" min="5" max="100" value="${settings.undo}"></div></div><label class="check"><input id="set-gpu" type="checkbox" ${software?"checked":""} ${window.desktop?.graphics ? "" : "disabled"}>显卡兼容：关闭硬件加速（重新启动后生效）</label><button id="ocr-cache-open">OCR 任务记录与缓存…</button><p class="hint">撤销快照受 32 MB 预算限制；画布按可见范围加载，高清画布与分块按约 128 MB 预算回收，当前可见区域优先，缩放期间保留已完成画面。恢复快照在编辑停止 0.7 秒后保存在本机。缓存超限按最近使用时间轮替；大文件处理中临时扩容，当前文档、原子保存及未保存草稿受保护。</p></section>${ai ? `<section class="pref-section" data-pref-section="ai"><h3>AI 文档辅助</h3><div class="pref-block"><p class="hint">API、服务商和模型在 Chatbox 原生设置中配置；以下选项管理 Folio 文档操作。</p><div class="form-grid"><label>操作审批<select id="set-ai-approval"><option value="manual">手动审批</option><option value="auto">自动审批</option></select></label><label>Chatbox 显示方式<select id="set-ai-display"><option value="sidebar">侧栏</option><option value="window">独立窗口</option></select></label><label>OCR 低置信度复核阈值（%）<input id="set-ai-threshold" type="number" min="0" max="100" step="1" value="${ai.threshold}"></label></div><p class="hint">优先本地 Paddle；低于阈值的结果可按需交给所选模型复核。默认 95%。自动审批仅在本次会话生效，启用需二次确认，自动审批盾牌图标标红。</p></div></section>` : ""}<section class="pref-section" data-pref-section="advanced"><h3>网络与快捷键</h3><div class="pref-row"><div class="pref-label"><b>HTTP 代理（更新共用）</b></div><div class="pref-control"><input id="set-http-proxy" placeholder="留空使用系统代理"></div></div><button data-action="shortcuts">自定义快捷键…</button></section></div></div>`,
+    `<div class="prefs"><nav class="prefs-nav" aria-label="偏好设置分类"><button type="button" data-pref-nav="general" aria-current="true">${icon("settings")}<span>通用</span></button><button type="button" data-pref-nav="reading" aria-current="false">${icon("book")}<span>阅读与滚动</span></button><button type="button" data-pref-nav="bookmarks" aria-current="false">${icon("bookmark")}<span>书签</span></button><button type="button" data-pref-nav="saving" aria-current="false">${icon("save")}<span>保存与文件</span></button><button type="button" data-pref-nav="performance" aria-current="false">${icon("sliders")}<span>性能与缓存</span></button>${ai ? `<button type="button" data-pref-nav="ai" aria-current="false">${icon("spark")}<span>AI 文档辅助</span></button>` : ""}<button type="button" data-pref-nav="advanced" aria-current="false">${icon("globe")}<span>网络与快捷键</span></button></nav><div class="prefs-scroll"><section class="pref-section" data-pref-section="general"><h3>通用</h3><div class="pref-row"><div class="pref-label"><b>界面语言</b><small>立即生效，并记住选择。不会改变文档文字或 OCR 语言。</small></div><div class="pref-control">${languagePicker("settings-language")}</div></div><div class="pref-row"><div class="pref-label"><b>外观主题</b></div><div class="pref-control"><select id="set-theme"><option value="system">跟随系统</option><option value="light">浅色</option><option value="dark">深色</option></select></div></div>${paletteControls()}<div class="pref-color-row"><div><b>文字选取颜色</b><small>划选 PDF 文字时的高亮色</small></div><div class="selection-presets">${["#5370f5","#0a84ff","#30b0a0","#34c759","#ffb020","#ff6b57","#bf5af2"].map(c=>`<button type="button" class="cp-swatch" data-sel="${c}" style="--c:${c}" aria-label="${c}"></button>`).join("")}<input id="set-selection-color" type="color" aria-label="自定义文字选取颜色" value="${settings.selectionColor}"></div></div><div class="pref-row"><div class="pref-label"><b>默认留白单位</b></div><div class="pref-control"><select id="set-whitespace-unit"><option value="mm">毫米 mm</option><option value="pt">点 pt</option></select></div></div></section><section class="pref-section" data-pref-section="reading"><h3>阅读与滚动</h3><label class="check"><input id="set-selection-border" type="checkbox" ${settings.selectionBorder?"checked":""}>显示文本选区边框</label><p class="hint">在选区底色外显示深色轮廓，不影响复制内容。</p><div class="pref-row"><div class="pref-label"><b>滚轮滚动量</b></div><div class="pref-control"><select id="set-wheel-preset"><option value="1">精细 · 1 行</option><option value="3">标准 · 3 行（推荐）</option><option value="6">快速 · 6 行</option><option value="custom">自定义</option></select></div></div><div class="pref-row"><div class="pref-label"><b>每次滚动行数</b></div><div class="pref-control"><input id="set-wheel-lines" type="number" min="1" max="30" value="${settings.wheelLines||3}"></div></div><div class="pref-row"><div class="pref-label"><b>渲染像素倍率上限</b></div><div class="pref-control"><select id="set-quality"><option value="1">1× · 节省内存</option><option value="2">2× · 推荐</option><option value="3">3× · 高清</option></select></div></div><label class="check"><input id="set-restore" type="checkbox" ${settings.restoreView?"checked":""} >记住每本文档的阅读位置、缩放和布局（关闭后尊重文档初始视图）</label></section><section class="pref-section" data-pref-section="bookmarks"><h3>书签</h3><div class="pref-row"><div class="pref-label"><b>书签侧栏宽度（px）</b></div><div class="pref-control"><input id="set-sidebar" type="number" min="220" max="520" value="${settings.sidebar}"></div></div><div class="pref-row"><div class="pref-label"><b>书签行高</b></div><div class="pref-control"><select id="set-row"><option value="28">紧凑 · 28 px</option><option value="34">标准 · 34 px</option><option value="40">宽松 · 40 px</option></select></div></div><label class="check"><input id="set-wrap" type="checkbox" ${settings.wrap?"checked":""} >长书签标题显示两行</label><label class="check"><input id="set-ignore-zoom" type="checkbox" ${settings.ignoreZoom?"checked":""} >忽略书签的缩放要求（不修改 PDF 目标）</label><label class="check"><input id="set-outline" type="checkbox" ${settings.showBookmarks?"checked":""} >保存后建议阅读器显示书签面板</label><label class="check"><input id="set-target-thumb" type="checkbox" ${settings.targetThumb!==false?"checked":""} >在属性栏显示跳转目标页缩略图（实时预览落点）</label><label class="check"><input id="set-target-marker" type="checkbox" ${settings.showTargetMarker!==false?"checked":""} >跳转后在页面上显示定位线</label><div class="pref-row"><div class="pref-label"><b>定位线颜色</b></div><div class="pref-control"><input id="set-target-color" type="color" value="${/^#[0-9a-f]{6}$/i.test(settings.targetMarkerColor||"")?settings.targetMarkerColor:"#db8c36"}"></div></div></section><section class="pref-section" data-pref-section="saving"><h3>保存与文件</h3><div class="pref-row"><div class="pref-label"><b>保存方式</b></div><div class="pref-control"><select id="set-save-mode"><option value="auto">快速增量保存</option><option value="compact">完整重写（兼容模式）</option></select></div></div><label class="check"><input id="set-protect" type="checkbox" ${settings.protect?"checked":""} >原文件保护：首次保存为副本，之后更新副本</label><label class="check"><input id="set-summary" type="checkbox" ${settings.saveSummary?"checked":""} >保存前显示修改摘要</label></section><section class="pref-section" data-pref-section="performance"><h3>性能与缓存</h3><div class="pref-row"><div class="pref-label"><b>磁盘缓存上限（MB，默认2048）</b></div><div class="pref-control"><input id="set-disk-budget" type="number" min="64" max="262144" value="${diskBudget?.limitMB||2048}"></div></div><div class="pref-row"><div class="pref-label"><b>撤销步数上限</b></div><div class="pref-control"><input id="set-undo" type="number" min="5" max="100" value="${settings.undo}"></div></div><label class="check"><input id="set-gpu" type="checkbox" ${software?"checked":""} ${window.desktop?.graphics ? "" : "disabled"}>显卡兼容：关闭硬件加速（重新启动后生效）</label><button id="ocr-cache-open">OCR 任务记录与缓存…</button><p class="hint">撤销快照受 32 MB 预算限制；画布按可见范围加载，高清画布与分块按约 128 MB 预算回收，当前可见区域优先，缩放期间保留已完成画面。恢复快照在编辑停止 0.7 秒后保存在本机。缓存超限按最近使用时间轮替；大文件处理中临时扩容，当前文档、原子保存及未保存草稿受保护。</p></section>${ai ? `<section class="pref-section" data-pref-section="ai"><h3>AI 文档辅助</h3><div class="pref-block"><p class="hint">API、服务商和模型在 Chatbox 原生设置中配置；以下选项管理 Folio 文档操作。</p><div class="form-grid"><label>操作审批<select id="set-ai-approval"><option value="manual">手动审批</option><option value="auto">自动审批</option></select></label><label>Chatbox 显示方式<select id="set-ai-display"><option value="sidebar">侧栏</option><option value="window">独立窗口</option></select></label><label>OCR 低置信度复核阈值（%）<input id="set-ai-threshold" type="number" min="0" max="100" step="1" value="${ai.threshold}"></label></div><p class="hint">优先本地 Paddle；低于阈值的结果可按需交给所选模型复核。默认 95%。自动审批仅在本次会话生效，启用需二次确认，自动审批盾牌图标标红。</p></div></section>` : ""}<section class="pref-section" data-pref-section="advanced"><h3>网络与快捷键</h3><div class="pref-row"><div class="pref-label"><b>HTTP 代理（更新共用）</b></div><div class="pref-control"><input id="set-http-proxy" placeholder="留空使用系统代理"></div></div><button data-action="shortcuts">自定义快捷键…</button></section></div></div>`,
     [
       { text: "取消", run: closeModal },
       {
@@ -2507,7 +2520,7 @@ async function settingsDialog() {
             });
           Object.assign(settings, {
             whitespaceUnit: $("#set-whitespace-unit").value,
-            saveSummary: $("#set-summary").checked,showTargetMarker:$("#set-target-marker").checked,targetMarkerColor:$("#set-target-color").value,selectionColor:$("#set-selection-color").value,targetThumb:$("#set-target-thumb").checked,saveMode:$("#set-save-mode").value,
+            saveSummary: $("#set-summary").checked,selectionBorder:$("#set-selection-border").checked,showTargetMarker:$("#set-target-marker").checked,targetMarkerColor:$("#set-target-color").value,selectionColor:$("#set-selection-color").value,targetThumb:$("#set-target-thumb").checked,saveMode:$("#set-save-mode").value,
             protect: $("#set-protect").checked,
             restoreView: $("#set-restore").checked,
             ignoreZoom: $("#set-ignore-zoom").checked,
@@ -2549,7 +2562,7 @@ async function settingsDialog() {
     const target = sections.find((s) => s.dataset.prefSection === b.dataset.prefNav);
     mark(b.dataset.prefNav);
     jumping = true;
-    prefsPane.scrollTo({ top: target.offsetTop - prefsPane.offsetTop - 4, behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+    prefsPane.scrollTo({ top: target.offsetTop - prefsPane.offsetTop - 4, behavior: "instant" });
     clearTimeout(jumpTimer);
     jumpTimer = setTimeout(() => { jumping = false; }, 500);
   };
@@ -2568,6 +2581,7 @@ async function settingsDialog() {
     palette:$('input[name="palette"]:checked').value, customAccent:$("#custom-accent").value});
   const selInput=$("#set-selection-color"),livesel=()=>document.documentElement.style.setProperty("--text-selection",selInput.value);
   selInput.oninput=livesel;
+  $("#set-selection-border").onchange=e=>document.documentElement.dataset.selectionBorder=String(e.target.checked);
   $(".pref-color-row").onclick=e=>{const b=e.target.closest("[data-sel]");if(b){selInput.value=b.dataset.sel;livesel();}};
   $("#custom-accent").oninput = () => { $('input[value="custom"][name="palette"]').checked = true; preview(); };
   $(".palette-options").onchange = preview;
@@ -2575,7 +2589,7 @@ async function settingsDialog() {
   $("#set-wheel-preset").value=[1,3,6].includes(settings.wheelLines||3)?String(settings.wheelLines||3):"custom";
   $("#set-wheel-preset").onchange=e=>{if(e.target.value!=="custom")$("#set-wheel-lines").value=e.target.value;};
   $("#set-wheel-lines").oninput=()=>$("#set-wheel-preset").value="custom";
-  modalCleanup = () => {cancelAnimationFrame(spyFrame);clearTimeout(jumpTimer);$("#modal").classList.remove("prefs-dialog");applyAppearance(settings);document.documentElement.style.setProperty("--text-selection",settings.selectionColor);};
+  modalCleanup = () => {cancelAnimationFrame(spyFrame);clearTimeout(jumpTimer);$("#modal").classList.remove("prefs-dialog");applyAppearance(settings);document.documentElement.style.setProperty("--text-selection",settings.selectionColor);document.documentElement.dataset.selectionBorder=String(settings.selectionBorder);};
   $("#set-row").value = settings.row;
   $("#set-quality").value = settings.quality;
 }
@@ -2890,11 +2904,11 @@ function treeNavigate(e) {
       ];
   if (next) {
     selectNode(next.id, e);
-    const pos = S.visible.indexOf(next) * rowHeight(),
+    const at=S.visible.indexOf(next),layout=updateTreeLayout(),height=layout.height(at),pos=layout.top(at),
       tree = $("#tree");
     if (pos < tree.scrollTop) tree.scrollTop = pos;
-    else if (pos + rowHeight() > tree.scrollTop + tree.clientHeight)
-      tree.scrollTop = pos + rowHeight() - tree.clientHeight;
+    else if (pos + height > tree.scrollTop + tree.clientHeight)
+      tree.scrollTop = pos + height - tree.clientHeight;
   }
 }
 // Icon / emphasis for context-menu rows, keyed by label. Unlisted rows stay text-only.
