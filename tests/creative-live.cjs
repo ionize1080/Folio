@@ -56,5 +56,8 @@ const fs=require('node:fs'),path=require('node:path'),assert=require('node:asser
   const api=await app.evaluate(()=>globalThis.creativeApi);assert(api.length>=5,'Must use actual Qwen requests');assert(api.every(r=>r.maxTokens===null),'Live acceptance must not impose an output token limit');
   const trace=await app.evaluate(()=>globalThis.creativeTrace);assert(trace.some(t=>t.arguments.command==='object.pathfinder.unite'||t.arguments.steps?.some(s=>s.id==='object.pathfinder.unite')));
   fs.writeFileSync(path.join(out,'creative-live.json'),JSON.stringify({status:'passed',model,apiRequests:api.length,outputTokenLimit:null,checks,independent,placementUnchanged:true,viewOnlyExports:true,sameChat:true},null,2));console.log('PASS real Qwen artwork editing, view isolation and page organization',api.length,'API requests');
+ }catch(error){
+  const placements=await app.evaluate(()=>globalThis.creativeTrace.filter(t=>t.name==='folio_studio'&&['apply','move','duplicate'].includes(t.arguments?.action)).map(t=>({action:t.arguments.action,geometry:t.arguments.geometry,box:t.arguments.box,page:t.arguments.page,targetPage:t.arguments.targetPage,completed:t.completed,error:t.error}))).catch(()=>[]);
+  console.error('Creative placement operations at failure',JSON.stringify(placements));throw error;
  }finally{await app.evaluate(({app})=>app.exit(0)).catch(()=>{});}
 })().catch(e=>{console.error(e);process.exitCode=1;});

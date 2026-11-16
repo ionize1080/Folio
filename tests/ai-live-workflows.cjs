@@ -1,5 +1,6 @@
 const assert=require("node:assert/strict"),path=require("node:path"),fs=require("node:fs");
 const {execFileSync}=require("node:child_process");
+const {validateImagePreviewIteration}=require('./ai-preview-evidence.cjs');
 module.exports=async function workflows({app,host,chat,ask}){
   const out=path.resolve("tests/output"), validation={};
   const resolve=n=>path.resolve(out,n);
@@ -57,9 +58,7 @@ module.exports=async function workflows({app,host,chat,ask}){
   if(enabled("color")){
     const doc=await open(resolve("color-proof.pdf"));
     await ask("给当前页的色彩校样做自然暖调。先查看整体预览，再基于预览使用暖色查找滤镜、轻微降低饱和度（adjustments.saturation 设为负值，不能只调整 vibrance）和一条温和的 RGB S 曲线。请用局部细节预览检查，再应用。保留原图分辨率和第二页。","folio_image",trace=>{
-      const previews=trace.filter(t=>t.name==="folio_image" && t.arguments.action==="preview");
-      assert(previews.length>=2 && previews.some(t=>t.arguments.region),'Actual visual iteration, including a cropped preview');
-      assert(previews.every(t=>Math.max(...t.dimensions)<=1200));
+      validateImagePreviewIteration(trace);
     });
     const edits=await doc.evaluate(async()=>(await import("./app.mjs")).S.nativeEdits.map(({page,adjustments})=>({page,adjustments})));
     assert.equal(edits.length,1);assert.equal(edits[0].page,1);

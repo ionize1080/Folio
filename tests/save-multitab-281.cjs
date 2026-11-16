@@ -21,12 +21,20 @@ const sha=b=>crypto.createHash('sha256').update(b).digest('hex');
   async function tool(tab,name,args){const id=--sequence;await app.evaluate(({webContents},{wc,id,name,args})=>webContents.fromId(wc).send('ai-request',{id,deadline:Date.now()+180000,params:{name,arguments:args}}),{wc:tab.wc,id,name,args});let r;const until=Date.now()+175000;while(Date.now()<until){r=await app.evaluate((_,id)=>globalThis.studioReplies[id],id);if(r)break;await new Promise(r=>setTimeout(r,60));}assert(r,'Tool timeout');assert(!r.error,r.error);return r.result;}
   const rev=tab=>tool(tab,'folio_document',{action:'describe'}).then(r=>r.revision);
   async function save(tab,index,label){
-   const before=fs.readFileSync(files[index]);await tab.page.evaluate(async()=>{const {S}=await import('./app.mjs');window.save281State=S;S.lastSaveMetrics=null;document.querySelector('[data-action=save]').click();});
-   await tab.page.waitForFunction(()=>{const S=window.save281State;return !!S.lastSaveMetrics&&!S.busy&&!S.dirty;});
-   const after=fs.readFileSync(files[index]);assert(after.length>before.length,label+' wrote a new revision');assert(after.subarray(0,before.length).equals(before),label+' preserves previous bytes');
-   const data=await tab.page.evaluate(async()=>{const {S}=await import('./app.mjs');return {nodes:S.nodes.map(n=>n.title),metrics:S.lastSaveMetrics};});
-   const actual=await new PdfEngine().open(new Uint8Array(after));assert.deepEqual(actual.nodes.map(n=>n.title),data.nodes);assert(data.metrics.bytes<after.length,'Only a delta crosses the desktop bridge');
-   metrics.push({document:index,label,...data.metrics});tab.titles=data.nodes;
+   try{
+    await tab.page.evaluate(async()=>{window.save281State=(await import('./app.mjs')).S;});
+    // Detached document views need not paint; save readiness/completion is state, not animation.
+    await tab.page.waitForFunction(()=>{const S=window.save281State,button=document.querySelector('[data-action=save]');return !S.busy&&button&&!button.disabled;},null,{polling:100,timeout:90000});
+    const before=fs.readFileSync(files[index]);await tab.page.evaluate(()=>{window.save281State.lastSaveMetrics=null;document.querySelector('[data-action=save]').click();});
+    await tab.page.waitForFunction(()=>{const S=window.save281State;return !!S.lastSaveMetrics&&!S.busy&&!S.dirty;},null,{polling:100,timeout:90000});
+    const after=fs.readFileSync(files[index]);assert(after.length>before.length,label+' wrote a new revision');assert(after.subarray(0,before.length).equals(before),label+' preserves previous bytes');
+    const data=await tab.page.evaluate(async()=>{const {S}=await import('./app.mjs');return {nodes:S.nodes.map(n=>n.title),metrics:S.lastSaveMetrics};});
+    const actual=await new PdfEngine().open(new Uint8Array(after));assert.deepEqual(actual.nodes.map(n=>n.title),data.nodes);assert(data.metrics.bytes<after.length,'Only a delta crosses the desktop bridge');
+    metrics.push({document:index,label,...data.metrics});tab.titles=data.nodes;
+   }catch(error){
+    const diagnostic=await tab.page.evaluate(()=>{const S=window.save281State,button=document.querySelector('[data-action=save]');return {busy:S?.busy,dirty:S?.dirty,lastSaveMetrics:S?.lastSaveMetrics,saveDisabled:button?.disabled,visibility:document.visibilityState,focused:document.hasFocus(),modalOpen:document.querySelector('#modal')?.open,modalTitle:document.querySelector('#modal-title')?.textContent,modalError:document.querySelector('#modal-error')?.textContent,toast:document.querySelector('#toast')?.textContent};}).catch(e=>({diagnosticError:e.message}));
+    console.error('Save diagnostic',JSON.stringify({document:index,label,...diagnostic}));throw error;
+   }
   }
   for(let i=0;i<3;i++){
    const tab=pages[i];await home.evaluate(id=>window.desktop.tabSelect(id),tab.id);

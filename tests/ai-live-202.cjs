@@ -63,7 +63,7 @@ const {configure}=require('./ai-live-support.cjs');
    if(verify) {
     try { await verify(trace,finalText); }
     catch(error) {
-     console.error('Failed live workflow',JSON.stringify({expected,answer:finalText.slice(-5000),tools:trace.map(t=>({name:t.name,action:t.arguments?.action,ms:t.ms,error:t.error}))}));
+     console.error('Failed live workflow',JSON.stringify({expected,answer:finalText.slice(-5000),tools:trace.map(t=>({name:t.name,action:t.arguments?.action,ms:t.ms,error:t.error,dimensions:t.dimensions,images:t.images,region:t.arguments?.region}))}));
      throw error;
     }
    }
