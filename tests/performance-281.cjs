@@ -3,10 +3,12 @@ const fs=require('node:fs'),path=require('node:path'),assert=require('node:asser
  const source=path.resolve(process.env.FOLIO_PERF_PDF||'tests/output/save-281/fixture.pdf'),checks=[];
  await app.evaluate(({dialog,BrowserWindow},file)=>{const win=BrowserWindow.getAllWindows()[0];win.setSize(1440,960);win.show();dialog.showOpenDialog=async()=>({canceled:false,filePaths:[file]});},source);
  await page.locator('[data-action=open]').first().click();await page.locator('.pdf-page .textLayer span').first().waitFor();
+ const targetPage=Number(process.env.FOLIO_PERF_PAGE||1);
+ if(targetPage>1){await page.locator('#page-number').fill(String(targetPage));await page.locator('#page-number').press('Enter');await page.locator(`.pdf-page[data-page="${targetPage}"] .textLayer span`).first().waitFor();}
  await page.evaluate(async()=>{const {surface}=await import('./app.mjs');await surface.update();await Promise.all([...surface.entries.values()].map(e=>e.promise));await document.fonts.ready;});
  await page.waitForTimeout(500); // Exclude the startup window resize from steady-state profiling.
- const report=await page.evaluate(async()=>{
-  const {surface}=await import('./app.mjs'),shell=document.querySelector('.pdf-page:not(.page-fallback)'),layer=shell.querySelector('.textLayer');
+ const report=await page.evaluate(async targetPage=>{
+  const {surface}=await import('./app.mjs'),shell=document.querySelector(`.pdf-page[data-page="${targetPage}"]:not(.page-fallback)`),layer=shell.querySelector('.textLayer');
   const spans=[...layer.querySelectorAll('span')].filter(e=>e.firstChild?.nodeType===3&&e.textContent.trim());
   const range=document.createRange();range.setStart(spans[0].firstChild,0);range.setEnd(spans.at(-1).firstChild,spans.at(-1).firstChild.length);getSelection().removeAllRanges();getSelection().addRange(range);
   await new Promise(r=>requestAnimationFrame(r));
@@ -23,7 +25,7 @@ const fs=require('node:fs'),path=require('node:path'),assert=require('node:asser
   const target=[...surface.host.querySelectorAll('.textLayer span')].find(e=>{const r=e.getBoundingClientRect(),h=surface.host.getBoundingClientRect();return e.firstChild?.nodeType===3&&e.textContent.length>=10&&r.width>0&&r.top>h.top&&r.bottom<h.bottom-20;}),r=document.createRange();
   r.setStart(target.firstChild,1);r.setEnd(target.firstChild,2);const a=r.getBoundingClientRect();r.setStart(target.firstChild,8);r.setEnd(target.firstChild,9);const b=r.getBoundingClientRect();
   return {paints,scrolling,target:{start:[a.left+1,(a.top+a.bottom)/2],end:[b.right-1,(b.top+b.bottom)/2],text:target.textContent}};
- });
+ },targetPage);
  await page.mouse.move(...report.target.start);await page.mouse.down();await page.evaluate(()=>{window.perf281.rects=window.perf281.ranges=0;});
  await page.mouse.move(...report.target.end,{steps:30});await page.mouse.up();
  report.drag=await page.evaluate(()=>({...window.perf281,text:getSelection().toString()}));

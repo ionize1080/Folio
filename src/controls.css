@@ -63,11 +63,15 @@ body input[type=checkbox],body input[type=radio]{
   border:1px solid var(--control-edge);border-radius:4px;background:var(--panel);cursor:pointer;
 }
 body input[type=radio]{border-radius:50%;}
+/* Inspector labels must not collapse appearance:none checkboxes to their tick. */
+.native-properties label.check input[type=checkbox]{width:16px;min-width:16px;}
 body input:is([type=checkbox],[type=radio]):checked,body input[type=checkbox]:indeterminate{border-color:var(--accent);background:var(--accent);}
 input[type=checkbox]:checked::after{content:"";width:7px;height:4px;border:solid var(--on-accent);border-width:0 0 1.8px 1.8px;transform:translateY(-1px) rotate(-45deg);}
 input[type=checkbox]:indeterminate::after{content:"";width:8px;height:2px;background:var(--on-accent);}
 input[type=radio]:checked::after{content:"";width:6px;height:6px;border-radius:50%;background:var(--on-accent);}
 input:is([type=checkbox],[type=radio]):disabled{opacity:.48;cursor:default;}
+/* A checked state is immediate; only the focus ring may animate. */
+body input:is([type=checkbox],[type=radio]){transition-property:border-color,box-shadow;}
 input[type=range]{accent-color:var(--accent);}
 input[type=color] {border-radius:6px;cursor:pointer;}
 input[type=color]::-webkit-color-swatch {border:0;border-radius:3px;}

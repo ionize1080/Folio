@@ -3,6 +3,7 @@ module.exports=async function(){
   const stamp=Date.now(),app=await _electron.launch({executablePath:process.env.FOLIO_EXE,args:process.env.FOLIO_EXE?[]:[path.resolve('.')],env:{...process.env,FOLIO_TEST_BACKGROUND:'1',FOLIO_TEST_PROFILE:path.resolve('tests/output/studio-profile-'+stamp),FOLIO_CHATBOX_PROFILE:path.resolve('tests/output/studio-chat-'+stamp)},timeout:60000});
   const page=await app.firstWindow();page.setDefaultTimeout(60000);await page.locator('#ribbon-tab-photo').waitFor();page.on('dialog',d=>d.accept());page.on('pageerror',e=>console.error('Renderer error:',e.message));await page.evaluate(()=>window.desktop.aiApproval(true));
   await app.evaluate(({ipcMain})=>{globalThis.studioReplies={};const original=ipcMain._invokeHandlers.get('ai-reply');ipcMain.removeHandler('ai-reply');ipcMain.handle('ai-reply',(e,v)=>{if(v.id<0)globalThis.studioReplies[v.id]=v;return original(e,v);});});
+  if(process.env.FOLIO_TEST_VISIBLE)await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].showInactive());
   let sequence=0;
   async function call(args){
     const id=--sequence;

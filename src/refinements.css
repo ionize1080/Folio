@@ -127,9 +127,10 @@ body .tree-row {border-radius:6px;}
 .reading-statusbar>.viewer-toolbar{margin-left:auto;flex:1;justify-content:flex-end;height:36px;min-height:36px;border:0;background:transparent;padding:2px 0;gap:4px;}
 .reading-statusbar .viewer-toolbar .spacer{flex:0;}
 .reading-statusbar .viewer-toolbar button{min-height:30px;height:30px;min-width:28px;padding:4px 6px;border-radius:7px;}
-.reading-statusbar .viewer-toolbar input,.reading-statusbar .viewer-toolbar select{height:28px;min-height:28px;font-size:12px;}
+.reading-statusbar .viewer-toolbar input:not([type=checkbox]):not([type=radio]),.reading-statusbar .viewer-toolbar select{height:28px;min-height:28px;font-size:12px;}
 .reading-statusbar #page-number{width:50px;}.reading-statusbar #zoom{max-width:105px;}.reading-statusbar #layout{max-width:120px;}
 .reading-statusbar .view-options{font-size:12px;}.reading-statusbar .view-options>div{top:auto;bottom:calc(100% + 9px);left:auto;right:0;min-width:210px;box-shadow:var(--shadow);border-radius:12px;}
+.reading-statusbar .view-options .view-check{font-size:13px;min-height:32px;cursor:pointer;}
 .reading-detail{display:block;color:var(--muted);font-size:11px;margin-top:10px;}
 .viewer-bottom[hidden]{display:none;}
 @media(max-width:1200px){.reading-statusbar>#status{max-width:160px;}.reading-statusbar [data-action=annotate] span,.reading-statusbar .separator{display:none;}}

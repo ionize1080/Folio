@@ -422,7 +422,8 @@ svg[data-symbol] { stroke-linejoin: round; stroke-linecap: round; }
 #modal-body label { color: var(--muted); font-size: 12px; font-weight: 550; }
 #modal-body label.check, #modal-body label:has(> input[type=checkbox]), #modal-body label:has(> input[type=radio]) { color: var(--text); font-weight: 500; }
 #modal-body :is(input:not([type=checkbox], [type=radio], [type=color], [type=range], [type=file]), select) { min-height: 36px; border-radius: var(--r-sm); background: var(--panel2); }
-#modal-body :is(input, select, textarea):focus { background: var(--panel); }
+/* Text-field focus must never erase a checkbox/radio's selected fill. */
+#modal-body :is(input:not([type=checkbox], [type=radio], [type=color], [type=range]), select, textarea):focus { background: var(--panel); }
 #modal-body textarea { padding: 9px 12px; line-height: 1.55; background: var(--panel2); }
 #modal-body details { border-radius: var(--r-md); }
 #modal-body details > summary { font-weight: 600; padding-block: 6px; }
@@ -615,7 +616,7 @@ label:has(> input[type=color]) { flex-direction: row !important; align-items: ce
 .modal-glyph[hidden] { display: none; }
 .modal-glyph svg { width: 21px; height: 21px; stroke: currentColor; fill: none; stroke-width: 1.6; }
 #modal[data-size=form]:not(.native-dialog):not(.rules-workspace-dialog):not(.split-dialog) { width: min(640px, 94vw); }
-#modal[data-size=form-lg]:not(.native-dialog):not(.rules-workspace-dialog):not(.split-dialog) { width: min(820px, 94vw); }
+#modal[data-size=form-lg]:not(.native-dialog):not(.rules-workspace-dialog):not(.split-dialog):not(.prefs-dialog) { width: min(820px, 94vw); }
 #modal[data-size=wide]:not(.native-dialog):not(.rules-workspace-dialog):not(.split-dialog) { width: min(1120px, 95vw); }
 
 /* 10.2 Status banners: tinted, iconed, no left bar. Tone via .error/.warn/.ok. */
@@ -667,7 +668,7 @@ label:has(> input[type=color]) { flex-direction: row !important; align-items: ce
 .document-tab, .ribbon-tabs button { -webkit-user-drag: none; }
 
 /* ═════════ 12. Preferences: categories on the left, one continuous scroll on the right ═════════ */
-#modal.prefs-dialog { width: min(980px, 94vw); height: min(680px, 90vh); max-height: none; display: flex; flex-direction: column; padding: 0; }
+#modal.prefs-dialog { width: min(980px, 94vw); max-width: 94vw; height: min(680px, 90vh); max-height: none; display: flex; flex-direction: column; padding: 0; }
 #modal.prefs-dialog:not([open]) { display: none; }
 #modal.prefs-dialog .modal-header { flex: none; }
 #modal.prefs-dialog #modal-body { flex: 1; min-height: 0; padding: 0; overflow: hidden; max-height: none; display: flex; flex-direction: column; }
@@ -688,13 +689,25 @@ label:has(> input[type=color]) { flex-direction: row !important; align-items: ce
 .pref-control { display: flex; justify-content: flex-end; min-width: 0; }
 .pref-control > :is(select, input:not([type=color]), .language-picker) { width: 100%; min-width: 0; }
 .pref-control > input[type=color] { width: 44px; }
-.prefs .check { padding: 2px 0; }
+.prefs .check { padding: 4px 0; min-height: 30px; cursor: pointer; }
 .prefs .palette-field { margin: 0; }
 .prefs .pref-color-row { margin: 0; }
 .prefs .pref-block { display: flex; flex-direction: column; gap: 14px; }
 .prefs .hint { font-size: 11.5px; line-height: 1.7; color: var(--muted); margin: 0; }
 .prefs > .prefs-scroll button[data-action=shortcuts], .prefs #ocr-cache-open { width: fit-content; }
-@media (max-width: 760px) { .prefs { grid-template-columns: 1fr; } .prefs-nav { flex-direction: row; border-right: 0; border-bottom: 1px solid var(--line); overflow-x: auto; } .pref-row { grid-template-columns: 1fr; } .pref-control { justify-content: flex-start; } }
+@media (max-width: 1000px) {
+  .prefs { grid-template-columns: 174px minmax(0, 1fr); }
+  .prefs-scroll { padding-inline: 18px; }
+  .pref-row { grid-template-columns: 1fr; gap: 8px; }
+  .pref-control { justify-content: flex-start; }
+  .prefs .pref-color-row { flex-wrap: wrap; }
+  .prefs .selection-presets { flex-wrap: wrap; }
+}
+@media (max-width: 760px) {
+  .prefs { grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); }
+  .prefs-nav { flex-direction: row; border-right: 0; border-bottom: 1px solid var(--line); overflow-x: auto; }
+  .prefs-nav button { flex: 0 0 auto; width: auto; white-space: nowrap; }
+}
 /* prefs nav: plain list rows, not pill buttons; picker is opaque */
 #modal-body .prefs-nav button { border-radius: var(--r-md); min-height: 38px; padding: 0 12px; background: transparent; box-shadow: none; color: var(--muted); font-size: 13px; justify-content: flex-start; }
 #modal-body .prefs-nav button:enabled:hover { background: var(--hover); color: var(--text); box-shadow: none; }
