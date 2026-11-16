@@ -40,6 +40,8 @@ assert reports['studio-canvas-270.json']['status']=='passed'
 assert reports['native-regression-report.json']['status'] == 'passed'
 assert reports['save-corpus-281.json']['status']=='passed' and reports['save-corpus-281.json']['documents']>=4
 assert reports['save-corpus-281.json']['originalsUnchanged']
+reports['save-performance-281.json']=json.loads((root/'tests/output/save-performance-281.json').read_text(encoding='utf-8'))
+assert reports['save-performance-281.json']['status']=='passed' and reports['save-performance-281.json']['bookmarks']==10000
 for name in ['save-multitab-281.json','interaction-281.json','performance-281.json','font-tools-281.json']: assert reports[name]['status']=='passed' and reports[name]['checks']
 browser = reports['browser-regression-report.json']
 assert browser['status'] == 'passed' and browser['stage'] == 'browser'

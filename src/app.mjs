@@ -1054,7 +1054,7 @@ function updateTreeLayout(){
   treeLayout=bookmarkRowLayout(S.visible.length,i=>{
     if(!settings.wrap)return settings.row;
     const n=S.visible[i],depth=Math.min(S.depth.get(n.id)||0,24),font=`${n.italic?'italic':'normal'} ${n.bold?700:400} 12px ${style.fontFamily}`;
-    const pageWidth=Math.max(24,14+measure(String(n.target.page||'↗'),`11px ${style.fontFamily}`));
+    const pageWidth=Math.max(28,16+measure(String(n.target.page||'↗'),`11px ${style.fontFamily}`));
     const available=Math.max(20,width-77-depth*16-pageWidth);
     return measure(n.title.replace(/\s+/g,' '),font)>available+.25?Math.max(48,settings.row):settings.row;
   });

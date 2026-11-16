@@ -52,12 +52,15 @@ export async function incrementalRevision(base,doc,bytes,progress=()=>{}) {
     }
     changed.push([ref,obj]);
   }
-  const parts=[encode('\n')],entries=[];let offset=bytes.length+1;
+  const parts=[encode('\n')],entries=[];let offset=bytes.length+1,lastYield=performance.now();
+  progress({stage:'写入增量对象',completed:0,total:changed.length});
   for(let i=0;i<changed.length;i++) {
     const [ref,obj]=changed[i], head=encode(`${ref.objectNumber} ${ref.generationNumber} obj\n`), end=encode('\nendobj\n');
     const body=new Uint8Array(obj.sizeInBytes());obj.copyBytesInto(body,0);
     entries.push({ref,offset});parts.push(head,body,end);offset+=head.length+body.length+end.length;
-    if(i%100===0){progress({stage:'写入增量对象',completed:i,total:changed.length});await new Promise(r=>setTimeout(r,0));}
+    // Yield by elapsed work, not object count. Thousands of tiny bookmarks
+    // otherwise spend most of their save waiting for Windows timer ticks.
+    if(i%100===0&&performance.now()-lastYield>=8){progress({stage:'写入增量对象',completed:i,total:changed.length});await new Promise(r=>setTimeout(r,0));lastYield=performance.now();}
   }
   const xref=offset;let table='xref\n0 1\n0000000000 65535 f \n';
   for(let i=0;i<entries.length;) {
@@ -95,11 +98,12 @@ export async function graftDocument(base,source,progress=()=>{}){
   const fork=forkDocument(base),context=fork.doc.context,refs=new Map(),memo=new Map();
   let streams=indexes.get(base);
   if(!streams){streams=new Map();for(const [ref,obj] of base.context.enumerateIndirectObjects())if(obj instanceof PDFStream){const key=await streamKey(obj);if(key!==null)streams.set(key,ref);}indexes.set(base,streams);}
-  const objects=source.context.enumerateIndirectObjects();let reused=0;
+  const objects=source.context.enumerateIndirectObjects();let reused=0,lastYield=performance.now();
+  progress({stage:'复用原有页面资源',completed:0,total:objects.length});
   for(let i=0;i<objects.length;i++){
     const [ref,obj]=objects[i],key=obj instanceof PDFStream?await streamKey(obj):null,match=key&&streams.get(key);
     refs.set(ref.toString(),match||context.nextRef());if(match)reused++;
-    if(i%100===0){progress({stage:'复用原有页面资源',completed:i,total:objects.length});await new Promise(r=>setTimeout(r,0));}
+    if(i%100===0&&performance.now()-lastYield>=8){progress({stage:'复用原有页面资源',completed:i,total:objects.length});await new Promise(r=>setTimeout(r,0));lastYield=performance.now();}
   }
   function copy(value){
     if(value instanceof PDFRef){const ref=refs.get(value.toString());if(!ref)throw Error('页面资源引用缺失，已停止保存');return ref;}

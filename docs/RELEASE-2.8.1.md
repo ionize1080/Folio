@@ -9,6 +9,6 @@ Incremental saves with source protection disabled now append changes on the firs
 
 Local validation covered 9 PDFs and 99 save cycles, including the supplied organized financial report, forms, scans, text, images, vectors, OCR layers, bookmark edits, undo/redo, compaction and reopening. MuPDF, PDFium and pypdf independently checked outputs. Three live documents also saved concurrently, including actual local OCR, with isolated edits and 18 tab switches. Original sample files remained unchanged; tests edited copies.
 
-On the local small fixture, a 30-step selection gesture reduced character geometry measurements from 686 to 35. Ordinary scrolling required none. These are operation counts for a defined scenario, not a speed guarantee for every PDF.
+On the local small fixture, a 30-step selection gesture reduced character geometry measurements from 686 to 35. Ordinary scrolling required none. Time-budgeted saving also reduced serialization of 10,000 new bookmarks from about 1.44 seconds to 0.19 seconds (three local runs); a subsequent single rename writes one object. These measurements describe defined scenarios, not a speed guarantee for every PDF.
 
 Publishing requires all parallel Actions checks from the same commit. The exact portable ZIP is tested in five groups with 33 acceptance scripts. Public CI uses generated and pinned public samples; local user PDFs are not uploaded. Release assets include source, validation evidence and SHA-256 checksums.

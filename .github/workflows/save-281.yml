@@ -52,6 +52,7 @@ jobs:
         models: 'false'
     - run: native\runtime\python.exe tests/save-281-native.py prepare
     - run: node tests/save-corpus-281.mjs
+    - run: node tests/save-performance-281.mjs
     - id: results
       run: python scripts/ci-reports.py export save281
   ui281:

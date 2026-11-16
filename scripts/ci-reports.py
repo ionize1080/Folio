@@ -46,7 +46,7 @@ for shard in range(1, 5):
         f'packaged-{shard}-280.json', *SUITES['packaged' + str(shard)][1:]
     ] + {1: [], 2: ['modern-280.json', 'organizer-features.json'], 3: ['ribbon-280.json'], 4: ['tabs-280.json']}[shard]
 
-SUITES['save281'] = ['save-corpus-281.json']
+SUITES['save281'] = ['save-corpus-281.json','save-performance-281.json']
 SUITES['ui281'] = ['save-multitab-281.json','interaction-281.json','performance-281.json','font-tools-281.json']
 SUITES['build281'] = list(SUITES['build280'])
 for shard in range(1,5):

@@ -1,6 +1,6 @@
 const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict');
 (async()=>{
- const {app,page}=await require('./creative-harness.cjs')();const checks=[],timings={},errors=[];page.on('pageerror',e=>errors.push(e.message));
+ let {app,page}=await require('./creative-harness.cjs')();const checks=[],timings={},errors=[];page.on('pageerror',e=>errors.push(e.message));
  const source=process.env.FOLIO_INTERACTION_PDF||'tests/output/save-281/fixture.pdf',file=path.resolve('tests/output/interaction-281.pdf');fs.copyFileSync(source,file);
  try{
   await app.evaluate(({BrowserWindow,dialog},file)=>{const win=BrowserWindow.getAllWindows()[0];win.setSize(1440,960);win.show();dialog.showOpenDialog=async()=>({canceled:false,filePaths:[file]});dialog.showSaveDialog=async()=>{throw Error('Unexpected Save As');};},file);
@@ -19,18 +19,23 @@ const fs=require('node:fs'),path=require('node:path'),assert=require('node:asser
   assert(await page.evaluate(text=>window.interactionState.nativeEdits.some(e=>e.model?.text===text),edited));
   checks.push('A real paragraph is edited and applied through the on-page editor');
   async function selectPage(){
-   await page.evaluate(async number=>{const {surface}=await import('./app.mjs');await surface.go(number);await surface.update();await Promise.all([...surface.entries.values()].map(e=>e.promise));},pageNumber);
+   await page.evaluate(async number=>{const {surface}=await import('./app.mjs');window.selectionSurface=surface;await surface.go(number);await surface.update();await Promise.all([...surface.entries.values()].map(e=>e.promise));},pageNumber);
+   // A newly attached document resizes its prepared viewport once. Select only
+   // after that actual text layer has settled, rather than a detached predecessor.
+   await page.waitForFunction(number=>{const layer=document.querySelector(`.pdf-page[data-page="${number}"] .textLayer`),now=performance.now();if(!layer||window.selectionSurface.updatePromise||layer!==window.stableSelectionLayer){window.stableSelectionLayer=layer;window.selectionStableSince=now;return false;}return now-window.selectionStableSince>300;},pageNumber);
    const detail=await page.evaluate(number=>{
     const layer=document.querySelector(`.pdf-page[data-page="${number}"] .textLayer`),spans=[...layer.querySelectorAll('span')].filter(e=>e.firstChild?.nodeType===3&&e.textContent.trim());
     const range=document.createRange();range.setStart(spans[0].firstChild,0);range.setEnd(spans.at(-1).firstChild,spans.at(-1).firstChild.length);const selection=getSelection();selection.removeAllRanges();selection.addRange(range);document.dispatchEvent(new Event('selectionchange'));
     return {text:selection.toString(),fragments:spans.length};
    },pageNumber);
-   await page.waitForFunction(number=>!!document.querySelector(`.pdf-page[data-page="${number}"] .text-selection-overlay path`),pageNumber);
+   try{await page.waitForFunction(number=>!!document.querySelector(`.pdf-page[data-page="${number}"] .text-selection-overlay path`),pageNumber,{timeout:10000});}catch(error){console.log('Selection diagnostic',await page.evaluate(()=>({visibility:document.visibilityState,selected:getSelection()?.toString().length,anchorConnected:getSelection()?.anchorNode?.isConnected,layer:getSelection()?.anchorNode?.parentElement?.closest('.textLayer')?.outerHTML.slice(0,250),pages:[...document.querySelectorAll('.pdf-page')].map(e=>({page:e.dataset.page,width:e.getBoundingClientRect().width,spans:e.querySelectorAll('.textLayer span').length})),errors:document.querySelector('#toast')?.textContent})));throw error;}
    await page.waitForTimeout(80);
    const painted=await page.locator(`.pdf-page[data-page="${pageNumber}"] .text-selection-overlay path`).evaluate(p=>({bands:(p.getAttribute('d').match(/M/g)||[]).length,stroke:getComputedStyle(p).stroke,text:getSelection().toString()}));
    assert.equal(painted.text,detail.text,'Painting must not rewrite copied text');assert(painted.bands<detail.fragments,JSON.stringify({detail:{fragments:detail.fragments},painted:{bands:painted.bands}}));return {fragments:detail.fragments,bands:painted.bands,stroke:painted.stroke};
   }
-  const selection=await selectPage();assert.equal(selection.stroke,'none');await require('./native-capture.cjs')(app,page,'tests/output/selection-edited-281.png');
+  const selection=await selectPage();assert.equal(selection.stroke,'none');
+  await page.evaluate(text=>{const el=[...document.querySelectorAll('.pdf-page .textLayer span')].find(e=>e.textContent.includes(text.slice(0,12)));el?.scrollIntoView({block:'center'});},edited);
+  await require('./native-capture.cjs')(app,page,'tests/output/selection-edited-281.png');
   checks.push('Edited text fragments merge into continuous line bands; copying is unchanged and the default has no outline');
   await page.evaluate(()=>getSelection().removeAllRanges());await page.keyboard.press('Control+k');await page.locator('#set-wrap').waitFor({state:'attached'});
   const ids=await page.locator('.prefs input[type=checkbox]').evaluateAll(es=>es.map(e=>e.id));
@@ -53,6 +58,13 @@ const fs=require('node:fs'),path=require('node:path'),assert=require('node:asser
   timings.save=await page.evaluate(()=>window.interactionState.lastSaveMetrics);
   const original=fs.readFileSync(source),saved=fs.readFileSync(file);assert(saved.subarray(0,original.length).equals(original));
   const longTasks=await page.evaluate(()=>window.longTasks);assert.deepEqual(errors,[]);
-  fs.writeFileSync('tests/output/interaction-281.json',JSON.stringify({status:'passed',checks,selection,outlined,borderless,heights,timings,longTasks,errors},null,2));console.log('PASS',checks,timings);
+  const coldFile=path.resolve('tests/output/interaction-281-reopened.pdf');fs.writeFileSync(coldFile,saved);
+  await app.evaluate(({dialog},file)=>dialog.showOpenDialog=async()=>({canceled:false,filePaths:[file]}),coldFile);
+  const created=app.context().waitForEvent('page'),opening=page.evaluate(()=>window.desktop.openDocuments());page=await created;await opening;page.on('pageerror',e=>errors.push(e.message));
+  const cold=await selectPage();assert.equal(cold.stroke,'none');
+  const reopenedText=await page.evaluate(async number=>{const {S}=await import('./app.mjs');return (await (await S.pdf.getPage(number)).getTextContent()).items.map(i=>i.str).join('');},pageNumber);
+  assert(reopenedText.replace(/\s/g,'').includes(edited.replace(/\s/g,'')),'Edited paragraph survives cold reopening');
+  checks.push('Saved paragraph text and continuous selection survive opening in a fresh document process');
+  assert.deepEqual(errors,[]);fs.writeFileSync('tests/output/interaction-281.json',JSON.stringify({status:'passed',checks,selection,outlined,borderless,cold,heights,timings,longTasks,errors},null,2));console.log('PASS',checks,timings);
  }finally{await app.evaluate(({app})=>app.exit(0)).catch(()=>{});}
 })().catch(e=>{console.error(e);process.exitCode=1;});

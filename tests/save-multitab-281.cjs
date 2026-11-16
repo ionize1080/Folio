@@ -57,7 +57,9 @@ const sha=b=>crypto.createHash('sha256').update(b).digest('hex');
   const switches=[];
   for(let i=0;i<18;i++){const tab=pages[i%3],start=performance.now();await home.evaluate(id=>window.desktop.tabSelect(id),tab.id);switches.push(performance.now()-start);assert.deepEqual(await tab.page.evaluate(async()=>(await import('./app.mjs')).S.nodes.map(n=>n.title)),tab.titles);}
   checks.push('Bookmark rename, undo and redo remain isolated across 18 live document switches');
-  await home.evaluate(id=>window.desktop.tabClose(id),b.id);
+  const memoryBeforeClose=await app.evaluate(({app})=>app.getAppMetrics().filter(p=>p.type==='Tab').map(p=>({pid:p.pid,workingSetKB:p.memory.workingSetSize,cpuPercent:p.cpu.percentCPUUsage})));
+  await home.evaluate(id=>window.desktop.tabClose(id),b.id);assert(b.page.isClosed(),'Closed document renderer is released');
+  const memoryAfterClose=await app.evaluate(({app})=>app.getAppMetrics().filter(p=>p.type==='Tab').map(p=>({pid:p.pid,workingSetKB:p.memory.workingSetSize,cpuPercent:p.cpu.percentCPUUsage})));
   const created=app.context().waitForEvent('page');await app.evaluate(({dialog},file)=>dialog.showOpenDialog=async()=>({canceled:false,filePaths:[file]}),files[1]);
   const opening=home.evaluate(()=>window.desktop.openDocuments());const reopened=await created;await opening;
   const text=await reopened.evaluate(async()=>{const {S}=await import('./app.mjs');return (await (await S.pdf.getPage(1)).getTextContent()).items.map(i=>i.str).join(' ');});assert.match(text,/Folio|OCR|2026/i);
@@ -65,6 +67,6 @@ const sha=b=>crypto.createHash('sha256').update(b).digest('hex');
   for(const r of inputs)assert.equal(sha(fs.readFileSync(r.source)),r.sha256);
   assert.deepEqual(errors,[]);
   await require('./native-capture.cjs')(app,reopened,'tests/output/save-multitab-281.png');
-  fs.writeFileSync('tests/output/save-multitab-281.json',JSON.stringify({status:'passed',checks,metrics,switches,errors,originalsUnchanged:true},null,2));console.log('PASS',checks);
+  fs.writeFileSync('tests/output/save-multitab-281.json',JSON.stringify({status:'passed',checks,metrics,switches,memoryBeforeClose,memoryAfterClose,errors,originalsUnchanged:true},null,2));console.log('PASS',checks);
  }finally{await app.evaluate(({app})=>app.exit(0)).catch(()=>{});}
 })().catch(e=>{console.error(e);process.exitCode=1;});
