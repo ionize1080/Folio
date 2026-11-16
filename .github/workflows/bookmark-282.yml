@@ -1,0 +1,85 @@
+name: Folio 2.8.2 precise bookmark save preflight
+'on':
+  push:
+    branches:
+    - fix/bookmark-source-282
+  workflow_dispatch: null
+permissions:
+  contents: read
+concurrency:
+  group: folio-282-preflight-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  core:
+    name: Core contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    - uses: actions/setup-node@v4
+      with:
+        node-version: '24'
+        cache: npm
+    - uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+    - run: npm ci --ignore-scripts
+    - run: npm run test:quick
+    - run: python tests/ci-reports.py
+    - run: python tests/release-251-checks.py
+    - run: python tests/release-260-checks.py
+  save281:
+    name: Unprotected saves and independent integrity readers
+    needs:
+    - core
+    runs-on: windows-latest
+    timeout-minutes: 30
+    outputs:
+      reports: ${{ steps.results.outputs.reports }}
+    defaults:
+      run:
+        shell: cmd
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    - uses: ./.github/actions/setup-workbench
+      with:
+        ai: 'false'
+        conversion: 'false'
+        creative: 'false'
+        fixtures: 'false'
+        models: 'false'
+    - run: native\runtime\python.exe tests/save-281-native.py prepare
+    - run: node tests/save-corpus-281.mjs
+    - run: node tests/save-performance-281.mjs
+    - id: results
+      run: python scripts/ci-reports.py export save281
+  bookmark282:
+    name: Precise bookmark destinations after paragraph edits
+    needs:
+    - core
+    runs-on: windows-latest
+    timeout-minutes: 30
+    outputs:
+      reports: ${{ steps.results.outputs.reports }}
+    defaults:
+      run:
+        shell: cmd
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    - uses: ./.github/actions/setup-workbench
+      with:
+        ai: 'false'
+        conversion: 'false'
+        models: 'false'
+        creative: 'false'
+        fixtures: 'false'
+    - run: node tests/bookmark-source-282.mjs
+    - run: node tests/bookmark-save-282.cjs
+    - id: results
+      run: python scripts/ci-reports.py export bookmark282
