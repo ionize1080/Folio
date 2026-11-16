@@ -59,7 +59,17 @@ for shard in range(1,6):
     SUITES['packaged282'+str(shard)] = [f'packaged-{shard}-282.json',*SUITES['packaged281'+str(shard)][1:]]
 SUITES['packaged2825'].append('bookmark-save-282.json')
 
+
+SUITES['build283'] = list(SUITES['build282'])
+for shard in range(1,6):
+    SUITES['packaged283'+str(shard)] = [f'packaged-{shard}-283.json',*SUITES['packaged282'+str(shard)][1:]]
+for suite in ['preferences','surfaces','reader']:
+    SUITES['ui'+suite+'283'] = [f'ui-{suite}-283.json']
+SUITES['packaged2836'] = ['packaged-6-283.json',*[f'ui-{suite}-283.json' for suite in ['preferences','surfaces','reader','performance']]]
+
 def valid(name, value):
+    if name in {f'ui-{suite}-283.json' for suite in ['preferences','surfaces','reader','performance']}:
+        return isinstance(value, dict) and value.get('status') == 'passed' and value.get('errors') == [] and bool(value.get('checks'))
     if name == 'web-pdf-report.json':
         return isinstance(value, list) and {'reader', 'original'} <= {r.get('mode') for r in value} and all(r.get('bytes', 0) > 0 for r in value)
     return isinstance(value, dict) and not value.get('errors') and value.get('status', 'passed') == 'passed'

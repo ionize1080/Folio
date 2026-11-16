@@ -265,3 +265,16 @@ body.dark .ocr-filter [data-ocr-filter=low] span:not(:empty) { color: #f0b64a; }
 #modal.ocr-dialog #ocr-status::before { position: static; -webkit-mask: none; mask: none; }
 /* Pages not rendered yet keep the usual page width so the stream doesn't jump. */
 .ocr-stream-page:not([data-ready]) { width: min(680px, 100%); }
+
+/* On a short desktop window, stacking the preview above the job card used to
+   leave the settings scroller only a few pixels tall. Keep both panes usable. */
+@media (min-width: 761px) and (max-width: 1080px) and (max-height: 700px) {
+  .ocr-dialog .native-workspace { grid-template-columns: minmax(0, 1fr) minmax(320px, 46%); grid-template-rows: minmax(0, 1fr); }
+  .ocr-dialog .native-properties.ocr-side { border-top: 0; border-left: 1px solid var(--line); }
+  .ocr-dialog .native-preview { padding: 12px; }
+  .ocr-dialog #ocr-status { display: none; }
+  .ocr-job { gap: 6px; padding: 8px 12px; }
+  .ocr-tabs { padding: 6px 12px 0; }
+  .ocr-pane { padding: 12px; }
+  #modal.ocr-dialog #modal-footer { padding: 8px 14px; }
+}

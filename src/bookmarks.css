@@ -451,3 +451,11 @@ label.has-choice, #modal-body label.has-choice { grid-column: 1 / -1; }
 #modal-body button.xchg-card>span,#modal-body button.xchg-card>div{min-width:0;}
 #modal-body>p+.form-grid,#modal-body>.hint+.form-grid,#modal-body .form-grid+.form-grid{margin-top:16px;}
 #modal-body .form-grid>label.check{align-self:end;min-height:34px;}
+
+/* Short windows use one workspace scroll instead of two tiny stacked panes. */
+@media (max-width: 1080px) and (max-height: 700px) {
+  .rules-v2 .rules-workspace { grid-template-columns: 170px minmax(0, 1fr); grid-template-rows: auto auto; overflow-y: auto; align-items: start; }
+  .rules-v2 .rules-nav { position: sticky; top: 0; align-self: start; max-height: 100%; }
+  .rules-v2 .rules-editor, .rules-v2 .rules-results { overflow: visible; min-height: 280px; }
+  .rules-v2 #multi-preview { flex: none; max-height: 320px; }
+}
