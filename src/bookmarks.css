@@ -445,3 +445,9 @@ label.has-choice, #modal-body label.has-choice { grid-column: 1 / -1; }
 #modal.rules-v2 #modal-body .rg-toggle b, #modal.rules-v2 #modal-body .rg-toggle i { pointer-events: none; }
 #modal.rules-v2 #modal-body .rule-card input.rg-level { background: var(--lv, var(--accent)) !important; color: #fff !important; box-shadow: none !important; }
 #modal.rules-v2 #modal-body .rg-style { display: flex !important; justify-content: flex-start; }
+
+/* Review-02 */
+#modal-body button.xchg-card{justify-content:flex-start;}
+#modal-body button.xchg-card>span,#modal-body button.xchg-card>div{min-width:0;}
+#modal-body>p+.form-grid,#modal-body>.hint+.form-grid,#modal-body .form-grid+.form-grid{margin-top:16px;}
+#modal-body .form-grid>label.check{align-self:end;min-height:34px;}
