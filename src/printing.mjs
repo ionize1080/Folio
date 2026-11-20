@@ -166,13 +166,21 @@ export function installPrinting({ S, pdfjs, exportPDF, session }) {
         const pages = [];
         for (const [i, n] of chosen.entries()) {
           if (!dimensions.has(n)) {
-            const p = await pdf.getPage(n),
-              v = p.getViewport({ scale: 1 });
-            dimensions.set(n, { number: n, width: v.width, height: v.height });
+            const meta = S.info?.pages?.[n - 1];
+            if (meta?.box) {
+              const rot = ((S.rotation?.[n] ?? meta.rotation ?? 0) % 360 + 360) % 360;
+              const u = meta.userUnit || 1;
+              const w = meta.box.width * u, h = meta.box.height * u;
+              dimensions.set(n, { number: n, width: rot % 180 ? h : w, height: rot % 180 ? w : h });
+            } else {
+              const p = await pdf.getPage(n),
+                v = p.getViewport({ scale: 1 });
+              dimensions.set(n, { number: n, width: v.width, height: v.height });
+            }
           }
           if (cancelled || id !== refreshId) return;
           pages.push(dimensions.get(n));
-          if (i % 64 === 63) await new Promise((r) => setTimeout(r, 0));
+          if (i % 256 === 255) await new Promise((r) => setTimeout(r, 0));
         }
         const copies = number("copies");
         if (!Number.isInteger(copies) || copies < 1 || copies > 999)
@@ -196,6 +204,7 @@ export function installPrinting({ S, pdfjs, exportPDF, session }) {
       for (const b of d.querySelectorAll("[data-scope]"))
         b.setAttribute("aria-pressed", String(b.dataset.scope === scope));
       grid.hidden = scope !== "selected";
+      if (scope === "selected") ensureThumbnails();
       if (scope === "all") q("[data-range]").value = `1-${S.info.pageCount}`;
       else if (scope === "current") q("[data-range]").value = S.page;
       else if (scope === "selected")
@@ -273,30 +282,37 @@ export function installPrinting({ S, pdfjs, exportPDF, session }) {
         thumbLoading = false;
       }
     }
-    for (let n = 1; n <= S.info.pageCount; n++) {
-      const b = document.createElement("button");
-      b.dataset.page = n;
-      b.setAttribute("aria-label", `第 ${n} 页`);
-      b.setAttribute("aria-pressed", String(selected.has(n)));
-      b.innerHTML = "<canvas></canvas><span>" + n + "</span>";
-      b.onclick = (e) => {
-        if (busy) return;
-        if (e.shiftKey) {
-          for (let i = Math.min(anchor, n); i <= Math.max(anchor, n); i++)
-            selected.add(i);
-        } else {
-          selected.has(n) ? selected.delete(n) : selected.add(n);
-          anchor = n;
-        }
-        for (const tile of grid.children)
-          tile.setAttribute(
-            "aria-pressed",
-            String(selected.has(Number(tile.dataset.page))),
-          );
-        setScope("selected");
-      };
-      grid.append(b);
-      observer.observe(b);
+    let thumbsBuilt = false;
+    function ensureThumbnails() {
+      if (thumbsBuilt) return;
+      thumbsBuilt = true;
+      const frag = document.createDocumentFragment();
+      for (let n = 1; n <= S.info.pageCount; n++) {
+        const b = document.createElement("button");
+        b.dataset.page = n;
+        b.setAttribute("aria-label", `第 ${n} 页`);
+        b.setAttribute("aria-pressed", String(selected.has(n)));
+        b.innerHTML = "<canvas></canvas><span>" + n + "</span>";
+        b.onclick = (e) => {
+          if (busy) return;
+          if (e.shiftKey) {
+            for (let i = Math.min(anchor, n); i <= Math.max(anchor, n); i++)
+              selected.add(i);
+          } else {
+            selected.has(n) ? selected.delete(n) : selected.add(n);
+            anchor = n;
+          }
+          for (const tile of grid.children)
+            tile.setAttribute(
+              "aria-pressed",
+              String(selected.has(Number(tile.dataset.page))),
+            );
+          setScope("selected");
+        };
+        frag.append(b);
+        observer.observe(b);
+      }
+      grid.append(frag);
     }
     for (const b of d.querySelectorAll("[data-scope]"))
       b.onclick = () => {
@@ -393,15 +409,63 @@ export function installPrinting({ S, pdfjs, exportPDF, session }) {
             "vector-effect": "non-scaling-stroke",
           }),
         );
-        const label = svg("text", {
-          x: p.cell.x + 4,
-          y: p.cell.y + 12,
-          "font-size": 9,
-          fill: "#64748b",
-          "pointer-events": "none",
-        });
-        label.textContent = p.number ?? "空白";
-        g.append(label);
+        const badgeSize = Math.max(16, Math.min(28, sheet.width * 0.026));
+        const badgePad = badgeSize * 0.45;
+        if (p.number == null) {
+          g.append(
+            svg("rect", {
+              x: p.cell.x + 2,
+              y: p.cell.y + 2,
+              width: Math.max(0, p.cell.width - 4),
+              height: Math.max(0, p.cell.height - 4),
+              fill: "#f1f5f9",
+              stroke: "#cbd5e1",
+              "stroke-width": 1,
+              "stroke-dasharray": "6 4",
+              "vector-effect": "non-scaling-stroke",
+              "pointer-events": "none",
+            }),
+          );
+          const blankText = svg("text", {
+            x: p.cell.x + p.cell.width / 2,
+            y: p.cell.y + p.cell.height / 2,
+            "text-anchor": "middle",
+            "dominant-baseline": "middle",
+            "font-size": Math.round(badgeSize * 0.95),
+            "font-weight": 500,
+            fill: "#64748b",
+            "pointer-events": "none",
+          });
+          blankText.textContent = "空白页";
+          g.append(blankText);
+        } else {
+          const text = String(p.number);
+          const pillW = Math.max(badgeSize * 1.45, text.length * badgeSize * 0.68 + badgePad * 1.4);
+          const pillH = badgeSize * 1.35;
+          g.append(
+            svg("rect", {
+              x: p.cell.x + badgePad,
+              y: p.cell.y + badgePad,
+              width: pillW,
+              height: pillH,
+              rx: pillH * 0.32,
+              fill: p.number === selectedNumber ? "var(--accent)" : "rgba(15, 23, 42, 0.72)",
+              "pointer-events": "none",
+            }),
+          );
+          const label = svg("text", {
+            x: p.cell.x + badgePad + pillW / 2,
+            y: p.cell.y + badgePad + pillH / 2 + badgeSize * 0.04,
+            "text-anchor": "middle",
+            "dominant-baseline": "middle",
+            "font-size": Math.round(badgeSize * 0.78),
+            "font-weight": 600,
+            fill: p.number === selectedNumber ? "var(--on-accent, #fff)" : "#ffffff",
+            "pointer-events": "none",
+          });
+          label.textContent = text;
+          g.append(label);
+        }
         if (p.number === selectedNumber) {
           const x = Math.max(
               p.cell.x,
@@ -774,6 +838,7 @@ export function installPrinting({ S, pdfjs, exportPDF, session }) {
     if (
       (e.ctrlKey || e.metaKey) &&
       !e.altKey &&
+      !e.shiftKey &&
       e.key.toLowerCase() === "p" &&
       !e.isComposing
     ) {

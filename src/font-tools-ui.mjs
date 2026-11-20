@@ -9,27 +9,32 @@ export function installFontTools(){
   d.innerHTML='<header><div><h2>字体工作台</h2><p>查找字体，检查字符覆盖与字形</p></div><button data-close aria-label="关闭">'+icon('close')+'</button></header>'
    +'<div class="document-tools-body"><nav><label>查找字体<input type="search" data-query placeholder="名称或字体家族" autocomplete="off"></label><p data-count class="ft-count" role="status" aria-live="polite"></p><div data-fonts class="ft-list" role="listbox" tabindex="0" aria-label="字体列表"></div><button data-more hidden>加载更多</button></nav>'
    +'<section class="document-tool-detail"><div class="ft-title"><h3 data-name>选择字体</h3><span data-badge class="ft-badge" hidden></span></div>'
-   +'<div class="ft-presets" role="group" aria-label="样本文字预设">'+SAMPLES.map(([n],i)=>`<button type="button" data-preset="${i}">${n}</button>`).join('')+'</div>'
+   +'<div class="ft-presets" role="group" aria-label="样本文字预设">'+SAMPLES.map(([n],i)=>`<button type="button" data-preset="${i}" aria-pressed="${i===0}">${n}</button>`).join('')+'</div>'
    +'<label>样本文字<textarea data-sample rows="2" maxlength="400"></textarea></label>'
    +'<label class="ft-size">预览字号<input type="range" data-size min="12" max="72" value="28"><output data-size-out>28 pt</output></label>'
-   +'<p data-status role="status" aria-live="polite"></p><div class="ft-stage"><img data-image alt="字体样本预览" hidden><p data-empty class="ft-empty">从左侧选择一款字体，立即预览并检查字符覆盖。</p></div><dl data-info></dl></section></div>'
+   +'<p data-status role="status" aria-live="polite"></p><div class="ft-stage"><img data-image alt="字体样本预览" hidden><p data-empty class="ft-empty">从左侧选择一款字体，立即预览并检查字符覆盖。</p></div><dl data-info translate="no"></dl></section></div>'
    +'<footer><span>字体更改通过编辑器应用；AI 可使用相同字体能力</span><button data-close>完成</button></footer>';
-  document.body.append(d);d.showModal();let closed=false,serial=0,pserial=0,selection=0,key=null,offset=0,total=0,selected='',first=true;
-  const q=s=>d.querySelector(s),fontList=q('[data-fonts]'),close=()=>{closed=true;d.close();d.remove();button.focus();};d.querySelectorAll('[data-close]').forEach(b=>b.onclick=close);d.oncancel=e=>{e.preventDefault();close();};
+  document.body.append(d);d.showModal();let closed=false,serial=0,pserial=0,selection=0,key=null,offset=0,total=0,selected='',first=true,loadingMore=false;
+  const q=s=>d.querySelector(s),fontList=q('[data-fonts]'),close=()=>{closed=true;moreObserver?.disconnect();d.close();d.remove();button.focus();};d.querySelectorAll('[data-close]').forEach(b=>b.onclick=close);d.oncancel=e=>{e.preventDefault();close();};
   const request=(action,options)=>nativeRequest({command:'font-tools',action,options});
   const details=new Map();
   const inspect=fontKey=>{if(!details.has(fontKey)){const pending=request('inspect',{fontKey});details.set(fontKey,pending);pending.catch(()=>{if(details.get(fontKey)===pending)details.delete(fontKey);});}return details.get(fontKey);};
   q('[data-sample]').value=SAMPLES[0][1];
   const rows=()=>[...fontList.querySelectorAll('[role=option]')];
   const mark=id=>{for(const r of rows()){const on=r.dataset.id===id;r.setAttribute('aria-selected',on);if(on)r.scrollIntoView({block:'nearest'});}};
-  const addRows=fonts=>{const frag=document.createDocumentFragment();for(const f of fonts){const r=document.createElement('div');r.setAttribute('role','option');r.dataset.id=f.id;r.setAttribute('aria-selected','false');const a=document.createElement('b'),b=document.createElement('small');a.textContent=f.family||f.name;a.style.fontFamily=`"${f.family||f.name}",system-ui`;b.textContent=f.style||'';r.append(a,b);frag.append(r);}fontList.append(frag);};
+  const addRows=fonts=>{const frag=document.createDocumentFragment();for(const f of fonts){const r=document.createElement('div');r.setAttribute('role','option');r.dataset.id=f.id;r.setAttribute('aria-selected','false');const a=document.createElement('b'),b=document.createElement('small');a.textContent=f.family||f.name;a.setAttribute('translate','no');a.style.fontFamily=`${JSON.stringify(f.family||f.name)},system-ui`;b.textContent=f.style||'';b.setAttribute('translate','no');r.append(a,b);frag.append(r);}fontList.append(frag);};
   const list=async(reset=true)=>{
+   if(!reset&&loadingMore)return;
+   loadingMore=!reset;
    const current=++serial;if(reset){offset=0;fontList.replaceChildren();}q('[data-count]').textContent='正在查找…';
    try{const r=await request('catalog',{query:q('[data-query]').value,offset,limit:100});if(closed||current!==serial)return;
     addRows(r.fonts);offset+=r.fonts.length;total=r.total;q('[data-more]').hidden=offset>=total;q('[data-count]').textContent=total?`${total} 款字体`:'没有匹配的字体';if(selected)mark(selected);
     if(first&&r.fonts.length){first=false;choose(r.fonts[0].id);}
-   }catch(e){if(!closed)q('[data-count]').textContent=e.message;}
+   }catch(e){if(!closed)q('[data-count]').textContent=e.message;}finally{loadingMore=false;}
   };
+  const moreObserver=new IntersectionObserver(entries=>{if(entries.some(e=>e.isIntersecting)&&!q('[data-more]').hidden&&!loadingMore)list(false);},{root:null,rootMargin:'120px'});
+  moreObserver.observe(q('[data-more]'));
+  fontList.addEventListener('scroll',()=>{if(!q('[data-more]').hidden&&!loadingMore&&fontList.scrollTop+fontList.clientHeight>=fontList.scrollHeight-120)list(false);},{passive:true});
   const choose=async id=>{const run=++selection;++pserial;selected=id;key=null;mark(id);q('[data-status]').textContent='正在读取字体…';
    try{const r=await request('select',{fontId:id});if(closed||run!==selection)return;key=r.fontKey;q('[data-name]').textContent=r.fontName;preview();}catch(e){if(!closed&&run===selection)q('[data-status]').textContent=e.message;}};
   const preview=async()=>{
@@ -53,9 +58,10 @@ export function installFontTools(){
   q('[data-query]').onkeydown=e=>{if(e.key==='ArrowDown'){e.preventDefault();fontList.focus();}};
   q('[data-more]').onclick=()=>list(false);
   let ptimer;const later=()=>{clearTimeout(ptimer);ptimer=setTimeout(()=>{if(!closed)preview();},300);};
-  q('[data-sample]').oninput=later;
+  const syncPresets=()=>{const v=q('[data-sample]').value;d.querySelectorAll('[data-preset]').forEach(b=>b.setAttribute('aria-pressed',String(SAMPLES[+b.dataset.preset][1]===v)));};
+  q('[data-sample]').oninput=()=>{syncPresets();later();};
   q('[data-size]').oninput=()=>{q('[data-size-out]').textContent=q('[data-size]').value+' pt';later();};
-  d.querySelectorAll('[data-preset]').forEach(b=>b.onclick=()=>{q('[data-sample]').value=SAMPLES[+b.dataset.preset][1];preview();});
+  d.querySelectorAll('[data-preset]').forEach(b=>b.onclick=()=>{q('[data-sample]').value=SAMPLES[+b.dataset.preset][1];syncPresets();preview();});
   list();
  };
 }

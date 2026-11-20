@@ -9,10 +9,25 @@ export async function installWindowChrome(){
   const quick=document.createElement('nav');quick.className='titlebar-quick';quick.setAttribute('aria-label','常用文档操作');
   for(const [action,label,key] of [['save','保存','Ctrl+S'],['undo','撤销','Ctrl+Z'],['redo','重做','Ctrl+Y']]){
     const original=document.querySelector(`.ribbon-home [data-action=${action}]`),button=document.createElement('button');button.dataset.quickAction=action;button.innerHTML=icon(action);quick.append(button);
-    const studioAction=()=>document.body.classList.contains('studio-active')&&action!=='save'?document.querySelector(`.studio-history [data-history="edit.${action}"]`):original;
+    const studioButton=()=>action==='save'?null:document.querySelector(`.studio-history [data-history="edit.${action}"]`);
+    const studioAction=()=>document.body.classList.contains('studio-active')&&action!=='save'?studioButton():original;
     button.onclick=()=>studioAction()?.click();
-    const sync=()=>{button.disabled=!!studioAction()?.disabled;button.title=t(label)+' · '+key;button.setAttribute('aria-label',t(label));};
-    new MutationObserver(sync).observe(original,{attributes:true,attributeFilter:['disabled']});new MutationObserver(sync).observe(document.body,{attributes:true,attributeFilter:['class']});onLanguageChange(sync);sync();
+    let studioObserver=null,observedStudio=null;
+    const sync=()=>{
+      const target=studioAction();
+      if(document.body.classList.contains('studio-active')&&action!=='save'&&target&&target!==observedStudio){
+        studioObserver?.disconnect();
+        observedStudio=target;
+        studioObserver=new MutationObserver(sync);
+        studioObserver.observe(target,{attributes:true,attributeFilter:['disabled']});
+      }
+      button.disabled=!!target?.disabled;
+      button.title=t(label)+' · '+key;
+      button.setAttribute('aria-label',t(label));
+    };
+    new MutationObserver(sync).observe(original,{attributes:true,attributeFilter:['disabled']});
+    new MutationObserver(sync).observe(document.body,{attributes:true,attributeFilter:['class']});
+    onLanguageChange(sync);sync();
   }
   const controls=document.createElement('nav');controls.className='window-controls';controls.setAttribute('aria-label','窗口控制');
   for(const [action,shape] of [['minimize','<path d="M4 10h12"/>'],['maximize','<rect x="5" y="5" width="10" height="10" rx="1"/>'],['close','<path d="m5 5 10 10M15 5 5 15"/>']]){

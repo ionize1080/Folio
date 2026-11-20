@@ -829,11 +829,12 @@ function template() {
 </header>
 <div class="organizer-controls">
   <div class="organizer-select" role="group" aria-label="选择页面">
-    <span>选择</span>
+    <span>选页</span>
     <div class="organizer-segment"><button type="button" data-select-mode="all">全部</button><button type="button" data-select-mode="odd">奇数</button><button type="button" data-select-mode="even">偶数</button><button type="button" data-select-mode="none">无</button></div>
-    <input data-range aria-label="按页码选择" placeholder="页码，如 1-5, 8"><button type="button" data-range-select>选择</button>
+    <input data-range aria-label="按页码选择" placeholder="页码，如 1-5, 8"><button type="button" data-range-select>选中</button>
   </div>
-  <label class="organizer-position"><select data-insert-position aria-label="插入位置"><option value="after">插入到选中页之后</option><option value="before">插入到选中页之前</option></select></label>
+  <span class="organizer-divider" aria-hidden="true"></span>
+  <label class="organizer-position"><span>插入位置</span><select data-insert-position aria-label="插入位置"><option value="after">选中页之后</option><option value="before">选中页之前</option></select></label>
   <div class="organizer-popovers">
     <details class="organizer-options"><summary>页面设置</summary><div>
       <p>应用到选中页面</p>

@@ -241,7 +241,12 @@
 .font-tools-dialog .ft-badge{font-size:11px;padding:2px 8px;border-radius:99px;background:var(--accent-soft);color:var(--accent);}
 .font-tools-dialog .ft-badge[data-state=warn]{background:color-mix(in oklab,#e5484d 14%,transparent);color:#c0262b;}
 .font-tools-dialog .ft-presets{display:flex;flex-wrap:wrap;gap:6px;}
-.font-tools-dialog .ft-presets button{min-height:28px;padding:0 12px;border-radius:99px;font-size:12px;}
+.font-tools-dialog .ft-presets button{min-height:28px;padding:0 12px;border-radius:99px;font-size:12px;background:var(--panel2);color:var(--muted);box-shadow:inset 0 0 0 1px var(--line);font-weight:500;}
+.font-tools-dialog .ft-presets button:hover{color:var(--text);background:var(--hover);}
+.font-tools-dialog .ft-presets button[aria-pressed=true]{background:var(--accent-soft);color:var(--accent);box-shadow:inset 0 0 0 1px var(--selected-line);font-weight:600;}
+.document-tools .dt-nav-search{position:sticky;top:0;z-index:2;padding:0 0 8px;margin-bottom:4px;background:var(--panel2);}
+.document-tools .dt-nav-search input{width:100%;min-height:30px;height:30px;padding:0 10px;font-size:12px;border-radius:var(--r-sm,8px);background:var(--panel);}
+.document-tools nav button[hidden],.document-tools nav h4[hidden]{display:none;}
 .font-tools-dialog .ft-size{display:flex;align-items:center;gap:12px;}
 .font-tools-dialog .ft-size input{flex:1;min-width:0;accent-color:var(--accent);}
 .font-tools-dialog .ft-size output{min-width:46px;text-align:right;font-variant-numeric:tabular-nums;color:var(--muted);font-size:12px;}
