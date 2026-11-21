@@ -127,49 +127,49 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: xi-synthetic-paragraph-fixtures
-          run-id: 44867384251
+          run-id: 44867705841
           github-token: ${{ github.token }}
           path: xi-pdfs
       - name: Install isolated observation dependencies
         run: python -m pip install pywinauto==0.6.9 pywin32 pikepdf pillow
       - name: Accept the displayed XI license with the user's explicit authorization
         if: steps.probe.outputs.available == 'true'
-        shell: python
+        shell: powershell
         run: |
-          import os,subprocess,time
-          from pathlib import Path
-          import win32gui
-          from pywinauto.controls.hwndwrapper import HwndWrapper
-          viewer=os.environ['XI_VIEWER']
-          pdf=Path('xi-pdfs/paragraph-original.pdf').resolve()
-          assert pdf.is_file()
-          proc=subprocess.Popen([viewer,'/n',str(pdf)])
-          def windows():
-              roots=[]
-              win32gui.EnumWindows(lambda w,_: roots.append(w) if win32gui.IsWindowVisible(w) and win32gui.GetClassName(w)=='AcrobatSDIWindow' else None,None)
-              return roots
-          def children(hwnd):
-              hs=[]
-              win32gui.EnumChildWindows(hwnd,lambda w,_: hs.append(w) if win32gui.IsWindowVisible(w) else None,None)
-              return hs
-          title='Adobe Reader XI - Distribution License Agreement for Use on Personal Computers'
-          dialog=None
-          for _ in range(50):
-              dialog=next((x for w in windows() for x in children(w) if win32gui.GetClassName(x)=='#32770' and win32gui.GetWindowText(x)==title),None)
-              if dialog: break
-              time.sleep(.4)
-          assert dialog,'Exact XI license dialog did not appear'
-          button=next((x for x in children(dialog) if win32gui.GetClassName(x)=='Button' and win32gui.GetWindowText(x).replace('&','')=='Accept'),None)
-          assert button, 'XI Accept button absent'
-          print('XI_AUTHORIZED_CLICK '+title+' / '+win32gui.GetWindowText(button),flush=True)
-          HwndWrapper(button).click_input()
-          for _ in range(40):
-              if not win32gui.IsWindowVisible(dialog): break
-              time.sleep(.25)
-          assert not win32gui.IsWindowVisible(dialog),'XI license remained visible after actual click'
-          time.sleep(3)
-          print('XI_AFTER_ACCEPT '+str([win32gui.GetWindowText(w) for w in windows()]),flush=True)
-          subprocess.run(['taskkill','/im','AcroRd32.exe','/f'],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+          Add-Type -AssemblyName UIAutomationClient,UIAutomationTypes,System.Windows.Forms
+          Add-Type -TypeDefinition 'using System.Runtime.InteropServices; public static class XiMouse { [DllImport("user32.dll")] public static extern bool SetCursorPos(int x,int y); [DllImport("user32.dll")] public static extern void mouse_event(uint f, uint dx,uint dy,uint data, System.UIntPtr extra); }'
+          $file=(Resolve-Path xi-pdfs/paragraph-original.pdf).Path
+          Start-Process $env:XI_VIEWER -WindowStyle Normal -ArgumentList @('/n',('"'+$file+'"'))
+          $root=[System.Windows.Automation.AutomationElement]::RootElement
+          $title='Adobe Reader XI - Distribution License Agreement for Use on Personal Computers'
+          $dialog=$null
+          for ($t=0;$t -lt 45 -and !$dialog;$t++) {
+            Start-Sleep -Milliseconds 400
+            $windows=$root.FindAll([System.Windows.Automation.TreeScope]::Children,[System.Windows.Automation.Condition]::TrueCondition)
+            $reader=$windows | Where-Object {$_.Current.ClassName -eq 'AcrobatSDIWindow'} | Select-Object -First 1
+            if ($reader) {
+              $dialog=$reader.FindAll([System.Windows.Automation.TreeScope]::Descendants,[System.Windows.Automation.Condition]::TrueCondition) | Where-Object {$_.Current.Name -eq $title -and $_.Current.ClassName -eq '#32770'} | Select-Object -First 1
+            }
+          }
+          if (!$dialog) { throw 'Exact Reader XI license not observed in displayed desktop' }
+          $button=$dialog.FindAll([System.Windows.Automation.TreeScope]::Descendants,[System.Windows.Automation.Condition]::TrueCondition) | Where-Object {$_.Current.Name -eq 'Accept' -and $_.Current.ClassName -eq 'Button'} | Select-Object -First 1
+          if (!$button) { throw 'No visible Accept control in actual XI license' }
+          $r=$button.Current.BoundingRectangle
+          if ($r.Width -le 0 -or $r.Height -le 0) { throw 'Accept control has no screen bounds' }
+          $loc=@([int]($r.Left+$r.Width/2),[int]($r.Top+$r.Height/2))
+          "XI_AUTHORIZED_CLICK $title / $($button.Current.Name) at $loc"
+          [void][XiMouse]::SetCursorPos($loc[0],$loc[1])
+          [XiMouse]::mouse_event(2,0,0,0,[UIntPtr]::Zero)
+          [XiMouse]::mouse_event(4,0,0,0,[UIntPtr]::Zero)
+          Start-Sleep 4
+          $after=$reader.FindAll([System.Windows.Automation.TreeScope]::Descendants,[System.Windows.Automation.Condition]::TrueCondition)
+          $still=$after | Where-Object {$_.Current.Name -eq $title}
+          if ($still) { throw 'License remained after GUI click' }
+          "XI_AFTER_ACCEPT $($reader.Current.Name)"
+          foreach ($x in $after | Where-Object { $_.Current.ClassName -in @('#32770','Edit','Static','Button') } | Select-Object -First 30) { "XI_AFTER_CONTROL $($x.Current.ClassName) $($x.Current.Name)" }
+          Get-Process AcroRd32 -ErrorAction SilentlyContinue | Where-Object {$_.MainWindowHandle} | ForEach-Object { [void]$_.CloseMainWindow() }
+          Start-Sleep 2
+          Get-Process AcroRd32 -ErrorAction SilentlyContinue | Stop-Process -Force
       - name: Inspect each document in a fresh XI process
         if: steps.probe.outputs.available == 'true'
         shell: pwsh
