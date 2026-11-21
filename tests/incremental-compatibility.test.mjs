@@ -109,6 +109,21 @@ test('startxref to an ordinary dictionary does not establish a safe append base'
   assert.equal(reserveOriginalRefs(parsed, wrong), false);
 });
 
+test('the addressed trailer restores the Info reference when a linearized main trailer omits it', async () => {
+  const doc = await PDFDocument.create();
+  doc.addPage();
+  doc.setTitle('Retain the original metadata');
+  const bytes = await doc.save({useObjectStreams:false});
+  const fromBytes = await PDFDocument.load(bytes, {updateMetadata:false});
+  const info = fromBytes.context.trailerInfo.Info;
+  // pdf-lib has already parsed all objects here. On linearized input its
+  // physical-order scan can finish with the main trailer's missing Info.
+  delete fromBytes.context.trailerInfo.Info;
+  assert.equal(reserveOriginalRefs(fromBytes, bytes),true);
+  assert.equal(fromBytes.context.trailerInfo.Info,info);
+  assert.equal(fromBytes.getTitle(),'Retain the original metadata');
+});
+
 test('saving an older Folio mixed-chain file bridges its latest object versions to the original stream', async () => {
   const source = await PDFDocument.create();
   const page = source.addPage([400,500]);

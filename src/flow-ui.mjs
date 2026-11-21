@@ -38,6 +38,7 @@ export function installFlowUI(ctx) {
   let session = null,
     opening = false,
     openingEpoch = 0;
+  let backgroundWorker;
   const $ = (s) => document.querySelector(s);
   const b64 = (s) => btoa(unescape(encodeURIComponent(s)));
   const imageURL = (svg) => "data:image/svg+xml;base64," + b64(svg);
@@ -58,7 +59,7 @@ export function installFlowUI(ctx) {
     const source=S.bytes,page=S.page;
     warmTimer=setTimeout(()=>{
       if(!S.pdf||S.busy||opening||session||source!==S.bytes||page!==S.page)return;
-      inspectPage(source,page).catch(()=>{});
+      inspectPage.warm(source,page).catch(()=>{});
       void warmFallback();
     },180);
   };
@@ -565,7 +566,7 @@ export function installFlowUI(ctx) {
       fitPanels();
       positionLayer();
       positionFrame();
-      if (fastReady && preview?.version === 1 && !showingPrecise)
+      if (fastReady && preview?.version === 1 && !showingPrecise && !fastInk.hidden)
         fastFonts.paint(
           fastInk,
           preview,
@@ -608,12 +609,9 @@ export function installFlowUI(ctx) {
       return [...rows.values()];
     }
     function positioned(m, rows = tableRows()) {
-      m = clone(m);
       if (!m.cell) return m;
-      m.tableBaseFrame ||= clone(m.frame);
-      m.tableBaseCell ||= clone(m.cell.bounds);
-      const b = m.tableBaseCell,
-        f = m.tableBaseFrame,
+      const b = m.tableBaseCell || m.cell.bounds,
+        f = m.tableBaseFrame || m.frame,
         gs = rows.filter((g) => g.tableId === m.cell.tableId);
       const shift = gs
           .filter((g) => g.y <= b[1] + 0.5)
@@ -621,9 +619,13 @@ export function installFlowUI(ctx) {
         extra = gs
           .filter((g) => g.y > b[1] + 0.5 && g.y <= b[3] + 0.5)
           .reduce((v, g) => v + g.delta, 0);
-      m.frame = { ...f, y: f.y + shift, height: f.height + extra };
-      m.cell.bounds = [b[0], b[1] + shift, b[2], b[3] + shift + extra];
-      return m;
+      return {
+        ...m,
+        tableBaseFrame: f,
+        tableBaseCell: b,
+        frame: { ...f, y: f.y + shift, height: f.height + extra },
+        cell: { ...m.cell, bounds: [b[0], b[1] + shift, b[2], b[3] + shift + extra] },
+      };
     }
     async function arrangedEdits(edits) {
       const gs = new Map();
@@ -693,7 +695,8 @@ export function installFlowUI(ctx) {
       return { objects, edits };
     }
     function candidateButtons() {
-      hits.replaceChildren();
+      const buttons = document.createDocumentFragment();
+      const rows = tableRows();
       const edits = (S.nativeEdits || []).filter((e) => e.page === page);
       const used = new Set(
         edits
@@ -722,7 +725,7 @@ export function installFlowUI(ctx) {
             }
             await fn(e);
           });
-        hits.append(el);
+        buttons.append(el);
       };
       const corrections = (S.structures || []).filter(
         (c) =>
@@ -763,7 +766,7 @@ export function installFlowUI(ctx) {
             ),
         )
         .forEach((c) => {
-          const m = positioned(c.model);
+          const m = positioned(c.model, rows);
           add(
             m.cell
               ? {
@@ -792,6 +795,7 @@ export function installFlowUI(ctx) {
             e.model.cell,
           ),
         );
+      hits.replaceChildren(buttons);
     }
     function showFields() {
       if (model) {
@@ -936,8 +940,10 @@ export function installFlowUI(ctx) {
       }
       if (m.directionSupported === false)
         throw Error("此阅读方向或倾斜角度尚不支持可靠编辑，原文已保留");
-      await finish(false);
-      model = positioned(m, tableRows(null));
+      if (model) await finish(false, false);
+      // Candidate hit regions borrow immutable page evidence. Only the active
+      // draft needs its own editable frame, sources and style runs.
+      model = clone(positioned(m, tableRows(null)));
       model.allowOverflow = true;
       model.text = model.text.replace(/\r\n?/g, "\n");
       id = flowId || crypto.randomUUID();
@@ -970,9 +976,9 @@ export function installFlowUI(ctx) {
       precise = null;
       showingPrecise = false;
       const fast = canFast(model);
-      await Promise.all([
-        prepareBackground(),
-        fast
+      const originalPreview = !flowId && model.originalLayout?.text === model.text;
+      const backgroundReady = prepareBackground();
+      const fontsReady = fast
           ? fastFonts
               .prepare(model)
               .then(() => {
@@ -987,8 +993,11 @@ export function installFlowUI(ctx) {
                 button.title = e.message;
                 status("原文字位已保留；快速字体不可用：" + e.message, true);
               })
-          : Promise.resolve(),
-      ]);
+          : Promise.resolve();
+      // The original PDF already paints every untouched glyph. Accept focus and
+      // input as soon as the clean backdrop is safe to display on the first edit.
+      if (originalPreview) await backgroundReady;
+      else await Promise.all([backgroundReady, fontsReady]);
       if (
         closed ||
         !model ||
@@ -999,7 +1008,7 @@ export function installFlowUI(ctx) {
       if (fastReady) {
         renderFast();
         schedulePrecise();
-      } else if (!flowId && model.originalLayout?.text === model.text) {
+      } else if (originalPreview) {
         // Activation displays the original PDF, even when a rare glyph needs
         // fallback on subsequent edits. Do not change cell geometry just to focus.
         const original = model.originalLayout,
@@ -1024,6 +1033,11 @@ export function installFlowUI(ctx) {
         ink.hidden = true;
         fastInk.hidden = true;
         status(`原始字位完成 · ${model.text.length} 字符`);
+        if (fast) void fontsReady.then(() => {
+          if (closed || id !== activeId || revision !== activationRevision || !fastReady || composing) return;
+          renderFast();
+          schedulePrecise();
+        });
       } else await reflow();
       if (closed || !model || id !== activeId) return false;
       input.disabled = false;
@@ -1042,9 +1056,8 @@ export function installFlowUI(ctx) {
       }
       selection();
     }
-    let blankFragmentPromise;
     async function prepareBackground(rendered = null, quiet = false) {
-      const target = clone(model),
+      const target = rendered ? clone(model) : snapshotModel(model),
         targetId = id,
         targetRevision = revision;
       const stale = () =>
@@ -1055,23 +1068,8 @@ export function installFlowUI(ctx) {
         input.disabled = true;
       }
       try {
-        const blank =
-          rendered ||
-          (await (blankFragmentPromise ||= window.desktop
-            .flowLayout({
-              text: "",
-              pageWidth: w,
-              pageHeight: h,
-              frame: { x: 0, y: 0, width: w, height: h },
-              size: 12,
-              lineHeight: 1.4,
-              align: "left",
-              color: "#202020",
-            })
-            .catch((e) => {
-              blankFragmentPromise = null;
-              throw e;
-            })));
+        // Removing source text for a display-only backdrop uses its object
+        // signatures. The native writer consumes a fragment only for nonempty text.
         const edits = (S.nativeEdits || []).filter((e) => e.id !== targetId);
         edits.push({
           id: targetId,
@@ -1081,8 +1079,8 @@ export function installFlowUI(ctx) {
           sources: target.sources,
           model: rendered
             ? target
-            : { ...target, text: "", runs: [], softBreaks: [] },
-          fragment: blank.fragment,
+            : { ...target, originalLayout: undefined, text: "", runs: [], softBreaks: [] },
+          fragment: rendered?.fragment,
         });
         await arrangedEdits(edits);
         const r = await call("flow-background", {
@@ -1095,6 +1093,7 @@ export function installFlowUI(ctx) {
         const nextBackground = await surface.pdfjs.getDocument({
           ...pdfLoadingOptions,
           data: decodeBase64(r.pdf),
+          worker: backgroundWorker ||= new surface.pdfjs.PDFWorker({ name: "Folio edit backgrounds" }),
         }).promise;
         if (stale()) {
           await nextBackground.destroy();
@@ -1284,7 +1283,9 @@ export function installFlowUI(ctx) {
         preview = res;
         model.fastLayout = res;
         validRevision = res.overflow ? -1 : revision;
-        fastFonts.paint(
+        const untouched =
+          !S.flowDraftDirty && model.originalLayout?.text === model.text;
+        if (!untouched) fastFonts.paint(
           fastInk,
           res,
           w,
@@ -1292,8 +1293,6 @@ export function installFlowUI(ctx) {
           scale(),
           model.allowOverflow ? null : model.frame,
         );
-        const untouched =
-          !S.flowDraftDirty && model.originalLayout?.text === model.text;
         fastInk.hidden = untouched;
         ink.hidden = true;
         base.hidden = untouched;
@@ -3040,7 +3039,7 @@ export function installFlowUI(ctx) {
     listen(bar.querySelector("#pe-done"), "click", () =>
       guarded(() => finish(true)),
     );
-    function cancelDraft() {
+    function cancelDraft(redraw = true) {
       revision++;
       clearTimeout(timer);
       clearTimeout(preciseTimer);
@@ -3070,11 +3069,11 @@ export function installFlowUI(ctx) {
       input.blur();
       composition.hidden = true;
       window.desktop?.setDirty?.(S.dirty);
-      candidateButtons();
+      if (redraw) candidateButtons();
       ctx.scheduleRecovery?.(true);
       status("已取消本段，原 PDF 未改变。点击段落继续编辑。");
     }
-    async function finish(exit = false) {
+    async function finish(exit = false, redraw = true) {
       if (busy) throw Error("正在准备页面，请稍候");
       if (composing) throw Error("请先完成当前输入法组词");
       if (showingPrecise) throw Error("请先选择保留快速排版或应用精排");
@@ -3083,7 +3082,6 @@ export function installFlowUI(ctx) {
           // Typing stays immediate; committing waits for the already-running
           // outline choice so a temporary preview face cannot become permanent.
           await fastFonts.settle(model);
-          if (!closed && model) renderFast();
         }
         await reflow();
         if (validRevision !== revision || !preview)
@@ -3114,7 +3112,7 @@ export function installFlowUI(ctx) {
           input.disabled = false;
         }
       }
-      cancelDraft();
+      cancelDraft(redraw && !exit);
       if (exit) destroy();
       else mount();
     }
@@ -3179,7 +3177,7 @@ export function installFlowUI(ctx) {
         if (model) return; // Do not replace hit regions while a user is editing.
         // Freeze hit regions for this editing session. AI remains a growth
         // hint; its arrival time must not change the user's click ownership.
-        candidateButtons();
+        if (S.structures?.some(c => c.page === page && c.locked)) candidateButtons();
       },
       draft: () =>
         model && S.flowDraftDirty

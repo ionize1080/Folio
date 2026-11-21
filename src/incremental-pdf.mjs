@@ -109,6 +109,12 @@ export function previousXref(bytes) {
 export function reserveOriginalRefs(doc,bytes){
   const section = lastSection(bytes);
   if (!section) return false;
+  // In a linearized PDF the authoritative first-page trailer is physically
+  // before the main trailer. pdf-lib's sequential scan may discard its Info.
+  const info = section.trailer.get(PDFName.of('Info'));
+  if (info instanceof PDFRef && doc.context.lookup(info) instanceof PDFDict) doc.context.trailerInfo.Info = info;
+  const ids = section.trailer.get(PDFName.of('ID'));
+  if (ids instanceof PDFArray) doc.context.trailerInfo.ID = ids;
   // pdf-lib discards the enclosing ObjStm and XRef objects after parsing. Their
   // numbers remain live in the original revision and MUST never be reused.
   doc.context.largestObjectNumber=Math.max(doc.context.largestObjectNumber,section.size-1);return true;
