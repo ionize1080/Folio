@@ -1,0 +1,90 @@
+name: Reader XI official origin check
+on:
+  push:
+    branches: [qa/reader-xi-origin-20261121]
+    paths: [.github/workflows/reader-xi-origin-qa.yml]
+permissions: {}
+jobs:
+  adobe-origin:
+    runs-on: windows-latest
+    timeout-minutes: 9
+    steps:
+      - name: Check official HTTPS paths
+        id: probe
+        shell: python
+        run: |
+          import concurrent.futures
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+          from urllib.error import HTTPError
+          from urllib.parse import urlsplit
+          from urllib.request import HTTPRedirectHandler, Request, build_opener
+
+          hosts = ("ardownload2.adobe.com", "ardownload.adobe.com", "ftp.adobe.com")
+          versions = (("11.0.10", "AdbeRdr11010_en_US.exe"), ("11.0.00", "AdbeRdr11000_en_US.exe"))
+          urls = [f"https://{host}/pub/adobe/reader/win/11.x/{version}/en_US/{name}"
+                  for version, name in versions for host in hosts]
+
+          class AdobeHTTPSRedirect(HTTPRedirectHandler):
+              def redirect_request(self, req, fp, code, msg, hdrs, url):
+                  parsed = urlsplit(url)
+                  if parsed.scheme != "https" or not (parsed.hostname or "").endswith(".adobe.com"):
+                      raise ValueError("unapproved redirect")
+                  return super().redirect_request(req, fp, code, msg, hdrs, url)
+
+          def inspect(url):
+              record = {"url": url}
+              for method in ("HEAD", "GET"):
+                  try:
+                      headers = {"Accept-Encoding": "identity"}
+                      if method == "GET":
+                          headers["Range"] = "bytes=0-15"
+                      with build_opener(AdobeHTTPSRedirect()).open(Request(url, headers=headers, method=method), timeout=24) as resp:
+                          item = {"status": resp.status, "type": resp.headers.get("Content-Type"),
+                                  "length": resp.headers.get("Content-Length"), "final": resp.geturl()}
+                          if method == "GET":
+                              item["pe"] = resp.read(16).startswith(b"MZ")
+                  except HTTPError as exc:
+                      item = {"status": exc.code, "type": exc.headers.get("Content-Type"), "final": exc.geturl()}
+                  except Exception as exc:
+                      item = {"status": None, "failure": str(exc)}
+                  record[method] = item
+              return record
+
+          with concurrent.futures.ThreadPoolExecutor(max_workers=6) as pool:
+              rows = list(pool.map(inspect, urls))
+          for row in rows:
+              print("ADOBE_HTTP " + json.dumps(row), flush=True)
+
+          available = False
+          for row in rows:
+              if not row["GET"].get("pe"):
+                  continue
+              try:
+                  dest = Path(os.environ["RUNNER_TEMP"]) / "adobe-reader-xi-origin.exe"
+                  with build_opener(AdobeHTTPSRedirect()).open(row["url"], timeout=45) as resp, dest.open("wb") as out:
+                      if resp.status != 200:
+                          continue
+                      while chunk := resp.read(1024*1024):
+                          if out.tell() + len(chunk) > 112*1024*1024:
+                              raise ValueError("unexpected package size")
+                          out.write(chunk)
+                  print("ADOBE_PACKAGE " + json.dumps({"url": row["url"], "bytes": dest.stat().st_size,
+                        "sha256": hashlib.file_digest(dest.open("rb"), "sha256").hexdigest()}))
+                  available = True
+                  break
+              except Exception as exc:
+                  print("ADOBE_DOWNLOAD_ERROR " + str(exc))
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as out:
+              print("available=" + str(available).lower(), file=out)
+      - name: Verify publisher and version without executing the installer
+        if: steps.probe.outputs.available == 'true'
+        shell: pwsh
+        run: |
+          $installer = Join-Path $env:RUNNER_TEMP 'adobe-reader-xi-origin.exe'
+          $sig = Get-AuthenticodeSignature -LiteralPath $installer
+          $version = (Get-Item -LiteralPath $installer).VersionInfo
+          [ordered]@{status=[string]$sig.Status;subject=$sig.SignerCertificate.Subject;product=$version.ProductName;version=$version.ProductVersion;fileVersion=$version.FileVersion} | ConvertTo-Json -Compress
+          if ($sig.Status -ne 'Valid' -or $sig.SignerCertificate.Subject -notmatch 'CN=Adobe (Systems Incorporated|Inc\.)' -or $version.ProductVersion -notmatch '^11\.') { throw 'Authenticode or XI product version not verified' }
