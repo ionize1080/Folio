@@ -138,6 +138,7 @@ def check(viewer, path, evidence):
         send_keys('{ESC}^{END}', pause=.2)
         time.sleep(.8)
         result['lastPageFields'] = page_number(window)
+        screenshot(window, evidence / (path.stem + '-last.png'))
         result['dialogs'] += dialogs_for(read_windows())
         result['titleMatches'] = any(path.stem.lower() in name.lower() for name in result['titles'])
         result['passed'] = (result['titleMatches'] and 1 in result['firstPageFields'] and
