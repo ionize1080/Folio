@@ -54,7 +54,34 @@ const fs=require('node:fs'),path=require('node:path'),assert=require('node:asser
   await page.locator('#modal').waitFor({state:'hidden'});
   const borderless=await selectPage();assert.equal(borderless.stroke,'none');
   checks.push('The selection outline preference persists, reopens checked, and can be disabled independently');
-  await page.evaluate(()=>{getSelection().removeAllRanges();window.interactionState.lastSaveMetrics=null;document.querySelector('[data-action=save]').click();});await page.waitForFunction(()=>!!window.interactionState.lastSaveMetrics&&!window.interactionState.busy&&!window.interactionState.dirty);
+  const saveErrors = [];
+  page.on('console', message => { if (message.type() === 'error') saveErrors.push(message.text()); });
+  await page.waitForFunction(() => {
+    const button = document.querySelector('[data-action=save]');
+    return !window.interactionState.busy && button && !button.disabled;
+  });
+  await page.evaluate(() => {
+    getSelection().removeAllRanges();
+    window.interactionState.lastSaveMetrics = null;
+    document.querySelector('[data-action=save]').click();
+  });
+  try {
+    await page.waitForFunction(() => {
+      const state = window.interactionState;
+      return state.lastSaveMetrics && !state.busy && !state.dirty;
+    });
+  } catch (error) {
+    console.error('Paragraph save diagnostic', await page.evaluate(() => {
+      const state = window.interactionState;
+      return {
+        dirty: state.dirty, busy: state.busy, metrics: state.lastSaveMetrics,
+        progress: document.querySelector('#busy-text')?.textContent,
+        modal: document.querySelector('#modal[open]')?.innerText.slice(0, 350),
+        toast: document.querySelector('#toast')?.textContent,
+      };
+    }), saveErrors);
+    throw error;
+  }
   timings.save=await page.evaluate(()=>window.interactionState.lastSaveMetrics);
   const original=fs.readFileSync(source),saved=fs.readFileSync(file);assert(saved.subarray(0,original.length).equals(original));
   const longTasks=await page.evaluate(()=>window.longTasks);assert.deepEqual(errors,[]);

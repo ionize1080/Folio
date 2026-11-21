@@ -5,6 +5,30 @@ import { settingsStore, initSettingsStore } from './stores/settingsStore'
 
 window.folioSettingsReady = async () => { await initSettingsStore(); return true }
 
+function checkOfficeReferences(review, pages) {
+  if (!Array.isArray(review.pages)) throw Error('The response must contain a pages array.')
+  const sources = new Map(pages.map(page => [page.page, page]))
+  const seenPages = new Set()
+  for (const page of review.pages) {
+    const source = sources.get(page.page)
+    if (!source || seenPages.has(page.page)) throw Error('Each reviewed page must cite a distinct input page number.')
+    seenPages.add(page.page)
+    const words = new Set(source.words.map(word => word.id))
+    const used = new Set()
+    for (const [tableIndex, table] of (page.tables ?? []).entries()) {
+      for (const [cellIndex, cell] of (table.cells ?? []).entries()) {
+        const where = `Page ${page.page}, table ${tableIndex + 1}, cell ${cellIndex + 1}`
+        if (!Array.isArray(cell.wordIds)) throw Error(`${where} must have a wordIds array.`)
+        for (const [index, id] of cell.wordIds.entries()) {
+          if (!words.has(id)) throw Error(`${where}, wordIds[${index}] is absent from the input page. Cite an exact input word ID.`)
+          if (used.has(id)) throw Error(`${where} reuses ${id}. Assign this source word to exactly one cell using its bounding box.`)
+          used.add(id)
+        }
+      }
+    }
+  }
+}
+
 // Source content is untrusted data. This call has no tools and returns references only.
 window.folioReviewConversion = async ({ pages, kind }) => {
   await initSettingsStore()
@@ -21,7 +45,19 @@ The input contains PDF word tokens with bounding boxes and detected table candid
   for(let attempt=0;attempt<2;attempt++){
     const response=await model.chat(messages, {signal,maxSteps:1})
     const text=response.contentParts?.filter(p=>p.type==='text').map(p=>p.text).join('') || ''
-    try {const parsed=window.folioParseReview(text);if(kind==='office'&&!Array.isArray(parsed.pages))throw Error('缺少 pages');return parsed}
-    catch(error){if(attempt)throw Error('AI 结构报告格式仍无效，请重试或选择本地转换。');messages.push({role:'assistant',content:text.slice(0,20000)},{role:'user',content:'Your response did not match the requested JSON schema. Return a single JSON object ONLY, with all required fields and exact source references. Do not provide an explanation.'})}
+    let feedback = 'Return a single JSON object with the requested fields and exact source references.'
+    try {
+      const parsed = window.folioParseReview(text)
+      if (kind === 'office') {
+        try { checkOfficeReferences(parsed, pages) }
+        catch (error) { feedback = error.message; throw error }
+      }
+      return parsed
+    } catch {
+      if (attempt) throw Error('AI 结构报告格式或原文引用仍无效，请重试或选择本地转换。')
+      messages.push({role:'assistant',content:text.slice(0,20000)}, {
+        role:'user', content:`Correct the preceding structure report. ${feedback} Return the complete corrected JSON object only.`
+      })
+    }
   }
 }

@@ -153,6 +153,7 @@ export function pageCandidates(objects, w, h, regions = [], tables = []) {
       c.bounds[3] - c.bounds[1] >= 2,
   );
   const groups = new Map();
+  const paragraphRight = new Map();
   const allowedCells=new Set(cellList.map(c=>c.id));
   for (const o of objects.filter((o) => o.type === "text" && o.flowEditable)) {
     const b = topBounds(o, h),
@@ -208,6 +209,13 @@ export function pageCandidates(objects, w, h, regions = [], tables = []) {
     )
       ? "span"
       : activeCuts.filter((c) => x > c.x).length;
+    if (o.structureOwner != null && o.structureParagraph != null && r?.kind !== "table") {
+      // Separate editable segments can share a paragraph's measured column
+      // width while keeping an intervening footnote and its own MCID intact.
+      o.paragraphLane = `${o.structureOwner}:${column}`;
+      paragraphRight.set(o.paragraphLane,
+        Math.max(paragraphRight.get(o.paragraphLane) ?? 0, o.bounds[2]));
+    }
     const key =
       (o.structureParagraph != null && r?.kind !== "table"
         ? `tag:${o.structureParagraph}`
@@ -285,7 +293,7 @@ export function pageCandidates(objects, w, h, regions = [], tables = []) {
     const firstBase = Math.max(...src.map((o) => o.matrix[5]));
     const lastBase = Math.min(...src.map((o) => o.matrix[5]));
     const originX = Math.min(...src.map((o) => o.matrix[4]));
-    const right = Math.max(...src.map((o) => o.bounds[2]));
+    const right = Math.max(...src.map((o) => paragraphRight.get(o.paragraphLane) ?? o.bounds[2]));
     m.frame.x = Math.max(0, originX);
     m.frame.width = Math.min(
       w - m.frame.x,

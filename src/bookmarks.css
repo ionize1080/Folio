@@ -459,3 +459,41 @@ label.has-choice, #modal-body label.has-choice { grid-column: 1 / -1; }
   .rules-v2 .rules-editor, .rules-v2 .rules-results { overflow: visible; min-height: 280px; }
   .rules-v2 #multi-preview { flex: none; max-height: 320px; }
 }
+
+/* ═════════ Bookmark rules & QC precision polish (2.8.4) ═════════ */
+.rules-v2 .rg-segment button[aria-pressed="true"] { background: var(--panel2); color: var(--accent); font-weight: 650; box-shadow: inset 0 0 0 1px var(--selected-line); }
+.rules-v2 .rg-live-sample {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px;
+  padding: 7px 10px; border-radius: 8px; font-size: 12px;
+  background: var(--panel2); border: 1px solid var(--line);
+}
+.rules-v2 .rg-live-sample[hidden] { display: none; }
+.rules-v2 .rg-sample-badge { font-size: 11px; font-weight: 600; color: var(--ok); background: color-mix(in oklab, var(--ok) 12%, transparent); padding: 1px 7px; border-radius: 5px; font-variant-numeric: tabular-nums; flex: none; }
+.rules-v2 .rg-sample-title { color: var(--text); font-weight: 550; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.rules-v2 .rg-sample-groups { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+.rules-v2 .rg-sample-groups code { font: 500 11px/1.3 ui-monospace, "Cascadia Mono", Consolas, monospace; padding: 1px 6px; border-radius: 4px; background: var(--accent-soft); color: var(--accent); }
+.rules-v2 .rg-token-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.rules-v2 .rg-token-chips button {
+  height: 24px; min-height: 24px; padding: 0 8px; border-radius: 6px;
+  font: 550 11.5px/1 ui-monospace, "Cascadia Mono", Consolas, monospace;
+  background: var(--panel2); color: var(--muted); box-shadow: inset 0 0 0 1px var(--line);
+}
+.rules-v2 .rg-token-chips button:hover { color: var(--accent); background: var(--accent-soft); box-shadow: inset 0 0 0 1px var(--selected-line); }
+.rules-v2 .rg-target-wrap { display: flex; flex-direction: column; gap: 6px; padding: 8px; border-radius: 10px; background: var(--panel); border: 1px solid var(--line); flex: none; }
+.rules-v2 .rg-target-wrap[hidden] { display: none; }
+.rules-v2 .rg-target-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 11.5px; font-weight: 600; color: var(--muted); }
+.rules-v2 .rg-target-head button { width: 24px; height: 24px; min-height: 24px; padding: 0; border-radius: 6px; background: transparent; box-shadow: none; color: var(--muted); display: inline-grid; place-items: center; }
+.rules-v2 .rg-target-head button:hover { background: var(--hover); color: var(--text); }
+.rules-v2 .rg-target-head svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 1.8; }
+.rules-v2 .rg-diag-count { margin-left: 4px; font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.rules-v2 .rg-diag-count:empty { display: none; }
+
+/* Bookmark QC row alignment fix: keep grid layout so 定位 buttons align cleanly on the right edge */
+#modal-body label.qc-row {
+  display: grid !important; grid-template-columns: 18px minmax(140px, 1.1fr) minmax(140px, 1fr) auto;
+  align-items: center; gap: 10px; padding: 9px 12px;
+}
+#modal-body label.qc-row .qc-title { font-weight: 550; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#modal-body label.qc-row .qc-msg { color: var(--muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#modal-body label.qc-row .qc-go { justify-self: end; min-height: 26px; height: 26px; padding: 0 10px; font-size: 12px; }
+#modal-body .adjust-tools button:disabled { opacity: .4; cursor: default; }

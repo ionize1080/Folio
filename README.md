@@ -4,9 +4,9 @@
 
 A local-first PDF workspace for Windows x64, built for **long-document bookmarks, in-page text and image editing, OCR review, and optional Chatbox AI assistance**. The portable package includes its runtime, fonts and models. No separate Python or Node.js installation is needed.
 
-**Current release: 2.8.3.** The 2.8 series brings the modern ribbon, bookmark rule and OCR workbenches, keyboard-friendly page organization and a rebuilt font browser. Incremental saving now covers the first eligible save with original-file protection disabled; precise bookmark destinations survive paragraph edits. Version 2.8.3 fixes checkbox visibility and validates preferences without refreshing unchanged documents. [Release history](docs/HISTORY.md).
+**Current release: 2.8.4.** Search commands with Ctrl+Shift+P, change the page tone while reading, or use the updated OCR and bookmark workbenches. [Release history](docs/HISTORY.md).
 
-[Download the Windows x64 portable ZIP](https://github.com/ionize1080/Folio/releases/download/v2.8.3/Folio-PDF-Studio-2.8.3-portable-win-x64.zip) · [2.8.3 release notes](docs/RELEASE-2.8.3.md) · [AI user guide](docs/AI.en.md) · [Documentation](docs/README.md)
+[Download the Windows x64 portable ZIP](https://github.com/ionize1080/Folio/releases/download/v2.8.4/Folio-PDF-Studio-2.8.4-portable-win-x64.zip) · [2.8.4 release notes](docs/RELEASE-2.8.4.md) · [AI user guide](docs/AI.en.md) · [Documentation](docs/README.md)
 
 ![Folio 2.8.3 reading a synthetic demonstration PDF](docs/images/2.8.3/01-reader.png)
 

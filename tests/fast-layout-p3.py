@@ -12,6 +12,8 @@ p.insert_text((70,156),'Original second line',fontname='Body',fontsize=12)
 p.insert_text((70,200),'Selection bold and italic',fontname='Body',fontsize=12)
 p.insert_text((400,100),'ROTATED',fontname='Body',fontsize=12,rotate=270)
 raw=d.tobytes();d.close();(out/'p3-fixture.pdf').write_bytes(raw)
+if "--fixture-only" in sys.argv:
+    sys.exit(0)
 r=worker.run({'command':'inspect','bytes':base64.b64encode(raw).decode()});assert any(o.get('bold') and o.get('renderMode')==2 for o in r['objects']);checks.append('PDF fill/stroke synthetic bold recognized')
 (out/'p3-inspect.json').write_text(json.dumps(r))
 js="import fs from 'node:fs';import {pageCandidates} from './src/flow-page-model.mjs';const r=JSON.parse(fs.readFileSync('tests/output/p3-inspect.json'));console.log(JSON.stringify(pageCandidates(r.objects,...r.size).map(c=>c.model)));"

@@ -68,10 +68,7 @@ body {
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
   font-feature-settings: "tnum" 0, "kern";
-  background:
-    radial-gradient(1200px 520px at 12% -10%, color-mix(in oklab, var(--accent) 9%, transparent), transparent 70%),
-    radial-gradient(900px 480px at 100% 0%, color-mix(in oklab, var(--accent) 6%, transparent), transparent 65%),
-    var(--bg);
+  background: var(--bg);
 }
 ::selection { background: color-mix(in oklab, var(--accent) 30%, transparent); color: inherit; }
 
@@ -112,15 +109,15 @@ kbd {
 .eyebrow { font-size: 10px; letter-spacing: .14em; font-weight: 650; color: var(--muted); text-transform: uppercase; }
 h2 { letter-spacing: -.01em; }
 
-/* Primary actions: confident, with a soft coloured glow. */
+/* Primary actions: crisp, solid, zero-bloom desktop restraint. */
 button.primary, body.dark button.primary {
-  background: linear-gradient(180deg, color-mix(in oklab, var(--accent) 92%, #fff) 0%, var(--accent) 100%);
+  background: var(--accent);
   color: var(--on-accent) !important;
-  box-shadow: 0 1px 0 #ffffff33 inset, 0 2px 8px var(--accent-glow);
+  box-shadow: 0 1px 2px #101a2a18;
   font-weight: 600;
 }
 /* Hover deepens the fill (never lightens it) so the label keeps its contrast. */
-body button.primary:enabled:hover, body .appbar[data-ribbon] .toolbar button.primary:enabled:hover { filter: none; color: var(--on-accent) !important; background: linear-gradient(180deg, var(--accent) 0%, var(--accent-strong) 100%); box-shadow: 0 1px 0 #ffffff26 inset, 0 4px 14px var(--accent-glow); }
+body button.primary:enabled:hover, body .appbar[data-ribbon] .toolbar button.primary:enabled:hover { filter: none; color: var(--on-accent) !important; background: var(--accent-strong); box-shadow: 0 2px 6px #101a2a24; }
 body button.primary:enabled:hover svg { color: var(--on-accent); }
 button.primary:enabled:active { filter: none; background: var(--accent-strong); box-shadow: none; }
 button.primary:disabled { box-shadow: none; }
@@ -140,11 +137,11 @@ button.secondary:enabled:hover { background: var(--selected); color: var(--accen
 
 /* ───────────── 3. App bar, tabs and ribbon ───────────── */
 .appbar[data-ribbon], html[lang=en] .appbar[data-ribbon] {
-  background: linear-gradient(180deg, var(--panel) 0%, color-mix(in oklab, var(--panel) 90%, var(--bg)) 100%);
+  background: var(--panel);
   border-bottom: 1px solid var(--line);
-  box-shadow: var(--shadow-1);
+  box-shadow: none;
 }
-.appbar .logo { border-radius: 8px; box-shadow: 0 2px 8px var(--accent-glow); }
+.appbar .logo { border-radius: 7px; box-shadow: none; }
 .appbar[data-ribbon] > .brand { font-weight: 650; letter-spacing: -.01em; }
 
 /* Document tabs: soft chips instead of boxes. */
@@ -188,19 +185,27 @@ button.secondary:enabled:hover { background: var(--selected); color: var(--accen
 
 .app-actions button, .language-picker { border-radius: var(--r-sm); }
 .appbar[data-ribbon] .folio-ai-open {
-  background: linear-gradient(135deg, var(--accent-soft), color-mix(in oklab, var(--accent) 22%, var(--panel)));
-  border: 1px solid var(--selected-line); color: var(--accent); border-radius: 99px;
-  box-shadow: 0 1px 6px var(--accent-glow); font-weight: 700;
+  background: var(--panel2);
+  border: 1px solid var(--line-strong); color: var(--text); border-radius: 99px;
+  box-shadow: none; font-weight: 600;
 }
-.appbar[data-ribbon] .folio-ai-open:hover { box-shadow: 0 2px 12px var(--accent-glow); background: linear-gradient(135deg, var(--selected), color-mix(in oklab, var(--accent) 30%, var(--panel))); }
-.appbar[data-ribbon] .folio-ai-open[aria-pressed=true] { background: var(--accent); color: var(--on-accent); }
+.appbar[data-ribbon] .folio-ai-open svg { color: var(--accent); }
+.appbar[data-ribbon] .folio-ai-open:hover { box-shadow: none; background: var(--hover); border-color: var(--selected-line); }
+.appbar[data-ribbon] .folio-ai-open[aria-pressed=true] { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+.appbar[data-ribbon] .folio-ai-open[aria-pressed=true] svg { color: var(--on-accent); }
+.appbar[data-ribbon] .folio-ai-open[data-auto-approval="true"] {
+  border-color: color-mix(in oklab, var(--danger) 55%, var(--line));
+  background: color-mix(in oklab, var(--danger) 10%, var(--panel));
+  color: var(--danger);
+}
+.appbar[data-ribbon] .folio-ai-open[data-auto-approval="true"] svg { color: var(--danger); }
 
-/* Menus and popovers: floating glass cards. */
+/* Menus and popovers: crisp solid elevated cards without expensive backdrop blur readbacks. */
 .more-tools-menu, #context-menu, .view-options > div, .studio-placement > div, .studio-view-popover,
 .studio-command-popover, .filter-options {
   border: 1px solid var(--line-strong); border-radius: var(--r-md); box-shadow: var(--shadow-3);
-  background: color-mix(in oklab, var(--panel) 94%, transparent);
-  backdrop-filter: blur(14px) saturate(1.2);
+  background: var(--panel);
+  backdrop-filter: none;
 }
 .more-tools-menu { animation: m-pop var(--t-med) var(--ease); transform-origin: top right; }
 .more-tools-menu button, #context-menu button { border-radius: var(--r-xs); }
@@ -292,68 +297,65 @@ h2 span, #node-count {
 #page-total { color: var(--muted); font-variant-numeric: tabular-nums; }
 
 #canvas-host, .dark #canvas-host {
-  background:
-    radial-gradient(900px 420px at 50% -80px, color-mix(in oklab, var(--accent) 10%, transparent), transparent 70%),
-    linear-gradient(180deg, color-mix(in oklab, var(--bg) 92%, var(--text)) 0%, var(--bg) 160px),
-    var(--bg);
+  background: var(--bg);
 }
 .pdf-page, #page-shell { box-shadow: var(--page-shadow); border-radius: 3px; }
-.pdf-page.page-edit-mode, body.page-edit-mode :is(.pdf-page, #page-shell):has(.page-edit-layer) { box-shadow: var(--page-shadow), 0 0 0 2px var(--accent-glow); }
+.pdf-page.page-edit-mode, body.page-edit-mode :is(.pdf-page, #page-shell):has(.page-edit-layer) { box-shadow: var(--page-shadow), 0 0 0 2px var(--accent); }
 
 #findbar {
-  background: color-mix(in oklab, var(--panel) 92%, transparent); backdrop-filter: blur(14px);
+  background: var(--panel); backdrop-filter: none;
   border: 1px solid var(--line-strong); border-radius: var(--r-md); box-shadow: var(--shadow-3);
+  display: flex; flex-direction: column; padding: 6px; gap: 0;
 }
+#findbar[hidden] { display: none; }
 #findbar button { border-radius: var(--r-sm); }
 
 .viewer-bottom { color: var(--muted); font-size: 11px; background: transparent; }
 .statusbar { height: 26px; background: var(--panel); border-top: 1px solid var(--line); font-size: 11px; }
-.status-led { width: 7px; height: 7px; background: var(--ok); box-shadow: 0 0 0 3px color-mix(in oklab, var(--ok) 22%, transparent); }
+.status-led { width: 7px; height: 7px; background: var(--ok); box-shadow: none; }
 
 /* ───────────── 6. Welcome screen ───────────── */
 #welcome {
-  max-width: 760px; margin: 7vh auto 0; padding: 12px 24px 40px; position: relative;
-  animation: m-rise 520ms var(--ease) both;
+  max-width: 720px; margin: 6vh auto 0; padding: 12px 24px 40px; position: relative;
+  animation: m-rise 260ms var(--ease) both;
 }
-#welcome::before {
-  content: ""; position: absolute; inset: -40px -10% auto; height: 340px; z-index: -1; pointer-events: none;
-  background: radial-gradient(closest-side, color-mix(in oklab, var(--accent) 18%, transparent), transparent);
-  filter: blur(8px);
-}
+#welcome::before { display: none; }
 .welcome-mark {
-  width: 76px; height: 76px; margin-bottom: 26px; border: 1px solid var(--selected-line); border-radius: 22px;
-  background: linear-gradient(145deg, color-mix(in oklab, var(--accent) 18%, var(--panel)), var(--panel));
-  box-shadow: 0 10px 30px var(--accent-glow), 0 1px 0 #fff8 inset; transform: rotate(-6deg);
-  transition: transform var(--t-med) var(--ease);
+  width: 56px; height: 56px; margin-bottom: 18px; border: 1px solid var(--line-strong); border-radius: 14px;
+  background: var(--panel);
+  box-shadow: var(--shadow-1); transform: none;
+  transition: border-color var(--t-fast) var(--ease);
 }
-.welcome-mark:hover { transform: rotate(0deg) scale(1.04); }
-#welcome > .eyebrow { color: var(--accent); font-size: 11px; letter-spacing: .22em; }
+.welcome-mark:hover { transform: none; border-color: var(--selected-line); }
+#welcome > .eyebrow { color: var(--muted); font-size: 11px; letter-spacing: .16em; }
 #welcome h1 {
-  font-size: clamp(30px, 4.4vw, 44px); line-height: 1.15; letter-spacing: -.03em; font-weight: 750; margin: 14px 0 12px;
-  background: linear-gradient(120deg, var(--text) 30%, var(--accent) 100%); -webkit-background-clip: text; background-clip: text; color: transparent;
+  font-size: clamp(26px, 3.6vw, 36px); line-height: 1.2; letter-spacing: -.025em; font-weight: 700; margin: 10px 0 8px;
+  background: none; -webkit-background-clip: initial; background-clip: initial; color: var(--text);
 }
-#welcome p { font-size: 15px; line-height: 1.8; color: var(--muted); }
-#welcome button.primary.large { border-radius: 99px; padding: 14px 30px; font-size: 15px; box-shadow: 0 1px 0 #fff4 inset, 0 8px 26px var(--accent-glow); }
-#welcome button.primary.large:enabled:hover { transform: translateY(-2px); }
-.welcome-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; margin-top: 52px; text-align: left; }
+#welcome p { font-size: 14px; line-height: 1.7; color: var(--muted); margin: 0 0 22px; }
+#welcome button.primary.large { border-radius: var(--r-md); padding: 11px 24px; font-size: 14px; box-shadow: 0 1px 2px #101a2a1a; }
+#welcome button.primary.large:enabled:hover { transform: none; }
+.welcome-cta { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.welcome-hint { font-size: 12px; color: var(--muted); }
+.welcome-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; margin-top: 32px; text-align: left; }
 .welcome-cards > div {
-  align-items: flex-start; gap: 6px; padding: 18px; border: 1px solid var(--line); border-radius: var(--r-lg);
-  background: color-mix(in oklab, var(--panel) 80%, transparent); backdrop-filter: blur(8px); box-shadow: var(--shadow-1);
-  transition: transform var(--t-med) var(--ease), box-shadow var(--t-med) var(--ease), border-color var(--t-med) var(--ease);
+  align-items: flex-start; gap: 5px; padding: 16px; border: 1px solid var(--line); border-radius: var(--r-md);
+  background: var(--panel); backdrop-filter: none; box-shadow: none;
+  transition: border-color var(--t-fast) var(--ease);
 }
-.welcome-cards > div:hover { transform: translateY(-3px); box-shadow: var(--shadow-2); border-color: var(--selected-line); }
-.welcome-cards svg { color: var(--accent); width: 22px; height: 22px; margin-bottom: 6px; }
-.welcome-cards b { font-size: 13px; font-weight: 650; color: var(--text); }
+.welcome-cards > div:hover { transform: none; box-shadow: var(--shadow-1); border-color: var(--line-strong); }
+.welcome-cards svg { color: var(--accent); width: 20px; height: 20px; margin-bottom: 4px; }
+.welcome-cards b { font-size: 13px; font-weight: 600; color: var(--text); }
 .welcome-cards small { font-size: 12px; color: var(--muted); line-height: 1.5; }
-@keyframes m-rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+@keyframes m-rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 
 /* ───────────── 7. Dialogs, toast, busy ───────────── */
 dialog {
-  border: 1px solid var(--line-strong); border-radius: var(--r-xl); box-shadow: var(--shadow-3);
+  border: 1px solid var(--line-strong); border-radius: var(--r-lg); box-shadow: var(--shadow-3);
   background: var(--panel); overflow: hidden;
 }
-dialog[open] { animation: m-dialog var(--t-med) var(--ease); }
-dialog::backdrop { background: color-mix(in oklab, #0b1220 42%, transparent); backdrop-filter: blur(5px) saturate(1.1); animation: m-fade var(--t-med) ease; }
+dialog[open] { animation: m-dialog 150ms var(--ease); }
+dialog::backdrop { background: color-mix(in oklab, #0b1220 38%, transparent); backdrop-filter: none; animation: m-fade 140ms ease; }
 .creative-dialog, .document-tools { border-radius: var(--r-xl); }
 .modal-header, dialog header { border-bottom-color: var(--line); }
 dialog header h2, #modal-title { font-weight: 700; letter-spacing: -.02em; }
@@ -369,9 +371,9 @@ dialog button:not(.primary):not(.secondary):not([data-close]):not(#modal-close):
 
 #toast {
   border-radius: var(--r-md); box-shadow: var(--shadow-3); border: 1px solid var(--line-strong);
-  background: color-mix(in oklab, var(--panel) 94%, transparent); color: var(--text); backdrop-filter: blur(14px);
+  background: var(--panel); color: var(--text); backdrop-filter: none;
 }
-#busy { backdrop-filter: blur(4px); background: color-mix(in oklab, var(--bg) 62%, transparent); }
+#busy { backdrop-filter: none; background: color-mix(in oklab, var(--bg) 72%, transparent); }
 #busy .spinner { border-color: var(--accent-soft); border-top-color: var(--accent); }
 progress { accent-color: var(--accent); border-radius: 99px; height: 8px; }
 
@@ -452,20 +454,20 @@ hr { border: 0; border-top: 1px solid var(--line); }
 
 /* ───────────── 11. Page-edit toolbar, menus, inspector ───────────── */
 .page-edit-bar {
-  background: color-mix(in oklab, var(--panel) 94%, transparent); backdrop-filter: blur(14px);
-  border: 0; border-bottom: 1px solid var(--line); border-radius: 0; box-shadow: var(--shadow-1);
+  background: var(--panel); backdrop-filter: none;
+  border: 0; border-bottom: 1px solid var(--line); border-radius: 0; box-shadow: none;
 }
 .page-edit-bar strong { color: var(--accent); font-weight: 700; letter-spacing: -.01em; }
 .page-edit-bar :is(input, select) { min-height: 30px; border-radius: var(--r-xs); background: var(--panel2); font-size: 12px; }
 .page-edit-bar button { border-radius: var(--r-sm); font-size: 12px; }
-.page-edit-bar #pe-done, .page-edit-bar button.primary { background: linear-gradient(180deg, color-mix(in oklab, var(--accent) 92%, #fff), var(--accent)); color: var(--on-accent); box-shadow: 0 2px 8px var(--accent-glow); }
+.page-edit-bar #pe-done, .page-edit-bar button.primary { background: var(--accent); color: var(--on-accent); box-shadow: none; }
 .page-edit-bar #pe-done { color: var(--on-accent) !important; font-weight: 650; }
 .page-edit-bar .pe-status-row, .page-edit-bar #pe-status { color: var(--muted); font-size: 12px; }
 .page-edit-bar #pe-status.error { color: var(--danger); }
-.page-edit-frame, .page-edit-layer .page-edit-frame { outline: 2px solid var(--accent); box-shadow: 0 0 0 4px var(--accent-glow); border-radius: 2px; }
+.page-edit-frame, .page-edit-layer .page-edit-frame { outline: 1.5px solid var(--accent); box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent) 16%, transparent); border-radius: 2px; }
 .page-edit-caret { background: var(--accent); }
 
-#context-menu { padding: 6px; border: 1px solid var(--line-strong); border-radius: var(--r-md); background: color-mix(in oklab, var(--panel) 94%, transparent); backdrop-filter: blur(14px); box-shadow: var(--shadow-3); }
+#context-menu { padding: 6px; border: 1px solid var(--line-strong); border-radius: var(--r-md); background: var(--panel); backdrop-filter: none; box-shadow: var(--shadow-3); }
 #context-menu button { border-radius: var(--r-xs); }
 #context-menu button:enabled:hover { background: var(--accent-soft); color: var(--accent); }
 #context-menu :is(hr, .separator, .sep) { margin: 5px 6px; border: 0; border-top: 1px solid var(--line); height: 0; background: none; }
@@ -720,3 +722,167 @@ label:has(> input[type=color]) { flex-direction: row !important; align-items: ce
 /* Review-02: close glyphs sit on the exact centre of their circle; svg icons use the same box everywhere. */
 #modal-close,dialog button[data-close]:has(>svg){display:inline-grid;place-items:center;width:32px;min-width:32px;height:32px;min-height:32px;padding:0;line-height:0;}
 #modal-close svg,dialog button[data-close]>svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;display:block;}
+
+/* ═════════ 13. 2.8.4 Precision UX, Reading Tone, Search, Quickbar & Command Palette ═════════ */
+
+/* Avoid duplicating Save/Undo/Redo in titlebar when Ribbon Home or Creative Studio already shows them. */
+body.studio-active .titlebar-quick,
+.appbar.custom-titlebar:not(.ribbon-collapsed):has(#ribbon-tab-home[aria-selected="true"]) .titlebar-quick {
+  opacity: 0; pointer-events: none; width: 0; overflow: hidden; margin: 0; padding: 0; border: 0;
+}
+
+/* Tab strip "+" open button */
+.document-tabs .tab-add {
+  flex: none; width: 28px; height: 28px; min-height: 28px; padding: 0; margin-left: 2px;
+  border-radius: var(--r-sm); display: inline-grid; place-items: center;
+  background: transparent; color: var(--muted); align-self: center;
+}
+.document-tabs .tab-add:hover { background: var(--hover); color: var(--text); }
+.document-tabs .tab-add svg { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 1.8; }
+
+/* Page Reading Tone (view-only filter on rendered PDF canvas & high-DPI tile layer) */
+:root[data-page-tone="warm"] .pdf-page > canvas,
+:root[data-page-tone="warm"] .pdf-page .page-tiles { filter: sepia(0.18) brightness(0.97) contrast(0.98); }
+:root[data-page-tone="soft"] .pdf-page > canvas,
+:root[data-page-tone="soft"] .pdf-page .page-tiles { filter: brightness(0.93) contrast(0.96); }
+:root[data-page-tone="dark"] .pdf-page > canvas,
+:root[data-page-tone="dark"] .pdf-page .page-tiles { filter: invert(0.88) hue-rotate(180deg) contrast(0.96); }
+:root[data-page-tone="dark"] .pdf-page { background: #1e2128; }
+
+.view-tone-row { display: flex; flex-direction: column; gap: 6px; padding-top: 6px; margin-top: 4px; border-top: 1px solid var(--line); }
+.view-tone-label { font-size: 11.5px; font-weight: 600; color: var(--muted); }
+.view-tone-seg { display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px; padding: 2px; border-radius: 8px; background: var(--panel2); border: 1px solid var(--line); }
+.view-tone-seg button { height: 26px; min-height: 26px; padding: 0 6px; font-size: 11.5px; border-radius: 6px; background: transparent; color: var(--muted); font-weight: 500; }
+.view-tone-seg button:hover { color: var(--text); background: var(--hover); }
+.view-tone-seg button[aria-pressed="true"] { background: var(--panel); color: var(--accent); font-weight: 650; box-shadow: var(--shadow-1), inset 0 0 0 1px var(--selected-line); }
+
+/* Enhanced Findbar & Results List */
+.findbar-row { display: flex; align-items: center; gap: 4px; }
+#findbar #find-case, #findbar #find-regex {
+  min-width: 28px; height: 28px; min-height: 28px; padding: 0 6px;
+  font: 600 11.5px/1 ui-monospace, "Cascadia Mono", Consolas, monospace;
+  color: var(--muted); background: transparent;
+}
+#findbar #find-case[aria-pressed="true"], #findbar #find-regex[aria-pressed="true"] {
+  background: var(--accent-soft); color: var(--accent); box-shadow: inset 0 0 0 1px var(--selected-line);
+}
+#findbar #find-list-toggle { height: 28px; min-height: 28px; padding: 0 8px; font-size: 11.5px; color: var(--muted); }
+#findbar #find-list-toggle[aria-expanded="true"] { background: var(--accent-soft); color: var(--accent); }
+.find-results {
+  margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--line);
+  max-height: 240px; overflow-y: auto; display: flex; flex-direction: column; gap: 2px;
+}
+.find-results[hidden] { display: none; }
+.find-result-item {
+  display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 8px; align-items: center;
+  width: 100%; padding: 6px 8px; text-align: left; border-radius: 6px; background: transparent;
+  font-size: 12px; color: var(--text);
+}
+.find-result-item:hover { background: var(--hover); }
+.find-result-item[aria-selected="true"] { background: var(--selected); box-shadow: inset 0 0 0 1px var(--selected-line); }
+.find-result-item .fr-page { font-size: 11px; font-weight: 600; color: var(--muted); font-variant-numeric: tabular-nums; }
+.find-result-item .fr-snippet { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.search-mark.current {
+  background: rgba(245, 158, 11, 0.45) !important;
+  outline: 2px solid #d97706;
+  border-radius: 2px;
+}
+
+/* Floating Text-Selection Quick Annotation Bar */
+.selection-quickbar {
+  position: fixed; z-index: 80; display: inline-flex; align-items: center; gap: 4px;
+  padding: 4px 6px; border-radius: 10px;
+  background: var(--panel); border: 1px solid var(--line-strong); box-shadow: var(--shadow-3);
+}
+.selection-quickbar[hidden] { display: none; }
+.selection-quickbar .sq-colors { display: inline-flex; align-items: center; gap: 4px; padding: 0 2px; }
+.selection-quickbar .sq-swatch {
+  width: 18px; height: 18px; min-height: 18px; padding: 0; border-radius: 50%;
+  background: var(--sq); border: 1px solid rgba(0, 0, 0, 0.16);
+}
+.selection-quickbar .sq-swatch:hover { transform: scale(1.16); }
+.selection-quickbar .sq-sep { width: 1px; height: 16px; background: var(--line); margin: 0 2px; }
+.selection-quickbar > button {
+  height: 26px; min-height: 26px; padding: 0 8px; border-radius: 6px;
+  font-size: 12px; font-weight: 500; color: var(--text); background: transparent;
+}
+.selection-quickbar > button:hover { background: var(--hover); color: var(--accent); }
+
+/* Welcome Recent Documents */
+.welcome-recents {
+  margin-top: 28px; text-align: left; border: 1px solid var(--line); border-radius: var(--r-md);
+  background: var(--panel); overflow: hidden;
+}
+.welcome-recents[hidden] { display: none; }
+.welcome-recents-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px; border-bottom: 1px solid var(--line); background: var(--panel2);
+}
+.welcome-recents-head h2 { margin: 0; font-size: 12px; font-weight: 650; color: var(--muted); }
+.welcome-recents-head button {
+  height: 24px; min-height: 24px; padding: 0 8px; font-size: 11.5px; color: var(--muted); background: transparent;
+}
+.welcome-recents-head button:hover { color: var(--text); background: var(--hover); }
+.welcome-recents-list { display: flex; flex-direction: column; }
+.recent-row { display: flex; align-items: center; border-bottom: 1px solid var(--line); }
+.recent-row:last-child { border-bottom: 0; }
+.recent-open {
+  flex: 1; min-width: 0; display: grid; grid-template-columns: 18px minmax(0, 1fr) auto; align-items: center; gap: 10px;
+  padding: 9px 14px; text-align: left; background: transparent; border-radius: 0;
+}
+.recent-open:hover { background: var(--hover); }
+.recent-open svg { width: 16px; height: 16px; color: var(--accent); stroke: currentColor; fill: none; stroke-width: 1.6; }
+.recent-info { display: flex; flex-direction: column; min-width: 0; }
+.recent-info strong { font-size: 13px; font-weight: 550; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.recent-info small { font-size: 11px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.recent-size { font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.recent-remove {
+  width: 30px; height: 30px; min-height: 30px; margin-right: 6px; padding: 0; border-radius: 6px;
+  background: transparent; color: var(--muted); opacity: 0; display: inline-grid; place-items: center;
+}
+.recent-row:hover .recent-remove, .recent-remove:focus-visible { opacity: 1; }
+.recent-remove:hover { background: color-mix(in oklab, var(--danger) 12%, transparent); color: var(--danger); }
+.recent-remove svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 1.8; }
+
+/* Preferences search box */
+.prefs-search {
+  width: 100%; height: 32px; min-height: 32px; margin-bottom: 8px; padding: 0 10px;
+  font-size: 12.5px; border-radius: var(--r-sm); background: var(--panel); border: 1px solid var(--line-strong);
+}
+
+/* Global Command Palette (Ctrl+Shift+P) */
+.command-palette-dialog {
+  width: min(580px, calc(100vw - 32px)); padding: 0; margin-top: 12vh; margin-bottom: auto;
+  border: 1px solid var(--line-strong); border-radius: var(--r-lg);
+  background: var(--panel); box-shadow: var(--shadow-3); overflow: hidden;
+}
+.command-palette-dialog[open] { display: flex; flex-direction: column; }
+.cmd-search {
+  display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 1px solid var(--line);
+}
+.cmd-search svg { width: 17px; height: 17px; stroke: var(--muted); fill: none; stroke-width: 1.7; flex: none; }
+.cmd-search input {
+  flex: 1; min-width: 0; height: 30px; min-height: 30px; border: 0; background: transparent;
+  box-shadow: none; padding: 0; font-size: 14px; color: var(--text); outline: none;
+}
+.cmd-search input:focus { box-shadow: none; border: 0; }
+.cmd-list { max-height: min(400px, 56vh); overflow-y: auto; padding: 6px; display: flex; flex-direction: column; gap: 2px; }
+.cmd-item {
+  display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 10px; border-radius: var(--r-sm);
+  background: transparent; text-align: left; color: var(--text); font-size: 13px;
+}
+.cmd-item svg { width: 16px; height: 16px; stroke: var(--muted); fill: none; stroke-width: 1.65; flex: none; }
+.cmd-item .cmd-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cmd-item .cmd-group { font-size: 11px; color: var(--muted); padding: 1px 7px; border-radius: 99px; background: var(--panel2); }
+.cmd-item[aria-selected="true"] { background: var(--selected); color: var(--accent); box-shadow: inset 0 0 0 1px var(--selected-line); }
+.cmd-item[aria-selected="true"] svg { color: var(--accent); stroke: var(--accent); }
+.cmd-empty { padding: 24px 16px; text-align: center; font-size: 13px; color: var(--muted); margin: 0; }
+.cmd-foot {
+  display: flex; align-items: center; gap: 14px; padding: 8px 14px;
+  border-top: 1px solid var(--line); background: var(--panel2); font-size: 11.5px; color: var(--muted);
+}
+
+/* Page edit handle: place cleanly to the left outside the top edge so it doesn't cover headings directly above */
+.page-edit-move { left: -26px !important; top: 0 !important; opacity: .78; }
+.page-edit-move:hover, .page-edit-move:focus-visible { opacity: 1; }
+.page-edit-bar #pe-font { padding-right: 22px; background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%); background-position: calc(100% - 11px) 50%, calc(100% - 7px) 50%; background-size: 4px 4px; background-repeat: no-repeat; }

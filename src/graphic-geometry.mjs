@@ -18,6 +18,26 @@ export function placement(value={}, base=[200,0,0,200,72,72]) {
   return {matrix,...(value.crop!==undefined?{crop:value.crop}:{}),...(value.perspective!==undefined?{perspective:value.perspective}:{})};
 }
 
+
+export function studioPlacement(base, {box, geometry, action}) {
+  if (box !== undefined) {
+    if (!Array.isArray(box) || box.length !== 4 || !box.every(Number.isFinite) || box[2] <= 0 || box[3] <= 0)
+      throw Error('Invalid artwork box');
+    const [x, y, width, height] = box;
+    base = [width, 0, 0, height, x, y];
+  }
+  const {dx = 0, dy = 0, ...transform} = geometry ?? {};
+  if (!Number.isFinite(dx) || !Number.isFinite(dy)) throw Error('Invalid artwork offset');
+  if (box === undefined && geometry == null && action === 'duplicate') {
+    transform.x = base[4] + 12;
+    transform.y = base[5] - 12;
+  }
+  const origin = transform.matrix ?? base;
+  if (dx) transform.x = (transform.x ?? origin[4]) + dx;
+  if (dy) transform.y = (transform.y ?? origin[5]) + dy;
+  return placement(transform, base).matrix;
+}
+
 export function pathFrame(path) {
   const points=path.segments||[];
   if(!points.length)throw Error('Path has no points');

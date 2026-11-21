@@ -136,13 +136,18 @@ export function installAI({
     }
     auto = enabled;
     open.style.color = "";
+    open.dataset.autoApproval = String(!!auto);
     open.title = auto ? "AI 助手 · 自动审批已开启" : "AI 助手 · Chatbox";
     desktop.aiApproval(auto);
     return true;
   };
   desktop.onAIState((state) => {
     displayMode = state.mode;
-    if (typeof state.auto === "boolean") auto = state.auto;
+    if (typeof state.auto === "boolean") {
+      auto = state.auto;
+      open.dataset.autoApproval = String(!!auto);
+      open.title = auto ? "AI 助手 · 自动审批已开启" : "AI 助手 · Chatbox";
+    }
     open.setAttribute("aria-pressed", String(state.open));
     document.body.classList.toggle(
       "ai-sidebar-open",

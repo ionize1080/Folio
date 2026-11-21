@@ -222,9 +222,15 @@ def stream_identity(stream):
     import json
     return hashlib.sha256(json.dumps(values,sort_keys=True).encode()+b'\0'+stream.get_data()).hexdigest()
 
-def compose(data,edits,blocks,inspect,fragment,progress=None,*,preview=False):
+def compose(data,edits,blocks,inspect,fragment,progress=None,*,preview=False,tagged_preview_page=None):
     from pdf_writer import clone_document
-    reader=PdfReader(io.BytesIO(data));writer=clone_document(reader)
+    reader=PdfReader(io.BytesIO(data))
+    writer, source_page = None, None
+    if tagged_preview_page is not None:
+        from preview_page import paragraph_preview_writer
+        writer, source_page = paragraph_preview_writer(reader, tagged_preview_page, edits)
+    if writer is None:
+        writer = clone_document(reader)
     bypage={};stream_cache={}
     for e in edits:bypage.setdefault(e['page'],{'edits':[],'blocks':[]})['edits'].append(e)
     # blocks can be an iterator read from a JSON-lines file. At most one page's result is held per fragment.
@@ -272,8 +278,15 @@ def compose(data,edits,blocks,inspect,fragment,progress=None,*,preview=False):
         name=NameObject(f'/FolioEdit{j}');xs[name]=ref
         return [([],b'q'),([name],b'Do'),([],b'Q')]
     def process(number,bs):
-        if not isinstance(number,int) or not 1<=number<=len(writer.pages):raise ValueError('页码无效')
-        page=writer.pages[number-1];es=bypage.pop(number,{'edits':[]})['edits']
+        page_number = 1 if source_page is not None else number
+        if (not isinstance(number, int) or not 1 <= page_number <= len(writer.pages) or
+                (source_page is not None and number != tagged_preview_page)):
+            raise ValueError('页码无效')
+        page = writer.pages[page_number-1]
+        # The full original page supplies structure ownership and semantic resources.
+        # This writer's single display page contains only the editable painting graph.
+        semantic_page = source_page if source_page is not None else page
+        es=bypage.pop(number,{'edits':[]})['edits']
         if not es and not bs:return
         width,height=float(page.mediabox.width),float(page.mediabox.height)
         flows=sorted([e for e in es if e.get('type')=='flow' and not e.get('delete')],key=lambda e:float((e.get('model') or {}).get('layerOrder',0)))
@@ -289,7 +302,7 @@ def compose(data,edits,blocks,inspect,fragment,progress=None,*,preview=False):
         def source_description():
             nonlocal description
             if description is None:
-                des=inspect(number);description=(des,check_editable(page,des,source_stream()))
+                des=inspect(number);description=(des,check_editable(semantic_page,des,source_stream()))
             return description
         if flows:
             desc,mapped=source_description()
@@ -302,6 +315,7 @@ def compose(data,edits,blocks,inspect,fragment,progress=None,*,preview=False):
                     idx=source.get('index')
                     if mapped is None or not isinstance(idx,int) or not 0<=idx<len(desc):raise ValueError('段落对象映射不可靠')
                     d=desc[idx];m=mapped[idx]
+                    if d.get('tagEditProtection'):raise ValueError(d['tagEditProtection'])
                     if not d.get('flowEditable') or d['signature']!=source.get('signature'):raise ValueError('段落包含不可安全替换或已变化的对象')
                 from ruby_anchors import validate as validate_ruby
                 # Hiding the old paragraph is a display-only editor operation.
@@ -347,7 +361,7 @@ def compose(data,edits,blocks,inspect,fragment,progress=None,*,preview=False):
                 if structured:
                     from structure_scope import validate_scopes
                     original_stream,raw_objects=source_stream()
-                    scopes,scope=validate_scopes(page,original_stream,raw_objects,mapped,sources,model,desc)
+                    scopes,scope=validate_scopes(semantic_page,original_stream,raw_objects,mapped,sources,model,desc)
                     ends=[mapped[source['index']].get('end') for source in sources]
                     if any(end is None for end in ends):raise ValueError('标签文字范围不完整')
                     if len(scopes)>1:
@@ -382,6 +396,12 @@ def compose(data,edits,blocks,inspect,fragment,progress=None,*,preview=False):
                     if owned_scope is None or owned_scope['count']!=len(sources) or any(s!=owned_scope for s in owned_scopes):owned_scope=None
                     if owned_scope and not structured:position=owned_scope['end']
                     else:owned_scope=None
+                    collision_end=position
+                    split_site=None
+                    if not structured and not owned_scope:
+                        from text_advance import shared_line_site
+                        split_site=shared_line_site(original_stream,[mapped[s['index']] for s in sources])
+                        if split_site:position=split_site[0]
                     # A paragraph cannot jump across an overlapping foreign paint.
                     # Disjoint paints have identical pixels at either ordering.
                     # Use painted ink, not the padded editing frame. A frame
@@ -400,7 +420,7 @@ def compose(data,edits,blocks,inspect,fragment,progress=None,*,preview=False):
                     from clip_contract import validate_ink,inherited_ink_clips
                     validate_ink(ink_boxes,inherited_ink_clips(clips,[desc[i]['bounds'] for i in indices]))
                     for j,item in enumerate(mapped):
-                        if j in indices or j in deleted_indices or item.get('at') is None or not first<=item['at']<=position:continue
+                        if j in indices or j in deleted_indices or item.get('at') is None or not first<=item['at']<=collision_end:continue
                         other=desc[j].get('bounds')
                         if other and any(min(box[2],other[2])>max(box[0],other[0])+.1 and min(box[3],other[3])>max(box[1],other[1])+.1 for box in ink_boxes):
                             raise ValueError('原文与其他绘制对象交错重叠，请分别编辑或明确调整图层，草稿已保留')
@@ -414,6 +434,12 @@ def compose(data,edits,blocks,inspect,fragment,progress=None,*,preview=False):
                     if abs(det)<1e-12:raise ValueError('标签范围变换不可逆')
                     inv=[d/det,-b/det,-c/det,a/det,(c*f-d*e)/det,(b*e-a*f)/det]
                     calls=[([],b'q'),([FloatObject(v) for v in inv],b'cm')]+form(page,blob,True)+[([],b'Q')]
+                    if split_site:
+                        _, replay, form_state = split_site
+                        # calls starts with q and ends with Q. Apply the old
+                        # Form state inside that save, then restore the line.
+                        if form_state:calls[1:1]=[([],b'BT')]+form_state+[([],b'ET')]
+                        calls=[([],b'ET')]+calls+[([],b'BT')]+replay
                     if relocated_scope:calls=[relocated_scope]+calls+[([],b'EMC')]
                     inline_flows.setdefault(position,[]).extend(calls)
                 else:flow_blobs.append((blob,True,bool((flow.get('model') or {}).get('behindPage')),False))
@@ -564,4 +590,8 @@ def compose(data,edits,blocks,inspect,fragment,progress=None,*,preview=False):
     ensure_version(writer)
     from pdf_writer import remove_orphans
     remove_orphans(writer)
-    output=io.BytesIO();writer.write(output);return output.getvalue()
+    output=io.BytesIO();writer.write(output)
+    if tagged_preview_page is not None:
+        from preview_page import render_page
+        return render_page(output.getvalue(), 1 if source_page is not None else tagged_preview_page)
+    return output.getvalue()

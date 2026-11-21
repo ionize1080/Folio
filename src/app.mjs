@@ -12,7 +12,9 @@ import {
   languagePicker,
   t,
   getLanguage,
+  setLanguage,
 } from "./i18n.mjs";
+import { installCommandPalette } from "./command-palette.mjs";
 import { installObjectSelection } from "./object-selection-ui.mjs";
 import { installPageImages } from "./image-page-ui.mjs";
 import { updateDialog } from "./update-ui.mjs";
@@ -230,13 +232,16 @@ function setDirty(value = true) {
   scheduleRecovery();
 }
 function setBusy(value, label = "处理中…") {
+  if (S.busy !== value) window.desktop?.tabMeta?.({ busy: !!value });
   S.busy = value;
-  window.desktop?.tabMeta?.({busy: !!value});
-  $("#busy").hidden = !value;
-  $("#busy-text").textContent = label;
-  $$("[data-doc]").forEach(
-    (b) => (b.disabled = (value && !b.hasAttribute("data-cancel")) || !S.pdf),
-  );
+  const overlay = $("#busy");
+  if (overlay.hidden !== !value) overlay.hidden = !value;
+  const message = $("#busy-text");
+  if (message.textContent !== label) message.textContent = label;
+  for (const button of $$("[data-doc]")) {
+    const disabled = (value && !button.hasAttribute("data-cancel")) || !S.pdf;
+    if (button.disabled !== disabled) button.disabled = disabled;
+  }
 }
 const ocrIdentities = new WeakMap();
 function stateKey(v = snapshot()) {
@@ -653,6 +658,11 @@ async function loadPDF(
       await pdf.destroy();
       return false;
     }
+    const restoreView = settings.restoreView;
+    const labels = pdf.getPageLabels().catch(() => null);
+    // The initial layout and destination matter only when following the PDF's view.
+    const initialLayout = restoreView ? null : pdf.getPageLayout().catch(() => null);
+    const initialAction = restoreView ? null : pdf.getOpenAction().catch(() => null);
     void releaseSource(S.bytes);
     documentSession.replace();
     S.sessionId = documentSession.id;
@@ -718,7 +728,7 @@ async function loadPDF(
     $("#page-total").textContent = "/ " + info.pageCount;
     $("#page-number").max = info.pageCount;
     $("#welcome").hidden = true;
-    S.labels = await pdf.getPageLabels().catch(() => null);
+    S.labels = await labels;
     S.fingerprint = pdf.fingerprints[0];
     S.baseline = stateKey();
     if (restoredState)
@@ -733,7 +743,7 @@ async function loadPDF(
     surface.gaps = settings.gaps;
     setDirty(!!restoredState);
     rebuild();
-    const remembered = settings.restoreView
+    const remembered = restoreView
       ? safeJSON(localStorage.getItem("folio-view-" + S.fingerprint))
       : null;
     if (remembered) {
@@ -742,9 +752,11 @@ async function loadPDF(
       surface.layout = remembered.layout;
       surface.viewRotation = remembered.viewRotation || 0;
       await surface.refresh(remembered);
+    } else if (restoreView) {
+      await renderPage();
     } else {
-      const initial = await pdf.getPageLayout().catch(() => null);
-      if (!settings.restoreView && initial)
+      const initial = await initialLayout;
+      if (initial)
         surface.layout =
           {
             SinglePage: "single",
@@ -755,8 +767,8 @@ async function loadPDF(
             TwoPageRight: "two",
           }[initial] || surface.layout;
       await renderPage();
-      const open = await pdf.getOpenAction().catch(() => null);
-      if (!settings.restoreView && open?.dest) {
+      const open = await initialAction;
+      if (open?.dest) {
         const d = open.dest,
           ref = d[0],
           page =
@@ -2231,7 +2243,7 @@ function pagesDialog() {
 function metadataDialog() {
   modal(
     "文档属性",
-    `<div class="form-grid"><label>标题<input id="meta-title" value="${esc(S.metadata.title)}"></label><label>作者<input id="meta-author" value="${esc(S.metadata.author)}"></label></div><label>主题<input id="meta-subject" value="${esc(S.metadata.subject)}"></label><label>关键词（逗号分隔）<input id="meta-keywords" value="${esc(S.metadata.keywords)}"></label><p>${S.info.pageCount} 页 · ${(S.bytes.length / 1048576).toFixed(2)} MB · ${S.nodes.length.toLocaleString()} 个书签</p><div class="callout">保存采用完整重写。现有数字签名不保证有效；加密 PDF 暂不支持编辑。此版本支持基础文字/路径对象编辑与 OCR；不提供段落自动重排、表单编辑或安全涂黑。</div>`,
+    `<div class="form-grid"><label>标题<input id="meta-title" value="${esc(S.metadata.title)}"></label><label>作者<input id="meta-author" value="${esc(S.metadata.author)}"></label></div><label>主题<input id="meta-subject" value="${esc(S.metadata.subject)}"></label><label>关键词（逗号分隔）<input id="meta-keywords" value="${esc(S.metadata.keywords)}"></label><p>${S.info.pageCount} 页 · ${(S.bytes.length / 1048576).toFixed(2)} MB · ${S.nodes.length.toLocaleString()} 个书签</p><div class="callout">符合条件时使用增量保存；如需编辑自定义元数据或加密属性，可在「文档工具」中进一步管理。重写含数字签名的 PDF 可能影响原签名有效性。</div>`,
     [
       { text: "取消", run: closeModal },
       {
@@ -2252,13 +2264,11 @@ function metadataDialog() {
     ],
   );
 }
-function renderMarks() {
-  const layer = $("#mark-layer");
-  if (!layer) return;
+function renderMarksOnPage(page, layer, view) {
+  if (!layer || !view) return;
   layer.replaceChildren();
-  if (!S.view) return;
-  for (const a of S.annotations.filter((a) => a.page === S.page)) {
-    const rect = S.view.convertToViewportRectangle(a.rect),
+  for (const a of S.annotations.filter((a) => a.page === page)) {
+    const rect = view.convertToViewportRectangle(a.rect),
       el = document.createElement("div");
     el.className = "annotation-mark " + a.type;
     Object.assign(el.style, {
@@ -2267,14 +2277,43 @@ function renderMarks() {
       width: Math.abs(rect[2] - rect[0]) + "px",
       height: Math.abs(rect[3] - rect[1]) + "px",
     });
-    el.style.background='transparent';el.style.border='none';
-    const color=a.color||'#f2c94c';
-    if(a.paths){const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');svg.setAttribute('width','100%');svg.setAttribute('height','100%');svg.style.overflow='visible';for(const p of a.paths){const line=document.createElementNS(svg.namespaceURI,'polyline');const points=[];for(let i=0;i<p.length;i+=2){const v=S.view.convertToViewportPoint(p[i],p[i+1]);points.push([v[0]-Math.min(rect[0],rect[2]),v[1]-Math.min(rect[1],rect[3])].join(','));}line.setAttribute('points',points.join(' '));line.setAttribute('fill','none');line.setAttribute('stroke',color);line.setAttribute('stroke-width',(a.width||2)*S.view.scale);line.setAttribute('stroke-linecap','round');line.setAttribute('stroke-linejoin','round');svg.append(line);}el.append(svg);el.style.opacity=a.opacity??1;}
-    else if(a.type==='highlight'){el.style.background=color;el.style.opacity=a.opacity??.35;}
-    else if(['underline','squiggly','strikeout'].includes(a.type)){el.style.borderBottom=`${(a.width||1.5)*S.view.scale}px ${a.type==='squiggly'?'dotted':a.dash||'solid'} ${color}`;if(a.type==='strikeout')el.style.height=(Math.abs(rect[3]-rect[1])/2)+'px';el.style.opacity=a.opacity??1;}
-    else if(a.type==='rectangle'){el.style.border=`${(a.width||1.5)*S.view.scale}px ${a.dash||'solid'} ${color}`;el.style.opacity=a.opacity??1;}
-    else el.style.background=color;
-    el.title = a.text || "双击删除此批注";
+    el.style.background = "transparent";
+    el.style.border = "none";
+    const color = a.color || "#f2c94c";
+    if (a.paths) {
+      const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      svg.setAttribute("width", "100%");
+      svg.setAttribute("height", "100%");
+      svg.style.overflow = "visible";
+      for (const p of a.paths) {
+        const line = document.createElementNS(svg.namespaceURI, "polyline");
+        const points = [];
+        for (let i = 0; i < p.length; i += 2) {
+          const v = view.convertToViewportPoint(p[i], p[i + 1]);
+          points.push([v[0] - Math.min(rect[0], rect[2]), v[1] - Math.min(rect[1], rect[3])].join(","));
+        }
+        line.setAttribute("points", points.join(" "));
+        line.setAttribute("fill", "none");
+        line.setAttribute("stroke", color);
+        line.setAttribute("stroke-width", (a.width || 2) * view.scale);
+        line.setAttribute("stroke-linecap", "round");
+        line.setAttribute("stroke-linejoin", "round");
+        svg.append(line);
+      }
+      el.append(svg);
+      el.style.opacity = a.opacity ?? 1;
+    } else if (a.type === "highlight") {
+      el.style.background = color;
+      el.style.opacity = a.opacity ?? 0.35;
+    } else if (["underline", "squiggly", "strikeout"].includes(a.type)) {
+      el.style.borderBottom = `${(a.width || 1.5) * view.scale}px ${a.type === "squiggly" ? "dotted" : a.dash || "solid"} ${color}`;
+      if (a.type === "strikeout") el.style.height = Math.abs(rect[3] - rect[1]) / 2 + "px";
+      el.style.opacity = a.opacity ?? 1;
+    } else if (a.type === "rectangle") {
+      el.style.border = `${(a.width || 1.5) * view.scale}px ${a.dash || "solid"} ${color}`;
+      el.style.opacity = a.opacity ?? 1;
+    } else el.style.background = color;
+    el.title = a.text ? `${a.text}（双击删除）` : "双击删除此批注";
     el.ondblclick = () => {
       commit(S.nodes, {
         annotations: S.annotations.filter((x) => x.id !== a.id),
@@ -2283,26 +2322,25 @@ function renderMarks() {
     };
     layer.append(el);
   }
-  const query = $("#find-text").value.toLocaleLowerCase();
-  if (query && S.hits.some((h) => h.page === S.page))
+  const query = $("#find-text").value.trim();
+  const activeHit = S.hitIndex >= 0 ? S.hits[S.hitIndex] : null;
+  if (query && S.hits.some((h) => h.page === page)) {
+    const activeItems = new Set(activeHit?.page === page ? activeHit.items || [] : []);
     for (const item of [
       ...new Map(
         S.hits
-          .filter((h) => h.page === S.page)
+          .filter((h) => h.page === page)
           .flatMap((h) => h.items || [])
           .map((i) => [JSON.stringify(i.transform) + i.str, i]),
       ).values(),
     ]) {
-      const a = S.view.convertToViewportPoint(
-          item.transform[4],
-          item.transform[5],
-        ),
-        b = S.view.convertToViewportPoint(
+      const a = view.convertToViewportPoint(item.transform[4], item.transform[5]),
+        b = view.convertToViewportPoint(
           item.transform[4] + item.width,
           item.transform[5] + item.height,
         ),
         el = document.createElement("div");
-      el.className = "search-mark";
+      el.className = "search-mark" + (activeItems.has(item) ? " current" : "");
       Object.assign(el.style, {
         left: Math.min(a[0], b[0]) + "px",
         top: Math.min(a[1], b[1]) + "px",
@@ -2311,6 +2349,17 @@ function renderMarks() {
       });
       layer.append(el);
     }
+  }
+}
+function renderMarks() {
+  if (surface?.entries?.size) {
+    for (const [page, entry] of surface.entries) {
+      if (entry.marks && entry.viewport && !entry.cancelled)
+        renderMarksOnPage(page, entry.marks, entry.viewport);
+    }
+    return;
+  }
+  renderMarksOnPage(S.page, $("#mark-layer"), S.view);
 }
 function annotateDialog() {
   modal(
@@ -2407,57 +2456,154 @@ function stopDraw() {
   layer.onpointerdown = layer.onpointermove = layer.onpointerup = null;
   status("就绪");
 }
+const searchTextCache = new WeakMap();
+function getDocSearchCache() {
+  if (!S.pdf) return null;
+  let map = searchTextCache.get(S.pdf);
+  if (!map) {
+    map = new Map();
+    searchTextCache.set(S.pdf, map);
+  }
+  return map;
+}
+function renderFindResults() {
+  const list = $("#find-results"), toggle = $("#find-list-toggle");
+  if (!list || !toggle) return;
+  toggle.hidden = !S.hits.length;
+  if (!S.hits.length) {
+    list.hidden = true;
+    toggle.setAttribute("aria-expanded", "false");
+    list.replaceChildren();
+    return;
+  }
+  const frag = document.createDocumentFragment();
+  S.hits.slice(0, 200).forEach((h, idx) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "find-result-item";
+    btn.setAttribute("role", "option");
+    btn.setAttribute("aria-selected", String(idx === S.hitIndex));
+    btn.dataset.hitIndex = idx;
+    const pageSpan = document.createElement("span");
+    pageSpan.className = "fr-page";
+    pageSpan.textContent = `p.${h.page}`;
+    const snippet = document.createElement("span");
+    snippet.className = "fr-snippet";
+    snippet.setAttribute("translate", "no");
+    snippet.textContent = h.snippet || "";
+    btn.append(pageSpan, snippet);
+    frag.append(btn);
+  });
+  list.replaceChildren(frag);
+}
 async function searchText() {
-  const query = $("#find-text").value.trim().toLocaleLowerCase();
-  if (!query || !S.pdf) return;
+  const rawQuery = $("#find-text").value.trim();
+  if (!rawQuery || !S.pdf) return;
+  const caseSensitive = $("#find-case")?.getAttribute("aria-pressed") === "true";
+  const useRegex = $("#find-regex")?.getAttribute("aria-pressed") === "true";
+  let regex = null;
+  if (useRegex) {
+    try {
+      regex = new RegExp(rawQuery, caseSensitive ? "gu" : "gui");
+    } catch (e) {
+      $("#find-count").textContent = "正则语法错误";
+      return;
+    }
+  }
+  const query = caseSensitive ? rawQuery : rawQuery.toLocaleLowerCase();
   const token = ++findToken;
   S.hits = [];
   S.hitIndex = -1;
+  const cache = getDocSearchCache();
+  let yielded = performance.now();
   for (let page = 1; page <= S.info.pageCount; page++) {
     if (token !== findToken) return;
-    $("#find-count").textContent = `扫描 ${page}/${S.info.pageCount}`;
-    const p = await S.pdf.getPage(page),
-      t = await p.getTextContent();
-    if (token !== findToken) return;
-    let text = "",
-      items = [];
-    for (const item of t.items) {
-      items.push({ start: text.length, item });
-      text += item.str || "";
+    let entry = cache?.get(page);
+    if (!entry) {
+      $("#find-count").textContent = `扫描 ${page}/${S.info.pageCount}`;
+      const p = await S.pdf.getPage(page),
+        t = await p.getTextContent();
+      if (token !== findToken) return;
+      let text = "",
+        items = [],
+        prev = null;
+      for (const item of t.items) {
+        const str = item.str || "";
+        if (prev && str && !/\s$/.test(text) && !/^\s/.test(str)) {
+          const sameLine = Math.abs((item.transform?.[5] ?? 0) - (prev.transform?.[5] ?? 0)) < Math.max(4, (item.height || 10) * 0.5);
+          const gap = (item.transform?.[4] ?? 0) - ((prev.transform?.[4] ?? 0) + (prev.width || 0));
+          if (!sameLine || gap > Math.max(1.5, (item.height || 10) * 0.25)) text += " ";
+        }
+        items.push({ start: text.length, end: text.length + str.length, item });
+        text += str;
+        if (str) prev = item;
+      }
+      entry = { text, lower: text.toLocaleLowerCase(), items };
+      cache?.set(page, entry);
     }
-    const lower = text.toLocaleLowerCase();
-    let at = -1;
-    while ((at = lower.indexOf(query, at + 1)) >= 0) {
-      const range = items.filter(
-        (x) =>
-          x.start + (x.item.str?.length || 0) > at &&
-          x.start < at + query.length,
-      );
-      if (!range.length) continue;
+    const haystack = caseSensitive ? entry.text : entry.lower;
+    const pushHit = (at, len) => {
+      const range = entry.items.filter((x) => x.end > at && x.start < at + len);
+      if (!range.length) return;
       const item = range[0].item;
+      const sStart = Math.max(0, at - 24), sEnd = Math.min(entry.text.length, at + len + 44);
+      const snippet = (sStart > 0 ? "…" : "") + entry.text.slice(sStart, sEnd).trim() + (sEnd < entry.text.length ? "…" : "");
       S.hits.push({
         page,
         x: item.transform[4],
         y: item.transform[5] + (item.height || 10) + 12,
         items: range.map((x) => x.item),
+        snippet,
       });
-      if (S.hits.length >= 20000) break;
+    };
+    if (regex) {
+      regex.lastIndex = 0;
+      let m;
+      while ((m = regex.exec(entry.text)) !== null) {
+        if (!m[0].length) { regex.lastIndex++; continue; }
+        pushHit(m.index, m[0].length);
+        if (S.hits.length >= 20000) break;
+      }
+    } else {
+      let at = -1;
+      while ((at = haystack.indexOf(query, at + 1)) >= 0) {
+        pushHit(at, query.length);
+        if (S.hits.length >= 20000) break;
+      }
     }
     if (S.hits.length >= 20000) break;
-    if (page % 8 === 0) await new Promise((r) => setTimeout(r, 0));
+    if (performance.now() - yielded > 24) {
+      await new Promise((r) => setTimeout(r, 0));
+      yielded = performance.now();
+    }
   }
   $("#find-count").textContent = `${S.hits.length} 处匹配`;
+  renderFindResults();
   if (S.hits.length) {
     S.hitIndex = -1;
     await nextHit(1);
   } else renderMarks();
 }
-async function nextHit(dir) {
+async function jumpToHit(index) {
   if (!S.hits.length) return;
-  S.hitIndex = (S.hitIndex + dir + S.hits.length) % S.hits.length;
+  S.hitIndex = ((index % S.hits.length) + S.hits.length) % S.hits.length;
   const h = S.hits[S.hitIndex];
   await surface.go(h.page, { mode: "XYZ", args: [h.x, h.y, null] });
   $("#find-count").textContent = `${S.hitIndex + 1}/${S.hits.length} 处匹配`;
+  renderMarks();
+  const list = $("#find-results");
+  if (list && !list.hidden) {
+    list.querySelector('[aria-selected="true"]')?.setAttribute("aria-selected", "false");
+    const active = list.querySelector(`[data-hit-index="${S.hitIndex}"]`);
+    if (active) {
+      active.setAttribute("aria-selected", "true");
+      active.scrollIntoView({ block: "nearest" });
+    }
+  }
+}
+async function nextHit(dir) {
+  if (!S.hits.length) return;
+  await jumpToHit(S.hitIndex + dir);
 }
 async function cacheDialog() {
   if (!window.desktop?.ocrJob) throw Error("任务缓存管理需要桌面运行包");
@@ -2495,10 +2641,12 @@ async function settingsDialog() {
     window.desktop?.storageBudget?.(), window.desktop?.graphics?.(), window.desktop?.updateInfo?.(),
   ]);
   const network = updateInfo?.settings;
-  let applying = false;
+  let applying = false, committedSettings = false;
+  let initialLangPref = "system";
+  try { initialLangPref = localStorage.getItem("folio-language") || "system"; } catch {}
   modal(
     "偏好设置",
-    `<div class="prefs"><nav class="prefs-nav" aria-label="偏好设置分类"><button type="button" data-pref-nav="general" aria-current="true">${icon("settings")}<span>通用</span></button><button type="button" data-pref-nav="reading" aria-current="false">${icon("book")}<span>阅读与滚动</span></button><button type="button" data-pref-nav="bookmarks" aria-current="false">${icon("bookmark")}<span>书签</span></button><button type="button" data-pref-nav="saving" aria-current="false">${icon("save")}<span>保存与文件</span></button><button type="button" data-pref-nav="performance" aria-current="false">${icon("sliders")}<span>性能与缓存</span></button>${ai ? `<button type="button" data-pref-nav="ai" aria-current="false">${icon("spark")}<span>AI 文档辅助</span></button>` : ""}<button type="button" data-pref-nav="advanced" aria-current="false">${icon("globe")}<span>网络与快捷键</span></button></nav><div class="prefs-scroll"><section class="pref-section" data-pref-section="general"><h3>通用</h3><div class="pref-row"><div class="pref-label"><b>界面语言</b><small>立即生效，并记住选择。不会改变文档文字或 OCR 语言。</small></div><div class="pref-control">${languagePicker("settings-language")}</div></div><div class="pref-row"><div class="pref-label"><b>外观主题</b></div><div class="pref-control"><select id="set-theme"><option value="system">跟随系统</option><option value="light">浅色</option><option value="dark">深色</option></select></div></div>${paletteControls()}<div class="pref-color-row"><div><b>文字选取颜色</b><small>划选 PDF 文字时的高亮色</small></div><div class="selection-presets">${["#5370f5","#0a84ff","#30b0a0","#34c759","#ffb020","#ff6b57","#bf5af2"].map(c=>`<button type="button" class="cp-swatch" data-sel="${c}" style="--c:${c}" aria-label="${c}"></button>`).join("")}<input id="set-selection-color" type="color" aria-label="自定义文字选取颜色" value="${settings.selectionColor}"></div></div><div class="pref-row"><div class="pref-label"><b>默认留白单位</b></div><div class="pref-control"><select id="set-whitespace-unit"><option value="mm">毫米 mm</option><option value="pt">点 pt</option></select></div></div></section><section class="pref-section" data-pref-section="reading"><h3>阅读与滚动</h3><label class="check"><input id="set-selection-border" type="checkbox" ${settings.selectionBorder?"checked":""}>显示文本选区边框</label><p class="hint">在选区底色外显示深色轮廓，不影响复制内容。</p><div class="pref-row"><div class="pref-label"><b>滚轮滚动量</b></div><div class="pref-control"><select id="set-wheel-preset"><option value="1">精细 · 1 行</option><option value="3">标准 · 3 行（推荐）</option><option value="6">快速 · 6 行</option><option value="custom">自定义</option></select></div></div><div class="pref-row"><div class="pref-label"><b>每次滚动行数</b></div><div class="pref-control"><input id="set-wheel-lines" type="number" min="1" max="30" value="${settings.wheelLines||3}"></div></div><div class="pref-row"><div class="pref-label"><b>渲染像素倍率上限</b></div><div class="pref-control"><select id="set-quality"><option value="1">1× · 节省内存</option><option value="2">2× · 推荐</option><option value="3">3× · 高清</option></select></div></div><label class="check"><input id="set-restore" type="checkbox" ${settings.restoreView?"checked":""} >记住每本文档的阅读位置、缩放和布局（关闭后尊重文档初始视图）</label></section><section class="pref-section" data-pref-section="bookmarks"><h3>书签</h3><div class="pref-row"><div class="pref-label"><b>书签侧栏宽度（px）</b></div><div class="pref-control"><input id="set-sidebar" type="number" min="220" max="520" value="${settings.sidebar}"></div></div><div class="pref-row"><div class="pref-label"><b>书签行高</b></div><div class="pref-control"><select id="set-row"><option value="28">紧凑 · 28 px</option><option value="34">标准 · 34 px</option><option value="40">宽松 · 40 px</option></select></div></div><label class="check"><input id="set-wrap" type="checkbox" ${settings.wrap?"checked":""} >长书签标题显示两行</label><label class="check"><input id="set-ignore-zoom" type="checkbox" ${settings.ignoreZoom?"checked":""} >忽略书签的缩放要求（不修改 PDF 目标）</label><label class="check"><input id="set-outline" type="checkbox" ${settings.showBookmarks?"checked":""} >保存后建议阅读器显示书签面板</label><label class="check"><input id="set-target-thumb" type="checkbox" ${settings.targetThumb!==false?"checked":""} >在属性栏显示跳转目标页缩略图（实时预览落点）</label><label class="check"><input id="set-target-marker" type="checkbox" ${settings.showTargetMarker!==false?"checked":""} >跳转后在页面上显示定位线</label><div class="pref-row"><div class="pref-label"><b>定位线颜色</b></div><div class="pref-control"><input id="set-target-color" type="color" value="${/^#[0-9a-f]{6}$/i.test(settings.targetMarkerColor||"")?settings.targetMarkerColor:"#db8c36"}"></div></div></section><section class="pref-section" data-pref-section="saving"><h3>保存与文件</h3><div class="pref-row"><div class="pref-label"><b>保存方式</b></div><div class="pref-control"><select id="set-save-mode"><option value="auto">快速增量保存</option><option value="compact">完整重写（兼容模式）</option></select></div></div><label class="check"><input id="set-protect" type="checkbox" ${settings.protect?"checked":""} >原文件保护：首次保存为副本，之后更新副本</label><label class="check"><input id="set-summary" type="checkbox" ${settings.saveSummary?"checked":""} >保存前显示修改摘要</label></section><section class="pref-section" data-pref-section="performance"><h3>性能与缓存</h3><div class="pref-row"><div class="pref-label"><b>磁盘缓存上限（MB，默认2048）</b></div><div class="pref-control"><input id="set-disk-budget" type="number" min="64" max="262144" value="${diskBudget?.limitMB||2048}"></div></div><div class="pref-row"><div class="pref-label"><b>撤销步数上限</b></div><div class="pref-control"><input id="set-undo" type="number" min="5" max="100" value="${settings.undo}"></div></div><label class="check"><input id="set-gpu" type="checkbox" ${software?"checked":""} ${window.desktop?.graphics ? "" : "disabled"}>显卡兼容：关闭硬件加速（重新启动后生效）</label><button id="ocr-cache-open">OCR 任务记录与缓存…</button><p class="hint">撤销快照受 32 MB 预算限制；画布按可见范围加载，高清画布与分块按约 128 MB 预算回收，当前可见区域优先，缩放期间保留已完成画面。恢复快照在编辑停止 0.7 秒后保存在本机。缓存超限按最近使用时间轮替；大文件处理中临时扩容，当前文档、原子保存及未保存草稿受保护。</p></section>${ai ? `<section class="pref-section" data-pref-section="ai"><h3>AI 文档辅助</h3><div class="pref-block"><p class="hint">API、服务商和模型在 Chatbox 原生设置中配置；以下选项管理 Folio 文档操作。</p><div class="form-grid"><label>操作审批<select id="set-ai-approval"><option value="manual">手动审批</option><option value="auto">自动审批</option></select></label><label>Chatbox 显示方式<select id="set-ai-display"><option value="sidebar">侧栏</option><option value="window">独立窗口</option></select></label><label>OCR 低置信度复核阈值（%）<input id="set-ai-threshold" type="number" min="0" max="100" step="1" value="${ai.threshold}"></label></div><p class="hint">优先本地 Paddle；低于阈值的结果可按需交给所选模型复核。默认 95%。自动审批仅在本次会话生效，启用需二次确认，自动审批盾牌图标标红。</p></div></section>` : ""}<section class="pref-section" data-pref-section="advanced"><h3>网络与快捷键</h3><div class="pref-row"><div class="pref-label"><b>HTTP 代理（更新共用）</b></div><div class="pref-control"><input id="set-http-proxy" placeholder="留空使用系统代理"></div></div><button data-action="shortcuts">自定义快捷键…</button></section></div></div>`,
+    `<div class="prefs"><nav class="prefs-nav" aria-label="偏好设置分类"><input type="search" id="prefs-search" class="prefs-search" placeholder="搜索设置…" aria-label="搜索偏好设置" autocomplete="off"><button type="button" data-pref-nav="general" aria-current="true">${icon("settings")}<span>通用</span></button><button type="button" data-pref-nav="reading" aria-current="false">${icon("book")}<span>阅读与滚动</span></button><button type="button" data-pref-nav="bookmarks" aria-current="false">${icon("bookmark")}<span>书签</span></button><button type="button" data-pref-nav="saving" aria-current="false">${icon("save")}<span>保存与文件</span></button><button type="button" data-pref-nav="performance" aria-current="false">${icon("sliders")}<span>性能与缓存</span></button>${ai ? `<button type="button" data-pref-nav="ai" aria-current="false">${icon("spark")}<span>AI 文档辅助</span></button>` : ""}<button type="button" data-pref-nav="advanced" aria-current="false">${icon("globe")}<span>网络与快捷键</span></button></nav><div class="prefs-scroll"><section class="pref-section" data-pref-section="general"><h3>通用</h3><div class="pref-row"><div class="pref-label"><b>界面语言</b><small>实时预览，点击「应用设置」保存；取消将恢复原语言。</small></div><div class="pref-control">${languagePicker("settings-language")}</div></div><div class="pref-row"><div class="pref-label"><b>外观主题</b></div><div class="pref-control"><select id="set-theme"><option value="system">跟随系统</option><option value="light">浅色</option><option value="dark">深色</option></select></div></div>${paletteControls()}<div class="pref-color-row"><div><b>文字选取颜色</b><small>划选 PDF 文字时的高亮色</small></div><div class="selection-presets">${["#5370f5","#0a84ff","#30b0a0","#34c759","#ffb020","#ff6b57","#bf5af2"].map(c=>`<button type="button" class="cp-swatch" data-sel="${c}" style="--c:${c}" aria-label="${c}"></button>`).join("")}<input id="set-selection-color" type="color" aria-label="自定义文字选取颜色" value="${settings.selectionColor}"></div></div><div class="pref-row"><div class="pref-label"><b>默认留白单位</b></div><div class="pref-control"><select id="set-whitespace-unit"><option value="mm">毫米 mm</option><option value="pt">点 pt</option></select></div></div></section><section class="pref-section" data-pref-section="reading"><h3>阅读与滚动</h3><label class="check"><input id="set-selection-border" type="checkbox" ${settings.selectionBorder?"checked":""}>显示文本选区边框</label><p class="hint">在选区底色外显示深色轮廓，不影响复制内容。</p><div class="pref-row"><div class="pref-label"><b>滚轮滚动量</b></div><div class="pref-control"><select id="set-wheel-preset"><option value="1">精细 · 1 行</option><option value="3">标准 · 3 行（推荐）</option><option value="6">快速 · 6 行</option><option value="custom">自定义</option></select></div></div><div class="pref-row"><div class="pref-label"><b>每次滚动行数</b></div><div class="pref-control"><input id="set-wheel-lines" type="number" min="1" max="30" value="${settings.wheelLines||3}"></div></div><div class="pref-row"><div class="pref-label"><b>渲染像素倍率上限</b></div><div class="pref-control"><select id="set-quality"><option value="1">1× · 节省内存</option><option value="2">2× · 推荐</option><option value="3">3× · 高清</option></select></div></div><label class="check"><input id="set-restore" type="checkbox" ${settings.restoreView?"checked":""} >记住每本文档的阅读位置、缩放和布局（关闭后尊重文档初始视图）</label></section><section class="pref-section" data-pref-section="bookmarks"><h3>书签</h3><div class="pref-row"><div class="pref-label"><b>书签侧栏宽度（px）</b></div><div class="pref-control"><input id="set-sidebar" type="number" min="220" max="520" value="${settings.sidebar}"></div></div><div class="pref-row"><div class="pref-label"><b>书签行高</b></div><div class="pref-control"><select id="set-row"><option value="28">紧凑 · 28 px</option><option value="34">标准 · 34 px</option><option value="40">宽松 · 40 px</option></select></div></div><label class="check"><input id="set-wrap" type="checkbox" ${settings.wrap?"checked":""} >长书签标题显示两行</label><label class="check"><input id="set-ignore-zoom" type="checkbox" ${settings.ignoreZoom?"checked":""} >忽略书签的缩放要求（不修改 PDF 目标）</label><label class="check"><input id="set-outline" type="checkbox" ${settings.showBookmarks?"checked":""} >保存后建议阅读器显示书签面板</label><label class="check"><input id="set-target-thumb" type="checkbox" ${settings.targetThumb!==false?"checked":""} >在属性栏显示跳转目标页缩略图（实时预览落点）</label><label class="check"><input id="set-target-marker" type="checkbox" ${settings.showTargetMarker!==false?"checked":""} >跳转后在页面上显示定位线</label><div class="pref-row"><div class="pref-label"><b>定位线颜色</b></div><div class="pref-control"><input id="set-target-color" type="color" value="${/^#[0-9a-f]{6}$/i.test(settings.targetMarkerColor||"")?settings.targetMarkerColor:"#db8c36"}"></div></div></section><section class="pref-section" data-pref-section="saving"><h3>保存与文件</h3><div class="pref-row"><div class="pref-label"><b>保存方式</b></div><div class="pref-control"><select id="set-save-mode"><option value="auto">快速增量保存</option><option value="compact">完整重写（兼容模式）</option></select></div></div><label class="check"><input id="set-protect" type="checkbox" ${settings.protect?"checked":""} >原文件保护：首次保存为副本，之后更新副本</label><label class="check"><input id="set-summary" type="checkbox" ${settings.saveSummary?"checked":""} >保存前显示修改摘要</label></section><section class="pref-section" data-pref-section="performance"><h3>性能与缓存</h3><div class="pref-row"><div class="pref-label"><b>磁盘缓存上限（MB，默认2048）</b></div><div class="pref-control"><input id="set-disk-budget" type="number" min="64" max="262144" value="${diskBudget?.limitMB||2048}"></div></div><div class="pref-row"><div class="pref-label"><b>撤销步数上限</b></div><div class="pref-control"><input id="set-undo" type="number" min="5" max="100" value="${settings.undo}"></div></div><label class="check"><input id="set-gpu" type="checkbox" ${software?"checked":""} ${window.desktop?.graphics ? "" : "disabled"}>显卡兼容：关闭硬件加速（重新启动后生效）</label><button id="ocr-cache-open">OCR 任务记录与缓存…</button><p class="hint">撤销快照受 32 MB 预算限制；画布按可见范围加载，高清画布与分块按约 128 MB 预算回收，当前可见区域优先，缩放期间保留已完成画面。恢复快照在编辑停止 0.7 秒后保存在本机。缓存超限按最近使用时间轮替；大文件处理中临时扩容，当前文档、原子保存及未保存草稿受保护。</p></section>${ai ? `<section class="pref-section" data-pref-section="ai"><h3>AI 文档辅助</h3><div class="pref-block"><p class="hint">API、服务商和模型在 Chatbox 原生设置中配置；以下选项管理 Folio 文档操作。</p><div class="form-grid"><label>操作审批<select id="set-ai-approval"><option value="manual">手动审批</option><option value="auto">自动审批</option></select></label><label>Chatbox 显示方式<select id="set-ai-display"><option value="sidebar">侧栏</option><option value="window">独立窗口</option></select></label><label>OCR 低置信度复核阈值（%）<input id="set-ai-threshold" type="number" min="0" max="100" step="1" value="${ai.threshold}"></label></div><p class="hint">优先本地 Paddle；低于阈值的结果可按需交给所选模型复核。默认 95%。自动审批仅在本次会话生效，启用需二次确认，顶部 AI 按钮将显示醒目标识。</p></div></section>` : ""}<section class="pref-section" data-pref-section="advanced"><h3>网络与快捷键</h3><div class="pref-row"><div class="pref-label"><b>HTTP 代理（更新共用）</b></div><div class="pref-control"><input id="set-http-proxy" placeholder="留空使用系统代理"></div></div><button data-action="shortcuts">自定义快捷键…</button></section></div></div>`,
     [
       { text: "取消", run: closeModal },
       {
@@ -2556,6 +2704,7 @@ async function settingsDialog() {
             undo,
             showBookmarks: $("#set-outline").checked,
           });
+          committedSettings = true;
           applySettings(redraw, rebuildTree);
           if (refreshProperties) fillProperties();
           if (refreshMarker) showTargetMarker();
@@ -2638,7 +2787,18 @@ async function settingsDialog() {
   $("#set-wheel-preset").value=[1,3,6].includes(settings.wheelLines||3)?String(settings.wheelLines||3):"custom";
   $("#set-wheel-preset").onchange=e=>{if(e.target.value!=="custom")$("#set-wheel-lines").value=e.target.value;};
   $("#set-wheel-lines").oninput=()=>$("#set-wheel-preset").value="custom";
-  modalCleanup = () => {cancelAnimationFrame(spyFrame);clearTimeout(jumpTimer);prefsDialog.removeEventListener("cancel",blockApplyingCancel,true);prefsDialog.classList.remove("prefs-dialog");applyAppearance(settings);document.documentElement.style.setProperty("--text-selection",settings.selectionColor);document.documentElement.dataset.selectionBorder=String(settings.selectionBorder);};
+  $("#prefs-search").oninput = (e) => {
+    const q = e.target.value.trim().toLowerCase();
+    for (const s of sections) {
+      const hit = !q || s.textContent.toLowerCase().includes(q);
+      s.hidden = !hit;
+    }
+    for (const b of prefsNav) {
+      const target = sections.find((s) => s.dataset.prefSection === b.dataset.prefNav);
+      b.hidden = !!target?.hidden;
+    }
+  };
+  modalCleanup = () => {cancelAnimationFrame(spyFrame);clearTimeout(jumpTimer);prefsDialog.removeEventListener("cancel",blockApplyingCancel,true);prefsDialog.classList.remove("prefs-dialog");if(!committedSettings){setLanguage(initialLangPref);}applyAppearance(settings);document.documentElement.style.setProperty("--text-selection",settings.selectionColor);document.documentElement.dataset.selectionBorder=String(settings.selectionBorder);};
   $("#set-row").value = settings.row;
   $("#set-quality").value = settings.quality;
 }
@@ -3235,9 +3395,10 @@ function multiGenerateDialog() {
 <section class="rules-results" aria-label="匹配预览">
 <div class="rg-pane-head"><h3>预览</h3><div class="rg-segment" role="group" aria-label="预览范围"></div></div>
 <div id="multi-summary" role="status">正在准备预览…</div>
-<canvas id="multi-target-preview" hidden></canvas>
+<div id="multi-target-wrap" class="rg-target-wrap" hidden><div class="rg-target-head"><span id="multi-target-label"></span><button type="button" id="multi-target-close" aria-label="关闭落点预览"><i data-icon="close"></i></button></div><canvas id="multi-target-preview" hidden></canvas></div>
+<div id="multi-results-nav" class="rg-results-nav" hidden><input id="multi-search-results" type="search" placeholder="筛选生成的标题…" aria-label="筛选生成的标题"><button type="button" id="multi-prev-results" aria-label="上一组">${icon("chevron-left")}</button><span id="multi-results-page"></span><button type="button" id="multi-next-results" aria-label="下一组">${icon("disclose")}</button></div>
 <div id="multi-preview" class="preview-list" role="list"></div>
-<details class="rg-diagnostics"><summary>未生成的行与原因</summary><div id="multi-diagnostics" class="preview-list"></div></details>
+<details class="rg-diagnostics"><summary>未生成的行与原因 <span id="multi-diag-count" class="rg-diag-count"></span></summary><div id="multi-diagnostics" class="preview-list"></div></details>
 </section>
 </div>`,
     [
@@ -3311,7 +3472,29 @@ function multiGenerateDialog() {
   footerOptions.innerHTML = `<label>插入到<select id="multi-merge"><option value="append">现有书签之后</option><option value="replace">替换所有书签</option><option value="before">所选书签之前</option><option value="after">所选书签之后</option><option value="child">所选书签内（首个子项）</option></select></label><label class="check" title="同一父级下、标题和页码都相同的匹配只保留一个（含现有书签）"><input id="multi-dedupe" type="checkbox" checked>跳过重复</label>`;
   $("#modal-footer").prepend(footerOptions);
   $("#multi-cancel-task").hidden = true;
+  $("#multi-target-close").onclick = () => {
+    $("#multi-target-wrap").hidden = true;
+    $("#multi-target-preview").hidden = true;
+    $("#multi-origin-detail")?.remove();
+    $("#multi-preview .preview-item.active")?.classList.remove("active");
+  };
+  const syncRuleHistoryButtons = () => {
+    $("#rule-undo").disabled = !ruleHistory.length;
+    $("#rule-redo").disabled = !ruleFuture.length;
+  };
   const nav = $("#rule-levels");
+  const updateLiveSample = () => {
+    const card = $("#rule-list").querySelector(`[data-rule="${activeRule}"]`);
+    const box = card?.querySelector(".rg-live-sample");
+    if (!box) return;
+    const r = rules[activeRule];
+    if (!r?.enabled) { box.hidden = true; return; }
+    const hit = generated?.find((n) => n.origin?.rule === r.name);
+    if (!hit) { box.hidden = true; return; }
+    box.hidden = false;
+    const groups = (hit.origin?.groups || []).slice(1, 5);
+    box.innerHTML = `<span class="rg-sample-badge">命中示例 · p.${hit.target.page}</span><span class="rg-sample-title" translate="no">${esc(hit.title)}</span>${groups.length ? `<span class="rg-sample-groups" translate="no">${groups.map((g, idx) => `<code>$${idx + 1}=${esc(String(g ?? "").slice(0, 24))}</code>`).join("")}</span>` : ""}`;
+  };
   const drawNav = () => {
     nav.replaceChildren();
     rules.forEach((r, i) => {
@@ -3333,6 +3516,8 @@ function multiGenerateDialog() {
     $("#rule-list")
       .querySelectorAll("[data-rule]")
       .forEach((c) => (c.hidden = +c.dataset.rule !== activeRule));
+    syncRuleHistoryButtons();
+    updateLiveSample();
   };
   nav.onclick = (e) => {
     const b = e.target.closest("[data-rule-index]");
@@ -3378,9 +3563,9 @@ function multiGenerateDialog() {
     $("#rule-list").innerHTML = rules
       .map(
         (r, i) =>
-          `<div class="rule-card" data-rule="${i}" data-level="${Math.min(i + 1, 6)}"><div class="rule-toolbar"><input class="rg-level" data-field="level" type="number" min="1" value="${r.level}" readonly aria-label="层级" tabindex="-1"><input data-field="name" value="${esc(r.name)}" aria-label="层级名称"><label class="check rg-switch"><input data-field="enabled" type="checkbox" ${r.enabled ? "checked" : ""}>启用</label><span class="rule-actions"><button type="button" data-move="-1" title="上移一级" aria-label="上移">${icon("up")}</button><button type="button" data-move="1" title="下移一级" aria-label="下移">${icon("down")}</button><button type="button" data-delete class="danger" title="删除此层级" aria-label="删除此层级">${icon("trash")}</button></span></div>
-<section class="rg-section"><h4>匹配哪些行</h4><input data-field="pattern" value="${esc(r.pattern)}" spellcheck="false" autocomplete="off" aria-label="正则表达式" placeholder="正则表达式，例如 ^第.+章"><small class="rule-pattern-error" role="status"></small><div class="pattern-chips" role="group" aria-label="常用模式">${PATTERN_CHIPS.map(([label, pattern]) => `<button type="button" translate="no" data-pattern="${esc(pattern)}" title="${esc(pattern)}">${label}</button>`).join("")}</div></section>
-<section class="rg-section"><h4>书签标题</h4><div class="form-grid"><label>标题取自<select data-field="titleMode"><option value="template" ${!r.titleMode || r.titleMode === "template" ? "selected" : ""}>模板</option><option value="line" ${r.titleMode === "line" ? "selected" : ""}>整行文字</option><option value="match" ${r.titleMode === "match" ? "selected" : ""}>匹配部分</option></select></label><label>模板<input data-field="template" value="${esc(r.template)}" spellcheck="false" title="$0 整个匹配，$1 / $2 捕获组，{page} 页码"></label></div><label class="check"><input data-field="requireGroups" type="checkbox" ${r.requireGroups !== false ? "checked" : ""}>模板用到的捕获组为空时跳过</label></section>
+          `<div class="rule-card" data-rule="${i}" data-level="${Math.min(i + 1, 6)}"><div class="rule-toolbar"><input class="rg-level" data-field="level" type="number" min="1" value="${r.level}" readonly aria-label="层级" tabindex="-1"><input data-field="name" value="${esc(r.name)}" aria-label="层级名称"><label class="check rg-switch"><input data-field="enabled" type="checkbox" ${r.enabled ? "checked" : ""}>启用</label><span class="rule-actions"><button type="button" data-duplicate title="复制此层级" aria-label="复制此层级">${icon("copy")}</button><button type="button" data-move="-1" title="上移一级" aria-label="上移">${icon("up")}</button><button type="button" data-move="1" title="下移一级" aria-label="下移">${icon("down")}</button><button type="button" data-delete class="danger" title="删除此层级" aria-label="删除此层级">${icon("trash")}</button></span></div>
+<section class="rg-section"><h4>匹配哪些行</h4><input data-field="pattern" value="${esc(r.pattern)}" spellcheck="false" autocomplete="off" aria-label="正则表达式" placeholder="正则表达式，例如 ^第.+章"><small class="rule-pattern-error" role="status"></small><div class="pattern-chips" role="group" aria-label="常用模式">${PATTERN_CHIPS.map(([label, pattern]) => `<button type="button" translate="no" data-pattern="${esc(pattern)}" title="${esc(pattern)}">${label}</button>`).join("")}</div><div class="rg-live-sample" hidden></div></section>
+<section class="rg-section"><h4>书签标题</h4><div class="form-grid"><label>标题取自<select data-field="titleMode"><option value="template" ${!r.titleMode || r.titleMode === "template" ? "selected" : ""}>模板</option><option value="line" ${r.titleMode === "line" ? "selected" : ""}>整行文字</option><option value="match" ${r.titleMode === "match" ? "selected" : ""}>匹配部分</option></select></label><label>模板<input data-field="template" value="${esc(r.template)}" spellcheck="false" title="$0 整个匹配，$1 / $2 捕获组，{page} 页码"></label></div><div class="rg-token-chips" role="group" aria-label="插入模板变量">${[["$0", "完整匹配"], ["$1", "第 1 组"], ["$2", "第 2 组"], ["{page}", "页码"]].map(([tok, tip]) => `<button type="button" data-token="${tok}" title="插入 ${tip}">${tok}</button>`).join("")}</div><label class="check"><input data-field="requireGroups" type="checkbox" ${r.requireGroups !== false ? "checked" : ""}>模板用到的捕获组为空时跳过</label></section>
 <section class="rg-section"><h4>跳转位置</h4><div class="form-grid"><label>标题上方留白<span class="rg-input-unit"><input data-field="offset" type="number" step="any" value="${r.offset}"><span class="rg-unit">${unitLabel()}</span></span></label><label>定位到捕获组<input data-field="targetGroup" type="number" min="0" value="${r.targetGroup || 0}" title="0 表示匹配开头"></label></div></section>
 <section class="rg-section"><h4>书签样式</h4><div class="property-row rg-style"><label class="rg-toggle" title="粗体"><input data-field="bold" type="checkbox" ${r.bold ? "checked" : ""}><b>B</b></label><label class="rg-toggle" title="斜体"><input data-field="italic" type="checkbox" ${r.italic ? "checked" : ""}><i>I</i></label><label class="rg-color" title="颜色"><input data-field="color" type="color" value="${r.color}"></label></div></section></div>`,
       )
@@ -3429,12 +3614,29 @@ function multiGenerateDialog() {
     const card = e.target.closest("[data-rule]");
     if (!card) return;
     const i = +card.dataset.rule;
-    const chip = e.target.closest("[data-pattern]"), move = e.target.closest("[data-move]");
+    const chip = e.target.closest("[data-pattern]"),
+      tok = e.target.closest("[data-token]"),
+      move = e.target.closest("[data-move]");
     if (chip) {
       const input = card.querySelector('[data-field="pattern"]');
       input.value = chip.dataset.pattern;
       input.dispatchEvent(new Event("input", { bubbles: true }));
       input.focus();
+    } else if (tok) {
+      const input = card.querySelector('[data-field="template"]');
+      const s = input.selectionStart ?? input.value.length,
+        end = input.selectionEnd ?? s;
+      input.value = input.value.slice(0, s) + tok.dataset.token + input.value.slice(end);
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+      input.focus();
+      input.setSelectionRange(s + tok.dataset.token.length, s + tok.dataset.token.length);
+    } else if (e.target.closest("[data-duplicate]")) {
+      rememberRules();
+      const copy = clone(rules[i]);
+      copy.name = (copy.name || `第 ${i + 1} 层`) + " 副本";
+      rules.splice(i + 1, 0, copy);
+      activeRule = i + 1;
+      render();
     } else if (e.target.closest("[data-delete]")) {
       rememberRules();
       rules.splice(i, 1);
@@ -3444,6 +3646,7 @@ function multiGenerateDialog() {
       if (j >= 0 && j < rules.length) {
         rememberRules();
         [rules[i], rules[j]] = [rules[j], rules[i]];
+        activeRule = j;
         render();
       }
     }
@@ -3606,11 +3809,122 @@ function multiGenerateDialog() {
   $("#modal-body").addEventListener("input", inputListener);
   // This control lives in the footer, outside the editor's input listener.
   $("#multi-dedupe").addEventListener("input", inputListener);
+  let previewNodes = [], previewDepths = new Map(), previewPage = 0;
+  const drawResults = () => {
+    const query = ($("#multi-search-results")?.value || "").toLowerCase();
+    const matches = previewNodes
+      .map((n, i) => ({ n, i }))
+      .filter(({ n }) => n.title.toLowerCase().includes(query));
+    const total = Math.max(1, Math.ceil(matches.length / 100));
+    previewPage = Math.min(previewPage, total - 1);
+    $("#multi-results-page").textContent =
+      total > 1 ? `${previewPage + 1} / ${total}` : `${matches.length} 项`;
+    $("#multi-prev-results").hidden = $("#multi-next-results").hidden = total <= 1;
+    $("#multi-prev-results").disabled = !previewPage;
+    $("#multi-next-results").disabled = previewPage >= total - 1;
+    $("#multi-preview").innerHTML = matches
+      .slice(previewPage * 100, (previewPage + 1) * 100)
+      .map(({ n, i }) => {
+        const depth = previewDepths.get(n.id) || 0;
+        return `<button type="button" role="listitem" title="${esc(n.origin?.text || n.title)}" class="preview-item" data-preview="${i}" data-level="${Math.min(depth + 1, 6)}" style="--depth:${depth}"><span class="rg-dot" aria-hidden="true"></span><strong translate="no">${esc(n.title)}</strong><small>${n.target.page}</small></button>`;
+      })
+      .join("");
+  };
+  $("#multi-search-results").oninput = () => {
+    previewPage = 0;
+    drawResults();
+  };
+  $("#multi-prev-results").onclick = () => {
+    previewPage--;
+    drawResults();
+  };
+  $("#multi-next-results").onclick = () => {
+    previewPage++;
+    drawResults();
+  };
+  $("#multi-preview").onclick = (e) => {
+    const el = e.target.closest("[data-preview]");
+    if (!el) return;
+    $("#multi-preview .preview-item.active")?.classList.remove("active");
+    el.classList.add("active");
+    guarded(async () => {
+      const n = previewNodes[+el.dataset.preview],
+        p = await S.pdf.getPage(n.target.page),
+        vp = p.getViewport({
+          scale: 1.2,
+          rotation: surface.rotation(n.target.page),
+        }),
+        point = vp.convertToViewportPoint(
+          n.target.args[0],
+          n.target.args[1],
+        ),
+        canvas = $("#multi-target-preview");
+      $("#multi-target-wrap").hidden = false;
+      $("#multi-target-label").textContent = `落点预览 · 第 ${n.target.page} 页`;
+      canvas.hidden = false;
+      canvas.width = Math.min(850, vp.width);
+      canvas.height = 170;
+      const x = Math.max(0, point[0] - 30),
+        y = Math.max(0, point[1] - 24);
+      await p.render({
+        canvasContext: canvas.getContext("2d"),
+        viewport: vp,
+        transform: [1, 0, 0, 1, -x, -y],
+      }).promise;
+      const ctx = canvas.getContext("2d");
+      ctx.fillStyle = "rgba(86,100,217,.16)";
+      for (const s of n.origin?.titleSegments || [])
+        ctx.fillRect(
+          s.left * vp.scale - x,
+          s.top * vp.scale - y,
+          (s.right - s.left) * vp.scale,
+          (s.bottom - s.top) * vp.scale,
+        );
+      $("#multi-origin-detail")?.remove();
+      canvas.insertAdjacentHTML(
+        "afterend",
+        `<div id="multi-origin-detail" class="callout"><strong translate="no">${esc(n.title)}</strong><p>输入：${esc(n.origin?.text || "")}</p><small>捕获组：${esc(JSON.stringify(n.origin?.groups || []))}</small></div>`,
+      );
+      ctx.strokeStyle = "#db8c36";
+      ctx.beginPath();
+      ctx.moveTo(0, point[1] - y);
+      ctx.lineTo(canvas.width, point[1] - y);
+      ctx.stroke();
+    });
+  };
+  const runWorker = (payload) =>
+    new Promise((resolve, reject) => {
+      if (!w) w = new Worker(new URL("./generate-worker.mjs", import.meta.url), { type: "module" });
+      const timeout = setTimeout(() => {
+        w?.terminate();
+        w = null;
+        reject(Error("规则运行超过 5 秒，已终止；请简化正则"));
+      }, 5000);
+      cancelWorker = () => {
+        clearTimeout(timeout);
+        w?.terminate();
+        w = null;
+        reject(Error("任务已取消"));
+      };
+      w.onmessage = (e) => {
+        clearTimeout(timeout);
+        e.data.error ? reject(Error(e.data.error)) : resolve(e.data);
+      };
+      w.onerror = (e) => {
+        clearTimeout(timeout);
+        w?.terminate();
+        w = null;
+        reject(Error(e.message));
+      };
+      w.postMessage(payload);
+    });
   const run = async (current) => {
     if (running || composingRule) return;
     clearTimeout(autoTimer);
     pendingPreview = false;
     taskCancelled = false;
+    $("#multi-current").setAttribute("aria-pressed", String(!!current));
+    $("#multi-run").setAttribute("aria-pressed", String(!current));
     const pages = current
       ? [S.page]
       : pageRange(
@@ -3673,44 +3987,20 @@ function multiGenerateDialog() {
         }
       }
       if (cancelled || taskCancelled || rev !== revision) return;
-      result = await new Promise((resolve, reject) => {
-        w = new Worker(new URL("./generate-worker.mjs", import.meta.url), {
-          type: "module",
-        });
-        const timeout = setTimeout(() => {
-          w.terminate();
-          reject(Error("规则运行超过 5 秒，已终止；请简化正则"));
-        }, 5000);
-        cancelWorker = () => {
-          clearTimeout(timeout);
-          w?.terminate();
-          reject(Error("任务已取消"));
-        };
-        w.onmessage = (e) => {
-          clearTimeout(timeout);
-          w.terminate();
-          e.data.error ? reject(Error(e.data.error)) : resolve(e.data);
-        };
-        w.onerror = (e) => {
-          clearTimeout(timeout);
-          w.terminate();
-          reject(Error(e.message));
-        };
-        w.postMessage({
-          mode: "multi",
-          lines,
-          ...c,
-          dedupe,
-          pageCount: S.info.pageCount,
-        });
+      result = await runWorker({
+        mode: "multi",
+        lines,
+        ...c,
+        dedupe,
+        pageCount: S.info.pageCount,
       });
       if (cancelled || rev !== revision) return;
       $("#multi-preview").classList.remove("stale-preview");
       generated = result.nodes;
       generatedScope = pages.join(",");
       drawNav();
-      const previewNodes = generated;
-      const d = depths(previewNodes);
+      previewNodes = generated;
+      previewDepths = depths(previewNodes);
       // Lead with the outcome; problems appear only when there are any.
       const issues = [
         result.conflicts ? `${result.conflicts} 个冲突` : "",
@@ -3721,92 +4011,10 @@ function multiGenerateDialog() {
         `<strong>${generated.length ? `${generated.length} 个书签` : "没有匹配的行"}</strong><span>${esc(current ? `当前页 ${pages[0]}` : `${compactPages(pages)} · ${pages.length} 页`)}</span>` +
         (issues.length ? `<span class="rg-issues">${esc(issues.join(" · "))}</span>` : "") +
         (!generated.length && result.ignored ? `<span>${esc(`${result.ignored} 行未匹配，展开下方“未生成的行与原因”查看`)}</span>` : "");
-      $("#multi-results-nav")?.remove();
-      let previewPage = 0;
-      $("#multi-preview").insertAdjacentHTML(
-        "beforebegin",
-        `<div id="multi-results-nav" class="rg-results-nav"${generated.length ? "" : " hidden"}><input id="multi-search-results" type="search" placeholder="筛选标题" aria-label="筛选生成的标题"><button type="button" id="multi-prev-results" aria-label="上一组">${icon("chevron-left")}</button><span id="multi-results-page"></span><button type="button" id="multi-next-results" aria-label="下一组">${icon("disclose")}</button></div>`,
-      );
-      const drawResults = () => {
-        const query = $("#multi-search-results").value.toLowerCase();
-        const matches = previewNodes
-          .map((n, i) => ({ n, i }))
-          .filter(({ n }) => n.title.toLowerCase().includes(query));
-        const total = Math.max(1, Math.ceil(matches.length / 100));
-        previewPage = Math.min(previewPage, total - 1);
-        $("#multi-results-page").textContent =
-          total > 1 ? `${previewPage + 1} / ${total}` : `${matches.length} 项`;
-        $("#multi-prev-results").hidden = $("#multi-next-results").hidden = total <= 1;
-        $("#multi-prev-results").disabled = !previewPage;
-        $("#multi-next-results").disabled = previewPage >= total - 1;
-        $("#multi-preview").innerHTML = matches
-          .slice(previewPage * 100, (previewPage + 1) * 100)
-          .map(({ n, i }) => {
-            const depth = d.get(n.id) || 0;
-            return `<button type="button" role="listitem" title="${esc(n.origin?.text || n.title)}" class="preview-item" data-preview="${i}" data-level="${Math.min(depth + 1, 6)}" style="--depth:${depth}"><span class="rg-dot" aria-hidden="true"></span><strong translate="no">${esc(n.title)}</strong><small>${n.target.page}</small></button>`;
-          })
-          .join("");
-      };
-      $("#multi-search-results").oninput = () => {
-        previewPage = 0;
-        drawResults();
-      };
-      $("#multi-prev-results").onclick = () => {
-        previewPage--;
-        drawResults();
-      };
-      $("#multi-next-results").onclick = () => {
-        previewPage++;
-        drawResults();
-      };
+      $("#multi-results-nav").hidden = !generated.length;
       drawResults();
-      $("#multi-preview").onclick = (e) => {
-        const el = e.target.closest("[data-preview]");
-        if (el)
-          guarded(async () => {
-            const n = previewNodes[+el.dataset.preview],
-              p = await S.pdf.getPage(n.target.page),
-              vp = p.getViewport({
-                scale: 1.2,
-                rotation: surface.rotation(n.target.page),
-              }),
-              point = vp.convertToViewportPoint(
-                n.target.args[0],
-                n.target.args[1],
-              ),
-              canvas = $("#multi-target-preview");
-            canvas.hidden = false;
-            canvas.width = Math.min(850, vp.width);
-            canvas.height = 180;
-            const x = Math.max(0, point[0] - 30),
-              y = Math.max(0, point[1] - 24);
-            await p.render({
-              canvasContext: canvas.getContext("2d"),
-              viewport: vp,
-              transform: [1, 0, 0, 1, -x, -y],
-            }).promise;
-            const ctx = canvas.getContext("2d");
-            ctx.fillStyle = "rgba(86,100,217,.16)";
-            for (const s of n.origin?.titleSegments || [])
-              ctx.fillRect(
-                s.left * vp.scale - x,
-                s.top * vp.scale - y,
-                (s.right - s.left) * vp.scale,
-                (s.bottom - s.top) * vp.scale,
-              );
-            $("#multi-origin-detail")?.remove();
-            canvas.insertAdjacentHTML(
-              "afterend",
-              `<div id="multi-origin-detail" class="callout"><strong translate="no">${esc(n.title)}</strong><p>输入：${esc(n.origin?.text || "")}</p><small>捕获组：${esc(JSON.stringify(n.origin?.groups || []))}</small></div>`,
-            );
-            ctx.strokeStyle = "#db8c36";
-            ctx.beginPath();
-            ctx.moveTo(0, point[1] - y);
-            ctx.lineTo(canvas.width, point[1] - y);
-            ctx.stroke();
-            canvas.scrollIntoView({ block: "nearest" });
-          });
-      };
+      const diagCount = result.diagnostics?.length || 0;
+      $("#multi-diag-count").textContent = diagCount ? `${diagCount}` : "";
       $("#multi-diagnostics").innerHTML = result.diagnostics
         .slice(0, 3000)
         .map(
@@ -3838,7 +4046,7 @@ function multiGenerateDialog() {
           autoTimer = setTimeout(() => {
             pendingPreview = false;
             if (!cancelled) guarded(autoPreview);
-          }, 350);
+          }, 220);
         }
       }
     }
@@ -3958,11 +4166,20 @@ const actions = {
     $("#findbar").hidden = true;
     $("#find-text").value = "";
     $("#find-count").textContent = "";
+    if ($("#find-results")) {
+      $("#find-results").hidden = true;
+      $("#find-results").replaceChildren();
+    }
+    if ($("#find-list-toggle")) {
+      $("#find-list-toggle").hidden = true;
+      $("#find-list-toggle").setAttribute("aria-expanded", "false");
+    }
     S.hits = [];
     S.hitIndex = -1;
     renderMarks();
     if (restoreFocus) $('[data-action="find"]')?.focus();
   },
+  "page-tone": (tone) => applyPageTone(tone),
   raw: () => {
     const n = selectedNode();
     if (n)
@@ -4973,3 +5190,189 @@ installPrinting({S,pdfjs,session:documentSession,exportPDF:async()=>{await S.flo
 const aiUI=installAI({S,surface,commit,writeFile,replaceDocument:async bytes=>{const ok=await loadPDF(bytes,S.name);if(ok){setDirty(true);toast('页面整理已应用到当前文档；保存时写入文件');}return ok;},saveProject,getViewContext:()=>surface.context(),getLargeDocument:()=>largeWorkspace,session:documentSession,applyContent:async(edits,ocr)=>{await refreshNative(edits,ocr);commit(clone(S.nodes),{nativeEdits:edits,ocr});},exportPDF:async()=>rpc('save',await buildExportSnapshot(S,settings,documentSession)),undo:()=>restoreHistory('undo'),redo:()=>restoreHistory('redo')});
 import {installWindowChrome} from './window-chrome.mjs';
 installWindowChrome().catch(console.error);
+
+// ── Page reading tone (view-only; never modifies PDF bytes) ──
+function applyPageTone(tone) {
+  const valid = ["default", "warm", "soft", "dark"].includes(tone) ? tone : "default";
+  document.documentElement.dataset.pageTone = valid;
+  try { localStorage.setItem("folio-page-tone", valid); } catch {}
+  for (const b of document.querySelectorAll("[data-page-tone]"))
+    b.setAttribute("aria-pressed", String(b.dataset.pageTone === valid));
+}
+{
+  let savedTone = "default";
+  try { savedTone = localStorage.getItem("folio-page-tone") || "default"; } catch {}
+  applyPageTone(savedTone);
+  document.querySelector(".view-tone-seg")?.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-page-tone]");
+    if (b) applyPageTone(b.dataset.pageTone);
+  });
+}
+
+// ── Enhanced findbar toggles & clickable snippet results ──
+for (const id of ["find-case", "find-regex"]) {
+  const btn = $("#" + id);
+  if (btn) btn.onclick = () => {
+    btn.setAttribute("aria-pressed", String(btn.getAttribute("aria-pressed") !== "true"));
+    if ($("#find-text").value.trim()) guarded(searchText);
+  };
+}
+$("#find-list-toggle")?.addEventListener("click", () => {
+  const list = $("#find-results"), btn = $("#find-list-toggle");
+  list.hidden = !list.hidden;
+  btn.setAttribute("aria-expanded", String(!list.hidden));
+});
+$("#find-results")?.addEventListener("click", (e) => {
+  const item = e.target.closest("[data-hit-index]");
+  if (item) guarded(() => jumpToHit(+item.dataset.hitIndex));
+});
+
+// ── Floating text-selection quick annotation bar ──
+{
+  const qb = $("#selection-quickbar");
+  const hideQuickbar = () => { if (qb) qb.hidden = true; };
+  const addSelectionAnnotations = (type, color, opacity = 0.35) => {
+    const sel = window.getSelection();
+    if (!sel?.rangeCount || sel.isCollapsed || !S.pdf) return;
+    const range = sel.getRangeAt(0);
+    const pageEl = (range.startContainer.nodeType === 1 ? range.startContainer : range.startContainer.parentElement)?.closest(".pdf-page");
+    if (!pageEl) return;
+    const page = Number(pageEl.dataset.page);
+    const entry = surface.entries.get(page);
+    if (!entry?.viewport) return;
+    const pageRect = pageEl.getBoundingClientRect();
+    const rawRects = [...range.getClientRects()].filter((r) => r.width >= 2 && r.height >= 2);
+    if (!rawRects.length) return;
+    // Merge adjacent rects on the same line to avoid fragmented annotation boxes.
+    const merged = [];
+    for (const r of rawRects) {
+      const last = merged.at(-1);
+      if (last && Math.abs(last.top - r.top) < 4 && Math.abs(last.height - r.height) < 6 && r.left <= last.right + 6) {
+        last.left = Math.min(last.left, r.left);
+        last.right = Math.max(last.right, r.right);
+        last.top = Math.min(last.top, r.top);
+        last.bottom = Math.max(last.bottom, r.bottom);
+      } else {
+        merged.push({ left: r.left, right: r.right, top: r.top, bottom: r.bottom, height: r.height });
+      }
+    }
+    const text = sel.toString().trim().slice(0, 400);
+    const added = merged.map((r) => {
+      const a = entry.viewport.convertToPdfPoint(r.left - pageRect.left, r.top - pageRect.top);
+      const b = entry.viewport.convertToPdfPoint(r.right - pageRect.left, r.bottom - pageRect.top);
+      return {
+        id: uid(),
+        page,
+        type,
+        text,
+        rect: [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[0], b[0]), Math.max(a[1], b[1])],
+        color,
+        opacity,
+        width: type === "highlight" ? 2 : 1.5,
+        dash: "solid",
+      };
+    });
+    commit(S.nodes, { annotations: [...S.annotations, ...added] });
+    sel.removeAllRanges();
+    hideQuickbar();
+    renderMarks();
+    toast(type === "highlight" ? "已添加高亮批注（可撤销）" : type === "underline" ? "已添加下划线批注（可撤销）" : "已添加删除线批注（可撤销）");
+  };
+  qb?.addEventListener("pointerdown", (e) => e.preventDefault());
+  qb?.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-sq]");
+    if (!btn) return;
+    const act = btn.dataset.sq;
+    if (act === "highlight") addSelectionAnnotations("highlight", btn.dataset.color || "#f4d03f", 0.36);
+    else if (act === "underline") addSelectionAnnotations("underline", "#165ddb", 0.95);
+    else if (act === "strikeout") addSelectionAnnotations("strikeout", "#c9372c", 0.95);
+    else if (act === "bookmark") {
+      const sel = surface.selection();
+      hideQuickbar();
+      if (sel) createBookmark("after", sel);
+    } else if (act === "copy") {
+      const sel = surface.selection();
+      hideQuickbar();
+      if (sel) guarded(() => copyPageText(sel.text));
+    }
+  });
+  $("#canvas-host")?.addEventListener("pointerup", (e) => {
+    if (!qb || !S.pdf || S.busy || document.body.classList.contains("page-edit-mode") || e.button !== 0) {
+      hideQuickbar();
+      return;
+    }
+    requestAnimationFrame(() => {
+      const sel = window.getSelection();
+      if (!sel?.rangeCount || sel.isCollapsed || !sel.toString().trim()) {
+        hideQuickbar();
+        return;
+      }
+      const range = sel.getRangeAt(0);
+      const pageEl = (range.startContainer.nodeType === 1 ? range.startContainer : range.startContainer.parentElement)?.closest(".pdf-page");
+      if (!pageEl) { hideQuickbar(); return; }
+      const rect = range.getBoundingClientRect();
+      if (!rect.width && !rect.height) { hideQuickbar(); return; }
+      qb.hidden = false;
+      const w = qb.offsetWidth || 300, h = qb.offsetHeight || 36;
+      const left = Math.max(12, Math.min(window.innerWidth - w - 12, rect.left + rect.width / 2 - w / 2));
+      const top = rect.top - h - 10 > 64 ? rect.top - h - 10 : Math.min(window.innerHeight - h - 48, rect.bottom + 10);
+      qb.style.left = left + "px";
+      qb.style.top = top + "px";
+    });
+  });
+  $("#canvas-host")?.addEventListener("scroll", hideQuickbar, { passive: true });
+  document.addEventListener("pointerdown", (e) => {
+    if (qb && !qb.hidden && !qb.contains(e.target)) hideQuickbar();
+  });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") hideQuickbar(); });
+}
+
+// ── Welcome screen Recent Documents ──
+async function renderWelcomeRecents() {
+  const host = $("#welcome-recents"), listEl = $("#welcome-recents-list");
+  if (!host || !listEl || !window.desktop?.recentFiles) return;
+  try {
+    const items = await window.desktop.recentFiles();
+    host.hidden = !items?.length;
+    if (!items?.length) { listEl.replaceChildren(); return; }
+    const fmtSize = (bytes) => !bytes ? "" : bytes >= 1048576 ? (bytes / 1048576).toFixed(1) + " MB" : Math.max(1, Math.round(bytes / 1024)) + " KB";
+    const frag = document.createDocumentFragment();
+    for (const item of items.slice(0, 6)) {
+      const row = document.createElement("div");
+      row.className = "recent-row";
+      const openBtn = document.createElement("button");
+      openBtn.type = "button";
+      openBtn.className = "recent-open";
+      openBtn.title = item.path;
+      openBtn.innerHTML = `${icon("file")}<span class="recent-info"><strong translate="no"></strong><small translate="no"></small></span><span class="recent-size"></span>`;
+      openBtn.querySelector("strong").textContent = item.name;
+      openBtn.querySelector("small").textContent = item.dir || "";
+      openBtn.querySelector(".recent-size").textContent = fmtSize(item.size);
+      openBtn.onclick = () => guarded(async () => {
+        if (window.desktop?.openDocumentPaths) await window.desktop.openDocumentPaths([item.path]);
+      });
+      const delBtn = document.createElement("button");
+      delBtn.type = "button";
+      delBtn.className = "recent-remove";
+      delBtn.title = "从最近记录移除";
+      delBtn.setAttribute("aria-label", "从最近记录移除");
+      delBtn.innerHTML = icon("close");
+      delBtn.onclick = (e) => {
+        e.stopPropagation();
+        window.desktop?.removeRecentFile?.(item.path).then(renderWelcomeRecents).catch(() => {});
+      };
+      row.append(openBtn, delBtn);
+      frag.append(row);
+    }
+    listEl.replaceChildren(frag);
+  } catch {
+    host.hidden = true;
+  }
+}
+$("#welcome-recents-clear")?.addEventListener("click", () => {
+  window.desktop?.removeRecentFile?.("*").then(renderWelcomeRecents).catch(() => {});
+});
+void renderWelcomeRecents();
+
+// ── Global Command Palette (Ctrl+Shift+P) ──
+installCommandPalette({ S, actions, guarded, toast });

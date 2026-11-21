@@ -77,11 +77,12 @@ const contentSelector = [
  '[translate="no"]','[data-user-content]','[contenteditable]','textarea',
  '.textLayer','.page-edit-input','.page-edit-composition','.annotation-mark',
  '#tree-rows .title','#tree-rows [role="treeitem"]','#doc-name[data-file]',
- '#ocr-results','#ocr-boxes','#ocr-candidates','#ocr-evidence',
+ '#ocr-results','#ocr-results-list','#ocr-boxes','#ocr-candidates','#ocr-evidence',
  '#pe-font-list button',
  '#table-grid','[data-list]','[data-name]','.large-workspace [data-preview]',
  '#open-password-file','#decrypt-file','#rule-nav button','#gen-toc','#raw-current','#raw-original','#update-notes',
  '#rule-list input','#rule-list textarea',
+ '.font-tools-dialog [data-info]','.document-tools [data-result]','.welcome-recents-list',
 ].join(',');
 const excluded = el => !el || !!el.closest(contentSelector) || ['SCRIPT','STYLE','SVG','CANVAS'].includes(el.tagName);
 const textSources = new WeakMap(), attrSources = new WeakMap();
@@ -90,6 +91,16 @@ function renderText(node) {
   const el=node.parentElement;
   if(excluded(el))return;
   const current=node.data, old=textSources.get(node);
+  // Fast path: source UI copy is authored in zh-Hans. When active language is
+  // zh-Hans, avoid regex pattern scanning unless reverting a translated node.
+  if (language === 'zh-Hans') {
+    if (!old) return;
+    if (old.output === current && old.source !== current) {
+      node.data = old.source;
+      textSources.set(node, { source: old.source, output: old.source });
+    }
+    return;
+  }
   const source=old && old.output===current ? old.source : current;
   const output=translate(source);
   textSources.set(node,{source,output});
@@ -105,7 +116,21 @@ function renderAttributes(el) {
   if(el.matches('textarea,input')) {
     if(el.closest('[translate="no"],[data-user-content]'))return;
   } else if(excluded(el))return;
-  let records=attrSources.get(el);if(!records)attrSources.set(el,records=new Map());
+  let records=attrSources.get(el);
+  if (language === 'zh-Hans') {
+    if (!records) return;
+    for (const attr of attributes) {
+      const old = records.get(attr);
+      if (!old || !el.hasAttribute(attr)) continue;
+      const current = el.getAttribute(attr);
+      if (old.output === current && old.source !== current) {
+        el.setAttribute(attr, old.source);
+        records.set(attr, { source: old.source, output: old.source });
+      }
+    }
+    return;
+  }
+  if(!records)attrSources.set(el,records=new Map());
   for(const attr of attributes){
     if(!el.hasAttribute(attr))continue;
     const current=el.getAttribute(attr),old=records.get(attr),source=old?.output===current?old.source:current;

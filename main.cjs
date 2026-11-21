@@ -353,6 +353,34 @@ app.whenReady().then(async () => {
     win.setFullScreen(!win.isFullScreen());
     return win.isFullScreen();
   });
+  const recentFile = path.join(app.getPath("userData"), "recent-files.json");
+  async function readRecentFiles() {
+    try {
+      const raw = JSON.parse(await fs.readFile(recentFile, "utf8"));
+      return Array.isArray(raw) ? raw.filter((x) => x && typeof x.path === "string").slice(0, 12) : [];
+    } catch {
+      return [];
+    }
+  }
+  async function recordRecentFile(file, size = 0) {
+    if (typeof file !== "string" || !/\.(pdf|folio)$/i.test(file)) return;
+    try { app.addRecentDocument?.(file); } catch {}
+    const list = await readRecentFiles();
+    const key = process.platform === "win32" ? file.toLowerCase() : file;
+    const next = [
+      { path: file, name: path.basename(file), dir: path.dirname(file), size, openedAt: Date.now() },
+      ...list.filter((x) => (process.platform === "win32" ? x.path.toLowerCase() : x.path) !== key),
+    ].slice(0, 12);
+    await fs.writeFile(recentFile, JSON.stringify(next, null, 2)).catch(() => {});
+  }
+  ipc("recent-files", () => readRecentFiles());
+  ipc("recent-files-remove", async (file) => {
+    const list = await readRecentFiles();
+    const key = process.platform === "win32" ? String(file || "").toLowerCase() : String(file || "");
+    const next = file === "*" ? [] : list.filter((x) => (process.platform === "win32" ? x.path.toLowerCase() : x.path) !== key);
+    await fs.writeFile(recentFile, JSON.stringify(next, null, 2)).catch(() => {});
+    return next;
+  });
   ipc("open", async (kind = "pdf") => {
     const exts =
       kind === "pdf"
@@ -368,6 +396,7 @@ app.whenReady().then(async () => {
     if (r.canceled) return null;
     const file = r.filePaths[0],
       s = await fs.stat(file);
+    if (kind === "pdf") void recordRecentFile(file, s.size);
     if (/\.pdf$/i.test(file) && s.size > 768 * 1024 ** 2)
       return largeFiles.register(file);
     if (s.size > (/\.folio$/i.test(file) ? 1024 : 768) * 1024 * 1024)
@@ -383,6 +412,7 @@ app.whenReady().then(async () => {
     if (typeof file !== "string" || !/\.(pdf|folio)$/i.test(file))
       throw Error("仅支持 PDF 与 Folio 文件");
     const stat = await fs.stat(file);
+    void recordRecentFile(file, stat.size);
     if (stat.isFile() && /\.pdf$/i.test(file) && stat.size > 768 * 1024 ** 2)
       return largeFiles.register(file);
     if (
@@ -479,6 +509,8 @@ app.whenReady().then(async () => {
     objectPayload(data, "本地");
     if (typeof data.command !== "string") throw Error("本地请求无效");
     const options = { ...data };
+    if (options.command === 'flow-prime-preview')
+      return editorWorker('background').request({ command: 'flow-prime-preview' });
     if (options.command === 'font-warm-document') {
       if (!sources.get(owner)?.has(options.sourceHandle)) throw Error('原文句柄无效');
       return fontWarmup.add(options.sourceHandle, options.page);

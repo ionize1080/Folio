@@ -93,3 +93,45 @@ def advances(page, stream):
                 out[i]=prefix+[([ArrayObject(nums)],b'TJ')]
             except (ValueError,KeyError,TypeError,IndexError):out[i]=None
     return out
+
+
+def shared_line_site(stream, entries):
+    """Split a simple, unmarked BT at an explicit line start without losing cursor state."""
+    if not entries or any(entry.get('structureScopes') or entry.get('semanticScopes') or
+                          entry.get('flowScope') for entry in entries):
+        return None
+    selected = {entry['at'] for entry in entries}
+    first, last = min(selected), max(selected)
+    begin, end = entries[0].get('begin'), entries[0].get('end')
+    if begin is None or end is None or end > 32768 or end - begin > 4096 or first <= begin + 1:
+        return None
+    if any(entry.get('begin') != begin or entry.get('end') != end for entry in entries):
+        return None
+    ops = stream.operations
+    if ops[first - 1][1] not in (b'Tm', b'Td', b'TD'):
+        return None
+    # Restrict to conventional positioned text. Marked content, graphics saves,
+    # clipping modes, nondefault text state and ExtGState may span the split.
+    if any(op in (b'BMC', b'BDC', b'gs', b'Tr', b'Ts', b'Tz', b'Tw', b'Tc', b'"') for _, op in ops[:end]):
+        return None
+    if any(op not in (b'Tf', b'Tm', b'Td', b'TD', b'Tj', b'TJ') for _, op in ops[begin + 1:end]):
+        return None
+    if any(op in (b'Tj', b'TJ') and i not in selected
+           for i, (_, op) in enumerate(ops[first:last + 1], first)):
+        return None
+    if not any(op in (b'Tj', b'TJ') for _, op in ops[last + 1:end]):
+        return None
+    # Only font and leading can change in the remainder of this simple BT.
+    # Give the isolated Form exactly the state it formerly inherited after ET.
+    form_state = {}
+    for args, op in ops[first:end]:
+        if op == b'Tf':
+            form_state[b'Tf'] = args
+        elif op == b'TD':
+            form_state[b'TL'] = [FloatObject(-args[1])]
+    # BT initializes both matrices. At this line-start boundary Tm == Tlm.
+    # Replay original positioning exactly, converting TD to Td so that the
+    # already-active leading survives. No font metrics or advances are guessed.
+    replay = [(args, b'Td' if op == b'TD' else op) for args, op in ops[begin + 1:first]
+              if op in (b'Tm', b'Td', b'TD')]
+    return first - 1, replay, [(args, op) for op, args in form_state.items()]

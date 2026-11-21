@@ -133,3 +133,9 @@ body .organizer-options[open] > summary::before { transform: rotate(180deg); }
 /* Review-02: checkboxes never shrink; exchange cards align icons on one column; stacked field rows breathe. */
 .organizer-options input[type=checkbox]{width:16px;height:16px;min-width:16px;flex:none;}
 .organizer-options label:has([type=checkbox]){align-items:center;}
+.organizer-select [data-range-select]{height:30px;min-height:30px;padding:0 11px;font-size:12px;background:var(--panel2);border:1px solid var(--line-strong);border-radius:var(--r-sm,8px);color:var(--text);}
+.organizer-select [data-range-select]:hover:not(:disabled){background:var(--hover);border-color:var(--selected-line);color:var(--accent);}
+.organizer-divider{width:1px;height:20px;background:var(--line);flex:none;}
+.organizer-position{display:inline-flex;align-items:center;gap:6px;color:var(--muted);}
+.organizer-position span{white-space:nowrap;}
+@media (max-width: 960px){.organizer-divider,.organizer-position span{display:none;}}

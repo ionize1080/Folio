@@ -1,16 +1,11 @@
-name: Folio 2.8.3 parallel verified Windows release
+name: Full Windows desktop acceptance
 'on':
-  workflow_dispatch: null
-  push:
-    branches:
-    - main
-    paths:
-    - .github/workflows/release-283.yml
+  workflow_call:
 permissions:
   contents: read
   actions: read
 concurrency:
-  group: folio-283-release
+  group: folio-desktop-acceptance-${{ github.ref }}
   cancel-in-progress: true
 jobs:
   core:
@@ -28,10 +23,8 @@ jobs:
     - uses: actions/setup-python@v5
       with:
         python-version: '3.12'
-    - name: Require the intended public main branch
-      env:
-        PUBLIC_REPOSITORY: ${{ !github.event.repository.private }}
-      run: test "$GITHUB_REF" = refs/heads/main && test "$PUBLIC_REPOSITORY" = true
+    - name: Check the release version
+      run: node -e "if (require('./package.json').version !== '2.8.4') process.exit(1)"
     - run: npm ci --ignore-scripts
     - run: npm run test:quick
     - run: python tests/ci-reports.py
@@ -76,6 +69,10 @@ jobs:
         models: 'false'
         creative: 'false'
         fixtures: 'false'
+    - run: native\runtime\python.exe tests/system-font-catalog-cache.py
+    - run: native\runtime\python.exe tests/tagged-paragraph-284.py
+    - run: native\runtime\python.exe tests/shared-line-site-284.py
+    - run: native\runtime\python.exe tests/story-aliases-284.py
     - run: node scripts/acceptance.mjs native
       env:
         FOLIO_TEST_SHARD: 1/6
@@ -351,6 +348,8 @@ jobs:
     - run: node tests/graphics-220.cjs
     - run: node tests/ai-settings.cjs
     - run: node tests/chrome-202.cjs
+    - run: native\runtime\python.exe tests/fixture-v9.py
+    - run: native\runtime\python.exe tests/fast-layout-p3.py --fixture-only
     - name: Browser editing, bookmarks and navigation regressions
       shell: pwsh
       run: '$chrome = Join-Path $env:ProgramFiles ''Google\Chrome\Application\chrome.exe''
@@ -358,6 +357,10 @@ jobs:
         if (!(Test-Path -LiteralPath $chrome)) { throw ''The Windows runner must provide Google Chrome'' }
 
         $env:FOLIO_CHROMIUM = $chrome
+
+        node tests/ui-fast-p3.cjs | Where-Object { $_ -notlike ''P3_PREVIEW_IMAGE=*'' }
+
+        if ($LASTEXITCODE) {exit $LASTEXITCODE}
 
         node scripts/acceptance.mjs browser
 
@@ -765,7 +768,7 @@ jobs:
     - id: results
       run: python scripts/ci-reports.py export editingui
   release:
-    name: Validate evidence and publish verified ZIP
+    name: Validate exact package and release evidence
     needs:
     - core
     - engines
@@ -813,7 +816,7 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 15
     permissions:
-      contents: write
+      contents: read
       actions: read
     defaults:
       run:
@@ -827,7 +830,7 @@ jobs:
         python-version: '3.12'
     - uses: actions/download-artifact@v4
       with:
-        name: release-283-package
+        name: release-284-package
         path: deliverables
     - name: Verify native1 provenance
       run: python scripts/ci-reports.py import native1
@@ -987,8 +990,15 @@ jobs:
         FOLIO_CI_REPORTS: ${{ needs.packaged6.outputs.reports }}
     - run: python scripts/merge-package-283.py
     - run: python scripts/publish-283-ci.py
-      env:
-        GH_TOKEN: ${{ github.token }}
+    - uses: actions/upload-artifact@v4
+      with:
+        name: release-284-evidence
+        path: |
+          deliverables/Folio-PDF-Studio-2.8.4-validation.json
+          deliverables/Folio-PDF-Studio-2.8.4-SHA256.txt
+          deliverables/release-notes.md
+        if-no-files-found: error
+        retention-days: 3
   creativeplacement:
     name: Artwork placement and canvas experience
     needs:
@@ -1072,7 +1082,7 @@ jobs:
     - run: python scripts/archive-release.py deliverables
     - uses: actions/upload-artifact@v4
       with:
-        name: release-283-package
+        name: release-284-package
         path: deliverables/*
         compression-level: 0
         retention-days: 3
@@ -1099,7 +1109,7 @@ jobs:
         creative: 'true'
     - uses: actions/download-artifact@v4
       with:
-        name: release-283-package
+        name: release-284-package
         path: deliverables
     - run: python scripts/extract-package-283.py
     - run: native\runtime\python.exe tests/creative-native.py
@@ -1135,7 +1145,7 @@ jobs:
         creative: 'true'
     - uses: actions/download-artifact@v4
       with:
-        name: release-283-package
+        name: release-284-package
         path: deliverables
     - run: python scripts/extract-package-283.py
     - run: native\runtime\python.exe tests/creative-native.py
@@ -1171,7 +1181,7 @@ jobs:
         creative: 'true'
     - uses: actions/download-artifact@v4
       with:
-        name: release-283-package
+        name: release-284-package
         path: deliverables
     - run: python scripts/extract-package-283.py
     - run: native\runtime\python.exe tests/creative-native.py
@@ -1207,7 +1217,7 @@ jobs:
         creative: 'true'
     - uses: actions/download-artifact@v4
       with:
-        name: release-283-package
+        name: release-284-package
         path: deliverables
     - run: python scripts/extract-package-283.py
     - run: native\runtime\python.exe tests/creative-native.py
@@ -1243,13 +1253,13 @@ jobs:
         creative: 'true'
     - uses: actions/download-artifact@v4
       with:
-        name: release-283-package
+        name: release-284-package
         path: deliverables
     - run: python scripts/extract-package-283.py
     - run: node scripts/verify-editing-260-package.cjs && node tests/update-health-v162.cjs && node tests/update-201.cjs
       env:
         FOLIO_EXE: ${{ github.workspace }}\dist\Folio-PDF-Studio-win-x64\Folio.exe
-        FOLIO_UPDATE_ZIP: ${{ github.workspace }}\deliverables\Folio-PDF-Studio-2.8.3-portable-win-x64.zip
+        FOLIO_UPDATE_ZIP: ${{ github.workspace }}\deliverables\Folio-PDF-Studio-2.8.4-portable-win-x64.zip
     - id: results
       run: python scripts/ci-reports.py export packageupdate
   saveintegrity:
@@ -1331,7 +1341,7 @@ jobs:
         creative: 'true'
     - uses: actions/download-artifact@v4
       with:
-        name: release-283-package
+        name: release-284-package
         path: deliverables
     - run: python scripts/extract-package-283.py
     - run: native\runtime\python.exe tests/creative-native.py
@@ -1535,7 +1545,7 @@ jobs:
         creative: 'true'
     - uses: actions/download-artifact@v4
       with:
-        name: release-283-package
+        name: release-284-package
         path: deliverables
     - run: python scripts/extract-package-283.py
     - run: native\runtime\python.exe tests/save-281-native.py prepare

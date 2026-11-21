@@ -21,29 +21,89 @@ def names(font):
                         except Exception:pass
         return ''
     return get([16,1]),get([17,2]),get([4]),get([6])
+def read_faces(path):
+    import struct
+    from fontTools.ttLib import TTFont
+    count = 1
+    if path.suffix.lower() == '.ttc':
+        with path.open('rb') as stream:
+            count = struct.unpack_from('>I', stream.read(12), 8)[0]
+    faces = []
+    for face in range(min(count, 64)):
+        try:
+            with TTFont(str(path), fontNumber=face, lazy=True) as font:
+                family, style, full, ps = names(font)
+                aliases = list(dict.fromkeys(n.toUnicode() for n in font['name'].names
+                                             if n.nameID in (1, 4, 6, 16, 17)))[:50]
+                faces.append([family, style, full, ps, aliases])
+        except Exception:
+            return faces, False  # Retain valid earlier faces and retry next time.
+    return faces, True
+
+
+def cached_faces(entry, stamp):
+    if not isinstance(entry, list) or len(entry) != 2 or entry[0] != stamp:
+        return None
+    faces = entry[1]
+    if not isinstance(faces, list) or len(faces) > 64:
+        return None
+    for face in faces:
+        if not (isinstance(face, list) and len(face) == 5 and
+                all(isinstance(x, str) for x in face[:4]) and
+                isinstance(face[4], list) and len(face[4]) <= 50 and
+                all(isinstance(x, str) for x in face[4])):
+            return None
+    return faces
+
+
 @lru_cache(maxsize=1)
 def catalog():
-    from fontTools.ttLib import TTFont,TTCollection
+    import json
+    from font_similarity import cache_file, publish_cache
     roots=[Path(__file__).parent/'fonts']
     if os.name=='nt':roots += [Path(os.environ.get('WINDIR','C:/Windows'))/'Fonts',Path(os.environ.get('LOCALAPPDATA',''))/'Microsoft/Windows/Fonts']
     else:roots += [Path('/usr/share/fonts'),Path.home()/'.local/share/fonts',Path('/Library/Fonts'),Path('/System/Library/Fonts')]
-    out={}
+    # The idle scan and foreground editor run in separate processes. Persist
+    # names only. Rebuild paths, face numbers and selection IDs from live files.
+    disk = cache_file('face-names-v1', os.pathsep.join(map(str, roots)))
+    try:
+        old = json.loads(disk.read_text(encoding='utf-8')) if disk.stat().st_size <= 8*1024**2 else {}
+    except (OSError, ValueError):
+        old = {}
+    if not isinstance(old, dict):
+        old = {}
+    current = {}
+    out = {}
     for root in roots:
-        if not root.is_dir():continue
-        for p in sorted(root.rglob('*')):
-            if p.suffix.lower() not in ('.ttf','.otf','.ttc'):continue
+        if not root.is_dir():
+            continue
+        for path in sorted(root.rglob('*')):
+            if path.suffix.lower() not in ('.ttf', '.otf', '.ttc'):
+                continue
             try:
-                if p.stat().st_size>96*1024*1024:continue
-                if p.suffix.lower()=='.ttc':
-                    import struct
-                    with p.open('rb') as f:header=f.read(12)
-                    count=struct.unpack('>I',header[8:12])[0]
-                else:count=1
-                for face in range(min(count,64)):
-                    f=TTFont(str(p),fontNumber=face,lazy=True);family,style,full,ps=names(f)
-                    ident=hashlib.sha256((str(p.resolve())+str(p.stat().st_mtime_ns)+':'+str(face)).encode()).hexdigest()[:32]
-                    out[ident]={'id':ident,'name':full or family or p.stem,'family':family,'style':style,'postScriptName':ps,'aliases':list(dict.fromkeys(n.toUnicode() for n in f['name'].names if n.nameID in (1,4,6,16,17)))[:50],'source':'内置字体' if root==roots[0] else '系统字体','path':str(p),'face':face};f.close()
-            except Exception:continue
+                stat = path.stat()
+                if stat.st_size > 96*1024**2:
+                    continue
+                resolved = str(path.resolve())
+                stamp = [stat.st_mtime_ns, stat.st_size, stat.st_ino, stat.st_ctime_ns]
+                faces = cached_faces(old.get(resolved), stamp)
+                complete = True
+                if faces is None:
+                    faces, complete = read_faces(path)
+                if complete:
+                    current[resolved] = [stamp, faces]
+                for index, (family, style, full, ps, aliases) in enumerate(faces):
+                    ident = hashlib.sha256((resolved + str(stat.st_mtime_ns) + ':' + str(index)).encode()).hexdigest()[:32]
+                    out[ident] = {'id': ident, 'name': full or family or path.stem,
+                                  'family': family, 'style': style, 'postScriptName': ps,
+                                  'aliases': aliases, 'source': '内置字体' if root == roots[0] else '系统字体',
+                                  'path': str(path), 'face': index}
+            except Exception:
+                continue
+    if old != current:
+        data = json.dumps(current, separators=(',', ':')).encode('utf-8')
+        if len(data) <= 8*1024**2:
+            publish_cache(disk, data)
     return out
 
 def list_fonts():return {'fonts':[{k:v for k,v in f.items() if k!='path'} for f in catalog().values()]}

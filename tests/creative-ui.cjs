@@ -21,9 +21,17 @@ const {_electron:electron}=require('playwright'),fs=require('node:fs'),path=requ
   const vector=await studio({action:'open',kind:'vector',page:1,settings:{width:140,height:80}});
   await studio({action:'execute',sessionId:vector.sessionId,command:'shape.rectangle',params:{x:10,y:10,width:100,height:50}});
   const drawn=await studio({action:'apply',sessionId:vector.sessionId,revision:await revision(),box:[40,40,140,80]});
+  const same=await studio({action:'move',page:1,targetPage:1,id:drawn.id,box:[40,40,140,80],revision:drawn.revision});
+  assert.equal(same.id,drawn.id);assert.equal(same.revision,drawn.revision);assert(same.unchanged);
+  assert.deepEqual(same.matrix,[140,0,0,80,40,40]);
   const copied=await studio({action:'duplicate',page:1,id:drawn.id,revision:await revision()});assert(copied.id!==drawn.id);
-  await studio({action:'delete',page:1,id:copied.id,revision:await revision()});
-  await call('folio_operation',{operation:'history.undo',revision:await revision()});assert((await studio({action:'objects',page:1})).objects.some(o=>o.id===copied.id));
+  assert.deepEqual(copied.matrix,[140,0,0,80,52,28]);
+  const placed=await studio({action:'move',page:1,targetPage:2,id:copied.id,revision:copied.revision,box:[180,40,160,96]});
+  const shifted=await studio({action:'move',page:2,targetPage:1,id:placed.id,revision:placed.revision,geometry:{dx:-15,dy:9}});
+  assert.deepEqual((await studio({action:'objects',page:1})).objects.find(o=>o.id===shifted.id).matrix,[160,0,0,96,165,49]);
+  assert(!(await studio({action:'objects',page:2})).objects.some(o=>o.id===placed.id));
+  await studio({action:'delete',page:1,id:shifted.id,revision:await revision()});
+  await call('folio_operation',{operation:'history.undo',revision:await revision()});assert((await studio({action:'objects',page:1})).objects.some(o=>o.id===shifted.id));
   checks.push('Shared MCP sessions create, edit, apply twice, duplicate, delete and undo actual PDF artwork');
   for(const category of ['photo','vector','bookmarks','organize','export']){
    await host.locator('#ribbon-tab-'+category).click();

@@ -1,19 +1,18 @@
-"""Publish only the exact package accepted by this Windows Actions job."""
+"""Verify the exact package and prepare evidence for the separate publisher."""
 from pathlib import Path
 import hashlib
 import json
 import os
 import zipfile
 
-from release_transport import gh, publish
 from release_251_checks import validate_export_review
 from release_260_checks import validate_editing
 
 root = Path(__file__).resolve().parents[1]
 out = root / 'deliverables'
 repo, sha = os.environ['GITHUB_REPOSITORY'], os.environ['GITHUB_SHA']
-tag, prefix = 'v2.8.3', 'Folio-PDF-Studio-2.8.3'
-assert json.loads((root / 'package.json').read_text())['version'] == '2.8.3'
+tag, prefix = 'v2.8.4', 'Folio-PDF-Studio-2.8.4'
+assert json.loads((root / 'package.json').read_text())['version'] == '2.8.4'
 reports = {}
 suite_provenance = {}
 for suite in ['uipreferences283','uisurfaces283','uireader283','packaged2836','bookmark282','save281','ui281','packaged2835','modern280','saveintegrity','native1','native2','native3','native4','native5','native6','editing1','editing2','editing3','editing4','editingui','docengine','docui','mcp','ui','ai','creative','creativeui270','creativeplacement','organizer','build283','packaged2831','packaged2832','packaged2833','packaged2834','packageupdate','creativelive','livecontext','liveedit','liveimage','workflow']:
@@ -66,8 +65,8 @@ for suite in ['preferences','surfaces','reader','performance']:
     r=reports[f'ui-{suite}-283.json']
     assert r['status']=='passed' and r['checks'] and not r['errors']
 assert reports['ui-performance-283.json']['pdfRefreshes']==0
-assert packaged['status'] == 'passed' and len(packaged['checks']) == 38
-assert {c['task'] for c in packaged['checks']} == {'tests/preferences-ui-283.cjs','tests/surfaces-ui-283.cjs','tests/reader-ui-283.cjs','tests/performance-ui-283.cjs','tests/bookmark-save-282.cjs','tests/save-multitab-281.cjs','tests/interaction-281.cjs','tests/performance-281.cjs','tests/font-tools-281.cjs','tests/ribbon-280.cjs','tests/tabs-280.cjs','tests/modern-280.cjs','tests/organizer-features.cjs','tests/printing-270.cjs','tests/studio-canvas-270.cjs','tests/design-251.cjs','tests/close-251.cjs','tests/export-review-251.cjs','tests/refinements-251.cjs','tests/workspace-210.cjs','tests/graphics-220.cjs','tests/package-ai.cjs','tests/creative-engines.cjs','tests/creative-embedded.cjs','tests/workbench-ui.cjs','tests/engineering-ui.cjs','tests/conversion-scan.cjs','tests/creative-ui.cjs','tests/organizer-ui.cjs','tests/image-provider-settings.cjs','tests/image-studio-ui.cjs','tests/creative-experience.cjs','tests/workflow-250.cjs','tests/workflow-250-verify.py','tests/organizer-geometry.cjs','tests/pdf-loading-packaged.cjs','tests/studio-270-ui.cjs','tests/selection-270.cjs'}
+assert packaged['status'] == 'passed' and len(packaged['checks']) == 39
+assert {c['task'] for c in packaged['checks']} == {'tests/ui-polish-284.cjs','tests/preferences-ui-283.cjs','tests/surfaces-ui-283.cjs','tests/reader-ui-283.cjs','tests/performance-ui-283.cjs','tests/bookmark-save-282.cjs','tests/save-multitab-281.cjs','tests/interaction-281.cjs','tests/performance-281.cjs','tests/font-tools-281.cjs','tests/ribbon-280.cjs','tests/tabs-280.cjs','tests/modern-280.cjs','tests/organizer-features.cjs','tests/printing-270.cjs','tests/studio-canvas-270.cjs','tests/design-251.cjs','tests/close-251.cjs','tests/export-review-251.cjs','tests/refinements-251.cjs','tests/workspace-210.cjs','tests/graphics-220.cjs','tests/package-ai.cjs','tests/creative-engines.cjs','tests/creative-embedded.cjs','tests/workbench-ui.cjs','tests/engineering-ui.cjs','tests/conversion-scan.cjs','tests/creative-ui.cjs','tests/organizer-ui.cjs','tests/image-provider-settings.cjs','tests/image-studio-ui.cjs','tests/creative-experience.cjs','tests/workflow-250.cjs','tests/workflow-250-verify.py','tests/organizer-geometry.cjs','tests/pdf-loading-packaged.cjs','tests/studio-270-ui.cjs','tests/selection-270.cjs'}
 assert all(c['status']=='passed' for c in packaged['checks'])
 assert packaged['sourceCommit'] == sha and packaged['runId'] == os.environ['GITHUB_RUN_ID']
 assert reports['graphics-220-live.json']['savedPDF']['nativeShadings']>=1
@@ -102,7 +101,7 @@ with zipfile.ZipFile(portable) as z:
     for name in ['profile.cjs', 'tool-schema.cjs', 'result-cache.cjs', 'network.cjs']:
         assert z.read('Folio-PDF-Studio/resources/Chatbox/' + name) == (root / 'integrations/chatbox' / name).read_bytes()
 with zipfile.ZipFile(source) as z:
-    for name in ['tests/preferences-ui-283.cjs','tests/surfaces-ui-283.cjs','tests/reader-ui-283.cjs','tests/performance-ui-283.cjs','tests/ui-audit-support.cjs','scripts/ui-audit-ci-283.cjs','src/app.mjs','src/modern.css','src/controls.css','src/refinements.css','src/ocr.css','src/bookmarks.css','native/pdf_writer.py','tests/bookmark-source-282.py','tests/bookmark-source-282.mjs','tests/bookmark-save-282.cjs','src/incremental-pdf.mjs','src/studio-canvas-ui.mjs','src/text-selection.mjs','src/window-chrome.mjs','update-download.cjs','font-warmup.cjs','src/page-spatial.mjs','ai-dock.cjs', 'integrations/pdf-mcp-folio.patch', 'scripts/build-chatbox-source.cjs', 'src/chrome.css', 'image-provider.cjs', 'image-config.cjs', 'native/svg_gradients.py','integrations/creative/source-lock.json','integrations/creative/folio_backdrop.rs','scripts/build-creative.py','src/creative-background.mjs','src/pdf-loading.mjs','src/blank-pages.mjs','src/page-inspection-cache.mjs','integrations/creative/folio_ui_fonts.rs','integrations/chatbox/image-provider-settings.tsx']:
+    for name in ['tests/ui-polish-284.cjs','tests/preferences-ui-283.cjs','tests/surfaces-ui-283.cjs','tests/reader-ui-283.cjs','tests/performance-ui-283.cjs','tests/ui-audit-support.cjs','scripts/ui-audit-ci-283.cjs','src/app.mjs','src/modern.css','src/controls.css','src/refinements.css','src/ocr.css','src/bookmarks.css','native/pdf_writer.py','tests/bookmark-source-282.py','tests/bookmark-source-282.mjs','tests/bookmark-save-282.cjs','src/incremental-pdf.mjs','src/studio-canvas-ui.mjs','src/text-selection.mjs','src/window-chrome.mjs','update-download.cjs','font-warmup.cjs','src/page-spatial.mjs','ai-dock.cjs', 'integrations/pdf-mcp-folio.patch', 'scripts/build-chatbox-source.cjs', 'src/chrome.css', 'image-provider.cjs', 'image-config.cjs', 'native/svg_gradients.py','integrations/creative/source-lock.json','integrations/creative/folio_backdrop.rs','scripts/build-creative.py','src/creative-background.mjs','src/pdf-loading.mjs','src/blank-pages.mjs','src/page-inspection-cache.mjs','integrations/creative/folio_ui_fonts.rs','integrations/chatbox/image-provider-settings.tsx']:
         assert z.read('Folio-PDF-Studio-source/' + name) == (root / name).read_bytes()
 manifest_public=json.loads((root/'tests/public-editing-260.json').read_text(encoding='utf-8'))['documents']
 validate_editing(manifest_public, reports)
@@ -121,18 +120,7 @@ checksums.write_text(''.join(lines), encoding='utf-8')
 assets.append(checksums)
 notes = []
 for lang, suffix in [('en', ''), ('zh-Hans', '.zh-Hans'), ('zh-Hant', '.zh-Hant')]:
-    notes.append(f'<!-- folio-locale:{lang} -->\n' + (root / f'docs/RELEASE-2.8.3{suffix}.md').read_text(encoding='utf-8') + '\n<!-- /folio-locale -->')
-notes.append(f'Source: `{sha}`. Built, tested and published by [Windows Actions]({run}). Real Qwen acceptance: **passed**, including independent document-state checks.')
+    notes.append(f'<!-- folio-locale:{lang} -->\n' + (root / f'docs/RELEASE-2.8.4{suffix}.md').read_text(encoding='utf-8') + '\n<!-- /folio-locale -->')
+notes.append(f'Source: `{sha}`. Built and tested by [Windows Actions]({run}). Real Qwen acceptance: **passed**, including independent document-state checks.')
 notes_file = out / 'release-notes.md'
 notes_file.write_text('\n\n'.join(notes), encoding='utf-8')
-releases = json.loads(gh('api', f'repos/{repo}/releases?per_page=100'))
-assert json.loads(gh('api', f'repos/{repo}/git/ref/heads/main'))['object']['sha'] == sha, 'A newer main commit exists; publish its verified workflow instead'
-draft = next((r for r in releases if r['tag_name'] == tag), None)
-if draft:
-    assert draft['draft'], 'Never replace a published release'
-    for asset in json.loads(gh('api', f'repos/{repo}/releases/{draft["id"]}/assets')):
-        assert asset['name'].startswith(prefix + '-'), 'Unexpected draft asset'
-        gh('api', '--method', 'DELETE', f'repos/{repo}/releases/assets/{asset["id"]}')
-    gh('release', 'edit', tag, '--repo', repo, '--target', sha, '--notes-file', str(notes_file))
-publish(repo, tag, sha, 'Folio PDF Studio 2.8.3 — Visible controls and responsive preferences', notes_file, assets)
-print(f'Published https://github.com/{repo}/releases/tag/{tag}')

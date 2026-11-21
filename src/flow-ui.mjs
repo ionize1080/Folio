@@ -29,6 +29,7 @@ import {
 
 const previewFontCache = new Map();
 let fontCatalogPromise = null;
+let previewWarmup;
 let fontPreviewQueue = Promise.resolve();
 
 // The hidden native input owns IME / clipboard. MuPDF's vector page owns every
@@ -38,6 +39,7 @@ export function installFlowUI(ctx) {
   let session = null,
     opening = false,
     openingEpoch = 0;
+  let backgroundWorker;
   const $ = (s) => document.querySelector(s);
   const b64 = (s) => btoa(unescape(encodeURIComponent(s)));
   const imageURL = (svg) => "data:image/svg+xml;base64," + b64(svg);
@@ -51,6 +53,14 @@ export function installFlowUI(ctx) {
   // Font conversion and browser decoding run alongside page inspection. They
   // share prepare()'s promises without retaining document or editor state.
   const warmFallback = () => FastFonts.preloadFallback(call).catch(() => {});
+  function readFontCatalog() {
+    if (!fontCatalogPromise)
+      fontCatalogPromise = call("font-catalog").catch((error) => {
+        fontCatalogPromise = null;
+        throw error;
+      });
+    return fontCatalogPromise;
+  }
   let warmTimer;
   const warm = event => {
     if(!event.target?.closest?.('[data-action="flow-edit"],[data-ribbon-command="flow-edit"],#ribbon-tab-edit'))return;
@@ -58,7 +68,7 @@ export function installFlowUI(ctx) {
     const source=S.bytes,page=S.page;
     warmTimer=setTimeout(()=>{
       if(!S.pdf||S.busy||opening||session||source!==S.bytes||page!==S.page)return;
-      inspectPage(source,page).catch(()=>{});
+      inspectPage.warm(source,page).catch(()=>{});
       void warmFallback();
     },180);
   };
@@ -78,6 +88,14 @@ export function installFlowUI(ctx) {
     if (surface.rotation(page) % 90 || info.userUnit !== 1)
       throw Error("此页坐标原点或单位暂不支持页面编辑，原文已保留");
     opening = true;
+    // Source fonts consult the system catalog for missing glyphs. Its worker
+    // can resolve the catalog while a separate worker inspects this text page.
+    if (S.currentText?.items?.some((item) => item.str?.trim())) {
+      void readFontCatalog().catch(() => {});
+      previewWarmup ||= nativeRequest({ command: "flow-prime-preview" }).catch(() => {
+        previewWarmup = null;
+      });
+    }
     void warmFallback();
     toast("正在识别当前页的文字与版面…");
     const source = S.bytes,
@@ -544,7 +562,7 @@ export function installFlowUI(ctx) {
       const shell = surface.entries.get(page)?.shell;
       if (shell && layer.parentElement !== shell) {
         shell.append(layer);
-        if (model && !busy && document.activeElement === document.body)
+        if (model && (!busy || firstBackground?.id === id) && document.activeElement === document.body)
           input.focus({ preventScroll: true });
       }
       if (!bar.isConnected)
@@ -565,7 +583,7 @@ export function installFlowUI(ctx) {
       fitPanels();
       positionLayer();
       positionFrame();
-      if (fastReady && preview?.version === 1 && !showingPrecise)
+      if (fastReady && preview?.version === 1 && !showingPrecise && !fastInk.hidden)
         fastFonts.paint(
           fastInk,
           preview,
@@ -608,12 +626,9 @@ export function installFlowUI(ctx) {
       return [...rows.values()];
     }
     function positioned(m, rows = tableRows()) {
-      m = clone(m);
       if (!m.cell) return m;
-      m.tableBaseFrame ||= clone(m.frame);
-      m.tableBaseCell ||= clone(m.cell.bounds);
-      const b = m.tableBaseCell,
-        f = m.tableBaseFrame,
+      const b = m.tableBaseCell || m.cell.bounds,
+        f = m.tableBaseFrame || m.frame,
         gs = rows.filter((g) => g.tableId === m.cell.tableId);
       const shift = gs
           .filter((g) => g.y <= b[1] + 0.5)
@@ -621,9 +636,13 @@ export function installFlowUI(ctx) {
         extra = gs
           .filter((g) => g.y > b[1] + 0.5 && g.y <= b[3] + 0.5)
           .reduce((v, g) => v + g.delta, 0);
-      m.frame = { ...f, y: f.y + shift, height: f.height + extra };
-      m.cell.bounds = [b[0], b[1] + shift, b[2], b[3] + shift + extra];
-      return m;
+      return {
+        ...m,
+        tableBaseFrame: f,
+        tableBaseCell: b,
+        frame: { ...f, y: f.y + shift, height: f.height + extra },
+        cell: { ...m.cell, bounds: [b[0], b[1] + shift, b[2], b[3] + shift + extra] },
+      };
     }
     async function arrangedEdits(edits) {
       const gs = new Map();
@@ -693,7 +712,8 @@ export function installFlowUI(ctx) {
       return { objects, edits };
     }
     function candidateButtons() {
-      hits.replaceChildren();
+      const buttons = document.createDocumentFragment();
+      const rows = tableRows();
       const edits = (S.nativeEdits || []).filter((e) => e.page === page);
       const used = new Set(
         edits
@@ -722,7 +742,7 @@ export function installFlowUI(ctx) {
             }
             await fn(e);
           });
-        hits.append(el);
+        buttons.append(el);
       };
       const corrections = (S.structures || []).filter(
         (c) =>
@@ -763,7 +783,7 @@ export function installFlowUI(ctx) {
             ),
         )
         .forEach((c) => {
-          const m = positioned(c.model);
+          const m = positioned(c.model, rows);
           add(
             m.cell
               ? {
@@ -792,6 +812,7 @@ export function installFlowUI(ctx) {
             e.model.cell,
           ),
         );
+      hits.replaceChildren(buttons);
     }
     function showFields() {
       if (model) {
@@ -872,6 +893,7 @@ export function installFlowUI(ctx) {
       chainList();
       positionFrame();
     }
+    let firstBackground = null;
     let pendingActivation = null,
       activationRunning = false,
       activationTimer = null;
@@ -936,8 +958,10 @@ export function installFlowUI(ctx) {
       }
       if (m.directionSupported === false)
         throw Error("此阅读方向或倾斜角度尚不支持可靠编辑，原文已保留");
-      await finish(false);
-      model = positioned(m, tableRows(null));
+      if (model) await finish(false, false);
+      // Candidate hit regions borrow immutable page evidence. Only the active
+      // draft needs its own editable frame, sources and style runs.
+      model = clone(positioned(m, tableRows(null)));
       model.allowOverflow = true;
       model.text = model.text.replace(/\r\n?/g, "\n");
       id = flowId || crypto.randomUUID();
@@ -970,9 +994,19 @@ export function installFlowUI(ctx) {
       precise = null;
       showingPrecise = false;
       const fast = canFast(model);
-      await Promise.all([
-        prepareBackground(),
-        fast
+      const originalPreview = !flowId && model.originalLayout?.text === model.text;
+      const stage = originalPreview && fast && !model.cell && !model.rotation &&
+        !model.writingMode?.startsWith("vertical") && model.originalLayout?.glyphs?.length
+        ? { id: activeId, revision, task: null, error: "" }
+        : null;
+      if (stage) {
+        firstBackground = stage;
+        showSourceInk();
+        input.disabled = false;
+        focusAtClick(e, activationSelection);
+      }
+      const backgroundReady = stage ? ensureFirstBackground(stage) : prepareBackground();
+      const fontsReady = fast
           ? fastFonts
               .prepare(model)
               .then(() => {
@@ -987,46 +1021,62 @@ export function installFlowUI(ctx) {
                 button.title = e.message;
                 status("原文字位已保留；快速字体不可用：" + e.message, true);
               })
-          : Promise.resolve(),
-      ]);
+          : Promise.resolve();
+      // The original PDF already paints every untouched glyph. Accept focus and
+      // input as soon as the clean backdrop is safe to display on the first edit.
+      if (originalPreview) await backgroundReady;
+      else await Promise.all([backgroundReady, fontsReady]);
       if (
         closed ||
         !model ||
         id !== activeId ||
-        revision !== activationRevision
+        revision !== activationRevision ||
+        composing
       )
         return false;
       if (fastReady) {
         renderFast();
         schedulePrecise();
-      } else if (!flowId && model.originalLayout?.text === model.text) {
-        // Activation displays the original PDF, even when a rare glyph needs
-        // fallback on subsequent edits. Do not change cell geometry just to focus.
-        const original = model.originalLayout,
-          dx = model.frame.x - original.frame.x,
-          dy = model.frame.y - original.frame.y;
-        preview = {
-          glyphs: original.glyphs.map((g) => ({
-            ...g,
-            x: g.x + dx,
-            y: g.y + dy,
-            originX: g.originX + dx,
-            baseline: g.baseline + dy,
-            size: g.style?.size || model.size,
-          })),
-          anchors: [],
-          overflow: false,
-          mappingComplete: true,
-          layoutMode: "原始字位",
-        };
-        validRevision = revision;
-        base.hidden = true;
-        ink.hidden = true;
-        fastInk.hidden = true;
-        status(`原始字位完成 · ${model.text.length} 字符`);
+      } else if (originalPreview) {
+        showSourceInk();
+        if (fast) void fontsReady.then(() => {
+          if (closed || id !== activeId || revision !== activationRevision || !fastReady || composing) return;
+          renderFast();
+          schedulePrecise();
+        });
       } else await reflow();
       if (closed || !model || id !== activeId) return false;
       input.disabled = false;
+      if (!stage) focusAtClick(e, activationSelection);
+      else selection();
+    }
+    function showSourceInk() {
+      // Activation displays the original PDF, even when a rare glyph needs
+      // fallback on subsequent edits. Do not change cell geometry just to focus.
+      const original = model.originalLayout,
+        dx = model.frame.x - original.frame.x,
+        dy = model.frame.y - original.frame.y;
+      preview = {
+        glyphs: original.glyphs.map((g) => ({
+          ...g,
+          x: g.x + dx,
+          y: g.y + dy,
+          originX: g.originX + dx,
+          baseline: g.baseline + dy,
+          size: g.style?.size || model.size,
+        })),
+        anchors: [],
+        overflow: false,
+        mappingComplete: true,
+        layoutMode: "原始字位",
+      };
+      validRevision = revision;
+      base.hidden = true;
+      ink.hidden = true;
+      fastInk.hidden = true;
+      status(`原始字位完成 · ${model.text.length} 字符`);
+    }
+    function focusAtClick(e, activationSelection) {
       // Font/background preparation can finish after the user has already
       // opened the font picker or selected a range. Keep that newer intent.
       if (
@@ -1042,36 +1092,38 @@ export function installFlowUI(ctx) {
       }
       selection();
     }
-    let blankFragmentPromise;
-    async function prepareBackground(rendered = null, quiet = false) {
-      const target = clone(model),
+    // The original PDF stays visible until both replacement ink and its clean
+    // backdrop are ready. Only source removal is independent of text revisions.
+    function ensureFirstBackground(stage) {
+      if (!stage.task) {
+        stage.error = "";
+        stage.task = prepareBackground(null, false, stage).then(() => {
+          if (firstBackground !== stage) return;
+          firstBackground = null;
+          if (!closed && id === stage.id && !composing && revision !== stage.revision) queue();
+        }, error => {
+          stage.task = null;
+          stage.error = error.message;
+          throw error;
+        });
+      }
+      return stage.task;
+    }
+    async function prepareBackground(rendered = null, quiet = false, stage = null) {
+      const target = rendered ? clone(model) : snapshotModel(model),
         targetId = id,
         targetRevision = revision;
       const stale = () =>
-        closed || !model || id !== targetId || revision !== targetRevision;
+        closed || !model || id !== targetId ||
+        (stage ? firstBackground !== stage : revision !== targetRevision);
       if (!quiet) {
         busy = true;
         status("准备原页编辑…");
-        input.disabled = true;
+        input.disabled = !stage;
       }
       try {
-        const blank =
-          rendered ||
-          (await (blankFragmentPromise ||= window.desktop
-            .flowLayout({
-              text: "",
-              pageWidth: w,
-              pageHeight: h,
-              frame: { x: 0, y: 0, width: w, height: h },
-              size: 12,
-              lineHeight: 1.4,
-              align: "left",
-              color: "#202020",
-            })
-            .catch((e) => {
-              blankFragmentPromise = null;
-              throw e;
-            })));
+        // Removing source text for a display-only backdrop uses its object
+        // signatures. The native writer consumes a fragment only for nonempty text.
         const edits = (S.nativeEdits || []).filter((e) => e.id !== targetId);
         edits.push({
           id: targetId,
@@ -1081,8 +1133,8 @@ export function installFlowUI(ctx) {
           sources: target.sources,
           model: rendered
             ? target
-            : { ...target, text: "", runs: [], softBreaks: [] },
-          fragment: blank.fragment,
+            : { ...target, originalLayout: undefined, text: "", runs: [], softBreaks: [] },
+          fragment: rendered?.fragment,
         });
         await arrangedEdits(edits);
         const r = await call("flow-background", {
@@ -1095,6 +1147,7 @@ export function installFlowUI(ctx) {
         const nextBackground = await surface.pdfjs.getDocument({
           ...pdfLoadingOptions,
           data: decodeBase64(r.pdf),
+          worker: backgroundWorker ||= new surface.pdfjs.PDFWorker({ name: "Folio edit backgrounds" }),
         }).promise;
         if (stale()) {
           await nextBackground.destroy();
@@ -1105,15 +1158,16 @@ export function installFlowUI(ctx) {
         background = nextBackground;
         await paintBackground();
         if (!stale())
-          base.hidden =
-            !S.flowDraftDirty && target.originalLayout?.text === target.text;
+          base.hidden = !!stage ||
+            (!S.flowDraftDirty && target.originalLayout?.text === target.text);
       } catch (e) {
+        if (stale()) return;
         status(e.message, true);
         throw e;
       } finally {
         if (!quiet) {
           busy = false;
-          input.disabled = activationRunning;
+          input.disabled = activationRunning && !stage;
         }
       }
     }
@@ -1235,6 +1289,11 @@ export function installFlowUI(ctx) {
       showingPrecise = false;
       bar.querySelector("#pe-keep-fast").hidden = true;
       bar.querySelector("#pe-use-refined").hidden = true;
+      if (firstBackground?.id === id) {
+        status(firstBackground.error || "准备原页编辑…", !!firstBackground.error);
+        selection();
+        return;
+      }
       if (
         fastReady &&
         fastFonts.ready(model) &&
@@ -1272,7 +1331,7 @@ export function installFlowUI(ctx) {
       }
     }
     function renderFast() {
-      if (!model || composing || closed) return;
+      if (!model || composing || closed || firstBackground?.id === id) return;
       pinnedScale = null;
       pinnedScale = scale();
       try {
@@ -1284,7 +1343,9 @@ export function installFlowUI(ctx) {
         preview = res;
         model.fastLayout = res;
         validRevision = res.overflow ? -1 : revision;
-        fastFonts.paint(
+        const untouched =
+          !S.flowDraftDirty && model.originalLayout?.text === model.text;
+        if (!untouched) fastFonts.paint(
           fastInk,
           res,
           w,
@@ -1292,8 +1353,6 @@ export function installFlowUI(ctx) {
           scale(),
           model.allowOverflow ? null : model.frame,
         );
-        const untouched =
-          !S.flowDraftDirty && model.originalLayout?.text === model.text;
         fastInk.hidden = untouched;
         ink.hidden = true;
         base.hidden = untouched;
@@ -1344,8 +1403,10 @@ export function installFlowUI(ctx) {
       updateWarnings(res, conflicts);
     }
 
+    let activeFinishes = 0;
     function schedulePrecise() {
       clearTimeout(preciseTimer);
+      if (activeFinishes) return;
       const button = bar.querySelector("#pe-refine");
       button.disabled = true;
       if (
@@ -1361,7 +1422,7 @@ export function installFlowUI(ctx) {
       preciseTimer = setTimeout(() => refine(), 800);
     }
     async function refine() {
-      if (closed || !model || composing) return;
+      if (closed || !model || composing || activeFinishes) return;
       if (preciseRunning) {
         preciseTimer = setTimeout(refine, 300);
         return;
@@ -1488,6 +1549,11 @@ export function installFlowUI(ctx) {
       if (e.target.closest("button") && model) e.preventDefault();
     });
     async function reflow() {
+      const stage = firstBackground;
+      if (stage && stage.id === id) {
+        await ensureFirstBackground(stage);
+        if (closed || id !== stage.id) return;
+      }
       if (
         model &&
         fastReady &&
@@ -1983,6 +2049,10 @@ export function installFlowUI(ctx) {
       revision++;
       validRevision = -1;
       status("正在恢复布局…");
+      if (firstBackground?.id === id) {
+        queue();
+        return;
+      }
       guarded(async () => {
         await prepareBackground(null, true);
         queue();
@@ -2066,6 +2136,12 @@ export function installFlowUI(ctx) {
         e.stopPropagation();
         const redo = e.key.toLowerCase() === "y" || e.shiftKey;
         restoreDraftHistory(redo);
+        return;
+      }
+      if (ctrl && !e.altKey && !e.shiftKey && ["b", "i"].includes(e.key.toLowerCase())) {
+        e.preventDefault();
+        e.stopPropagation();
+        bar.querySelector(e.key.toLowerCase() === "b" ? "#pe-bold" : "#pe-italic")?.click();
         return;
       }
       if (ctrl && e.key === "Enter") {
@@ -2918,12 +2994,7 @@ export function installFlowUI(ctx) {
         bar.querySelector("#pe-font-search").focus();
         if (!fontCatalog) {
           status("正在读取本机字体…");
-          if (!fontCatalogPromise)
-            fontCatalogPromise = call("font-catalog").catch((e) => {
-              fontCatalogPromise = null;
-              throw e;
-            });
-          const r = await fontCatalogPromise;
+          const r = await readFontCatalog();
           if (closed) return;
           fontCatalog = r.fonts;
           drawFonts();
@@ -3034,7 +3105,8 @@ export function installFlowUI(ctx) {
     listen(bar.querySelector("#pe-done"), "click", () =>
       guarded(() => finish(true)),
     );
-    function cancelDraft() {
+    function cancelDraft(redraw = true) {
+      firstBackground = null;
       revision++;
       clearTimeout(timer);
       clearTimeout(preciseTimer);
@@ -3064,24 +3136,69 @@ export function installFlowUI(ctx) {
       input.blur();
       composition.hidden = true;
       window.desktop?.setDirty?.(S.dirty);
-      candidateButtons();
+      if (redraw) candidateButtons();
       ctx.scheduleRecovery?.(true);
       status("已取消本段，原 PDF 未改变。点击段落继续编辑。");
     }
-    async function finish(exit = false) {
+    async function finish(exit = false, redraw = true) {
+      // An idle comparison layout cannot provide the PDF fragment for Apply.
+      clearTimeout(preciseTimer);
+      activeFinishes++;
+      try {
+        return await finishDraft(exit, redraw);
+      } finally {
+        activeFinishes--;
+        if (!activeFinishes && !closed && model && !composing && !showingPrecise && fastReady)
+          schedulePrecise();
+      }
+    }
+    async function finishDraft(exit, redraw) {
+      if (composing) throw Error("请先完成当前输入法组词");
+      const stage = firstBackground;
+      if (stage && stage.id === id) {
+        if (S.flowDraftDirty && canFast(model) && model.layoutMode !== "reflow") {
+          // The background depends on source ink only. Start missing-glyph lookup
+          // against the active draft while the source is being removed.
+          const target = model;
+          void fastFonts.prepare(target).then(() => {
+            if (!closed && id === stage.id && model === target && !composing)
+              fastFonts.matchMissing(target);
+          }).catch(() => {}); // The commit loop retries or uses native layout.
+        }
+        await ensureFirstBackground(stage);
+        if (closed || id !== stage.id) return;
+      }
       if (busy) throw Error("正在准备页面，请稍候");
       if (composing) throw Error("请先完成当前输入法组词");
       if (showingPrecise) throw Error("请先选择保留快速排版或应用精排");
       if (model && S.flowDraftDirty) {
-        if (fastReady && model.layoutMode !== "reflow") {
-          // Typing stays immediate; committing waits for the already-running
-          // outline choice so a temporary preview face cannot become permanent.
-          await fastFonts.settle(model);
-          if (!closed && model) renderFast();
+        const activeId = id;
+        // Font matching and keystrokes can replace a fast preview while the
+        // native writer is rendering. Only the same revision's PDF can commit.
+        for (;;) {
+          const rev = revision;
+          if (canFast(model) && model.layoutMode !== "reflow") {
+            try {
+              if (!fastReady || !fastFonts.ready(model)) await fastFonts.prepare(model);
+              if (closed || id !== activeId) return;
+              if (rev !== revision) continue;
+              fastReady = true;
+            } catch {
+              if (closed || id !== activeId) return;
+              if (rev !== revision) continue;
+              fastReady = false;
+            }
+            if (fastReady) await fastFonts.settle(model);
+          }
+          if (closed || id !== activeId) return;
+          if (rev !== revision) continue;
+          await reflow();
+          if (closed || id !== activeId) return;
+          if (rev !== revision) continue;
+          if (validRevision !== rev || !preview?.fragment)
+            throw Error(bar.querySelector("#pe-status").textContent);
+          break;
         }
-        await reflow();
-        if (validRevision !== revision || !preview)
-          throw Error(bar.querySelector("#pe-status").textContent);
         busy = true;
         input.disabled = true;
         try {
@@ -3108,11 +3225,12 @@ export function installFlowUI(ctx) {
           input.disabled = false;
         }
       }
-      cancelDraft();
+      cancelDraft(redraw && !exit);
       if (exit) destroy();
       else mount();
     }
     function destroy() {
+      firstBackground = null;
       closed = true;
       fastFonts.dispose();
       clearTimeout(activationTimer);
@@ -3173,7 +3291,7 @@ export function installFlowUI(ctx) {
         if (model) return; // Do not replace hit regions while a user is editing.
         // Freeze hit regions for this editing session. AI remains a growth
         // hint; its arrival time must not change the user's click ownership.
-        candidateButtons();
+        if (S.structures?.some(c => c.page === page && c.locked)) candidateButtons();
       },
       draft: () =>
         model && S.flowDraftDirty

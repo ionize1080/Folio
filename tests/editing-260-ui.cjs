@@ -24,6 +24,7 @@ let browser,page,saved;
         else if(u.pathname==='/__release'){warm.forget(d);value=await sources.release(d);}
         else if(u.pathname==='/__save'){saved=Buffer.from(d.bytes);value={name:d.name,working:true};}
         else if(u.pathname==='/__flow')value=await warm.foregroundTask(()=>flow.render(d));
+        else if(d.command==='flow-prime-preview')value=await background.request({command:'flow-prime-preview'});
         else if(d.command==='font-warm-document')value=warm.add(d.sourceHandle,d.page);
         else if(d.command==='font-fast' && ['builtin-latin','builtin-cjk'].includes(d.fontKey))value=await builtinFonts.run(d);
         else value=await warm.foregroundTask(()=>(d.command==='font-recommend'?matches:d.command.startsWith('font-')?fonts:d.command==='flow-background'?background:native).run(d));
@@ -61,6 +62,7 @@ let browser,page,saved;
   assert.equal((await input.inputValue()).replace(/\s/g,''),changed.replace(/\s/g,''));
   await page.screenshot({path:path.join(out,'editing-260-reopened.png')});
   report.checks.push('saved paragraph reopens as one editable unit with exact amended text');
+  assert.equal(report.requests.filter(r=>r.command==='flow-prime-preview').length,1,'Both editor sessions share the prepared background worker');
   assert(report.requests.some(r=>r.command==='font-warm-document'));assert.equal(report.errors.length,0,JSON.stringify(report.errors));
   report.status='passed';report.browser=browser.version();report.locale=await page.evaluate(()=>document.documentElement.lang);report.sample=path.basename(sample);report.page=pageNumber;
 })().catch(async e=>{

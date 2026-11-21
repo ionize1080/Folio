@@ -12,6 +12,9 @@ from font_match import load_font
 # Cache glyphs independently: inserting one leading character must not reraster
 # every installed face. Outline masks are bounded to approximately 32 MiB.
 _glyph_features=OrderedDict()
+# Coverage and outline scoring normally visit the same font consecutively.
+# Retain only the latest cmap so a large CJK face is decoded once.
+_last_cmap = (None, None)
 
 def match_cache():
     from font_match import CACHE
@@ -89,16 +92,23 @@ def outline_font(path, face, sampled=False):
 
 @lru_cache(maxsize=2048)
 def coverage(path,face,stamp):
+    global _last_cmap
     disk=cache_file('coverage',f'{path}:{face}:{stamp}:{Path(path).stat().st_size}')
     try:
         raw=zlib.decompress(disk.read_bytes())
         if raw[:4]==b'FC02' and 5<=len(raw)<=139270:return raw[5:],bool(raw[4])
     except (OSError,zlib.error):pass
-    font=outline_font(path,face)
+    from fontTools.ttLib import TTFont
+    font=TTFont(path,fontNumber=face,lazy=True)
     try:
+        # Only cmap keys are used here. FontTools normally resolves each GID to
+        # a name by building a full glyph-name list (up to 65,535 strings).
+        # A range supplies the same indexed GIDs without that allocation.
+        font.setGlyphOrder(range(font['maxp'].numGlyphs))
         # A packed bitset costs 139 KiB even for a huge CJK face; Latin faces
         # use only their highest scalar. It avoids thousands of Python integers.
         cmap=font.getBestCmap() or {};bits=bytearray((max(cmap,default=0)//8)+1)
+        _last_cmap = ((path, face, stamp), cmap) if len(cmap) <= 65536 else (None, None)
         for cp in cmap:bits[cp//8]|=1<<(cp%8)
         restricted=bool(font.get('OS/2') and font['OS/2'].fsType & 2)
         publish_cache(disk,zlib.compress(b'FC02'+bytes([restricted])+bytes(bits)))
@@ -122,7 +132,16 @@ def features(path, face, stamp, characters):
     if not pending:return out,bits,restricted
     font=outline_font(path,face,sampled=True)
     try:
-        cmap=font.getBestCmap() or {}; units=font['head'].unitsPerEm
+        cached_key, gids = _last_cmap
+        if cached_key == (path, face, stamp):
+            cmap = {}
+            for ch in pending:
+                cp = ord(ch)
+                gid = gids[cp]
+                cmap[cp] = font.getGlyphName(gid) if isinstance(gid, int) else gid
+        else:
+            cmap = font.getBestCmap() or {}
+        units=font['head'].unitsPerEm
         glyphs=font.getGlyphSet()
         class RasterPen(BasePen):
             def __init__(self): super().__init__(glyphs); self.contours=[];self.points=[]
@@ -146,7 +165,9 @@ def features(path, face, stamp, characters):
             normalized=[(op,[tuple(round(v/units,5) for v in p) if p is not None else None for p in pts]) for op,pts in pen.value]
             advance=font['hmtx'].metrics[name][0]/units
             signature=hashlib.sha256(json.dumps([normalized,round(advance,5)]).encode()).hexdigest()
-            raster=RasterPen();g.draw(raster);img=Image.new('1',(64,64))
+            # The recording already contains the original, decomposed outline.
+            # Replay it for the mask rather than decoding composite glyphs twice.
+            raster=RasterPen();pen.replay(raster);img=Image.new('1',(64,64))
             for contour in raster.contours:
                 if len(contour)<3:continue
                 part=Image.new('1',(64,64));ImageDraw.Draw(part).polygon([(round(8+x/units*42),round(50-y/units*42)) for x,y in contour],fill=1)

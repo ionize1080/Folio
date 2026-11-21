@@ -1,0 +1,44 @@
+name: Folio 2.8.4 verified Windows release
+'on':
+  pull_request:
+    branches: [main]
+    paths: [.github/workflows/release-284.yml]
+  push:
+    branches: [main]
+    paths: [.github/workflows/release-284.yml]
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  acceptance:
+    if: github.repository == 'ionize1080/Folio' && !github.event.repository.private && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+    uses: ./.github/workflows/release-283.yml
+    secrets: inherit
+  publish:
+    name: Publish the verified main commit
+    needs: acceptance
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: windows-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-284-package
+          path: deliverables
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-284-evidence
+          path: deliverables
+      - run: python scripts/publish-284.py
+        env:
+          GH_TOKEN: ${{ github.token }}

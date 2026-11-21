@@ -4,7 +4,8 @@ import {createPageInspectionCache} from '../src/page-inspection-cache.mjs';
 test('page edit inspection shares pending work without sharing mutable evidence',async()=>{
   let calls=0;const source=new Uint8Array([1]);
   const read=createPageInspectionCache(async()=>{calls++;return {objects:[{text:'source'}]};});
-  const [a,b]=await Promise.all([read(source,1),read(source,1)]);
+  const [a,b,warm]=await Promise.all([read(source,1),read(source,1),read.warm(source,1)]);
+  assert.equal(warm,undefined);
   a.objects[0].text='edited';assert.equal(b.objects[0].text,'source');assert.equal((await read(source,1)).objects[0].text,'source');assert.equal(calls,1);
   await read(new Uint8Array([2]),1);assert.equal(calls,2);
 });
