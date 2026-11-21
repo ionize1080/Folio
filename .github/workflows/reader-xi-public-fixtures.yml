@@ -24,11 +24,19 @@ jobs:
       - name: Produce synthetic paragraph revisions through the Save command
         shell: pwsh
         run: |
+          # Keep the tested second Save before the existing undo/redo test advances the shared file.
+          $test=Join-Path $PWD 'tests/bookmark-save-282.cjs'
+          $original=[IO.File]::ReadAllText($test)
+          $anchor='await save(''second-save'',''二次校验'');'
+          if (!$original.Contains($anchor)) { throw 'The second validated save was not found' }
+          $snapshot="fs.copyFileSync(file,path.join(folder,'second-result.pdf'));"
+          [IO.File]::WriteAllText($test,$original.Replace($anchor, $anchor+$snapshot),(New-Object Text.UTF8Encoding($false)))
           node tests/bookmark-save-282.cjs
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           New-Item xi-public -ItemType Directory -Force | Out-Null
           Copy-Item tests/output/bookmark-source-282-fixture/fixture.pdf xi-public/paragraph-original.pdf
           Copy-Item tests/output/bookmark-save-282/verified-result.pdf xi-public/paragraph-first.pdf
+          Copy-Item tests/output/bookmark-save-282/second-result.pdf xi-public/paragraph-second.pdf
           Copy-Item tests/output/bookmark-save-282/working.pdf xi-public/paragraph-redone.pdf
           Copy-Item tests/output/bookmark-save-282.json xi-public/
           Get-ChildItem xi-public -Filter '*.pdf' | Get-FileHash -Algorithm SHA256 | Format-Table -AutoSize
@@ -36,4 +44,4 @@ jobs:
         with:
           name: xi-synthetic-paragraph-fixtures
           path: xi-public/
-          retention-days: 1
+          retention-days: 5
