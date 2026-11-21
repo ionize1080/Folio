@@ -103,12 +103,17 @@ jobs:
           $proc = Start-Process -FilePath msiexec.exe -WindowStyle Hidden -ArgumentList @('/i',('"' + $msi.FullName + '"'),'/qn','/norestart','DISABLE_ARM_SERVICE_INSTALL=1','DISABLEDESKTOPSHORTCUT=1','/L*v',('"' + "$env:RUNNER_TEMP\adobe-xi-msi.log" + '"')) -Wait -PassThru
           Write-Output "ADOBE_INSTALL $($proc.ExitCode)"
           if ($proc.ExitCode -notin @(0,3010)) { Get-Content "$env:RUNNER_TEMP\adobe-xi-msi.log" -Tail 15; throw 'Reader MSI failed' }
+          $patch = Get-ChildItem -Path $dest -Recurse -Filter AdbeRdrUpd11010.msp | Select-Object -First 1
+          if (!$patch) { throw 'Official 11.0.10 update was absent from the signed Adobe installer' }
+          $proc = Start-Process -FilePath msiexec.exe -WindowStyle Hidden -ArgumentList @('/p',('"' + $patch.FullName + '"'),'/qn','/norestart') -Wait -PassThru
+          Write-Output "ADOBE_PATCH $($patch.Name) $($proc.ExitCode)"
+          if ($proc.ExitCode -notin @(0,3010)) { throw 'Reader XI bundled update failed' }
           $viewer = Get-ChildItem "C:\Program Files (x86)\Adobe" -Recurse -Filter AcroRd32.exe | Select-Object -First 1
           if (!$viewer) { $viewer=Get-ChildItem "C:\Program Files (x86)\Adobe" -Recurse -Filter AcroRd32.exe | Select-Object -First 1 }
           $sig = Get-AuthenticodeSignature $viewer.FullName
           $info=$viewer.VersionInfo
           Write-Output "ADOBE_VIEWER $($viewer.FullName) $($info.ProductVersion) $($info.FileVersion) $($sig.Status) $($sig.SignerCertificate.Subject)"
-          if ($sig.Status -ne 'Valid' -or $info.ProductVersion -notmatch '^11\.') { throw 'Unexpected viewer identity' }
+          if ($sig.Status -ne 'Valid' -or $info.ProductVersion -notmatch '^11\.0\.10\.') { throw 'Unexpected viewer identity' }
           "XI_VIEWER=$($viewer.FullName)" | Out-File -Encoding utf8 -Append $env:GITHUB_ENV
       - name: Make public-domain GUI test control
         if: steps.probe.outputs.available == 'true'
@@ -132,7 +137,8 @@ jobs:
         if: steps.probe.outputs.available == 'true'
         shell: powershell
         run: |
-          Add-Type -AssemblyName UIAutomationClient,UIAutomationTypes
+          Add-Type -AssemblyName UIAutomationClient,UIAutomationTypes,System.Windows.Forms,System.Drawing
+          New-Item 'xi-gui-evidence' -ItemType Directory -Force | Out-Null
           $file=Join-Path $env:RUNNER_TEMP 'xi-pdf\no-info-original.pdf'
           Start-Process $env:XI_VIEWER -WindowStyle Normal -ArgumentList @('/n',('"' + $file + '"'))
           Start-Sleep 12
@@ -147,3 +153,23 @@ jobs:
               }
             }
           }
+          $reader=$roots | Where-Object { $_.Current.ClassName -eq 'AcrobatSDIWindow' } | Select-Object -First 1
+          if (!$reader) { throw 'No Reader top-level window detected' }
+          $dialog=$reader.FindAll([System.Windows.Automation.TreeScope]::Descendants,[System.Windows.Automation.Condition]::TrueCondition) | Where-Object { $_.Current.Name -like '*License Agreement*' -and $_.Current.ClassName -eq '#32770' } | Select-Object -First 1
+          $client=if ($dialog) { $dialog } else { $reader }
+          $rect=$client.Current.BoundingRectangle
+          if ($rect.Width -gt 0 -and $rect.Height -gt 0) {
+            $image=New-Object Drawing.Bitmap([int]$rect.Width,[int]$rect.Height)
+            $g=[Drawing.Graphics]::FromImage($image)
+            $g.CopyFromScreen([int]$rect.X,[int]$rect.Y,0,0,$image.Size)
+            $g.Dispose()
+            $image.Save((Join-Path $PWD 'xi-gui-evidence\reader-first-screen.png'))
+            $image.Dispose()
+          }
+          @{reader=$reader.Current.Name;dialog=if($dialog){$dialog.Current.Name}else{$null};product=(Get-Item $env:XI_VIEWER).VersionInfo.ProductVersion;documentVerified=$false} | ConvertTo-Json | Set-Content -Encoding UTF8 'xi-gui-evidence\observed.json'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: xi-first-screen-diagnostics
+          path: xi-gui-evidence/
+          retention-days: 5
