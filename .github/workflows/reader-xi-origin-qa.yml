@@ -87,4 +87,63 @@ jobs:
           $sig = Get-AuthenticodeSignature -LiteralPath $installer
           $version = (Get-Item -LiteralPath $installer).VersionInfo
           [ordered]@{status=[string]$sig.Status;subject=$sig.SignerCertificate.Subject;product=$version.ProductName;version=$version.ProductVersion;fileVersion=$version.FileVersion} | ConvertTo-Json -Compress
-          if ($sig.Status -ne 'Valid' -or $sig.SignerCertificate.Subject -notmatch 'CN=Adobe (Systems Incorporated|Inc\.)' -or $version.ProductVersion -notmatch '^11\.') { throw 'Authenticode or XI product version not verified' }
+          $publisher = $sig.SignerCertificate.GetNameInfo([System.Security.Cryptography.X509Certificates.X509NameType]::SimpleName, $false)
+          if ($sig.Status -ne 'Valid' -or $publisher -notin @('Adobe Systems, Incorporated', 'Adobe Systems Incorporated','Adobe Inc.') -or $version.ProductVersion -notmatch '^11\.0\.10\.') { throw "Authenticode or XI version mismatch: $publisher" }
+          if ((Get-FileHash -LiteralPath $installer -Algorithm SHA256).Hash -ne 'c438ac343381031cd47dd4ed966c8e86b2bcd5a1959f55c1c7d8c61920dd18bc') { throw 'Unexpected package digest' }
+      - name: Install signed Reader in disposable VM
+        if: steps.probe.outputs.available == 'true'
+        shell: pwsh
+        run: |
+          $installer = Join-Path $env:RUNNER_TEMP 'adobe-reader-xi-origin.exe'
+          $dest = Join-Path $env:RUNNER_TEMP 'adobe-xi-extracted'
+          $proc = Start-Process -FilePath $installer -WindowStyle Hidden -ArgumentList @("-sfx_o$dest",'-sfx_ne','-sfx_nu') -Wait -PassThru
+          Write-Output "ADOBE_EXTRACT $($proc.ExitCode)"
+          $msi = Get-ChildItem -Path $dest -Recurse -Filter AcroRead.msi | Select-Object -First 1
+          if (!$msi) { throw 'Signed installer did not extract Reader MSI' }
+          $proc = Start-Process -FilePath msiexec.exe -WindowStyle Hidden -ArgumentList @('/i',('"' + $msi.FullName + '"'),'/qn','/norestart','DISABLE_ARM_SERVICE_INSTALL=1','DISABLEDESKTOPSHORTCUT=1','/L*v',('"' + "$env:RUNNER_TEMP\adobe-xi-msi.log" + '"')) -Wait -PassThru
+          Write-Output "ADOBE_INSTALL $($proc.ExitCode)"
+          if ($proc.ExitCode -notin @(0,3010)) { Get-Content "$env:RUNNER_TEMP\adobe-xi-msi.log" -Tail 15; throw 'Reader MSI failed' }
+          $viewer = Get-ChildItem "C:\Program Files (x86)\Adobe" -Recurse -Filter AcroRd32.exe | Select-Object -First 1
+          if (!$viewer) { $viewer=Get-ChildItem "C:\Program Files (x86)\Adobe" -Recurse -Filter AcroRd32.exe | Select-Object -First 1 }
+          $sig = Get-AuthenticodeSignature $viewer.FullName
+          $info=$viewer.VersionInfo
+          Write-Output "ADOBE_VIEWER $($viewer.FullName) $($info.ProductVersion) $($info.FileVersion) $($sig.Status) $($sig.SignerCertificate.Subject)"
+          if ($sig.Status -ne 'Valid' -or $info.ProductVersion -notmatch '^11\.') { throw 'Unexpected viewer identity' }
+          "XI_VIEWER=$($viewer.FullName)" | Out-File -Encoding utf8 -Append $env:GITHUB_ENV
+      - name: Make public-domain GUI test control
+        if: steps.probe.outputs.available == 'true'
+        shell: python
+        run: |
+          import os
+          from pathlib import Path
+          root=Path(os.environ['RUNNER_TEMP']) / 'xi-pdf'
+          root.mkdir(exist_ok=True)
+          text=b'BT /F1 22 Tf 40 180 Td (FOLIO READER XI CONTROL) Tj ET\n'
+          bodies=[b'<< /Type /Catalog /Pages 2 0 R >>',b'<< /Type /Pages /Count 1 /Kids [3 0 R] >>',b'<< /Type /Page /Parent 2 0 R /MediaBox [0 0 400 240] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>',b'<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',b'<< /Length %d >>\nstream\n'%len(text)+text+b'endstream']
+          pdf=b'%PDF-1.4\n'
+          offsets=[]
+          for i,body in enumerate(bodies,1):
+              offsets.append(len(pdf))
+              pdf+=b'%d 0 obj\n'%i+body+b'\nendobj\n'
+          xref=len(pdf)
+          pdf+=b'xref\n0 6\n0000000000 65535 f \n'+b''.join(b'%010d 00000 n \n'%o for o in offsets)+b'trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n%d\n%%%%EOF\n'%xref
+          (root/'no-info-original.pdf').write_bytes(pdf)
+      - name: Inspect real Reader GUI without dismissing any document or first-run prompt
+        if: steps.probe.outputs.available == 'true'
+        shell: powershell
+        run: |
+          Add-Type -AssemblyName UIAutomationClient,UIAutomationTypes
+          $file=Join-Path $env:RUNNER_TEMP 'xi-pdf\no-info-original.pdf'
+          Start-Process $env:XI_VIEWER -WindowStyle Normal -ArgumentList @('/n',('"' + $file + '"'))
+          Start-Sleep 12
+          $root=[System.Windows.Automation.AutomationElement]::RootElement
+          $roots=$root.FindAll([System.Windows.Automation.TreeScope]::Children,[System.Windows.Automation.Condition]::TrueCondition)
+          Get-Process AcroRd32 -ErrorAction SilentlyContinue | Select-Object Id,SessionId,MainWindowTitle | Format-Table | Out-String | Write-Output
+          foreach($r in $roots) {
+            Write-Output "XI_WINDOW $($r.Current.ProcessId) $($r.Current.ClassName) $($r.Current.Name)"
+            if ($r.Current.ClassName -eq '#32770' -or $r.Current.Name -match 'Adobe|FOLIO|no-info') {
+              foreach($x in $r.FindAll([System.Windows.Automation.TreeScope]::Descendants,[System.Windows.Automation.Condition]::TrueCondition) | Select-Object -First 180) {
+                if ($x.Current.Name) { Write-Output "XI_CONTROL $($x.Current.ClassName) $($x.Current.ControlType.ProgrammaticName) $($x.Current.Name.Substring(0, [Math]::Min(180,$x.Current.Name.Length)))" }
+              }
+            }
+          }
