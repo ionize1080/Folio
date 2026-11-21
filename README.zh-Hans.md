@@ -2,11 +2,11 @@
 
 [English](README.md) · **简体中文** · [繁體中文](README.zh-Hant.md)
 
-Folio PDF Studio 2.8.3 是 Windows x64 上的本地 PDF 工作台。可以同时打开多份文档，整理长篇书签、编辑页面文字与图片，或把扫描件处理成可检索 PDF。需要模型协助时，从工具栏打开 Chatbox。
+Folio PDF Studio 2.8.4 是 Windows x64 上的本地 PDF 工作台。可以同时打开多份文档，整理长篇书签、编辑页面文字与图片，或把扫描件处理成可检索 PDF。需要模型协助时，从工具栏打开 Chatbox。
 
-**当前版本：2.8.3。** 2.8 系列完善了现代功能区、书签规则与 OCR 工作区、支持键盘操作的页面组织器和字体工作台；关闭原件保护时，符合条件的首次保存也可增量写入，段落编辑保留书签目标精度。2.8.3 修复复选框选中状态显示，校验设置输入，并避免未变化设置触发文档刷新。[历史版本](docs/HISTORY.md)。
+**当前版本：2.8.4。** 按 Ctrl+Shift+P 查找命令，可在阅读时调整页面色调，也可使用更新的 OCR 和书签工作台。 [历史版本](docs/HISTORY.md)。
 
-[下载 Windows x64 便携包](https://github.com/ionize1080/Folio/releases/download/v2.8.3/Folio-PDF-Studio-2.8.3-portable-win-x64.zip) · [本版说明](docs/RELEASE-2.8.3.zh-Hans.md) · [AI 使用指南](docs/AI.md) · [文档索引](docs/README.md)
+[下载 Windows x64 便携包](https://github.com/ionize1080/Folio/releases/download/v2.8.4/Folio-PDF-Studio-2.8.4-portable-win-x64.zip) · [本版说明](docs/RELEASE-2.8.4.zh-Hans.md) · [AI 使用指南](docs/AI.md) · [文档索引](docs/README.md)
 
 ![Folio 2.8.3 阅读合成演示 PDF](docs/images/2.8.3/01-reader.png)
 

@@ -2,8 +2,8 @@
 from pathlib import Path
 import hashlib,json,zipfile
 root=Path(__file__).resolve().parents[1];folder=root/'deliverables'
-name='Folio-PDF-Studio-2.8.3-portable-win-x64.zip';file=folder/name
-manifest=json.loads((folder/'Folio-PDF-Studio-2.8.3-SHA256.json').read_text())
+name='Folio-PDF-Studio-2.8.4-portable-win-x64.zip';file=folder/name
+manifest=json.loads((folder/'Folio-PDF-Studio-2.8.4-SHA256.json').read_text())
 with file.open('rb') as stream:actual=hashlib.file_digest(stream,'sha256').hexdigest()
 assert next(x['sha256'] for x in manifest if x['file']==name)==actual
 target=(root/'dist/Folio-PDF-Studio-win-x64').resolve();target.mkdir(parents=True,exist_ok=True)
