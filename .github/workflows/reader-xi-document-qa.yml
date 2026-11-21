@@ -1,4 +1,4 @@
-name: Inspect actual Reader XI paragraph save output
+name: Compare originals and legacy and fixed incremental saves in actual Reader XI
 on:
   push:
     branches: [qa/reader-xi-origin-20261121]
@@ -126,8 +126,8 @@ jobs:
           python-version: '3.12'
       - uses: actions/download-artifact@v4
         with:
-          name: xi-synthetic-paragraph-fixtures
-          run-id: 44867705841
+          name: xi-public-comparison-pdfs
+          run-id: 44868184046
           github-token: ${{ github.token }}
           path: xi-pdfs
       - name: Install isolated observation dependencies
