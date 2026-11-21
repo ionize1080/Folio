@@ -2,7 +2,7 @@ name: Compare originals and legacy and fixed incremental saves in actual Reader 
 on:
   push:
     branches: [qa/reader-xi-origin-20261121]
-    paths: [.github/workflows/reader-xi-document-qa.yml]
+    paths: [.github/workflows/reader-xi-document-qa.yml, tests/reader-xi-isolated-gui.py]
 permissions:
   contents: read
   actions: read

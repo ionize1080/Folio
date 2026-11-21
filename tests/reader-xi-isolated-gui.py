@@ -51,7 +51,7 @@ def children(hwnd):
     return values
 
 
-def dialogs_for(roots):
+def dialog_handles(roots):
     pids = {win32process.GetWindowThreadProcessId(w)[1] for w in roots}
     handles = set()
     def collect(w, _):
@@ -59,8 +59,31 @@ def dialogs_for(roots):
             handles.add(w)
     win32gui.EnumWindows(collect, None)
     for root in roots:
-        handles.update(w for w, c, _ in children(root) if c == '#32770')
-    return [(win32gui.GetWindowText(w), [t[:240] for _, _, t in children(w) if t]) for w in handles]
+        handles.update(w for w, cls, _ in children(root) if cls == '#32770')
+    return handles
+
+
+def settle(known, seconds=3):
+    """Only dismiss Reader's two identified preferences; retain every other modal."""
+    deadline = time.monotonic() + seconds
+    while time.monotonic() < deadline:
+        for handle in dialog_handles(read_windows()):
+            title = win32gui.GetWindowText(handle)
+            items = children(handle)
+            labels = {text.replace('&', '') for _, _, text in items}
+            action = None
+            if title == 'Reading Untagged Document' and 'Reading Order Options' in labels:
+                action = 'Start'
+            elif title == 'Adobe Reader' and 'Make Adobe Reader my default PDF application.' in labels:
+                action = 'Cancel'
+            if action:
+                btn = next((w for w, cls, text in items if cls == 'Button' and text.replace('&', '') == action), None)
+                if btn:
+                    win32gui.SendMessage(btn, win32con.BM_CLICK, 0, 0)
+                    known.append([title, action])
+                    time.sleep(.3)
+        time.sleep(.12)
+    return [(win32gui.GetWindowText(w), [t[:240] for _, _, t in children(w) if t]) for w in dialog_handles(read_windows())]
 
 
 def screenshot(hwnd, dest):
@@ -103,44 +126,47 @@ def check(viewer, path, evidence):
     proc = subprocess.Popen([str(viewer), '/n', str(path)])
     result = {'file': path.name, 'expectedPages': pages, 'passed': False}
     try:
-        deadline = time.monotonic() + 18
+        known = result['preferences'] = []
+        deadline = time.monotonic() + 22
+        window = None
         while time.monotonic() < deadline:
-            roots = read_windows()
-            dialogs = dialogs_for(roots)
-            if dialogs:
+            for root in read_windows():
+                if path.stem.lower() in win32gui.GetWindowText(root).lower() and 1 in page_number(root):
+                    window = root
+                    break
+            if window:
                 break
-            if roots and any(path.stem.lower() in win32gui.GetWindowText(w).lower() and any(page_number(w)) for w in roots):
-                time.sleep(1.0)
-                break
-            time.sleep(.35)
-        roots = read_windows()
-        result['titles'] = [win32gui.GetWindowText(w) for w in roots]
-        result['dialogs'] = dialogs_for(roots)
-        if not roots:
+            time.sleep(.25)
+        result['titles'] = [win32gui.GetWindowText(w) for w in read_windows()]
+        result['dialogs'] = settle(known, 2)
+        if not window or result['dialogs']:
             return result
-        window = next((w for w in roots if path.stem.lower() in win32gui.GetWindowText(w).lower()), roots[0])
-        screenshot(window, evidence / (path.stem + '.png'))
-        if result['dialogs']:
-            return result
-        tree = uia_controls(window)
-        result['toolbar'] = [(cl, t) for cl, t in tree if cl == 'Edit' or re.search(r'\b(page|of)\b', t, re.I)]
-        result['firstPageFields'] = page_number(window)
         app = Desktop(backend='win32').window(handle=window)
         app.set_focus()
-        # Focus the document pane before Ctrl+A/Ctrl+C and Ctrl+End.
-        client=app.client_rect()
+        app.maximize()
+        time.sleep(.4)
+        result['firstPageFields'] = page_number(window)
+        screenshot(window, evidence / (path.stem + '.png'))
+        client = app.client_rect()
         app.click_input(coords=(client.width()//2, client.height()//2))
         clear_clipboard()
-        send_keys('^a^c', pause=.15)
-        time.sleep(.6)
-        extracted = clipboard_text()
-        result['copiedText'] = extracted[:420]
+        send_keys('^a^c', pause=.2)
+        result['dialogs'] += settle(known, 2)
+        result['copiedText'] = clipboard_text()[:1600]
+        if result['dialogs']:
+            return result
         send_keys('{ESC}^{END}', pause=.2)
-        time.sleep(.8)
+        result['dialogs'] += settle(known, 1)
+        if pages not in page_number(window) and not result['dialogs']:
+            # The page-number edit is the only numeric field on the standard XI toolbar; zoom includes a percent sign.
+            edits = [h for h, cls, value in children(window) if cls == 'Edit' and value.strip() == '1']
+            if len(edits) == 1:
+                Desktop(backend='win32').window(handle=edits[0]).click_input()
+                send_keys('^a' + str(pages) + '{ENTER}', pause=.15)
+                result['dialogs'] += settle(known, 1)
         result['lastPageFields'] = page_number(window)
         screenshot(window, evidence / (path.stem + '-last.png'))
-        result['dialogs'] += dialogs_for(read_windows())
-        result['titleMatches'] = any(path.stem.lower() in name.lower() for name in result['titles'])
+        result['titleMatches'] = path.stem.lower() in win32gui.GetWindowText(window).lower()
         result['passed'] = (result['titleMatches'] and 1 in result['firstPageFields'] and
                             pages in result['lastPageFields'] and not result['dialogs'])
         return result
@@ -169,7 +195,7 @@ def main():
         if any('license agreement' in title.lower() for title,_ in record.get('dialogs',[])):
             break
     (args.evidence/'reader-document-observations.json').write_text(json.dumps(report,indent=2,ensure_ascii=False),encoding='utf8')
-    if not report or not all(r['passed'] for r in report if 'legacy' not in r['file'] and 'old-' not in r['file']):
+    if len(report) != 12 or not all(r['passed'] for r in report if 'legacy' not in r['file'] and 'old-' not in r['file']):
         raise SystemExit(1)
 
 
