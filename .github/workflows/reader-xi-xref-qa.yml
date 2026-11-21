@@ -1,0 +1,221 @@
+name: Open streamed and mixed-chain PDF revisions in actual Adobe Reader XI
+on:
+  push:
+    branches: [qa/reader-xi-origin-20261121]
+    paths: [.github/workflows/reader-xi-xref-qa.yml, tests/xi-stream-gui.py, tests/xi-stream-qa.mjs]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  adobe-origin:
+    runs-on: windows-latest
+    timeout-minutes: 16
+    steps:
+      - name: Check official HTTPS paths
+        id: probe
+        shell: python
+        run: |
+          import concurrent.futures
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+          from urllib.error import HTTPError
+          from urllib.parse import urlsplit
+          from urllib.request import HTTPRedirectHandler, Request, build_opener
+
+          hosts = ("ardownload2.adobe.com", "ardownload.adobe.com", "ftp.adobe.com")
+          versions = (("11.0.10", "AdbeRdr11010_en_US.exe"), ("11.0.00", "AdbeRdr11000_en_US.exe"))
+          urls = [f"https://{host}/pub/adobe/reader/win/11.x/{version}/en_US/{name}"
+                  for version, name in versions for host in hosts]
+
+          class AdobeHTTPSRedirect(HTTPRedirectHandler):
+              def redirect_request(self, req, fp, code, msg, hdrs, url):
+                  parsed = urlsplit(url)
+                  if parsed.scheme != "https" or not (parsed.hostname or "").endswith(".adobe.com"):
+                      raise ValueError("unapproved redirect")
+                  return super().redirect_request(req, fp, code, msg, hdrs, url)
+
+          def inspect(url):
+              record = {"url": url}
+              for method in ("HEAD", "GET"):
+                  try:
+                      headers = {"Accept-Encoding": "identity"}
+                      if method == "GET":
+                          headers["Range"] = "bytes=0-15"
+                      with build_opener(AdobeHTTPSRedirect()).open(Request(url, headers=headers, method=method), timeout=24) as resp:
+                          item = {"status": resp.status, "type": resp.headers.get("Content-Type"),
+                                  "length": resp.headers.get("Content-Length"), "final": resp.geturl()}
+                          if method == "GET":
+                              item["pe"] = resp.read(16).startswith(b"MZ")
+                  except HTTPError as exc:
+                      item = {"status": exc.code, "type": exc.headers.get("Content-Type"), "final": exc.geturl()}
+                  except Exception as exc:
+                      item = {"status": None, "failure": str(exc)}
+                  record[method] = item
+              return record
+
+          with concurrent.futures.ThreadPoolExecutor(max_workers=6) as pool:
+              rows = list(pool.map(inspect, urls))
+          for row in rows:
+              print("ADOBE_HTTP " + json.dumps(row), flush=True)
+
+          available = False
+          for row in rows:
+              if not row["GET"].get("pe"):
+                  continue
+              try:
+                  dest = Path(os.environ["RUNNER_TEMP"]) / "adobe-reader-xi-origin.exe"
+                  with build_opener(AdobeHTTPSRedirect()).open(row["url"], timeout=45) as resp, dest.open("wb") as out:
+                      if resp.status != 200:
+                          continue
+                      while chunk := resp.read(1024*1024):
+                          if out.tell() + len(chunk) > 112*1024*1024:
+                              raise ValueError("unexpected package size")
+                          out.write(chunk)
+                  print("ADOBE_PACKAGE " + json.dumps({"url": row["url"], "bytes": dest.stat().st_size,
+                        "sha256": hashlib.file_digest(dest.open("rb"), "sha256").hexdigest()}))
+                  available = True
+                  break
+              except Exception as exc:
+                  print("ADOBE_DOWNLOAD_ERROR " + str(exc))
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as out:
+              print("available=" + str(available).lower(), file=out)
+      - name: Verify publisher and version without executing the installer
+        if: steps.probe.outputs.available == 'true'
+        shell: pwsh
+        run: |
+          $installer = Join-Path $env:RUNNER_TEMP 'adobe-reader-xi-origin.exe'
+          $sig = Get-AuthenticodeSignature -LiteralPath $installer
+          $version = (Get-Item -LiteralPath $installer).VersionInfo
+          [ordered]@{status=[string]$sig.Status;subject=$sig.SignerCertificate.Subject;product=$version.ProductName;version=$version.ProductVersion;fileVersion=$version.FileVersion} | ConvertTo-Json -Compress
+          $publisher = $sig.SignerCertificate.GetNameInfo([System.Security.Cryptography.X509Certificates.X509NameType]::SimpleName, $false)
+          if ($sig.Status -ne 'Valid' -or $publisher -notin @('Adobe Systems, Incorporated', 'Adobe Systems Incorporated','Adobe Inc.') -or $version.ProductVersion -notmatch '^11\.0\.10\.') { throw "Authenticode or XI version mismatch: $publisher" }
+          if ((Get-FileHash -LiteralPath $installer -Algorithm SHA256).Hash -ne 'c438ac343381031cd47dd4ed966c8e86b2bcd5a1959f55c1c7d8c61920dd18bc') { throw 'Unexpected package digest' }
+      - name: Install signed Reader in disposable VM
+        if: steps.probe.outputs.available == 'true'
+        shell: pwsh
+        run: |
+          $installer = Join-Path $env:RUNNER_TEMP 'adobe-reader-xi-origin.exe'
+          $dest = Join-Path $env:RUNNER_TEMP 'adobe-xi-extracted'
+          $proc = Start-Process -FilePath $installer -WindowStyle Hidden -ArgumentList @("-sfx_o$dest",'-sfx_ne','-sfx_nu') -Wait -PassThru
+          Write-Output "ADOBE_EXTRACT $($proc.ExitCode)"
+          $msi = Get-ChildItem -Path $dest -Recurse -Filter AcroRead.msi | Select-Object -First 1
+          if (!$msi) { throw 'Signed installer did not extract Reader MSI' }
+          $proc = Start-Process -FilePath msiexec.exe -WindowStyle Hidden -ArgumentList @('/i',('"' + $msi.FullName + '"'),'/qn','/norestart','DISABLE_ARM_SERVICE_INSTALL=1','DISABLEDESKTOPSHORTCUT=1','/L*v',('"' + "$env:RUNNER_TEMP\adobe-xi-msi.log" + '"')) -Wait -PassThru
+          Write-Output "ADOBE_INSTALL $($proc.ExitCode)"
+          if ($proc.ExitCode -notin @(0,3010)) { Get-Content "$env:RUNNER_TEMP\adobe-xi-msi.log" -Tail 15; throw 'Reader MSI failed' }
+          $patch = Get-ChildItem -Path $dest -Recurse -Filter AdbeRdrUpd11010.msp | Select-Object -First 1
+          if (!$patch) { throw 'Official 11.0.10 update was absent from the signed Adobe installer' }
+          $proc = Start-Process -FilePath msiexec.exe -WindowStyle Hidden -ArgumentList @('/p',('"' + $patch.FullName + '"'),'/qn','/norestart') -Wait -PassThru
+          Write-Output "ADOBE_PATCH $($patch.Name) $($proc.ExitCode)"
+          if ($proc.ExitCode -notin @(0,3010)) { throw 'Reader XI bundled update failed' }
+          $viewer = Get-ChildItem "C:\Program Files (x86)\Adobe" -Recurse -Filter AcroRd32.exe | Select-Object -First 1
+          if (!$viewer) { $viewer=Get-ChildItem "C:\Program Files (x86)\Adobe" -Recurse -Filter AcroRd32.exe | Select-Object -First 1 }
+          $sig = Get-AuthenticodeSignature $viewer.FullName
+          $info=$viewer.VersionInfo
+          Write-Output "ADOBE_VIEWER $($viewer.FullName) $($info.ProductVersion) $($info.FileVersion) $($sig.Status) $($sig.SignerCertificate.Subject)"
+          if ($sig.Status -ne 'Valid' -or $info.ProductVersion -notmatch '^11\.0\.10\.') { throw 'Unexpected viewer identity' }
+          "XI_VIEWER=$($viewer.FullName)" | Out-File -Encoding utf8 -Append $env:GITHUB_ENV
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            tests/reader-xi-isolated-gui.py
+            tests/xi-stream-gui.py
+            tests/xi-stream-qa.mjs
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Require the verified official viewer
+        if: steps.probe.outputs.available != 'true'
+        run: throw 'Official Adobe Reader XI unavailable'
+      - uses: actions/checkout@v4
+        with:
+          ref: 29f1b2f2dddf2fad96319bcaa89d229d6bb2fe34
+          path: fixed
+          sparse-checkout: |
+            src
+            package.json
+          sparse-checkout-cone-mode: false
+      - uses: actions/checkout@v4
+        with:
+          ref: 99527c9e0e68166489064a63814f454341b5c798
+          path: baseline
+          sparse-checkout: |
+            src
+            package.json
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install observation and PDF inspection dependencies
+        run: python -m pip install pywinauto==0.6.9 pywin32 pikepdf pillow
+      - name: Generate PDF engine saves and independently check xref chains
+        run: node tests/xi-stream-qa.mjs fixed baseline xi-pdfs
+      - name: Accept the displayed XI license with the user's explicit authorization
+        if: steps.probe.outputs.available == 'true'
+        shell: powershell
+        run: |
+          Add-Type -AssemblyName UIAutomationClient,UIAutomationTypes,System.Windows.Forms
+          Add-Type -TypeDefinition 'using System.Runtime.InteropServices; public static class XiMouse { [DllImport("user32.dll")] public static extern bool SetCursorPos(int x,int y); [DllImport("user32.dll")] public static extern void mouse_event(uint f, uint dx,uint dy,uint data, System.UIntPtr extra); }'
+          $file=(Resolve-Path xi-pdfs/stream-original.pdf).Path
+          Start-Process $env:XI_VIEWER -WindowStyle Normal -ArgumentList @('/n',('"'+$file+'"'))
+          $root=[System.Windows.Automation.AutomationElement]::RootElement
+          $title='Adobe Reader XI - Distribution License Agreement for Use on Personal Computers'
+          $dialog=$null
+          for ($t=0;$t -lt 45 -and !$dialog;$t++) {
+            Start-Sleep -Milliseconds 400
+            $windows=$root.FindAll([System.Windows.Automation.TreeScope]::Children,[System.Windows.Automation.Condition]::TrueCondition)
+            $reader=$windows | Where-Object {$_.Current.ClassName -eq 'AcrobatSDIWindow'} | Select-Object -First 1
+            if ($reader) {
+              $dialog=$reader.FindAll([System.Windows.Automation.TreeScope]::Descendants,[System.Windows.Automation.Condition]::TrueCondition) | Where-Object {$_.Current.Name -eq $title -and $_.Current.ClassName -eq '#32770'} | Select-Object -First 1
+            }
+          }
+          if (!$dialog) { throw 'Exact Reader XI license not observed in displayed desktop' }
+          $button=$dialog.FindAll([System.Windows.Automation.TreeScope]::Descendants,[System.Windows.Automation.Condition]::TrueCondition) | Where-Object {$_.Current.Name -eq 'Accept' -and $_.Current.ClassName -eq 'Button'} | Select-Object -First 1
+          if (!$button) { throw 'No visible Accept control in actual XI license' }
+          $r=$button.Current.BoundingRectangle
+          if ($r.Width -le 0 -or $r.Height -le 0) { throw 'Accept control has no screen bounds' }
+          $loc=@([int]($r.Left+$r.Width/2),[int]($r.Top+$r.Height/2))
+          "XI_AUTHORIZED_CLICK $title / $($button.Current.Name) at $loc"
+          [void][XiMouse]::SetCursorPos($loc[0],$loc[1])
+          [XiMouse]::mouse_event(2,0,0,0,[UIntPtr]::Zero)
+          [XiMouse]::mouse_event(4,0,0,0,[UIntPtr]::Zero)
+          Start-Sleep 4
+          $after=$reader.FindAll([System.Windows.Automation.TreeScope]::Descendants,[System.Windows.Automation.Condition]::TrueCondition)
+          $still=$after | Where-Object {$_.Current.Name -eq $title}
+          if ($still) { throw 'License remained after GUI click' }
+          "XI_AFTER_ACCEPT $($reader.Current.Name)"
+          foreach ($x in $after | Where-Object { $_.Current.ClassName -in @('#32770','Edit','Static','Button') } | Select-Object -First 30) { "XI_AFTER_CONTROL $($x.Current.ClassName) $($x.Current.Name)" }
+          $defaultChoice=$after | Where-Object { $_.Current.Name -eq 'Make Adobe Reader my default PDF application.' -and $_.Current.ClassName -eq 'Static' } | Select-Object -First 1
+          if ($defaultChoice) {
+            $modal=$after | Where-Object { $_.Current.ClassName -eq '#32770' -and $_.FindFirst([System.Windows.Automation.TreeScope]::Descendants,(New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty,'Make Adobe Reader my default PDF application.'))) } | Select-Object -First 1
+            if (!$modal) {throw 'Could not identify exact default-app preference prompt'}
+            $buttons=$modal.FindAll([System.Windows.Automation.TreeScope]::Descendants,[System.Windows.Automation.Condition]::TrueCondition)
+            foreach ($label in @('Do not show this message again','Cancel')) {
+              $target=$buttons | Where-Object {$_.Current.ClassName -eq 'Button' -and $_.Current.Name -eq $label} | Select-Object -First 1
+              if (!$target) { throw "Default-app control absent $label" }
+              $bounds=$target.Current.BoundingRectangle
+              [void][XiMouse]::SetCursorPos([int]($bounds.Left+$bounds.Width/2),[int]($bounds.Top+$bounds.Height/2))
+              [XiMouse]::mouse_event(2,0,0,0,[UIntPtr]::Zero)
+              [XiMouse]::mouse_event(4,0,0,0,[UIntPtr]::Zero)
+              Start-Sleep -Milliseconds 400
+              "XI_DEFAULT_APP $label"
+            }
+          }
+          Get-Process AcroRd32 -ErrorAction SilentlyContinue | Where-Object {$_.MainWindowHandle} | ForEach-Object { [void]$_.CloseMainWindow() }
+          Start-Sleep 2
+          Get-Process AcroRd32 -ErrorAction SilentlyContinue | Stop-Process -Force
+      - name: Inspect each document in a fresh XI process
+        if: steps.probe.outputs.available == 'true'
+        shell: pwsh
+        run: python tests/xi-stream-gui.py "$env:XI_VIEWER" xi-pdfs xi-gui-evidence
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: reader-xi-stream-matrix
+          path: |
+            xi-gui-evidence/
+            xi-pdfs/
+          retention-days: 90
