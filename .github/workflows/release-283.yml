@@ -71,6 +71,8 @@ jobs:
         fixtures: 'false'
     - run: native\runtime\python.exe tests/system-font-catalog-cache.py
     - run: native\runtime\python.exe tests/tagged-paragraph-284.py
+    - run: native\runtime\python.exe tests/shared-line-site-284.py
+    - run: native\runtime\python.exe tests/story-aliases-284.py
     - run: node scripts/acceptance.mjs native
       env:
         FOLIO_TEST_SHARD: 1/6

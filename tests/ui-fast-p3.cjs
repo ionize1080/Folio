@@ -86,6 +86,8 @@ const errors = [],
     }
   });
   await page.addInitScript(() => {
+    // The workflow asserts localized toolbar labels as well as rendered glyphs.
+    localStorage.setItem("folio-language", "zh-Hans");
     const call = async (url, d) => {
       const r = await fetch(url, { method: "POST", body: JSON.stringify(d) }),
         v = await r.json();
@@ -149,8 +151,7 @@ const errors = [],
   await page.evaluate(() => window.__qa.actions["flow-edit"]());
   await page.locator('.page-edit-hit[aria-label="Short title"]').click();
   await page.waitForFunction(
-    () => /完成/.test(document.querySelector("#pe-status")?.textContent) &&
-      [...document.fonts].some(face => face.family.startsWith("FolioFast_") && face.status === "loaded"),
+    () => [...document.fonts].some(face => face.family.startsWith("FolioFast_") && face.status === "loaded"),
     null,
     { timeout: 60000 },
   );

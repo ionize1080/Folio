@@ -29,6 +29,7 @@ import {
 
 const previewFontCache = new Map();
 let fontCatalogPromise = null;
+let previewWarmup;
 let fontPreviewQueue = Promise.resolve();
 
 // The hidden native input owns IME / clipboard. MuPDF's vector page owns every
@@ -52,6 +53,14 @@ export function installFlowUI(ctx) {
   // Font conversion and browser decoding run alongside page inspection. They
   // share prepare()'s promises without retaining document or editor state.
   const warmFallback = () => FastFonts.preloadFallback(call).catch(() => {});
+  function readFontCatalog() {
+    if (!fontCatalogPromise)
+      fontCatalogPromise = call("font-catalog").catch((error) => {
+        fontCatalogPromise = null;
+        throw error;
+      });
+    return fontCatalogPromise;
+  }
   let warmTimer;
   const warm = event => {
     if(!event.target?.closest?.('[data-action="flow-edit"],[data-ribbon-command="flow-edit"],#ribbon-tab-edit'))return;
@@ -79,6 +88,14 @@ export function installFlowUI(ctx) {
     if (surface.rotation(page) % 90 || info.userUnit !== 1)
       throw Error("此页坐标原点或单位暂不支持页面编辑，原文已保留");
     opening = true;
+    // Source fonts consult the system catalog for missing glyphs. Its worker
+    // can resolve the catalog while a separate worker inspects this text page.
+    if (S.currentText?.items?.some((item) => item.str?.trim())) {
+      void readFontCatalog().catch(() => {});
+      previewWarmup ||= nativeRequest({ command: "flow-prime-preview" }).catch(() => {
+        previewWarmup = null;
+      });
+    }
     void warmFallback();
     toast("正在识别当前页的文字与版面…");
     const source = S.bytes,
@@ -1386,8 +1403,10 @@ export function installFlowUI(ctx) {
       updateWarnings(res, conflicts);
     }
 
+    let activeFinishes = 0;
     function schedulePrecise() {
       clearTimeout(preciseTimer);
+      if (activeFinishes) return;
       const button = bar.querySelector("#pe-refine");
       button.disabled = true;
       if (
@@ -1403,7 +1422,7 @@ export function installFlowUI(ctx) {
       preciseTimer = setTimeout(() => refine(), 800);
     }
     async function refine() {
-      if (closed || !model || composing) return;
+      if (closed || !model || composing || activeFinishes) return;
       if (preciseRunning) {
         preciseTimer = setTimeout(refine, 300);
         return;
@@ -2975,12 +2994,7 @@ export function installFlowUI(ctx) {
         bar.querySelector("#pe-font-search").focus();
         if (!fontCatalog) {
           status("正在读取本机字体…");
-          if (!fontCatalogPromise)
-            fontCatalogPromise = call("font-catalog").catch((e) => {
-              fontCatalogPromise = null;
-              throw e;
-            });
-          const r = await fontCatalogPromise;
+          const r = await readFontCatalog();
           if (closed) return;
           fontCatalog = r.fonts;
           drawFonts();
@@ -3127,9 +3141,30 @@ export function installFlowUI(ctx) {
       status("已取消本段，原 PDF 未改变。点击段落继续编辑。");
     }
     async function finish(exit = false, redraw = true) {
+      // An idle comparison layout cannot provide the PDF fragment for Apply.
+      clearTimeout(preciseTimer);
+      activeFinishes++;
+      try {
+        return await finishDraft(exit, redraw);
+      } finally {
+        activeFinishes--;
+        if (!activeFinishes && !closed && model && !composing && !showingPrecise && fastReady)
+          schedulePrecise();
+      }
+    }
+    async function finishDraft(exit, redraw) {
       if (composing) throw Error("请先完成当前输入法组词");
       const stage = firstBackground;
       if (stage && stage.id === id) {
+        if (S.flowDraftDirty && canFast(model) && model.layoutMode !== "reflow") {
+          // The background depends on source ink only. Start missing-glyph lookup
+          // against the active draft while the source is being removed.
+          const target = model;
+          void fastFonts.prepare(target).then(() => {
+            if (!closed && id === stage.id && model === target && !composing)
+              fastFonts.matchMissing(target);
+          }).catch(() => {}); // The commit loop retries or uses native layout.
+        }
         await ensureFirstBackground(stage);
         if (closed || id !== stage.id) return;
       }

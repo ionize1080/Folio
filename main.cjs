@@ -509,6 +509,8 @@ app.whenReady().then(async () => {
     objectPayload(data, "本地");
     if (typeof data.command !== "string") throw Error("本地请求无效");
     const options = { ...data };
+    if (options.command === 'flow-prime-preview')
+      return editorWorker('background').request({ command: 'flow-prime-preview' });
     if (options.command === 'font-warm-document') {
       if (!sources.get(owner)?.has(options.sourceHandle)) throw Error('原文句柄无效');
       return fontWarmup.add(options.sourceHandle, options.page);

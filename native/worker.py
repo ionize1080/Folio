@@ -407,6 +407,11 @@ def run(args, *, _preview=False):
  if args.get('command')=='image-preview':
   from image_adjustments import preview
   return preview(args)
+ if args.get('command')=='flow-prime-preview':
+  # Import the same engines used by the first background render. No document,
+  # canvas or layout is opened until a paragraph is selected.
+  import pypdfium2, preview_page
+  return {'ready':True}
  if args.get('command')=='flow-background':
   from preview_page import preview_source, render_page, compact_preview
   number=args.get('page',1);page_data,target,tagged=preview_source(args)

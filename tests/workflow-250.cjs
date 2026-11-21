@@ -26,16 +26,15 @@ const fs=require('node:fs'),path=require('node:path'),assert=require('node:asser
     await page.evaluate(()=>{
       globalThis.workflowActivations=[];
       document.addEventListener('click',event=>{
-        if(!event.target.closest?.('.page-edit-hit:not(.unavailable)'))return;
-        const input=document.querySelector('.page-edit-input');if(!input)return;
-        const stage={startedAt:performance.now()};globalThis.workflowActivations.push(stage);
-        let preparing=false;
-        const observer=new MutationObserver(()=>{
-          if(input.disabled)preparing=true;
-          else if(preparing){stage.elapsedMs=performance.now()-stage.startedAt;observer.disconnect();}
-        });
-        observer.observe(input,{attributes:true,attributeFilter:['disabled']});
+        const hit=event.target.closest?.('.page-edit-hit:not(.unavailable)');
+        if(hit) globalThis.workflowActivations.push({startedAt:performance.now()});
       },true);
+      document.addEventListener('focusin',event=>{
+        const input=event.target,stage=globalThis.workflowActivations.at(-1);
+        if(stage && stage.elapsedMs===undefined && input.matches?.('.page-edit-input') &&
+            !input.disabled && input.value.length)
+          stage.elapsedMs=performance.now()-stage.startedAt;
+      });
     });
     await page.evaluate(async()=>(await import('./i18n.mjs')).setLanguage('zh-Hans'));
     await app.evaluate(({dialog},file)=>{dialog.showOpenDialog=async()=>({canceled:false,filePaths:[file]});},file);
@@ -58,7 +57,12 @@ const fs=require('node:fs'),path=require('node:path'),assert=require('node:asser
     for(let cycle=0;cycle<2;cycle++){
       const active=Date.now();if(!cycle)firstSelectionAt=active;
       await page.locator('.page-edit-hit:not(.unavailable)').nth(candidate.i).click();
-      await page.waitForFunction(()=>{const i=document.querySelector('.page-edit-input');return i&&!i.disabled&&i.value.length>0&&Number.isFinite(globalThis.workflowActivations.at(-1)?.elapsedMs)});
+      await page.waitForFunction(({cycle,title})=>{
+        const input=document.querySelector('.page-edit-input'),stages=globalThis.workflowActivations;
+        return stages.length===cycle+1 && Number.isFinite(stages[cycle].elapsedMs) &&
+          document.activeElement===input && !input.disabled && input.value.length>0 &&
+          title.replace(/\r\n?/g,'\n').endsWith(input.value);
+      },{cycle,title:candidate.text});
       timings[cycle?'reactivateParagraphMs':'activateParagraphMs']=Date.now()-active;
       timings[cycle?'reactivateParagraphWorkMs':'activateParagraphWorkMs']=await page.evaluate(()=>globalThis.workflowActivations.at(-1).elapsedMs);
       timings[cycle?'reactivateStages':'activateStages']=await app.evaluate((_,since)=>globalThis.workflowNativeStages.filter(s=>s.startedAt>=since),active);

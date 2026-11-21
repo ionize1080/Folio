@@ -1,5 +1,5 @@
 """On-demand outline comparison preserves canonical signatures and font rankings."""
-import sys,unittest
+import os,sys,tempfile,unittest
 from pathlib import Path
 from unittest.mock import patch
 ROOT=Path(__file__).resolve().parents[1]
@@ -28,6 +28,32 @@ class SampledOutlineFonts(unittest.TestCase):
         path=Path('C:/Windows/Fonts/simsun.ttc')
         if not path.exists():self.skipTest('Windows collection fixture unavailable')
         for face in (0,1):self.compare(path,face,'一中段检查字体，。')
+
+    def test_numeric_cmap_and_disk_coverage_select_the_same_glyphs(self):
+        fixtures = [
+            (ROOT/'native/fonts/DejaVuSans.ttf', 'Agé'),
+            (ROOT/'native/fonts/NotoSansSC.ttf', '中文。'),
+        ]
+        with tempfile.TemporaryDirectory() as directory, patch.dict(os.environ, FOLIO_FONT_MATCH_CACHE=directory):
+            for path, characters in fixtures:
+                stamp = path.stat().st_mtime_ns
+                with TTFont(path, lazy=True) as font:
+                    expected = font.getBestCmap()
+                    restricted = bool(font.get('OS/2') and font['OS/2'].fsType & 2)
+                similarity.coverage.cache_clear()
+                similarity.features.cache_clear()
+                similarity._glyph_features.clear()
+                cold, bits, actual_restricted = similarity.features(str(path), 0, stamp, characters)
+                self.assertEqual(actual_restricted, restricted)
+                self.assertEqual(sum(byte.bit_count() for byte in bits), len(expected))
+                self.assertTrue(all(similarity.covers(bits, cp) for cp in expected))
+                self.assertEqual(set(cold), set(characters))
+                similarity.coverage.cache_clear()
+                similarity.features.cache_clear()
+                similarity._glyph_features.clear()
+                with patch.object(similarity, '_last_cmap', (None, None)):
+                    restored = similarity.features(str(path), 0, stamp, characters)
+                self.assertEqual((cold, bits, actual_restricted), restored)
 
     def test_variable_font_default_instance_keeps_signatures(self):
         path=Path('C:/Windows/Fonts/bahnschrift.ttf')

@@ -27,7 +27,11 @@ def mark_shows(blob,text):
     stream=ContentStream(page.get('/Contents'),writer);decoded=decoded_texts(page,stream)
     # MuPDF Story may encode a visible ASCII hyphen as U+00AD. Restore the
     # submitted scalar through ActualText, without changing its painted glyph.
-    canonical=lambda c:'-' if c=='\u00ad' else c
+    # Unicode canonical equivalents (for example U+037E and ASCII ';')
+    # sometimes share a glyph and invert to the other scalar in ToUnicode.
+    # Compare canonically, then emit the user's exact scalar in ActualText.
+    import unicodedata
+    canonical=lambda c:'-' if c=='\u00ad' else unicodedata.normalize('NFC', c)
     compact=lambda s:''.join(canonical(c) for c in s if not c.isspace())
     if compact(''.join(decoded.values()))!=compact(text):
         # Shaped ligatures already have the repaired ToUnicode map. Do not

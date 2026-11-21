@@ -383,6 +383,12 @@ def compose(data,edits,blocks,inspect,fragment,progress=None,*,preview=False):
                     if owned_scope is None or owned_scope['count']!=len(sources) or any(s!=owned_scope for s in owned_scopes):owned_scope=None
                     if owned_scope and not structured:position=owned_scope['end']
                     else:owned_scope=None
+                    collision_end=position
+                    split_site=None
+                    if not structured and not owned_scope:
+                        from text_advance import shared_line_site
+                        split_site=shared_line_site(original_stream,[mapped[s['index']] for s in sources])
+                        if split_site:position=split_site[0]
                     # A paragraph cannot jump across an overlapping foreign paint.
                     # Disjoint paints have identical pixels at either ordering.
                     # Use painted ink, not the padded editing frame. A frame
@@ -401,7 +407,7 @@ def compose(data,edits,blocks,inspect,fragment,progress=None,*,preview=False):
                     from clip_contract import validate_ink,inherited_ink_clips
                     validate_ink(ink_boxes,inherited_ink_clips(clips,[desc[i]['bounds'] for i in indices]))
                     for j,item in enumerate(mapped):
-                        if j in indices or j in deleted_indices or item.get('at') is None or not first<=item['at']<=position:continue
+                        if j in indices or j in deleted_indices or item.get('at') is None or not first<=item['at']<=collision_end:continue
                         other=desc[j].get('bounds')
                         if other and any(min(box[2],other[2])>max(box[0],other[0])+.1 and min(box[3],other[3])>max(box[1],other[1])+.1 for box in ink_boxes):
                             raise ValueError('原文与其他绘制对象交错重叠，请分别编辑或明确调整图层，草稿已保留')
@@ -415,6 +421,12 @@ def compose(data,edits,blocks,inspect,fragment,progress=None,*,preview=False):
                     if abs(det)<1e-12:raise ValueError('标签范围变换不可逆')
                     inv=[d/det,-b/det,-c/det,a/det,(c*f-d*e)/det,(b*e-a*f)/det]
                     calls=[([],b'q'),([FloatObject(v) for v in inv],b'cm')]+form(page,blob,True)+[([],b'Q')]
+                    if split_site:
+                        _, replay, form_state = split_site
+                        # calls starts with q and ends with Q. Apply the old
+                        # Form state inside that save, then restore the line.
+                        if form_state:calls[1:1]=[([],b'BT')]+form_state+[([],b'ET')]
+                        calls=[([],b'ET')]+calls+[([],b'BT')]+replay
                     if relocated_scope:calls=[relocated_scope]+calls+[([],b'EMC')]
                     inline_flows.setdefault(position,[]).extend(calls)
                 else:flow_blobs.append((blob,True,bool((flow.get('model') or {}).get('behindPage')),False))

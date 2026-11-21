@@ -1,5 +1,5 @@
 const {_electron:electron}=require('playwright'),path=require('node:path'),fs=require('node:fs'),assert=require('node:assert/strict');
-const {configure}=require('./ai-live-support.cjs');
+const {configure,send}=require('./ai-live-support.cjs');
 (async()=>{
  const id=Date.now(),app=await electron.launch({args:[path.resolve('.')],env:{...process.env,FOLIO_TEST_BACKGROUND:'1',FOLIO_TEST_PROFILE:path.resolve('tests/output/live-'+id),FOLIO_CHATBOX_PROFILE:path.resolve('tests/output/live-chat-'+id)},timeout:60000});
  const checks=[],errors=[];
@@ -24,7 +24,25 @@ const {configure}=require('./ai-live-support.cjs');
    };
    watch(BrowserWindow.getAllWindows()[0].webContents);app.on('web-contents-created',(_,wc)=>watch(wc));
    const original=globalThis.fetch;globalThis.headerAudits=[];
-   globalThis.fetch=(url,init)=>{if(String(url).includes('/chat/completions'))globalThis.headerAudits.push({userAgent:new Headers(init?.headers).get('user-agent'),bearer:new Headers(init?.headers).get('authorization')?.startsWith('Bearer ')});return original(url,init)};
+   globalThis.fetch=async(url,init)=>{
+     if(!String(url).includes('/chat/completions'))return original(url,init);
+     const headers=new Headers(init?.headers);
+     const audit={userAgent:headers.get('user-agent'),bearer:headers.get('authorization')?.startsWith('Bearer ')};
+     globalThis.headerAudits.push(audit);
+     if(globalThis.liveTask){
+       const {task,expected}=globalThis.liveTask;
+       try{
+         const body=JSON.parse(init.body);
+         audit.stream=body.stream===true;
+         audit.model=body.model;
+         audit.promptPresent=body.messages?.some(m=>m.role==='user'&&
+           (typeof m.content==='string'?m.content.includes(task):m.content?.some(p=>p.type==='text'&&p.text.includes(task))));
+         audit.offered=body.tools?.some(t=>t.function?.name===expected||t.function?.name?.endsWith('__'+expected))??false;
+       }catch{audit.unreadableBody=true}
+     }
+     try{const response=await original(url,init);audit.status=response.status;return response}
+     catch(error){audit.transportError=error.name;throw error}
+   };
   });
   await app.evaluate(({dialog},file)=>{dialog.showOpenDialog=async()=>({canceled:false,filePaths:[file]})},path.resolve('tests/output/ai-202.pdf'));
   await host.locator('[data-action="open"]').first().click();await host.waitForFunction(()=>document.querySelector('#doc-name').textContent.includes('ai-202'));
@@ -39,13 +57,16 @@ const {configure}=require('./ai-live-support.cjs');
    for(let n=0;n<100;n++){const r=await app.evaluate((_,id)=>globalThis.aiReplies[id],id);if(r){assert(!r.error,r.error);return r.result.nodes}await host.waitForTimeout(50)}throw Error('read timeout');
   }
   async function ask(task,expected,verify){
-   await app.evaluate(()=>{globalThis.aiTrace=[]});
-   await chat.locator('textarea[placeholder]').first().click();
-   const apiStart=await app.evaluate(()=>globalThis.headerAudits.length);
-   await chat.keyboard.press('Control+n');await chat.waitForTimeout(400);
-   const input=chat.locator('textarea[placeholder]').first();await input.fill(task);const start=Date.now();
-   const completed=await chat.evaluate(()=>window.folioProgress.status().completed);
-   await input.press('Enter');
+   await chat.locator('textarea[placeholder]').first().focus();
+   await chat.keyboard.press('Control+n');
+   await chat.waitForFunction(model=>
+     /^#?\/?(?:\?|$)/.test(location.hash)&&document.body.innerText.includes(model)&&
+     document.querySelector('textarea[placeholder]')?.value==='',model.model,{timeout:30000});
+   const apiStart=await app.evaluate((_,current)=>{
+     globalThis.aiTrace=[];globalThis.liveTask=current;return globalThis.headerAudits.length;
+   },{task,expected});
+   const start=Date.now(),completed=await chat.evaluate(()=>window.folioProgress.status().completed);
+   await send(chat,task);
    try {await chat.waitForFunction(n=>window.folioProgress.status().completed>n,completed,{timeout:200000});}
    catch(error){
     const trace=await app.evaluate(()=>globalThis.aiTrace.map(({name,arguments:a,ms,error})=>({name,action:a?.action,operation:a?.operation,ms,error})));
@@ -59,7 +80,19 @@ const {configure}=require('./ai-live-support.cjs');
    const finalText=await chat.locator('.msg-content').last().locator(':scope > div > div').last().innerText().catch(()=> '');
    fs.writeFileSync('tests/output/live-'+expected+'.txt',finalText);
    console.log(expected,JSON.stringify(trace.map(t=>({name:t.name,operation:t.arguments?.operation,action:t.arguments?.action}))),Math.round((Date.now()-start)/1000)+'s');
-   assert(trace.some(t=>t.name===expected),'Natural request should select '+expected);
+   if(!trace.some(t=>t.name===expected)){
+     const requests=await app.evaluate((_,start)=>globalThis.headerAudits.slice(start),apiStart);
+     // Keep provider URLs, authorization values, PDF context and answers out of CI logs.
+     const state=/quota|insufficient.balance|exceeded.{0,30}limit|额度|余额不足/i.test(body)?'quota':
+       /unauthorized|authentication|invalid.api.key|鉴权|无效.{0,5}密钥/i.test(body)?'authentication':
+       /timeout|timed out|ETIMEDOUT|超时/i.test(body)?'timeout':
+       /network error|fetch failed|failed to fetch|网络错误/i.test(body)?'network':undefined;
+     assert.fail('Natural request should select '+expected+' '+JSON.stringify({
+       requests:requests.map(({status,transportError,model,stream,promptPresent,offered,unreadableBody})=>
+         ({status,transportError,model,stream,promptPresent,offered,unreadableBody})),
+       state,answerChars:finalText.length
+     }));
+   }
    if(verify) {
     try { await verify(trace,finalText); }
     catch(error) {
