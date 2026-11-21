@@ -167,6 +167,22 @@ jobs:
           if ($still) { throw 'License remained after GUI click' }
           "XI_AFTER_ACCEPT $($reader.Current.Name)"
           foreach ($x in $after | Where-Object { $_.Current.ClassName -in @('#32770','Edit','Static','Button') } | Select-Object -First 30) { "XI_AFTER_CONTROL $($x.Current.ClassName) $($x.Current.Name)" }
+          $defaultChoice=$after | Where-Object { $_.Current.Name -eq 'Make Adobe Reader my default PDF application.' -and $_.Current.ClassName -eq 'Static' } | Select-Object -First 1
+          if ($defaultChoice) {
+            $modal=$after | Where-Object { $_.Current.ClassName -eq '#32770' -and $_.FindFirst([System.Windows.Automation.TreeScope]::Descendants,(New-Object System.Windows.Automation.PropertyCondition([System.Windows.Automation.AutomationElement]::NameProperty,'Make Adobe Reader my default PDF application.'))) } | Select-Object -First 1
+            if (!$modal) {throw 'Could not identify exact default-app preference prompt'}
+            $buttons=$modal.FindAll([System.Windows.Automation.TreeScope]::Descendants,[System.Windows.Automation.Condition]::TrueCondition)
+            foreach ($label in @('Do not show this message again','Cancel')) {
+              $target=$buttons | Where-Object {$_.Current.ClassName -eq 'Button' -and $_.Current.Name -eq $label} | Select-Object -First 1
+              if (!$target) { throw "Default-app control absent $label" }
+              $bounds=$target.Current.BoundingRectangle
+              [void][XiMouse]::SetCursorPos([int]($bounds.Left+$bounds.Width/2),[int]($bounds.Top+$bounds.Height/2))
+              [XiMouse]::mouse_event(2,0,0,0,[UIntPtr]::Zero)
+              [XiMouse]::mouse_event(4,0,0,0,[UIntPtr]::Zero)
+              Start-Sleep -Milliseconds 400
+              "XI_DEFAULT_APP $label"
+            }
+          }
           Get-Process AcroRd32 -ErrorAction SilentlyContinue | Where-Object {$_.MainWindowHandle} | ForEach-Object { [void]$_.CloseMainWindow() }
           Start-Sleep 2
           Get-Process AcroRd32 -ErrorAction SilentlyContinue | Stop-Process -Force
