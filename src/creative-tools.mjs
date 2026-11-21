@@ -1,6 +1,6 @@
 import {nativeRequest,releaseSource} from './native-source.mjs';
 import {toBase64,fromBase64} from './portable-state.mjs';
-import {placement} from './graphic-geometry.mjs';
+import {placement,studioPlacement} from './graphic-geometry.mjs';
 import {EmbeddedStudio} from './creative-embedded.mjs';
 import {t} from './i18n.mjs';
 import {transformedBounds} from './object-selection-model.mjs';
@@ -88,16 +88,25 @@ export function installCreativeTools({S,rev,applyContent,writeFile,approve,expor
         if(rev()!==capture)throw Error('文档已变化，请重试');
         await applyContent([...S.nativeEdits.filter(e=>e!==prior),...(edit?[edit]:[])],S.ocr);return {revision:rev(),applied:true};
       }
+      const targetPage=a.targetPage??page;
+      if(!Number.isInteger(targetPage)||targetPage<1||targetPage>S.info.pageCount)throw Error('目标页码无效');
+      // A confirmed placement must keep the existing object, undo history and live session.
+      if(a.action==='move'&&targetPage===page&&target.target==='studio'){
+        const matrix=studioPlacement(target.matrix,a);
+        if(matrix.every((value,i)=>value===target.matrix[i])){
+          if(rev()!==capture)throw Error('文档已变化，请重试');
+          return {revision:capture,id:target.id,page,box:target.box,matrix,applied:true,unchanged:true};
+        }
+      }
       const kind=['photo','image'].includes(target.kind)?'photo':'vector';
       const opened=await run({action:'open',kind,page,id:target.id,index:target.index,visible:false,reuse:false,revision:capture});
       const s=sessions.get(opened.sessionId),base=s.matrix;
       let r;try{r=await embedded.request({action:'capture',sessionId:s.sessionId});}finally{await run({action:'close',sessionId:s.sessionId});}
-      const matrix=placement(a.geometry||{x:base[4]+12,y:base[5]-12},base).matrix,targetPage=a.targetPage??page;
-      if(!Number.isInteger(targetPage)||targetPage<1||targetPage>S.info.pageCount)throw Error('目标页码无效');
+      const matrix=studioPlacement(base,a);
       const edit={type:'studio-graphic',id:crypto.randomUUID(),page:targetPage,kind,box:[matrix[4],matrix[5],Math.hypot(...matrix.slice(0,2)),Math.hypot(...matrix.slice(2,4))],matrix,sourceData:r.sourceData,sourceExtension:r.extension,...(r.pdfData?{pdfData:r.pdfData}:{imageData:r.imageData}),opacity:target.opacity??1,blendMode:target.blendMode||'Normal'};
       const remove=target.index!==undefined?{type:target.type||target.target,page,index:target.index,signature:target.signature,delete:true}:target.target==='inserted'?null:{type:target.target==='studio'?'studio-graphic':'vector-graphic',id:target.id,page,delete:true};
       if(rev()!==capture)throw Error('文档已变化，请重试');
-      await applyContent([...S.nativeEdits.filter(e=>a.action==='duplicate'||e!==prior),...(a.action==='move'&&remove?[remove]:[]),edit],S.ocr);return {revision:rev(),id:edit.id,page:targetPage,applied:true};
+      await applyContent([...S.nativeEdits.filter(e=>a.action==='duplicate'||e!==prior),...(a.action==='move'&&remove?[remove]:[]),edit],S.ocr);return {revision:rev(),id:edit.id,page:targetPage,box:edit.box,matrix,applied:true};
     }
     if(a.action==='open'){
       const capture=rev();if(a.revision!==undefined&&a.revision!==capture)throw Error('文档已变化，请刷新');
@@ -176,7 +185,7 @@ export function installCreativeTools({S,rev,applyContent,writeFile,approve,expor
       const r=await embedded.request({action:'capture',sessionId:s.sessionId});
       await syncCanvas(s);
       if(rev()!==capture)throw Error('文档已变化，工作室内容已保留，请重试应用');
-      const box=a.box||s.box,base=a.box?[box[2],0,0,box[3],box[0],box[1]]:s.matrix,matrix=placement(a.geometry||{},base).matrix;
+      const matrix=studioPlacement(s.matrix,a);
       const placedBox=[matrix[4],matrix[5],Math.hypot(matrix[0],matrix[1]),Math.hypot(matrix[2],matrix[3])];
       const edit={type:'studio-graphic',id:s.id,page:s.page,kind:s.kind,box:placedBox,matrix,sourceData:r.sourceData,sourceExtension:r.extension,...(r.pdfData?{pdfData:r.pdfData}:{imageData:r.imageData}),opacity:s.target?.target==='path'?1:s.target?.opacity??1,blendMode:s.target?.blendMode||'Normal'};
       edit.studioOptions={autoExpand:!!embedded.get(s.sessionId).autoExpand};
@@ -188,7 +197,7 @@ export function installCreativeTools({S,rev,applyContent,writeFile,approve,expor
       await applyContent([...S.nativeEdits.filter(e=>e!==current),...extra,edit],S.ocr);
       s.baseline=S.nativeEdits.find(e=>e.id===s.id);s.target={...edit,target:'studio'};s.box=placedBox;s.matrix=matrix;s.documentKey=documentKey();
       const e=embedded.get(s.sessionId);e.referenceMatrix=matrix;
-      return {applied:true,id:s.id,page:s.page,revision:rev(),warnings:r.warnings,project:'Save .folio to preserve editable layers; PDF contains the final artwork only.'};
+      return {applied:true,id:s.id,page:s.page,box:placedBox,matrix,revision:rev(),warnings:r.warnings,project:'Save .folio to preserve editable layers; PDF contains the final artwork only.'};
     }
     if(a.action==='export'){
       const r=await embedded.request(a);const saved=await writeFile((S.name||'Folio').replace(/\.pdf$/i,'')+'-artwork.'+r.extension,fromBase64(r.data),r.extension);return {saved:!!saved,details:r.details};
