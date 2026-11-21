@@ -1,0 +1,39 @@
+name: Generate public synthetic Folio document controls
+on:
+  push:
+    branches: [qa/reader-xi-origin-20261121]
+    paths: [.github/workflows/reader-xi-public-fixtures.yml]
+permissions:
+  contents: read
+jobs:
+  prepare-public-fixtures:
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: cfcbf7f4e0642e8f31eb68c171a203d5d92b2bab
+          submodules: recursive
+      - uses: ./.github/actions/setup-workbench
+        with:
+          ai: 'false'
+          conversion: 'false'
+          models: 'false'
+          creative: 'false'
+          fixtures: 'false'
+      - name: Produce synthetic paragraph revisions through the Save command
+        shell: pwsh
+        run: |
+          node tests/bookmark-save-282.cjs
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          New-Item xi-public -ItemType Directory -Force | Out-Null
+          Copy-Item tests/output/bookmark-source-282-fixture/fixture.pdf xi-public/paragraph-original.pdf
+          Copy-Item tests/output/bookmark-save-282/verified-result.pdf xi-public/paragraph-first.pdf
+          Copy-Item tests/output/bookmark-save-282/working.pdf xi-public/paragraph-redone.pdf
+          Copy-Item tests/output/bookmark-save-282.json xi-public/
+          Get-ChildItem xi-public -Filter '*.pdf' | Get-FileHash -Algorithm SHA256 | Format-Table -AutoSize
+      - uses: actions/upload-artifact@v4
+        with:
+          name: xi-synthetic-paragraph-fixtures
+          path: xi-public/
+          retention-days: 1
