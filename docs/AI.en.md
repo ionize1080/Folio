@@ -1,8 +1,10 @@
-# Using AI in Folio 2.8.3
+# Using AI in Folio 2.8.4
 
 **English** · [简体中文](AI.md) · [繁體中文](AI.zh-Hant.md)
 
 Open a PDF, select the text, bookmark or image you want to work on, then choose **AI** in the toolbar. In Chatbox settings, configure a provider, endpoint, API key and model with tool calling. Choose a vision-capable model for image previews. The window button by the message box switches between the sidebar and a separate window. Progress appears above the message box.
+
+You can also open Chatbox with `Ctrl+Shift+P`. Type `chatbox`, select the command and press Enter.
 
 ## Read and compare documents
 
@@ -16,9 +18,15 @@ Try “Explain my selection and cite the physical PDF page.” With several file
 4. To use an existing picture, request a replacement and choose the image in the local file picker. You can specify a rectangle, for example the top-left quarter of the width and height, `[0,0,0.25,0.25]`. Check the boundary in the preview before applying.
 5. For a generated replacement, open **Chatbox Settings → Image Model Provider**. Choose the service, endpoint and model, save the key, and run the preview test. Qwen Token Plan (`qwen-image-3.0-pro`) generation and reference-image editing are covered by actual API acceptance. Compatible endpoints must implement their selected image protocol. Review the candidate before applying it to the PDF.
 
+To check the OCR result yourself, open OCR review, select a flagged line and compare its text with the scan. Apply the reviewed layer, save a copy, then search the reopened PDF for a corrected word.
+
+![Folio 2.8.4 OCR review on the demonstration scan](images/2.8.4/ocr-review.webp)
+
 ## Embed and revise a diagram
 
 Try “On page 1, insert a vector flowchart with Collect, Check and Release linked by arrows.” Apply it and save the PDF. After reopening, ask to rename Release to Publish and keep the connections. Folio stores both the PDF vector artwork and editable SVG source. The structured flow input accepts directed acyclic graphs. Use a self-contained SVG with explicit paths for loops or custom routing. Element-ID patches work on graphics with embedded Folio SVG source.
+
+For a layered drawing created in the Image or Vector studio, also save a `.folio` project to keep its editable layers. See [Artwork workspace](CREATIVE-STUDIO.md).
 
 ## Approvals and files
 
@@ -41,7 +49,7 @@ Changes applied to the document tab support undo. With original-file protection 
 
 Physical page numbers start at 1. Bookmark destinations use PDF points. Image regions use normalized `[left,top,width,height]` measured from the top left. Whole-page image requests use separate long-edge budgets of 960, 1600 or 2200 pixels for classification, contents reading or location. Use the returned `imageToPdf` transform to convert preview pixels to PDF coordinates.
 
-[Build and test](DEVELOPMENT.md) · [Release validation JSON](https://github.com/ionize1080/Folio/releases/download/v2.1.0/Folio-PDF-Studio-2.1.0-validation.json)
+[Build and test](DEVELOPMENT.md) · [2.8.4 release validation](https://github.com/ionize1080/Folio/releases/download/v2.8.4/Folio-PDF-Studio-2.8.4-validation.json) · [Archived Qwen calls from 2.1.0](MCP-2.1.0-validation.zh-Hans.md)
 
 
 ## Studios, page organization and data boundaries
@@ -50,4 +58,4 @@ The **Image** and **Vector** ribbon tabs open the embedded editors; `folio_studi
 
 Local reading, editing, OCR and default Word/Excel export do not require an AI provider. Chatbox requests may transmit selected document text or images to the configured provider. For a public demonstration, use the [synthetic PDF](examples/Folio-Demo.pdf), a fresh profile and no real credentials. The gallery shows actual UI states, not a fabricated model conversation.
 
-![Synthetic image in the live studio](images/2.8.3/11-image-workspace.png)
+![Image studio demonstration recorded in Folio 2.8.3](images/2.8.3/11-image-workspace.png)
