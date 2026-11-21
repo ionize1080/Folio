@@ -39,5 +39,38 @@ else{
   }
  }
 }
+const currentDirectory = 'docs/images/2.8.4';
+const currentManifest = JSON.parse(fs.readFileSync(path.join(root, currentDirectory, 'manifest.json'), 'utf8'));
+const expectedShots = new Set(['paragraph-edit', 'command-palette', 'search-results', 'reading-tone', 'bookmark-rules', 'ocr-review']
+  .map(name => currentDirectory + '/' + name + '.webp'));
+
+function webpDimensions(data) {
+  if (data.length < 30 || data.toString('ascii', 0, 4) !== 'RIFF' || data.toString('ascii', 8, 12) !== 'WEBP') return [];
+  switch (data.toString('ascii', 12, 16)) {
+    case 'VP8X': return [1 + data.readUIntLE(24, 3), 1 + data.readUIntLE(27, 3)];
+    case 'VP8L': {
+      if (data[20] !== 0x2f) return [];
+      const bits = data.readUInt32LE(21);
+      return [1 + (bits & 0x3fff), 1 + ((bits >>> 14) & 0x3fff)];
+    }
+    case 'VP8 ': return [data.readUInt16LE(26) & 0x3fff, data.readUInt16LE(28) & 0x3fff];
+    default: return [];
+  }
+}
+
+for (const asset of currentManifest.assets) {
+  if (!expectedShots.delete(asset.path)) {
+    errors.push('Unexpected or duplicate 2.8.4 screenshot: ' + asset.path);
+    continue;
+  }
+  const bytes = fs.readFileSync(path.join(root, asset.path));
+  const [width, height] = webpDimensions(bytes);
+  if (width !== asset.width || height !== asset.height || !width || !height ||
+      bytes.length !== asset.bytes || crypto.createHash('sha256').update(bytes).digest('hex') !== asset.sha256) {
+    errors.push('Screenshot does not match its manifest: ' + asset.path);
+  }
+}
+for (const missing of expectedShots) errors.push('Missing 2.8.4 screenshot: ' + missing);
+
 if(errors.length){console.error(errors.join('\n'));process.exitCode=1;}
-else console.log(`PASS: ${docs.size} Markdown documents, ${links} local links, 15 public assets and hashes`);
+else console.log(`PASS: ${docs.size} Markdown documents, ${links} local links, ${15 + currentManifest.assets.length} public assets and hashes`);

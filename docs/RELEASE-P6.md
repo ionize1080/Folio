@@ -1,4 +1,4 @@
-> Historical record / 历史记录 / 歷史記錄。Applies to the version or date named below. For Folio 2.8.3, use the [current documentation](README.md) and [feature tour](FEATURES.md).
+> Historical record / 历史记录 / 歷史記錄。Applies to the version or date named below. For current usage, see the [current documentation](README.md) and [feature tour](FEATURES.md).
 
 ## 编辑修复
 - 新增默认非阻断的边界、重叠和页外内容通知；继续输入、选择、撤销和保存，详情按需展开，完成编辑后保留查看入口。编辑时页外文字和光标可见，导出仍保持原纸张大小。

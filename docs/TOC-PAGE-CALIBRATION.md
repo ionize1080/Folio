@@ -1,8 +1,10 @@
 # Independent TOC page calibration
 
-Current entry: **Bookmarks → Calibrate TOC page numbers**; the existing More tools and generated-bookmark preview entries remain available. Review candidates before applying. [2.8.3 feature tour](FEATURES.md).
+In Folio **2.8.4**, open **Bookmarks → Calibrate TOC page numbers**. You can also press `Ctrl+Shift+P`, type `calibrate pages` and press Enter. After generating an outline, the same command is available in its preview. [Illustrated feature tour](FEATURES.md)
 
-![Current bookmark rule workbench; page calibration is a separate review step](images/2.8.3/02-bookmark-rules.png)
+![The 2.8.4 bookmark rule workbench for generating an outline](images/2.8.4/bookmark-rules.webp)
+
+The screenshot shows the rule workbench. Use its preview to generate candidate bookmarks, then open page calibration to match each title with a heading in the body.
 
 
 Calibrate each bookmark against actual heading evidence across a user-selected
@@ -43,10 +45,10 @@ Arabic body numbering. PDF page labels and visible page-margin numbers are
 supporting evidence; they cannot remove a heading candidate. A missing or wrong
 label does not create a global offset assumption.
 
-Scores are heuristic evidence scores, not measured correctness probabilities.
+Scores summarize the available heading and page evidence.
 They need calibration against a labelled real-document corpus before any claim
 about statistical accuracy. Equal repeated headings, short labels, missed OCR
-and artwork cannot be resolved reliably by this first implementation.
+and artwork cannot be resolved reliably by the matching algorithm.
 
 ## Resource and state handling
 
@@ -57,7 +59,7 @@ cover the entire preview. Changing settings invalidates the preview. Changed
 PDF/session/bookmarks/OCR/page rotation prevent applying stale results. Applying
 selected targets validates pages and retains a one-step undo snapshot.
 
-The first implementation works in the ordinary workspace, using an existing
+Calibration works in the ordinary workspace, using an existing
 text layer or applied OCR. It does not load a new VLM or automatically OCR the
 whole document. The file-backed multi-GB workspace, art-directory visual
 association, richer typography features and cross-page relation models remain
@@ -79,5 +81,4 @@ Use the independent calibration dialog to review candidate pages across a chosen
   write/reopen, cancellation, stale-state checks, localization and generation
   handoff. Set `FOLIO_CHROMIUM` to a supported local Chromium/Edge executable.
 - `.github/workflows/toc-page-calibration.yml`: unit and real-PDF browser checks
-  on Windows using installed Microsoft Edge. This is renderer/browser coverage,
-  not a claim that a new portable EXE has been built or released.
+  on Windows using installed Microsoft Edge. The [2.8.4 release workflow](https://github.com/ionize1080/Folio/actions/runs/44876808220) separately exercises the packaged Windows application.

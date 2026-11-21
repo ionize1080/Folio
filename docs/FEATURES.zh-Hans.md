@@ -1,24 +1,32 @@
-# Folio 2.8.3 功能图解
+# Folio 2.8.4 功能图解
 
 [English](FEATURES.md) · [简体中文](FEATURES.zh-Hans.md) · [繁體中文](FEATURES.zh-Hant.md)
 
-以下为 Windows 程序的实际界面截图，全部使用生成文档与独立的应用／Chatbox 配置，没有使用私有 PDF、个人最近文件、密钥或聊天记录。
+六张 2.8.4 截图使用 Windows 上运行的发布版界面渲染器和六页演示 PDF。部分操作沿用旧版截图，图中保留采集时的版本号。可点开原图查看控件。
 
-[合成演示 PDF](examples/Folio-Demo.pdf) · [合成扫描 PDF](examples/Folio-Demo-Scan.pdf) · [素材来源与复现](SCREENSHOTS.md) · [完整使用指南](../README.zh-Hans.md)
+[合成演示 PDF](examples/Folio-Demo.pdf) · [合成扫描 PDF](examples/Folio-Demo-Scan.pdf) · [素材来源与复现](SCREENSHOTS.zh-Hans.md) · [完整使用指南](../README.zh-Hans.md)
 
-图集展示当前界面和小型演示，不替代完整验收。发布验证与已知边界见[验证说明](VALIDATION.md)。
+[段落编辑与保存实测](VALIDATION-2.8.4.zh-Hans.md)
+
+## 试用新的阅读控件
+
+按 **Ctrl+Shift+P** 搜索书签命令。按 **Ctrl+F** 查找 `Folio`，点击列表中的命中可跳到对应页面。打开右下角视图菜单，可以切换暖纸等阅读色调。
+
+![按书签筛选命令](images/2.8.4/command-palette.webp)
+
+![搜索结果和页码](images/2.8.4/search-results.webp)
 
 ## 1. 阅读与定位
 
 打开演示 PDF，通过书签树、页码框和底栏缩放定位；Ctrl+0 适合页面。多个文档分别保留自己的阅读位置和编辑状态。
 
-![阅读与定位 — Folio 2.8.3](images/2.8.3/01-reader.png)
+![视图菜单中的阅读色调](images/2.8.4/reading-tone.webp)
 
 ## 2. 规则生成书签
 
-从「书签 → 自动书签」选择页范围、配置规则并复核命中标题。演示使用 `^0[1-6] +.+` 匹配生成的章节标题。应用长篇目录前，先检查重复项、层级与跳转目标。
+从「书签 → 自动书签」选择页范围、配置规则并复核命中标题。演示使用 `^0([1-6])\s+(.+)` 匹配生成的章节标题。应用长篇目录前，先检查重复项、层级与跳转目标。
 
-![规则生成书签 — Folio 2.8.3](images/2.8.3/02-bookmark-rules.png)
+![规则生成书签 — Folio 2.8.4](images/2.8.4/bookmark-rules.webp)
 
 ## 3. 书签质量检查
 
@@ -36,7 +44,9 @@
 
 点击「页面编辑」，再选择可编辑段落。截图展示合成正文中的真实编辑状态。修改后核对字体替代、排版和溢出，完成编辑再保存；复杂布局或无法确认的编码可能需要替代方案或拒绝写回。
 
-![页面内段落编辑 — Folio 2.8.3](images/2.8.3/10-text-editing.png)
+![页面内段落编辑 — Folio 2.8.4](images/2.8.4/paragraph-edit.webp)
+
+在演示文档第 3 页选中段落，在原位输入。核对换行和字体后完成编辑，另存副本。段落中可按 **Ctrl+B** 切换粗体，按 **Ctrl+I** 切换斜体。
 
 ## 6. 字体工作台
 
@@ -61,6 +71,10 @@
 打开合成扫描 PDF，点击「OCR」运行识别，在校对页中对照文字与页面区域。截图中的结果由本地 OCR 实际识别产生。逐项确认后应用可检索文字层并保存；置信度不能证明没有漏字。
 
 ![本地 OCR 与逐项校对 — Folio 2.8.3](images/2.8.3/13-ocr-review.png)
+
+下图用四条预置记录演示如何选中区域、逐行校对。上图保留了上一版引擎实际识别演示扫描件的结果。
+
+![2.8.4 OCR 校对工作台的四条演示结果](images/2.8.4/ocr-review.webp)
 
 ## 10. Word 与 Excel 导出
 

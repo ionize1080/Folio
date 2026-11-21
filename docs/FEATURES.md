@@ -1,24 +1,32 @@
-# Folio 2.8.3 — illustrated feature tour
+# Folio 2.8.4 — illustrated feature tour
 
 [English](FEATURES.md) · [简体中文](FEATURES.zh-Hans.md) · [繁體中文](FEATURES.zh-Hant.md)
 
-Real Windows application captures using only generated documents and isolated application/Chatbox profiles. No private PDFs, recent-file lists, credentials or personal conversations were used. UI language is Simplified Chinese; captions explain each workflow in English.
+The six 2.8.4 views use the release renderer on Windows with a generated six-page PDF. Earlier captures of unchanged workflows are labeled with their original version. Open the pictures at full size to inspect the controls.
 
 [Demo PDF](examples/Folio-Demo.pdf) · [Scan PDF](examples/Folio-Demo-Scan.pdf) · [Provenance and reproduction](SCREENSHOTS.md) · [User guide](../README.md)
 
-The gallery shows current UI and a small demonstration, not an exhaustive acceptance test. For release verification and known boundaries, see [Validation](VALIDATION.md).
+[Measured editing and saving](VALIDATION-2.8.4.md)
+
+## Try the new reading controls
+
+Press **Ctrl+Shift+P** and search for a bookmark command. Press **Ctrl+F** to find `Folio` and select a result to jump to its page. Use the view menu at the lower right to change the paper tone.
+
+![Command palette with bookmark commands](images/2.8.4/command-palette.webp)
+
+![Search matches grouped by page](images/2.8.4/search-results.webp)
 
 ## 1. Read and navigate
 
 Open the demo PDF. Use the bookmark tree, page box and bottom zoom controls to navigate; Ctrl+0 fits the page. Each open document keeps its own editing state.
 
-![Read and navigate — Folio 2.8.3](images/2.8.3/01-reader.png)
+![Reading tone in the view menu](images/2.8.4/reading-tone.webp)
 
 ## 2. Generate bookmarks with rules
 
-Open **Bookmarks → Automatic bookmarks**. Choose the page range, define a pattern and review matched headings before applying. The demonstration uses `^0[1-6] +.+` against generated chapter headings. Preview duplicate and hierarchy behavior before importing a long outline.
+Open **Bookmarks → Automatic bookmarks**. Choose the page range, define a pattern and review matched headings before applying. The demonstration uses `^0([1-6])\s+(.+)` against generated chapter headings. Preview duplicate and hierarchy behavior before importing a long outline.
 
-![Generate bookmarks with rules — Folio 2.8.3](images/2.8.3/02-bookmark-rules.png)
+![Generate bookmarks with rules — Folio 2.8.4](images/2.8.4/bookmark-rules.webp)
 
 ## 3. Review bookmark quality
 
@@ -36,7 +44,9 @@ Open **Organize → Page organizer**. Select thumbnails, reorder with the keyboa
 
 Choose **Page editing**, then select an editable paragraph. The screenshot shows the live editor on generated text. Check font substitution, layout and overflow, finish the edit and save. Unsupported encodings or complex layouts may require fallback or be refused.
 
-![Edit a paragraph on the page — Folio 2.8.3](images/2.8.3/10-text-editing.png)
+![Edit a paragraph on the page — Folio 2.8.4](images/2.8.4/paragraph-edit.webp)
+
+Select a paragraph on page 3 and type directly over the source text. Compare the layout, finish the edit and save a copy. Use **Ctrl+B** or **Ctrl+I** while editing the paragraph.
 
 ## 6. Inspect and choose fonts
 
@@ -61,6 +71,10 @@ Choose **Vector → Vector studio** to create or edit artwork. This demonstratio
 Open the synthetic scan, choose **OCR**, run recognition, then use the review tab to compare recognized text and page regions. These are real local OCR results. Confirm corrections before applying a searchable text layer and saving. OCR can miss text; confidence alone does not prove completeness.
 
 ![Recognize and review a scan locally — Folio 2.8.3](images/2.8.3/13-ocr-review.png)
+
+The current review screen below uses four prepared rows to demonstrate selecting a region and correcting its text. The earlier screen above shows local recognition of the sample scan.
+
+![2.8.4 OCR review with four demonstration rows](images/2.8.4/ocr-review.webp)
 
 ## 10. Export to Word and Excel
 

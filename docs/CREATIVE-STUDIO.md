@@ -1,12 +1,12 @@
 # Folio artwork workspace
 
-Current guide: **2.8.3**. [Illustrated feature tour](FEATURES.md) · [Current build instructions](DEVELOPMENT.md).
+In Folio **2.8.4**, open the **Image** or **Vector** ribbon tab. To go directly to a studio, press `Ctrl+Shift+P`, type `photo studio` or `vector studio`, select the command and press Enter. [Illustrated feature tour](FEATURES.md) · [Build instructions](DEVELOPMENT.md)
 
 ![Live image editor with synthetic artwork](images/2.8.3/11-image-workspace.png)
 
 ![Live vector editor with synthetic artwork](images/2.8.3/12-vector-workspace.png)
 
-Both captures use generated content in isolated application profiles. Save `.folio` to retain editable studio sources; saving PDF alone stores the applied artwork.
+These two screenshots show the Folio 2.8.3 studios with generated artwork. Choose **Apply to PDF** to place the result on the page. Save a `.folio` project to reopen the layers, masks or paths in the studio.
 
 
 The **Image** and **Vector** ribbon categories open a workspace inside Folio. Choose an existing PDF object, import a file, or start a new artwork with custom dimensions. The original quick image adjustments and SVG controls remain available. **Bookmarks** and **Organize** have their own categories; the AI button remains in the application header.
@@ -56,10 +56,12 @@ DOCX and XLSX exports are directly available in **Export**, with local processin
 
 Use Rust 1.95 with `wasm32-unknown-unknown`, Python 3.12, and the locked source revisions. Run `python scripts/build-creative.py photo` and `python scripts/build-creative.py vector`; the builder installs the exact wasm-bindgen CLI version from each Cargo.lock. No platform editor binary is downloaded. Run `python scripts/verify-creative.py` before packaging. GitHub builds both engines concurrently, checks every asset hash, and passes the same artifacts to integration and packaged-executable tests.
 
-Historically, the 2.5 release workflow ran core contracts, dependency preparation and engine builds concurrently, followed by 15 independent test suites. Native regressions are partitioned without omissions into three jobs; failures in one partition do not cancel the others. Final packaged checks use two isolated application lanes. Every report is bound to the commit and Actions run before publishing. Optional cache writes retain the project's 8 GiB budget; the workflow does not raise paid storage limits.
+The archived 2.5 release workflow ran core contracts, dependency preparation and engine builds concurrently, followed by 15 independent test suites. Native regressions are partitioned without omissions into three jobs; failures in one partition do not cancel the others. Final packaged checks use two isolated application lanes. Every report is bound to the commit and Actions run before publishing. Optional cache writes retain the project's 8 GiB budget; the workflow does not raise paid storage limits.
+
+The [2.8.4 Windows verification workflow](https://github.com/ionize1080/Folio/actions/runs/44876808220) includes artwork placement and packaged studio checks.
 
 The real Qwen suite uses the shipped Chatbox transport and live tools to paint raster layers, unite vector paths, add gradients/text, adjust PDF backgrounds and maximum zoom, apply edits and organize pages. It imposes no output token limit, audits actual request parameters, and independently verifies exported pixels, vector paths, placement matrices and page order.
 
-## Studio controls in 2.5
+## Object picker and placement controls
 
-The object picker includes thumbnails, physical page numbers and dimensions. Page-object loading does not block creation or import. **Pan**, **Fit** and **Canvas Size** are directly available beside the view controls; **Position and Size** changes placement on the PDF. Dismissing a menu clears its highlighted anchor. UI text uses the host Windows UI fonts where available, including localized CJK and monospaced numeric faces, with bundled fallbacks. These view fonts do not replace document fonts.
+The object picker includes thumbnails, physical page numbers and dimensions. Page-object loading does not block creation or import. **Pan**, **Fit** and **Canvas Size** are directly available beside the view controls; **Position and Size** changes placement on the PDF. When you specify an absolute position for an already placed object, Folio 2.8.4 uses that page position directly. Dismissing a menu clears its highlighted anchor. UI text uses the host Windows UI fonts where available, including localized CJK and monospaced numeric faces, with bundled fallbacks. These view fonts do not replace document fonts.
