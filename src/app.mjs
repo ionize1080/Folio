@@ -232,13 +232,16 @@ function setDirty(value = true) {
   scheduleRecovery();
 }
 function setBusy(value, label = "处理中…") {
+  if (S.busy !== value) window.desktop?.tabMeta?.({ busy: !!value });
   S.busy = value;
-  window.desktop?.tabMeta?.({busy: !!value});
-  $("#busy").hidden = !value;
-  $("#busy-text").textContent = label;
-  $$("[data-doc]").forEach(
-    (b) => (b.disabled = (value && !b.hasAttribute("data-cancel")) || !S.pdf),
-  );
+  const overlay = $("#busy");
+  if (overlay.hidden !== !value) overlay.hidden = !value;
+  const message = $("#busy-text");
+  if (message.textContent !== label) message.textContent = label;
+  for (const button of $$("[data-doc]")) {
+    const disabled = (value && !button.hasAttribute("data-cancel")) || !S.pdf;
+    if (button.disabled !== disabled) button.disabled = disabled;
+  }
 }
 const ocrIdentities = new WeakMap();
 function stateKey(v = snapshot()) {
@@ -655,6 +658,11 @@ async function loadPDF(
       await pdf.destroy();
       return false;
     }
+    const restoreView = settings.restoreView;
+    const labels = pdf.getPageLabels().catch(() => null);
+    // The initial layout and destination matter only when following the PDF's view.
+    const initialLayout = restoreView ? null : pdf.getPageLayout().catch(() => null);
+    const initialAction = restoreView ? null : pdf.getOpenAction().catch(() => null);
     void releaseSource(S.bytes);
     documentSession.replace();
     S.sessionId = documentSession.id;
@@ -720,7 +728,7 @@ async function loadPDF(
     $("#page-total").textContent = "/ " + info.pageCount;
     $("#page-number").max = info.pageCount;
     $("#welcome").hidden = true;
-    S.labels = await pdf.getPageLabels().catch(() => null);
+    S.labels = await labels;
     S.fingerprint = pdf.fingerprints[0];
     S.baseline = stateKey();
     if (restoredState)
@@ -735,7 +743,7 @@ async function loadPDF(
     surface.gaps = settings.gaps;
     setDirty(!!restoredState);
     rebuild();
-    const remembered = settings.restoreView
+    const remembered = restoreView
       ? safeJSON(localStorage.getItem("folio-view-" + S.fingerprint))
       : null;
     if (remembered) {
@@ -744,9 +752,11 @@ async function loadPDF(
       surface.layout = remembered.layout;
       surface.viewRotation = remembered.viewRotation || 0;
       await surface.refresh(remembered);
+    } else if (restoreView) {
+      await renderPage();
     } else {
-      const initial = await pdf.getPageLayout().catch(() => null);
-      if (!settings.restoreView && initial)
+      const initial = await initialLayout;
+      if (initial)
         surface.layout =
           {
             SinglePage: "single",
@@ -757,8 +767,8 @@ async function loadPDF(
             TwoPageRight: "two",
           }[initial] || surface.layout;
       await renderPage();
-      const open = await pdf.getOpenAction().catch(() => null);
-      if (!settings.restoreView && open?.dest) {
+      const open = await initialAction;
+      if (open?.dest) {
         const d = open.dest,
           ref = d[0],
           page =
