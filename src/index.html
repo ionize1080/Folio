@@ -314,6 +314,15 @@
               ><label class="view-check"
                 ><input id="gaps" type="checkbox" checked />页面间距</label
               >
+              <div class="view-tone-row" role="group" aria-label="页面色调">
+                <span class="view-tone-label">页面色调</span>
+                <div class="view-tone-seg">
+                  <button type="button" data-page-tone="default" aria-pressed="true">原色</button>
+                  <button type="button" data-page-tone="warm" aria-pressed="false">暖纸</button>
+                  <button type="button" data-page-tone="soft" aria-pressed="false">柔灰</button>
+                  <button type="button" data-page-tone="dark" aria-pressed="false">暗色</button>
+                </div>
+              </div>
             </div>
           </details>
           <span class="spacer"></span
@@ -331,38 +340,66 @@
           </button>
         </div>
         <div id="findbar" hidden>
-          <input id="find-text" placeholder="在全文中查找…" /><button
-            data-action="find-run"
-          >
-            搜索</button
-          ><button data-action="find-prev">上一处</button
-          ><button data-action="find-next">下一处</button
-          ><span id="find-count"></span
-          ><button data-action="find-close">×</button>
+          <div class="findbar-row">
+            <input id="find-text" placeholder="在全文中查找…" aria-label="全文查找" />
+            <button type="button" id="find-case" aria-pressed="false" title="区分大小写" aria-label="区分大小写">Aa</button>
+            <button type="button" id="find-regex" aria-pressed="false" title="正则表达式" aria-label="正则表达式">.*</button>
+            <button data-action="find-run">搜索</button>
+            <button data-action="find-prev" title="上一处 Shift+F3" aria-label="上一处">‹</button>
+            <button data-action="find-next" title="下一处 F3" aria-label="下一处">›</button>
+            <span id="find-count"></span>
+            <button type="button" id="find-list-toggle" aria-expanded="false" hidden title="展开或收起结果列表">列表</button>
+            <button data-action="find-close" aria-label="关闭搜索">×</button>
+          </div>
+          <div id="find-results" class="find-results" role="listbox" aria-label="搜索结果" hidden></div>
+        </div>
+        <div id="selection-quickbar" class="selection-quickbar" role="toolbar" aria-label="划词快捷操作" hidden>
+          <div class="sq-colors" role="group" aria-label="快速高亮">
+            <button type="button" class="sq-swatch" data-sq="highlight" data-color="#f4d03f" style="--sq:#f4d03f" title="黄色高亮" aria-label="黄色高亮"></button>
+            <button type="button" class="sq-swatch" data-sq="highlight" data-color="#6ee7b7" style="--sq:#6ee7b7" title="绿色高亮" aria-label="绿色高亮"></button>
+            <button type="button" class="sq-swatch" data-sq="highlight" data-color="#93c5fd" style="--sq:#93c5fd" title="蓝色高亮" aria-label="蓝色高亮"></button>
+            <button type="button" class="sq-swatch" data-sq="highlight" data-color="#fda4af" style="--sq:#fda4af" title="粉色高亮" aria-label="粉色高亮"></button>
+          </div>
+          <span class="sq-sep" aria-hidden="true"></span>
+          <button type="button" data-sq="underline" title="下划线">下划线</button>
+          <button type="button" data-sq="strikeout" title="删除线">删除线</button>
+          <span class="sq-sep" aria-hidden="true"></span>
+          <button type="button" data-sq="bookmark" title="从选中文字创建书签">书签</button>
+          <button type="button" data-sq="copy" title="复制文字">复制</button>
         </div>
         <div id="canvas-host">
           <div id="welcome">
             <img class="welcome-mark" src="brand.svg" alt="Folio">
-            <span class="eyebrow">A CLEARER WAY THROUGH DOCUMENTS</span>
+            <span class="eyebrow">LOCAL PDF WORKBENCH</span>
             <h1>每一页，都有章可循。</h1>
             <p>
-              精确定位 · 批量编辑 · 自动生成<br />为长文档打造的本地书签工作台
+              阅读 · 书签规则 · 页面编辑 · 离线 OCR
             </p>
-            <button class="primary large" data-action="open">
-              <i data-icon="folder"></i>选择 PDF 文档
-            </button>
+            <div class="welcome-cta">
+              <button class="primary large" data-action="open">
+                <i data-icon="folder"></i>打开 PDF 或工程
+              </button>
+              <span class="welcome-hint">拖入文件即可开始 · <kbd>Ctrl+O</kbd> · <kbd>Ctrl+Shift+P</kbd> 命令面板</span>
+            </div>
+            <section id="welcome-recents" class="welcome-recents" hidden aria-label="最近打开">
+              <div class="welcome-recents-head">
+                <h2>最近打开</h2>
+                <button type="button" id="welcome-recents-clear">清空记录</button>
+              </div>
+              <div id="welcome-recents-list" class="welcome-recents-list"></div>
+            </section>
             <div class="welcome-cards">
               <div>
-                <i data-icon="sliders"></i><b>深入目标坐标</b
-                ><small>XYZ · Fit · FitR · null</small>
+                <i data-icon="sliders"></i><b>精确书签与规则</b
+                ><small>多级正则 · 目标坐标 · 留白校准</small>
               </div>
               <div>
-                <i data-icon="spark"></i><b>让目录自动成形</b
-                ><small>标题字号 · 正则 · 目录文本</small>
+                <i data-icon="scan"></i><b>离线 OCR 与双层 PDF</b
+                ><small>逐页校对 · 保留原图 · 本地可检索</small>
               </div>
               <div>
-                <i data-icon="shield"></i><b>本地编辑 · 可选 AI</b
-                ><small>离线处理 · 默认另存副本</small>
+                <i data-icon="shield"></i><b>本地优先 · 保护原件</b
+                ><small>增量保存 · 独立工程 · 按需 AI</small>
               </div>
             </div>
           </div>

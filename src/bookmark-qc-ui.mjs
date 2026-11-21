@@ -13,13 +13,23 @@ export function installBookmarkQC({S,surface,modal,closeModal,esc,commit,toast})
       $('#qc-filter').innerHTML='<option value="all">全部问题</option>'+[...counts].map(([code,count])=>`<option value="${code}">${esc(report.issues.find(x=>x.code===code).message)} (${count})</option>`).join('');
       if(counts.has(selected))$('#qc-filter').value=selected;
       visible=report.issues.filter(x=>$('#qc-filter').value==='all'||x.code===$('#qc-filter').value);
-      $('#qc-list').innerHTML=visible.slice(0,1000).map(x=>`<label class="qc-row"><input type="checkbox" data-id="${esc(x.id)}" ${chosen.has(x.id)?'checked':''}><span>${esc(x.title||'（空标题）')}</span><small>${esc(x.message)}</small><button type="button" data-go="${esc(x.id)}">定位</button></label>`).join('')||'<p>此类别没有待复核问题。</p>';
+      const validIds=new Set(S.nodes.map(n=>n.id));
+      for(const id of [...chosen])if(!validIds.has(id))chosen.delete(id);
+      $('#qc-list').innerHTML=visible.slice(0,1000).map(x=>`<label class="qc-row"><input type="checkbox" data-id="${esc(x.id)}" ${chosen.has(x.id)?'checked':''}><span class="qc-title" translate="no">${esc(x.title||'（空标题）')}</span><small class="qc-msg">${esc(x.message)}</small><button type="button" class="qc-go" data-go="${esc(x.id)}">定位</button></label>`).join('')||'<p>此类别没有待复核问题。</p>';
+      const uriSelected=S.nodes.filter(n=>chosen.has(n.id)&&n.target?.actionType==='URI').length;
+      const none=!chosen.size;
+      $('#qc-clear').disabled=none;
+      $('#qc-repair').disabled=none;
+      $('#qc-delete').disabled=none;
+      $('#qc-delete-tree').disabled=none;
+      $('#qc-links').disabled=!uriSelected;
+      $('#qc-repair').textContent=none?'尝试修复':`尝试修复 (${chosen.size})`;
       $('#qc-status').textContent=`已选 ${chosen.size} 个节点 · ${visible.length} 个问题${visible.length>1000?'（显示前 1000 条；全选涵盖全部）':''}`;
     }
     const apply=fn=>{try{if(!chosen.size)return;const nodes=fn();commit(nodes);chosen.clear();paint();toast('书签已更新，可撤销');}catch(e){$('#qc-status').textContent=e.message;}};
     $('#qc-list').onchange=e=>{const id=e.target.dataset.id;if(id){e.target.checked?chosen.add(id):chosen.delete(id);paint();}};
-    $('#qc-list').onclick=e=>{const id=e.target.dataset.go;if(id){const n=S.nodes.find(n=>n.id===id);S.selected=new Set([id]);if(n?.target.page)surface.go(n.target.page);}};
-    $('#qc-links').onclick=async()=>{const b=$('#qc-links');b.disabled=true;try{const items=S.nodes.filter(n=>chosen.has(n.id)&&n.target?.actionType==='URI').map(n=>({id:n.id,uri:n.target.uri}));$('#qc-status').textContent=`正在检测 ${items.length} 个链接…`;linkResults=await window.desktop.checkBookmarkLinks(items);if($('#qc-list'))paint();}catch(e){if($('#qc-status'))$('#qc-status').textContent=e.message;}finally{b.disabled=false;}};
+    $('#qc-list').onclick=e=>{const id=e.target.dataset.go;if(id){e.preventDefault();const n=S.nodes.find(n=>n.id===id);S.selected=new Set([id]);closeModal();if(n?.target.page)surface.go(n.target.page,n.target);}};
+    $('#qc-links').onclick=async()=>{const items=S.nodes.filter(n=>chosen.has(n.id)&&n.target?.actionType==='URI').map(n=>({id:n.id,uri:n.target.uri}));if(!items.length)return;const b=$('#qc-links');b.disabled=true;try{$('#qc-status').textContent=`正在检测 ${items.length} 个链接…`;linkResults=await window.desktop.checkBookmarkLinks(items);if($('#qc-list'))paint();}catch(e){if($('#qc-status'))$('#qc-status').textContent=e.message;}finally{if($('#qc-links'))b.disabled=!S.nodes.some(n=>chosen.has(n.id)&&n.target?.actionType==='URI');}};
     $('#qc-filter').onchange=paint;$('#qc-select').onclick=()=>{chosen=new Set(visible.map(x=>x.id));paint();};$('#qc-clear').onclick=()=>{chosen.clear();paint();};
     $('#qc-repair').onclick=()=>apply(()=>repairBookmarks(S.nodes,chosen,S.info.pageCount,{targetPage:$('#qc-page').value?Number($('#qc-page').value):undefined}));
     $('#qc-delete').onclick=()=>apply(()=>deleteBookmarks(S.nodes,chosen));$('#qc-delete-tree').onclick=()=>apply(()=>deleteBookmarks(S.nodes,chosen,true));paint();

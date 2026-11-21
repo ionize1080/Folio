@@ -2068,6 +2068,12 @@ export function installFlowUI(ctx) {
         restoreDraftHistory(redo);
         return;
       }
+      if (ctrl && !e.altKey && !e.shiftKey && ["b", "i"].includes(e.key.toLowerCase())) {
+        e.preventDefault();
+        e.stopPropagation();
+        bar.querySelector(e.key.toLowerCase() === "b" ? "#pe-bold" : "#pe-italic")?.click();
+        return;
+      }
       if (ctrl && e.key === "Enter") {
         e.preventDefault();
         e.stopPropagation();

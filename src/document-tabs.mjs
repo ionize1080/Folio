@@ -7,6 +7,14 @@ export function installDocumentTabs({open, confirmClose, toast}) {
   const strip = document.createElement("div");
   strip.className = "document-tabs";
   strip.setAttribute("role", "tablist");
+  const addBtn = document.createElement("button");
+  addBtn.type = "button";
+  addBtn.className = "tab-add";
+  addBtn.innerHTML = icon("plus");
+  addBtn.title = "打开文档 Ctrl+O";
+  addBtn.setAttribute("aria-label", "打开文档");
+  addBtn.onclick = () => api.openDocuments?.().catch((e) => toast(e.message));
+  strip.append(addBtn);
   document.querySelector(".doc-tab").after(strip);
   let state;
   const nodes = new Map();
@@ -41,7 +49,7 @@ export function installDocumentTabs({open, confirmClose, toast}) {
         x.onclick = () => close(documentId);
         group.addEventListener('auxclick', e => { if (e.button === 1) { e.preventDefault(); close(documentId); } });
         group.append(tab, x);
-        strip.append(group);
+        strip.insertBefore(group, addBtn);
         item = {group, tab, title, x};
         nodes.set(documentId, item);
       }

@@ -140,7 +140,9 @@ export function installDocumentUtilities({ S, exportPDF, session, writeFile }) {
       if (busy) return;
       action = a;
       q('[data-run]').textContent=a==='export-word'?'导出 Word…':a==='export-excel'?'导出 Excel…':'继续…';
-      q("[data-title]").textContent = actions.find((x) => x[1] === a)[2];
+      const actionLabel = actions.find((x) => x[1] === a)[2];
+      q("[data-title]").textContent = actionLabel;
+      q("header h2").textContent = ["export-word", "export-excel"].includes(a) ? actionLabel : "文档工具";
       q("[data-status]").textContent = "";
       q("[data-result]").replaceChildren();
       q("[data-fields]").replaceChildren();
@@ -269,21 +271,42 @@ export function installDocumentUtilities({ S, exportPDF, session, writeFile }) {
         q('[data-fields]').innerHTML='<label>转换方式<select data-key="ai"><option value="false">本地转换 · 无需 Office</option><option value="true">AI 辅助复核结构</option></select></label><p class="hint">直接生成 DOCX / XLSX，无需安装 Word、Excel 或 LibreOffice。可选 AI 复核会发送所选页文字和坐标到您配置的服务。</p><label>扫描文字处理<select data-key="ocr-policy"><option value="review">识别并检查疑点</option><option value="skip-review">识别并跳过疑点确认（仅本次导出）</option><option value="skip">跳过 OCR，仅导出已有文字</option></select></label><p class="hint">跳过确认会保留识别文字，可能包含错字；跳过 OCR 时扫描页可能没有可编辑文字。</p><label>页码范围<input data-key="pages" placeholder="全部，或 1-3,5"></label>'+(a==='export-word'?'<label>版式<select data-key="layout"><option value="faithful">保留页面布局</option><option value="flow">流动文本 · 易于编辑</option></select></label>':'<label>数据类型<select data-key="numeric"><option value="true">识别简单数值与百分比</option><option value="false">全部保留为文本</option></select></label>');
       }
     };
+    const nav = q("nav");
+    const searchWrap = document.createElement("div");
+    searchWrap.className = "dt-nav-search";
+    searchWrap.innerHTML = '<input type="search" data-dt-search placeholder="筛选工具…" aria-label="筛选文档工具" autocomplete="off">';
+    nav.append(searchWrap);
     let group;
+    const navGroups = [];
     for (const [category, a, label, symbol] of actions) {
       if (group !== category) {
         group = category;
         const h = document.createElement("h4");
         h.textContent = category;
-        q("nav").append(h);
+        nav.append(h);
+        navGroups.push({ header: h, items: [] });
       }
       const button = document.createElement("button");
       button.dataset.utilityAction = a;
+      button.dataset.searchText = `${category} ${label} ${a}`.toLowerCase();
       button.innerHTML = icon(symbol);
       button.append(document.createTextNode(label));
       button.onclick = () => selectAction(a);
-      q("nav").append(button);
+      nav.append(button);
+      navGroups.at(-1).items.push(button);
     }
+    searchWrap.querySelector("input").oninput = (e) => {
+      const term = e.target.value.trim().toLowerCase();
+      for (const g of navGroups) {
+        let shown = 0;
+        for (const btn of g.items) {
+          const hit = !term || btn.dataset.searchText.includes(term);
+          btn.hidden = !hit;
+          if (hit) shown++;
+        }
+        g.header.hidden = shown === 0;
+      }
+    };
     selectAction(initialAction);
     q("[data-run]").onclick = async () => {
       if (busy) return;
