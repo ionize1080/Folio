@@ -1,5 +1,7 @@
 """Observe the actual XI document view and modal dialogs on a disposable Windows desktop."""
 import argparse
+import ctypes
+from ctypes import wintypes
 import json
 import re
 import subprocess
@@ -25,11 +27,26 @@ def read_windows():
     return roots
 
 
+def control_text(hwnd):
+    # GetWindowText deliberately omits the text of another process's Edit controls.
+    buf = ctypes.create_unicode_buffer(512)
+    received = ctypes.c_size_t()
+    send = ctypes.windll.user32.SendMessageTimeoutW
+    send.argtypes = [wintypes.HWND, wintypes.UINT, wintypes.WPARAM, wintypes.LPARAM,
+                     wintypes.UINT, wintypes.UINT, ctypes.POINTER(ctypes.c_size_t)]
+    send.restype = wintypes.LPARAM
+    if send(hwnd, win32con.WM_GETTEXT, len(buf), ctypes.addressof(buf), 2, 220, ctypes.byref(received)):
+        return buf.value
+    return win32gui.GetWindowText(hwnd)
+
+
 def children(hwnd):
     values = []
     def collect(handle, _):
         if win32gui.IsWindowVisible(handle):
-            values.append((int(handle), win32gui.GetClassName(handle), win32gui.GetWindowText(handle)))
+            cls = win32gui.GetClassName(handle)
+            value = control_text(handle) if cls in ('Edit','Button','Static') else win32gui.GetWindowText(handle)
+            values.append((int(handle), cls, value))
     win32gui.EnumChildWindows(hwnd, collect, None)
     return values
 
