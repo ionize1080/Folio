@@ -3137,14 +3137,33 @@ export function installFlowUI(ctx) {
       if (composing) throw Error("请先完成当前输入法组词");
       if (showingPrecise) throw Error("请先选择保留快速排版或应用精排");
       if (model && S.flowDraftDirty) {
-        if (fastReady && model.layoutMode !== "reflow") {
-          // Typing stays immediate; committing waits for the already-running
-          // outline choice so a temporary preview face cannot become permanent.
-          await fastFonts.settle(model);
+        const activeId = id;
+        // Font matching and keystrokes can replace a fast preview while the
+        // native writer is rendering. Only the same revision's PDF can commit.
+        for (;;) {
+          const rev = revision;
+          if (canFast(model) && model.layoutMode !== "reflow") {
+            try {
+              if (!fastReady || !fastFonts.ready(model)) await fastFonts.prepare(model);
+              if (closed || id !== activeId) return;
+              if (rev !== revision) continue;
+              fastReady = true;
+            } catch {
+              if (closed || id !== activeId) return;
+              if (rev !== revision) continue;
+              fastReady = false;
+            }
+            if (fastReady) await fastFonts.settle(model);
+          }
+          if (closed || id !== activeId) return;
+          if (rev !== revision) continue;
+          await reflow();
+          if (closed || id !== activeId) return;
+          if (rev !== revision) continue;
+          if (validRevision !== rev || !preview?.fragment)
+            throw Error(bar.querySelector("#pe-status").textContent);
+          break;
         }
-        await reflow();
-        if (validRevision !== revision || !preview)
-          throw Error(bar.querySelector("#pe-status").textContent);
         busy = true;
         input.disabled = true;
         try {
