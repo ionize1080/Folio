@@ -122,12 +122,28 @@ for cycle in range(2):
 
 for options in ({'split_owner': True}, {'nested': True}, {'link': True}, {'actual_text': True}, {'partial': True}):
     source = fixture(**options)
-    _, candidates = models(source)
+    inspection, candidates = models(source)
     m = edit(max(candidates, key=lambda m: len(m['text'])), 'Changed complete paragraph with separate tags')
     if options.get('split_owner'):
         # Tag-aware selection now correctly separates the two P owners.
         # Explicitly request both here to keep testing the cross-owner guard.
         m['sources']=[s for c in candidates for s in c['sources']]
+    if options.get('link') or options.get('actual_text'):
+        m['frame'].update(width=330, height=120)
+        # Selection intentionally excludes the protected middle run. Exercise
+        # the writer with its genuine signature even for a stale/custom client.
+        objects = [o for o in inspection['objects'] if o['type'] == 'text']
+        assert not objects[1]['flowEditable'] and objects[1].get('tagEditProtection')
+        assert all(s['index'] != objects[1]['index'] for c in candidates for s in c['sources'])
+        protected = {'index': objects[1]['index'], 'signature': objects[1]['signature']}
+        for selection in ([protected], [{'index': o['index'], 'signature': o['signature']} for o in objects]):
+            try:
+                save(source, {**m, 'sources': selection})
+            except ValueError as error:
+                assert '语义' in str(error), str(error)
+            else:
+                raise AssertionError(f'protected semantic owner accepted: {options}, {selection}')
+        continue
     if options.get('partial'):
         m['sources'] = m['sources'][:1]
     m['frame']['width'] = 330

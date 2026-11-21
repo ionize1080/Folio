@@ -19,7 +19,7 @@ class FileStore {
     this.handles.set(id, file);
     if (bytes || !this.versions.has(file)) {
       // Opening IPC supplies the bytes already read, avoiding another full read.
-      const stat = syncFS.statSync(file);
+      const stat = syncFS.statSync(file, {bigint:true});
       const hash = crypto.createHash("sha256");
       if (bytes) hash.update(bytes);
       else {
@@ -41,24 +41,29 @@ class FileStore {
     return id;
   }
   identity(s) {
-    return [s.dev, s.ino, s.size, s.mtimeMs, s.ctimeMs].join(":");
+    return [s.dev, s.ino, s.size].join(":");
+  }
+  changeStamp(s) {
+    return [s.mtimeNs, s.ctimeNs].join(":");
   }
   async version(file,onProgress) {
     let f;
     try {
       f = await fs.open(file, "r");
-      const stat=await f.stat(),before = this.identity(stat),
+      const stat=await f.stat({bigint:true}),before = this.identity(stat),
         hash = crypto.createHash("sha256");
+      const stamp = this.changeStamp(stat), size = Number(stat.size);
       const chunk = Buffer.alloc(1024 * 1024);
       let n,total=0;
       while ((n = (await f.read(chunk)).bytesRead)){
         hash.update(chunk.subarray(0, n));total+=n;
-        if(total%(8*1024**2)===0||total===stat.size)onProgress?.({stage:'校验原文件',completed:total,total:stat.size});
+        if(total%(8*1024**2)===0||total===size)onProgress?.({stage:'校验原文件',completed:total,total:size});
       }
-      if (before !== this.identity(await f.stat()))
+      const after = await f.stat({bigint:true});
+      if (before !== this.identity(after) || stamp !== this.changeStamp(after))
         throw Error("文件正在被其他程序修改，请另存副本");
       const value={identity:before,sha256:hash.copy().digest('hex')};
-      Object.defineProperty(value,'hashState',{value:hash});return value;
+      Object.defineProperties(value,{hashState:{value:hash},stamp:{value:stamp}});return value;
     } catch (e) {
       if (e.code === "ENOENT") return null;
       throw e;
@@ -68,7 +73,10 @@ class FileStore {
   }
   async checkVersion(file, expected,onProgress) {
     const actual=await this.version(file,onProgress);
-    if (JSON.stringify(actual) !== JSON.stringify(expected))
+    // Shell bookkeeping and backup software can change timestamps while the
+    // same file still contains every byte we opened. The hash covers content
+    // and the device/file ID keeps an identical replacement distinguishable.
+    if (actual?.identity !== expected?.identity || actual?.sha256 !== expected?.sha256)
       throw Error(
         "目标文件已被其他程序修改、替换或删除。请另存副本，或重新打开文件后再保存。",
       );
@@ -76,7 +84,7 @@ class FileStore {
   }
   async savedVersion(file, sha256) {
     this.versions.set(file, {
-      identity: this.identity(await fs.stat(file)),
+      identity: this.identity(await fs.stat(file, {bigint:true})),
       sha256,
     });
   }
@@ -253,8 +261,9 @@ class FileStore {
       let handle,started=false;
       try{
         handle=await fs.open(file,'r+');
-        const stat=await handle.stat();
-        if(stat.size!==options.baseLength||this.identity(stat)!==checked.identity)throw Error('文件已被修改，请另存副本');
+        const stat=await handle.stat({bigint:true});
+        if(stat.size!==BigInt(options.baseLength)||this.identity(stat)!==checked.identity||
+           this.changeStamp(stat)!==checked.stamp)throw Error('文件已被修改，请另存副本');
         let at=0;started=true;
         const chunk=Buffer.from(bytes);
         while(at<chunk.length){const {bytesWritten}=await handle.write(chunk,at,Math.min(4*1024**2,chunk.length-at),options.baseLength+at);if(!bytesWritten)throw Error('增量写入中断');at+=bytesWritten;onProgress?.({stage:'写入修改',completed:at,total:chunk.length});}

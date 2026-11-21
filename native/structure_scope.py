@@ -37,6 +37,17 @@ STANDARD_ROLES = frozenset(
 )
 
 
+def resolved_role(owner, role_map):
+    role = str(owner.get('/S', ''))
+    visited = set()
+    while role_map and role.startswith('/') and role not in STANDARD_ROLES:
+        if role in visited or len(visited) >= 32:
+            return ''
+        visited.add(role)
+        role = str(role_map.get(role, ''))
+    return role
+
+
 def block_owner(owner, role_map=None, dictionary_type=dict):
     """Find the editable paragraph owner using either pypdf or pikepdf objects."""
     if not isinstance(role_map, dictionary_type):
@@ -47,13 +58,7 @@ def block_owner(owner, role_map=None, dictionary_type=dict):
             return None
         if any(key in owner for key in ('/ActualText', '/Alt', '/E')):
             return None
-        role = str(owner.get('/S', ''))
-        visited = set()
-        while role_map and role.startswith('/') and role not in STANDARD_ROLES:
-            if role in visited or len(visited) >= 32:
-                return None
-            visited.add(role)
-            role = str(role_map.get(role, ''))
+        role = resolved_role(owner, role_map)
         if role in ('/P', '/H', '/H1', '/H2', '/H3', '/H4', '/H5', '/H6'):
             return owner
         if role not in ('/Span', '/NonStruct'):
@@ -64,6 +69,20 @@ def block_owner(owner, role_map=None, dictionary_type=dict):
             return None
         owner = owner.get('/P')
     return None
+
+
+def protected_owner(owner, role_map, dictionary_type=dict):
+    """Check for semantics that an ordinary paragraph rewrite cannot update."""
+    if not isinstance(role_map, dictionary_type):
+        role_map = None
+    for _ in range(32):
+        owner = dereference(owner)
+        if not isinstance(owner, dictionary_type) or '/S' not in owner:
+            return False
+        if resolved_role(owner, role_map) == '/Link' or any(k in owner for k in ('/ActualText', '/Alt', '/E')):
+            return True
+        owner = owner.get('/P')
+    return True
 
 
 def annotate_paragraphs(page, mapped, descriptions):
@@ -87,24 +106,39 @@ def annotate_paragraphs(page, mapped, descriptions):
     tree=dereference(root.get('/StructTreeRoot',{}))
     if not isinstance(tree,dict):return
     parents=number_tree(tree.get('/ParentTree'),page.get('/StructParents'))
-    if not isinstance(parents,(list,tuple)):
-        hints={int(a):int(b) for a,b in page.get('/FolioInspectionParagraphs',[])}
-        for entry,description in zip(mapped,descriptions):
-            tags=entry.get('structureScopes',[])
-            if len(tags)==1 and not entry.get('semanticScopes') and description.get('flowEditable') and tags[0]['mcid'] in hints:
-                description['structureParagraph']=hints[tags[0]['mcid']]
-        contiguous();return
-    owners={}
-    for entry,description in zip(mapped,descriptions):
-        tags=entry.get('structureScopes',[])
-        if len(tags)!=1 or entry.get('semanticScopes') or not description.get('flowEditable'):continue
-        mcid=tags[0]['mcid']
-        if not 0<=mcid<len(parents):continue
-        owner=block_owner(parents[mcid], dereference(tree.get('/RoleMap', {})))
-        if owner is None:continue
-        key=id(owner)
-        if key not in owners:owners[key]=len(owners)
-        description['structureParagraph']=owners[key]
+    hints = {int(a): int(b) for a, b in page.get('/FolioInspectionParagraphs', [])}
+    role_map = dereference(tree.get('/RoleMap', {}))
+    owners = {}
+    by_mcid = {}
+    for entry, description in zip(mapped, descriptions):
+        tags = entry.get('structureScopes', [])
+        if not tags or not description.get('flowEditable'):
+            continue
+        for tag in tags:
+            mcid = tag['mcid']
+            if mcid not in by_mcid:
+                group = hints.get(mcid) if not isinstance(parents, (list, tuple)) else None
+                if isinstance(parents, (list, tuple)) and 0 <= mcid < len(parents):
+                    element = parents[mcid]
+                    if protected_owner(element, role_map):
+                        group = -1
+                    else:
+                        owner = block_owner(element, role_map)
+                        if owner is not None:
+                            group = owners.setdefault(id(owner), len(owners))
+                by_mcid[mcid] = group
+            # An ActualText on a tagged wrapper belongs to its external semantic
+            # tree. Folio-generated inner ActualText glyphs have different scopes.
+            tagged_alternative = any(alt['at'] == tag['at'] for alt in entry.get('semanticScopes', ()))
+            if by_mcid[mcid] == -1 or tagged_alternative:
+                description['flowEditable'] = False
+                description['tagEditProtection'] = '链接或替代文字具有独立标签语义，需保留原范围'
+                description['reason'] = description['tagEditProtection']
+                break
+        if len(tags) == 1 and description.get('flowEditable') and not entry.get('semanticScopes'):
+            group = by_mcid[tags[0]['mcid']]
+            if group is not None:
+                description['structureParagraph'] = group
     contiguous()
 
 

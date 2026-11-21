@@ -302,6 +302,7 @@ def compose(data,edits,blocks,inspect,fragment,progress=None,*,preview=False):
                     idx=source.get('index')
                     if mapped is None or not isinstance(idx,int) or not 0<=idx<len(desc):raise ValueError('段落对象映射不可靠')
                     d=desc[idx];m=mapped[idx]
+                    if d.get('tagEditProtection'):raise ValueError(d['tagEditProtection'])
                     if not d.get('flowEditable') or d['signature']!=source.get('signature'):raise ValueError('段落包含不可安全替换或已变化的对象')
                 from ruby_anchors import validate as validate_ruby
                 # Hiding the old paragraph is a display-only editor operation.
