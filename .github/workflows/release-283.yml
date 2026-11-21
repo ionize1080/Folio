@@ -69,6 +69,8 @@ jobs:
         models: 'false'
         creative: 'false'
         fixtures: 'false'
+    - run: native\runtime\python.exe tests/system-font-catalog-cache.py
+    - run: native\runtime\python.exe tests/tagged-paragraph-284.py
     - run: node scripts/acceptance.mjs native
       env:
         FOLIO_TEST_SHARD: 1/6
@@ -344,6 +346,8 @@ jobs:
     - run: node tests/graphics-220.cjs
     - run: node tests/ai-settings.cjs
     - run: node tests/chrome-202.cjs
+    - run: native\runtime\python.exe tests/fixture-v9.py
+    - run: native\runtime\python.exe tests/fast-layout-p3.py --fixture-only
     - name: Browser editing, bookmarks and navigation regressions
       shell: pwsh
       run: '$chrome = Join-Path $env:ProgramFiles ''Google\Chrome\Application\chrome.exe''
@@ -351,6 +355,10 @@ jobs:
         if (!(Test-Path -LiteralPath $chrome)) { throw ''The Windows runner must provide Google Chrome'' }
 
         $env:FOLIO_CHROMIUM = $chrome
+
+        node tests/ui-fast-p3.cjs | Where-Object { $_ -notlike ''P3_PREVIEW_IMAGE=*'' }
+
+        if ($LASTEXITCODE) {exit $LASTEXITCODE}
 
         node scripts/acceptance.mjs browser
 

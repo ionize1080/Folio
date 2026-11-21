@@ -33,18 +33,15 @@ def paragraph_hints(original, page):
             if found is not None:return found
     parents=lookup(tree.get('/ParentTree',{}))
     if not isinstance(parents,(list,pikepdf.Array)):return []
+    from structure_scope import block_owner
     groups={};result=[]
-    for mcid,owner in enumerate(parents):
-        for _ in range(32):
-            if not isinstance(owner,pikepdf.Dictionary) or any(k in owner for k in ('/ActualText','/Alt','/E')):break
-            role=str(owner.get('/S',''))
-            if role in ('/P','/H','/H1','/H2','/H3','/H4','/H5','/H6'):
-                identity=owner.objgen
-                if identity==(0,0):break
-                if identity not in groups:groups[identity]=len(groups)
-                result.append([mcid,groups[identity]]);break
-            if role not in ('/Span','/NonStruct'):break
-            owner=owner.get('/P')
+    role_map=tree.get('/RoleMap', {})
+    for mcid,element in enumerate(parents):
+        owner=block_owner(element,role_map,pikepdf.Dictionary)
+        if owner is None or owner.objgen==(0,0):continue
+        identity=owner.objgen
+        if identity not in groups:groups[identity]=len(groups)
+        result.append([mcid,groups[identity]])
     return result
 
 

@@ -102,10 +102,14 @@ const errors = [],
         window.__calls.push(d.command);
         if (window.__nativeFailure && d.command === "apply")
           return Promise.reject(Error("injected engine failure"));
-        return call("/__native", {
+        const send = () => call("/__native", {
           ...d,
           ...(d.bytes ? { bytes: Array.from(d.bytes) } : {}),
         });
+        if (d.command === "flow-background" && window.__holdBackdrop) {
+          return new Promise(resolve => { window.__allowBackdrop = resolve; }).then(send);
+        }
+        return send();
       },
       prepareSave: async () =>
         window.__cancelSave ? null : { ticket: "test" },
@@ -145,7 +149,8 @@ const errors = [],
   await page.evaluate(() => window.__qa.actions["flow-edit"]());
   await page.locator('.page-edit-hit[aria-label="Short title"]').click();
   await page.waitForFunction(
-    () => /完成/.test(document.querySelector("#pe-status")?.textContent),
+    () => /完成/.test(document.querySelector("#pe-status")?.textContent) &&
+      [...document.fonts].some(face => face.family.startsWith("FolioFast_") && face.status === "loaded"),
     null,
     { timeout: 60000 },
   );
@@ -182,9 +187,27 @@ const errors = [],
     "true",
   );
   checks.push("Original fill/stroke bold recognized by the formatting toolbar");
+  await page.evaluate(() => { window.__holdBackdrop = true; });
   await page
     .locator('.page-edit-hit[aria-label^="Original first line"]')
     .click();
+  await page.waitForFunction(() =>
+    typeof window.__allowBackdrop === "function" &&
+    document.activeElement?.matches(".page-edit-input") && !document.activeElement.disabled,
+  );
+  const pendingText = await page.locator(".page-edit-input").inputValue();
+  await page.keyboard.insertText("Q");
+  assert(await page.evaluate(() => {
+    const draft = window.__qa.S.flowEdit.draft();
+    return draft.model.text.includes("Q") &&
+      [".page-edit-background", ".page-edit-ink", ".page-edit-fast"].every(s => document.querySelector(s).hidden);
+  }), "typing is retained while the original PDF is the only visible ink");
+  await page.keyboard.press("Control+z");
+  assert.equal(await page.locator(".page-edit-input").inputValue(), pendingText);
+  await page.evaluate(() => {
+    window.__holdBackdrop = false;
+    window.__allowBackdrop();
+  });
   await page.waitForFunction(
     () =>
       document

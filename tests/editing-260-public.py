@@ -13,7 +13,13 @@ def main():
         plan=json.loads((ROOT/'tests/output/editing-260-plan.json').read_text(encoding='utf-8'));local={r['sha256']:r['path'] for r in plan['documents']}
     def prepare(entry):
         path=pathlib.Path(local.get(entry['sha256'],folder/(entry['sha256']+'.pdf')))
-        if not path.exists() or corpus.digest(path)!=entry['sha256']:
+        # Archived public sources remain bound to the original URL and SHA-256.
+        archived = ROOT / 'tests/fixtures/public-editing' / (entry['sha256'] + '.pdf')
+        if not args.local and archived.is_file():
+            if corpus.digest(archived) != entry['sha256']:
+                raise ValueError('Archived public source hash changed: ' + entry['name'])
+            path = archived
+        elif not path.exists() or corpus.digest(path)!=entry['sha256']:
             assert not args.local,'Local test source changed'
             last=None
             for retry in range(3):

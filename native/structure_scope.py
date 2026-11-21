@@ -25,37 +25,63 @@ def number_tree(node, key, seen=None):
     return None
 
 
-def block_owner(owner):
-    seen = set()
+# A producer may map its custom roles to standard PDF structure types. Explicit
+# standard types already determine semantics and cannot be redefined by RoleMap.
+STANDARD_ROLES = frozenset(
+    ("/" + name) for name in
+    "Document DocumentFragment Part Art Sect Div BlockQuote Caption TOC TOCI Index "
+    "NonStruct Private P H H1 H2 H3 H4 H5 H6 H7 H8 H9 H10 L LI Lbl LBody Table "
+    "TR TH TD THead TBody TFoot Span Quote Note Reference BibEntry Code Link Annot "
+    "Ruby RB RT RP Warichu WT WP Figure Formula Form Aside FENote Title Em Strong "
+    "Sub Artifact".split()
+)
+
+
+def block_owner(owner, role_map=None, dictionary_type=dict):
+    """Find the editable paragraph owner using either pypdf or pikepdf objects."""
+    if not isinstance(role_map, dictionary_type):
+        role_map = None
     for _ in range(32):
         owner = dereference(owner)
-        if not isinstance(owner, dict) or id(owner) in seen:
+        if not isinstance(owner, dictionary_type):
             return None
-        seen.add(id(owner))
         if any(key in owner for key in ('/ActualText', '/Alt', '/E')):
             return None
         role = str(owner.get('/S', ''))
+        visited = set()
+        while role_map and role.startswith('/') and role not in STANDARD_ROLES:
+            if role in visited or len(visited) >= 32:
+                return None
+            visited.add(role)
+            role = str(role_map.get(role, ''))
         if role in ('/P', '/H', '/H1', '/H2', '/H3', '/H4', '/H5', '/H6'):
             return owner
-        # A link, formula, list item or another block is a real semantic
-        # boundary. Only plain inline spans may lead to a common owner.
-        if role not in ('/Span','/NonStruct'):
+        if role not in ('/Span', '/NonStruct'):
+            return None
+        # A raised footnote or another attributed inline has its own
+        # layout/semantics. Its MCID must not be emptied into the paragraph.
+        if '/A' in owner or '/C' in owner:
             return None
         owner = owner.get('/P')
     return None
 
 
 def annotate_paragraphs(page, mapped, descriptions):
-    """Expose real P/heading ownership as stronger evidence than line gaps."""
+    """Mark contiguous editable segments of actual P/heading elements."""
     def contiguous():
-        ranges={}
-        for i,d in enumerate(descriptions):
-            group=d.get('structureParagraph')
-            if group is not None:
-                span=ranges.setdefault(group,[i,i]);span[1]=i
-        invalid={g for g,(a,b) in ranges.items() if any(d.get('type')=='text' and d.get('text','').strip() and d.get('structureParagraph')!=g for d in descriptions[a:b+1])}
-        for d in descriptions:
-            if d.get('structureParagraph') in invalid:d.pop('structureParagraph',None)
+        previous = None
+        segment = -1
+        for description in descriptions:
+            owner = description.get('structureParagraph')
+            if owner is None:
+                if description.get('type') != 'text' or description.get('text', '').strip():
+                    previous = None
+                continue
+            if owner != previous:
+                segment += 1
+            description['structureOwner'] = owner
+            description['structureParagraph'] = segment
+            previous = owner
     document=page.pdf or getattr(page.indirect_reference,'pdf',None)
     root=document.root_object if document is not None else {}
     tree=dereference(root.get('/StructTreeRoot',{}))
@@ -74,7 +100,7 @@ def annotate_paragraphs(page, mapped, descriptions):
         if len(tags)!=1 or entry.get('semanticScopes') or not description.get('flowEditable'):continue
         mcid=tags[0]['mcid']
         if not 0<=mcid<len(parents):continue
-        owner=block_owner(parents[mcid])
+        owner=block_owner(parents[mcid], dereference(tree.get('/RoleMap', {})))
         if owner is None:continue
         key=id(owner)
         if key not in owners:owners[key]=len(owners)
@@ -148,7 +174,7 @@ def validate_scopes(page, stream, raw_objects, mapped, sources, model=None, desc
         mcid = scope['mcid']
         if not 0 <= mcid < len(parents):
             raise ValueError('标签 MCID 缺少 ParentTree 所有权，草稿已保留')
-        owner = block_owner(parents[mcid])
+        owner = block_owner(parents[mcid], dereference(tree.get('/RoleMap', {})))
         if owner is None:
             raise ValueError('链接、替代文字或复杂标签范围需分别编辑，草稿已保留')
         owners.append(owner)
