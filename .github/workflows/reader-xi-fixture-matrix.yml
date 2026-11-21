@@ -1,0 +1,58 @@
+name: Build public comparison PDFs for Reader XI
+on:
+  push:
+    branches: [qa/reader-xi-origin-20261121]
+    paths: [tests/xi-fixture-qa.mjs]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  build-controls:
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: qa
+          sparse-checkout: tests/xi-fixture-qa.mjs
+          sparse-checkout-cone-mode: false
+      - uses: actions/checkout@v4
+        with:
+          ref: cfcbf7f4e0642e8f31eb68c171a203d5d92b2bab
+          path: fixed
+          sparse-checkout: |
+            src
+            package.json
+          sparse-checkout-cone-mode: false
+      - uses: actions/checkout@v4
+        with:
+          ref: 99527c9e0e68166489064a63814f454341b5c798
+          path: baseline
+          sparse-checkout: |
+            src
+            package.json
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Generate no-Info and linearized original and incremental revisions
+        shell: pwsh
+        run: |
+          python -m pip install pikepdf
+          if ($LASTEXITCODE) {exit $LASTEXITCODE}
+          node qa/tests/xi-fixture-qa.mjs fixed baseline xi-comparison
+          if ($LASTEXITCODE) {exit $LASTEXITCODE}
+      - uses: actions/download-artifact@v4
+        with:
+          name: xi-synthetic-paragraph-fixtures
+          run-id: 44867705841
+          github-token: ${{ github.token }}
+          path: xi-comparison
+      - uses: actions/upload-artifact@v4
+        with:
+          name: xi-public-comparison-pdfs
+          path: xi-comparison/
+          retention-days: 5
