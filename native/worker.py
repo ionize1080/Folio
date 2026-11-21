@@ -307,7 +307,7 @@ def recognize(pdf,r,args):
  from ocr_reading_order import reading_order
  return {'regionQuad':region_quad,'rss':sample_memory(),'blocks':reading_order(unique),'skipped':False,'seconds':recognized-rendered,'diagnostics':diagnostics,'profile':profile,'timing':{'load':loaded-started,'render':rendered-loaded,'recognize':recognized-rendered,'total':time.perf_counter()-started},'engine':'RapidOCR / ONNX Runtime CPU','threads':threads,'batch':batch}
 
-def run(args, *, _preview=False):
+def run(args, *, _preview=False, _tagged_preview_page=None):
  global CACHED_PDF,CACHED_PATH
  if args.get('command') in ('large-info','large-save','large-page','large-text'):
   from large_pdf import process
@@ -413,7 +413,7 @@ def run(args, *, _preview=False):
   import pypdfium2, preview_page
   return {'ready':True}
  if args.get('command')=='flow-background':
-  from preview_page import preview_source, render_page, compact_preview
+  from preview_page import preview_source, compact_preview
   number=args.get('page',1);page_data,target,tagged=preview_source(args)
   edits=[{**e,'page':target} for e in args.get('edits',[]) if e['page']==number]
   if args.get('imagePreviews') is not None:
@@ -422,8 +422,7 @@ def run(args, *, _preview=False):
      edit['_previewLimit']=1200
      edit['_previewImage']=args['imagePreviews'].get(str(edit.get('index')))
   blocks=[{**b,'page':target} for b in read_blocks(args) if b['page']==number]
-  data=run({'command':'apply','page':target,'bytes':base64.b64encode(page_data).decode(),'edits':edits,'blocks':blocks,'ocr':blocks,'resolvedForms':True},_preview=True)['bytes']
-  if tagged:data=base64.b64encode(render_page(base64.b64decode(data),target)).decode()
+  data=run({'command':'apply','page':target,'bytes':base64.b64encode(page_data).decode(),'edits':edits,'blocks':blocks,'ocr':blocks,'resolvedForms':True},_preview=True,_tagged_preview_page=target if tagged else None)['bytes']
   if args.get('imagePreviews') is not None:data=compact_preview(data)
   return {'pdf':data}
  import pypdfium2 as p
@@ -504,7 +503,7 @@ def run(args, *, _preview=False):
      d.close()
    def progress(number):
     if args.get('progress'):emit({'progress':{'page':number,'stage':'write'}})
-   data=compose(data,args.get('edits',[]),read_blocks(args),inspect,fragment,progress,preview=_preview)
+   data=compose(data,args.get('edits',[]),read_blocks(args),inspect,fragment,progress,preview=_preview,tagged_preview_page=_tagged_preview_page)
    if 'output' in args:Path(args['output']).write_bytes(data);return {'bytes':len(data)}
    return {'bytes':base64.b64encode(data).decode()}
   if cmd=='ocr':return recognize(pdf,p.raw,args)

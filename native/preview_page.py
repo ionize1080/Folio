@@ -31,6 +31,37 @@ def preview_source(args):
         while len(_cache)>2 or sum(len(v[0]) for v in _cache.values())>32*1024**2:_cache.popitem(last=False)
     return cached
 
+def paragraph_preview_writer(reader, number, edits):
+    """Clone one display page and retain the original for structure validation."""
+    from pypdf import PdfWriter
+    from pypdf.errors import PdfReadError
+    from pypdf.generic import NameObject
+    from pdf_writer import preserve_source_numbers
+    if reader.is_encrypted or not edits or any(e.get('type') != 'flow' or e.get('page') != number for e in edits):
+        return None, None
+    # Forms, permissions, optional content, output intents and unknown catalog
+    # features keep the established full-document path.
+    ordinary_catalog = {'/Type', '/Pages', '/StructTreeRoot', '/MarkInfo', '/Lang',
+                        '/Metadata', '/Version', '/ViewerPreferences', '/PageLayout',
+                        '/PageMode', '/Outlines', '/Names', '/Dests', '/PageLabels'}
+    source = reader.pages[number-1]
+    if set(reader.root_object) - ordinary_catalog or source.get('/Annots'):
+        return None, None
+    parent = source.get('/StructParents')
+    if parent is not None and not isinstance(parent, int):
+        return None, None
+    try:
+        writer = PdfWriter()
+        writer.pdf_header = reader.pdf_header
+        selected = writer.add_page(source)
+        if parent is not None:
+            selected[NameObject('/StructParents')] = parent
+        if '/Version' in reader.root_object:
+            writer.root_object[NameObject('/Version')] = reader.root_object['/Version'].clone(writer)
+        return preserve_source_numbers(writer), source
+    except (PdfReadError, RecursionError, ValueError, KeyError, IndexError, TypeError):
+        return None, None
+
 def render_page(data,number):
     """Extract the display-only page after full-document validation is done."""
     buf=io.BytesIO()

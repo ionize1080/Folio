@@ -222,9 +222,15 @@ def stream_identity(stream):
     import json
     return hashlib.sha256(json.dumps(values,sort_keys=True).encode()+b'\0'+stream.get_data()).hexdigest()
 
-def compose(data,edits,blocks,inspect,fragment,progress=None,*,preview=False):
+def compose(data,edits,blocks,inspect,fragment,progress=None,*,preview=False,tagged_preview_page=None):
     from pdf_writer import clone_document
-    reader=PdfReader(io.BytesIO(data));writer=clone_document(reader)
+    reader=PdfReader(io.BytesIO(data))
+    writer, source_page = None, None
+    if tagged_preview_page is not None:
+        from preview_page import paragraph_preview_writer
+        writer, source_page = paragraph_preview_writer(reader, tagged_preview_page, edits)
+    if writer is None:
+        writer = clone_document(reader)
     bypage={};stream_cache={}
     for e in edits:bypage.setdefault(e['page'],{'edits':[],'blocks':[]})['edits'].append(e)
     # blocks can be an iterator read from a JSON-lines file. At most one page's result is held per fragment.
@@ -272,8 +278,15 @@ def compose(data,edits,blocks,inspect,fragment,progress=None,*,preview=False):
         name=NameObject(f'/FolioEdit{j}');xs[name]=ref
         return [([],b'q'),([name],b'Do'),([],b'Q')]
     def process(number,bs):
-        if not isinstance(number,int) or not 1<=number<=len(writer.pages):raise ValueError('页码无效')
-        page=writer.pages[number-1];es=bypage.pop(number,{'edits':[]})['edits']
+        page_number = 1 if source_page is not None else number
+        if (not isinstance(number, int) or not 1 <= page_number <= len(writer.pages) or
+                (source_page is not None and number != tagged_preview_page)):
+            raise ValueError('页码无效')
+        page = writer.pages[page_number-1]
+        # The full original page supplies structure ownership and semantic resources.
+        # This writer's single display page contains only the editable painting graph.
+        semantic_page = source_page if source_page is not None else page
+        es=bypage.pop(number,{'edits':[]})['edits']
         if not es and not bs:return
         width,height=float(page.mediabox.width),float(page.mediabox.height)
         flows=sorted([e for e in es if e.get('type')=='flow' and not e.get('delete')],key=lambda e:float((e.get('model') or {}).get('layerOrder',0)))
@@ -289,7 +302,7 @@ def compose(data,edits,blocks,inspect,fragment,progress=None,*,preview=False):
         def source_description():
             nonlocal description
             if description is None:
-                des=inspect(number);description=(des,check_editable(page,des,source_stream()))
+                des=inspect(number);description=(des,check_editable(semantic_page,des,source_stream()))
             return description
         if flows:
             desc,mapped=source_description()
@@ -348,7 +361,7 @@ def compose(data,edits,blocks,inspect,fragment,progress=None,*,preview=False):
                 if structured:
                     from structure_scope import validate_scopes
                     original_stream,raw_objects=source_stream()
-                    scopes,scope=validate_scopes(page,original_stream,raw_objects,mapped,sources,model,desc)
+                    scopes,scope=validate_scopes(semantic_page,original_stream,raw_objects,mapped,sources,model,desc)
                     ends=[mapped[source['index']].get('end') for source in sources]
                     if any(end is None for end in ends):raise ValueError('标签文字范围不完整')
                     if len(scopes)>1:
@@ -577,4 +590,8 @@ def compose(data,edits,blocks,inspect,fragment,progress=None,*,preview=False):
     ensure_version(writer)
     from pdf_writer import remove_orphans
     remove_orphans(writer)
-    output=io.BytesIO();writer.write(output);return output.getvalue()
+    output=io.BytesIO();writer.write(output)
+    if tagged_preview_page is not None:
+        from preview_page import render_page
+        return render_page(output.getvalue(), 1 if source_page is not None else tagged_preview_page)
+    return output.getvalue()
