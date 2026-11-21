@@ -1,0 +1,182 @@
+name: Inspect actual Reader XI paragraph save output
+on:
+  push:
+    branches: [qa/reader-xi-origin-20261121]
+    paths: [.github/workflows/reader-xi-document-qa.yml]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  adobe-origin:
+    runs-on: windows-latest
+    timeout-minutes: 16
+    steps:
+      - name: Check official HTTPS paths
+        id: probe
+        shell: python
+        run: |
+          import concurrent.futures
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+          from urllib.error import HTTPError
+          from urllib.parse import urlsplit
+          from urllib.request import HTTPRedirectHandler, Request, build_opener
+
+          hosts = ("ardownload2.adobe.com", "ardownload.adobe.com", "ftp.adobe.com")
+          versions = (("11.0.10", "AdbeRdr11010_en_US.exe"), ("11.0.00", "AdbeRdr11000_en_US.exe"))
+          urls = [f"https://{host}/pub/adobe/reader/win/11.x/{version}/en_US/{name}"
+                  for version, name in versions for host in hosts]
+
+          class AdobeHTTPSRedirect(HTTPRedirectHandler):
+              def redirect_request(self, req, fp, code, msg, hdrs, url):
+                  parsed = urlsplit(url)
+                  if parsed.scheme != "https" or not (parsed.hostname or "").endswith(".adobe.com"):
+                      raise ValueError("unapproved redirect")
+                  return super().redirect_request(req, fp, code, msg, hdrs, url)
+
+          def inspect(url):
+              record = {"url": url}
+              for method in ("HEAD", "GET"):
+                  try:
+                      headers = {"Accept-Encoding": "identity"}
+                      if method == "GET":
+                          headers["Range"] = "bytes=0-15"
+                      with build_opener(AdobeHTTPSRedirect()).open(Request(url, headers=headers, method=method), timeout=24) as resp:
+                          item = {"status": resp.status, "type": resp.headers.get("Content-Type"),
+                                  "length": resp.headers.get("Content-Length"), "final": resp.geturl()}
+                          if method == "GET":
+                              item["pe"] = resp.read(16).startswith(b"MZ")
+                  except HTTPError as exc:
+                      item = {"status": exc.code, "type": exc.headers.get("Content-Type"), "final": exc.geturl()}
+                  except Exception as exc:
+                      item = {"status": None, "failure": str(exc)}
+                  record[method] = item
+              return record
+
+          with concurrent.futures.ThreadPoolExecutor(max_workers=6) as pool:
+              rows = list(pool.map(inspect, urls))
+          for row in rows:
+              print("ADOBE_HTTP " + json.dumps(row), flush=True)
+
+          available = False
+          for row in rows:
+              if not row["GET"].get("pe"):
+                  continue
+              try:
+                  dest = Path(os.environ["RUNNER_TEMP"]) / "adobe-reader-xi-origin.exe"
+                  with build_opener(AdobeHTTPSRedirect()).open(row["url"], timeout=45) as resp, dest.open("wb") as out:
+                      if resp.status != 200:
+                          continue
+                      while chunk := resp.read(1024*1024):
+                          if out.tell() + len(chunk) > 112*1024*1024:
+                              raise ValueError("unexpected package size")
+                          out.write(chunk)
+                  print("ADOBE_PACKAGE " + json.dumps({"url": row["url"], "bytes": dest.stat().st_size,
+                        "sha256": hashlib.file_digest(dest.open("rb"), "sha256").hexdigest()}))
+                  available = True
+                  break
+              except Exception as exc:
+                  print("ADOBE_DOWNLOAD_ERROR " + str(exc))
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as out:
+              print("available=" + str(available).lower(), file=out)
+      - name: Verify publisher and version without executing the installer
+        if: steps.probe.outputs.available == 'true'
+        shell: pwsh
+        run: |
+          $installer = Join-Path $env:RUNNER_TEMP 'adobe-reader-xi-origin.exe'
+          $sig = Get-AuthenticodeSignature -LiteralPath $installer
+          $version = (Get-Item -LiteralPath $installer).VersionInfo
+          [ordered]@{status=[string]$sig.Status;subject=$sig.SignerCertificate.Subject;product=$version.ProductName;version=$version.ProductVersion;fileVersion=$version.FileVersion} | ConvertTo-Json -Compress
+          $publisher = $sig.SignerCertificate.GetNameInfo([System.Security.Cryptography.X509Certificates.X509NameType]::SimpleName, $false)
+          if ($sig.Status -ne 'Valid' -or $publisher -notin @('Adobe Systems, Incorporated', 'Adobe Systems Incorporated','Adobe Inc.') -or $version.ProductVersion -notmatch '^11\.0\.10\.') { throw "Authenticode or XI version mismatch: $publisher" }
+          if ((Get-FileHash -LiteralPath $installer -Algorithm SHA256).Hash -ne 'c438ac343381031cd47dd4ed966c8e86b2bcd5a1959f55c1c7d8c61920dd18bc') { throw 'Unexpected package digest' }
+      - name: Install signed Reader in disposable VM
+        if: steps.probe.outputs.available == 'true'
+        shell: pwsh
+        run: |
+          $installer = Join-Path $env:RUNNER_TEMP 'adobe-reader-xi-origin.exe'
+          $dest = Join-Path $env:RUNNER_TEMP 'adobe-xi-extracted'
+          $proc = Start-Process -FilePath $installer -WindowStyle Hidden -ArgumentList @("-sfx_o$dest",'-sfx_ne','-sfx_nu') -Wait -PassThru
+          Write-Output "ADOBE_EXTRACT $($proc.ExitCode)"
+          $msi = Get-ChildItem -Path $dest -Recurse -Filter AcroRead.msi | Select-Object -First 1
+          if (!$msi) { throw 'Signed installer did not extract Reader MSI' }
+          $proc = Start-Process -FilePath msiexec.exe -WindowStyle Hidden -ArgumentList @('/i',('"' + $msi.FullName + '"'),'/qn','/norestart','DISABLE_ARM_SERVICE_INSTALL=1','DISABLEDESKTOPSHORTCUT=1','/L*v',('"' + "$env:RUNNER_TEMP\adobe-xi-msi.log" + '"')) -Wait -PassThru
+          Write-Output "ADOBE_INSTALL $($proc.ExitCode)"
+          if ($proc.ExitCode -notin @(0,3010)) { Get-Content "$env:RUNNER_TEMP\adobe-xi-msi.log" -Tail 15; throw 'Reader MSI failed' }
+          $patch = Get-ChildItem -Path $dest -Recurse -Filter AdbeRdrUpd11010.msp | Select-Object -First 1
+          if (!$patch) { throw 'Official 11.0.10 update was absent from the signed Adobe installer' }
+          $proc = Start-Process -FilePath msiexec.exe -WindowStyle Hidden -ArgumentList @('/p',('"' + $patch.FullName + '"'),'/qn','/norestart') -Wait -PassThru
+          Write-Output "ADOBE_PATCH $($patch.Name) $($proc.ExitCode)"
+          if ($proc.ExitCode -notin @(0,3010)) { throw 'Reader XI bundled update failed' }
+          $viewer = Get-ChildItem "C:\Program Files (x86)\Adobe" -Recurse -Filter AcroRd32.exe | Select-Object -First 1
+          if (!$viewer) { $viewer=Get-ChildItem "C:\Program Files (x86)\Adobe" -Recurse -Filter AcroRd32.exe | Select-Object -First 1 }
+          $sig = Get-AuthenticodeSignature $viewer.FullName
+          $info=$viewer.VersionInfo
+          Write-Output "ADOBE_VIEWER $($viewer.FullName) $($info.ProductVersion) $($info.FileVersion) $($sig.Status) $($sig.SignerCertificate.Subject)"
+          if ($sig.Status -ne 'Valid' -or $info.ProductVersion -notmatch '^11\.0\.10\.') { throw 'Unexpected viewer identity' }
+          "XI_VIEWER=$($viewer.FullName)" | Out-File -Encoding utf8 -Append $env:GITHUB_ENV
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: tests/reader-xi-isolated-gui.py
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          name: xi-synthetic-paragraph-fixtures
+          run-id: 44867384251
+          github-token: ${{ github.token }}
+          path: xi-pdfs
+      - name: Install isolated observation dependencies
+        run: python -m pip install pywinauto==0.6.9 pywin32 pikepdf pillow
+      - name: Accept the displayed XI license with the user's explicit authorization
+        if: steps.probe.outputs.available == 'true'
+        shell: python
+        run: |
+          import os,subprocess,time
+          from pathlib import Path
+          import win32gui
+          from pywinauto.controls.hwndwrapper import HwndWrapper
+          viewer=os.environ['XI_VIEWER']
+          pdf=Path('xi-pdfs/paragraph-original.pdf').resolve()
+          assert pdf.is_file()
+          proc=subprocess.Popen([viewer,'/n',str(pdf)])
+          def windows():
+              roots=[]
+              win32gui.EnumWindows(lambda w,_: roots.append(w) if win32gui.IsWindowVisible(w) and win32gui.GetClassName(w)=='AcrobatSDIWindow' else None,None)
+              return roots
+          def children(hwnd):
+              hs=[]
+              win32gui.EnumChildWindows(hwnd,lambda w,_: hs.append(w) if win32gui.IsWindowVisible(w) else None,None)
+              return hs
+          title='Adobe Reader XI - Distribution License Agreement for Use on Personal Computers'
+          dialog=None
+          for _ in range(50):
+              dialog=next((x for w in windows() for x in children(w) if win32gui.GetClassName(x)=='#32770' and win32gui.GetWindowText(x)==title),None)
+              if dialog: break
+              time.sleep(.4)
+          assert dialog,'Exact XI license dialog did not appear'
+          button=next((x for x in children(dialog) if win32gui.GetClassName(x)=='Button' and win32gui.GetWindowText(x).replace('&','')=='Accept'),None)
+          assert button, 'XI Accept button absent'
+          print('XI_AUTHORIZED_CLICK '+title+' / '+win32gui.GetWindowText(button),flush=True)
+          HwndWrapper(button).click_input()
+          for _ in range(40):
+              if not win32gui.IsWindowVisible(dialog): break
+              time.sleep(.25)
+          assert not win32gui.IsWindowVisible(dialog),'XI license remained visible after actual click'
+          time.sleep(3)
+          print('XI_AFTER_ACCEPT '+str([win32gui.GetWindowText(w) for w in windows()]),flush=True)
+          subprocess.run(['taskkill','/im','AcroRd32.exe','/f'],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+      - name: Inspect each document in a fresh XI process
+        if: steps.probe.outputs.available == 'true'
+        shell: pwsh
+        run: python tests/reader-xi-isolated-gui.py "$env:XI_VIEWER" xi-pdfs xi-gui-evidence
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: reader-xi-real-documents
+          path: xi-gui-evidence/
+          retention-days: 7
