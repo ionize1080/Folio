@@ -1,6 +1,16 @@
 # Folio PDF Studio — release validation
 
-## Current release: 2.8.3
+## Folio 2.8.4
+
+[English validation](VALIDATION-2.8.4.md) · [简体中文验证报告](VALIDATION-2.8.4.zh-Hans.md) · [繁體中文驗證報告](VALIDATION-2.8.4.zh-Hant.md)
+
+The 2.8.4 report covers in-place paragraph editing, measured background preparation times, incremental PDF saves and the Adobe Reader XI error 14 reproduction. The release validation JSON identifies the commit and Windows run for the portable and source archives. [Windows release workflow](https://github.com/ionize1080/Folio/actions/workflows/release-284.yml) · [Validation JSON](https://github.com/ionize1080/Folio/releases/download/v2.8.4/Folio-PDF-Studio-2.8.4-validation.json) · [SHA-256 list](https://github.com/ionize1080/Folio/releases/download/v2.8.4/Folio-PDF-Studio-2.8.4-SHA256.txt)
+
+2.8.4 报告列出实测样本、原位编辑耗时、保存重开的保真检查及 Reader XI 的错误 14 对照。繁體中文版亦收錄相同的測試條件、結果及下載檔案驗證步驟。
+
+---
+
+## Historical validation: 2.8.3
 
 正式 Windows x64 包来自提交 `fe5b6a7b52350e908da9009142bb68129f7f09c2`，由 [Actions 43830775610](https://github.com/ionize1080/Folio/actions/runs/43830775610) 构建并于 2026-11-16 发布。最终便携 ZIP 分六组通过 38 个验收脚本。核对下载文件时使用同次发布的 [validation.json](https://github.com/ionize1080/Folio/releases/download/v2.8.3/Folio-PDF-Studio-2.8.3-validation.json) 和 [SHA-256](https://github.com/ionize1080/Folio/releases/download/v2.8.3/Folio-PDF-Studio-2.8.3-SHA256.txt)。
 

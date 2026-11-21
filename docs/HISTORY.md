@@ -1,6 +1,6 @@
 # Documentation archive
 
-[Current 2.8.3 documentation](README.md) · [Latest release notes](RELEASE-2.8.3.md). Versioned records preserve their original evidence and scope; old setup commands and downloads are historical.
+[Current documentation](README.md) · [2.8.4 release notes](RELEASE-2.8.4.md). Versioned records preserve their original evidence and scope; old setup commands and downloads are historical.
 
 | Record | Original topic |
 | --- | --- |
@@ -115,6 +115,9 @@
 | [RELEASE-2.8.2.md](RELEASE-2.8.2.md) | Folio PDF Studio 2.8.2 |
 | [RELEASE-2.8.2.zh-Hans.md](RELEASE-2.8.2.zh-Hans.md) | Folio PDF Studio 2.8.2 |
 | [RELEASE-2.8.2.zh-Hant.md](RELEASE-2.8.2.zh-Hant.md) | Folio PDF Studio 2.8.2 |
+| [RELEASE-2.8.3.md](RELEASE-2.8.3.md) | Folio PDF Studio 2.8.3 — preferences, workbenches and reader controls |
+| [RELEASE-2.8.3.zh-Hans.md](RELEASE-2.8.3.zh-Hans.md) | Folio PDF Studio 2.8.3 简体中文发布说明 |
+| [RELEASE-2.8.3.zh-Hant.md](RELEASE-2.8.3.zh-Hant.md) | Folio PDF Studio 2.8.3 繁體中文發行說明 |
 | [RELEASE-P4.md](RELEASE-P4.md) | Folio PDF Studio 1.2.0 RC1-P4 |
 | [RELEASE-P6.md](RELEASE-P6.md) | 编辑修复 |
 | [RELEASE-P7.md](RELEASE-P7.md) | Folio PDF Studio 1.2.0 RC1-P7 |

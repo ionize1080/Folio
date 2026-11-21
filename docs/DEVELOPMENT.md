@@ -1,13 +1,13 @@
-# Build and test Folio 2.8.3
+# Build and test Folio 2.8.4
 
-Use Windows x64, Node.js 24, Python 3.12, Git and a full 7-Zip installation with NSIS support. Building both embedded studios also requires Rust 1.95 with `wasm32-unknown-unknown`. End users only need the complete portable ZIP. The authoritative setup is the [workbench action](../.github/actions/setup-workbench/action.yml); publication is defined by [release-283.yml](../.github/workflows/release-283.yml).
+Use Windows x64, Node.js 24, Python 3.12, Git and a full 7-Zip installation with NSIS support. Building both embedded studios also requires Rust 1.95 with `wasm32-unknown-unknown`. End users only need the complete portable ZIP. The [workbench action](../.github/actions/setup-workbench/action.yml) pins setup. The [2.8.4 release workflow](../.github/workflows/release-284.yml) invokes the [shared acceptance workflow](../.github/workflows/release-283.yml) before publishing.
 
 ## Checkout and native dependencies
 
 ```powershell
 git clone --recurse-submodules https://github.com/ionize1080/Folio.git
 cd Folio
-git checkout v2.8.3
+git checkout v2.8.4
 git submodule update --init --recursive
 npm ci
 python scripts/restore-conversion-python.py
@@ -37,6 +37,11 @@ The Chatbox preparer verifies the [source pin](../integrations/chatbox/upstream.
 
 | Command | Scope |
 | --- | --- |
+| `node --test tests/incremental-compatibility.test.mjs tests/tagged-paragraph-284.test.mjs` | Cross-reference chains, identifiers, linearized trailers and measured paragraph widths around raised footnotes |
+| `python tests/tagged-paragraph-284.py` | Tagged paragraph owners and inline boundaries |
+| `python tests/shared-line-site-284.py` | Inherited PDF text state when adjacent lines share a text object |
+| `python tests/story-aliases-284.py` | Exact punctuation when a font has multiple Unicode mappings |
+| `node tests/ui-polish-284.cjs` | Command palette, search results, reading tones and the OCR and bookmark workbenches |
 | `npm run test:quick` | Unit contracts, source archive and release transport |
 | `node scripts/acceptance.mjs native` | Native PDF, font, geometry and save regressions |
 | `npm run test:full` | Quick, native and browser suites; needs the test dependencies and compatible Chromium |
@@ -50,10 +55,8 @@ Generate fixtures using the workbench action's fixture step and any inputs named
 
 ## Documentation screenshots
 
-Use a current `main` checkout for documentation capture; these scripts were added after the 2.8.3 release tag. Run `native/runtime/python.exe scripts/docs-fixtures.py`, then `node scripts/docs-screenshots.cjs` from the repository root with the native and studio dependencies prepared. Review every output before publishing. [Provenance and review rules](SCREENSHOTS.md). The capture task does not invoke a model provider.
+[Screenshot provenance](SCREENSHOTS.md) identifies the source version, demo document and capture method for each gallery. The 2.8.4 UI smoke test opens the [generated PDF](examples/Folio-Demo.pdf) and captures the command palette, reading tones, search and workbenches as it tests their controls. The 2.8.3 gallery is reproducible with `native/runtime/python.exe scripts/docs-fixtures.py` and `node scripts/docs-screenshots.cjs` after preparing the native and studio dependencies. Use isolated profiles and inspect captures for private information before publishing.
 
 ## Release evidence
 
-The published 2.8.3 binary is bound to commit `fe5b6a7b52350e908da9009142bb68129f7f09c2` and [Windows run 43830775610](https://github.com/ionize1080/Folio/actions/runs/43830775610). The exact portable ZIP passed 38 acceptance scripts across six packaged jobs, followed by release verification. [Validation report and checksums](https://github.com/ionize1080/Folio/releases/tag/v2.8.3) · [CI architecture](ci-architecture.md).
-
-Documentation changes after that release do not rebuild or recertify its binary. For a new release, use evidence from the same source commit, run and final archive; never relabel older results.
+The 2.8.4 [main release runs](https://github.com/ionize1080/Folio/actions/workflows/release-284.yml?query=branch%3Amain) bind source acceptance, the six packaged test groups and the actual ZIP update test to a single source revision. The [release](https://github.com/ionize1080/Folio/releases/tag/v2.8.4) provides the Windows portable ZIP, source ZIP, SHA-256 list and validation JSON. Use the JSON’s `sourceCommit` and `windowsActionsRun` to locate the exact build. The documentation on `main` can advance after a release. [CI architecture](ci-architecture.md) · [Validation](VALIDATION.md)

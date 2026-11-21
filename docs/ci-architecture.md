@@ -1,10 +1,26 @@
 # Folio 并行验收与发布
 
-## 当前流程：2.8.3
+## 2.8.4 正式发布流程
 
-以 [release-283.yml](../.github/workflows/release-283.yml)、[setup-workbench](../.github/actions/setup-workbench/action.yml) 和 [发布验证](VALIDATION.md) 为准。当前流程并行准备依赖和嵌入式编辑器，原生回归分六片；最终便携 ZIP 通过六组、38 个验收脚本后核对更新与发布。已发布记录：[43830775610](https://github.com/ionize1080/Folio/actions/runs/43830775610)。
+[release-284.yml](../.github/workflows/release-284.yml) 负责本版入口和发布，调用 [release-283.yml](../.github/workflows/release-283.yml) 共享的验收作业。PR 验证候选提交；合并后由主线运行重新构建同一份待发布 ZIP，并分发给六组成品验收和真实 ZIP 更新测试。
 
-每组保留独立配置与输出，结果绑定同一提交、运行和最终包哈希。截图和本地配置不随 CI 报告上传。当前文档图集是另行审查的合成样本界面截图，详见[素材来源](SCREENSHOTS.md)。
+```mermaid
+flowchart TD
+  A["候选 PR 或主线提交"] --> B["原生、界面和编辑回归"]
+  A --> C["构建 Windows 包"]
+  C --> D["六组成品验收"]
+  C --> E["真实 ZIP 更新与回滚"]
+  B --> F["汇总提交、运行和哈希"]
+  D --> F
+  E --> F
+  F --> G{"来自 main 且仍为最新提交？"}
+  G -->|是| H["发布便携包、源码包、验证报告和 SHA-256"]
+  G -->|否| I["保留验收记录"]
+```
+
+候选 PR 的 46 个验收作业通过后才合并。两个 Reader XI 任务独立覆盖 12 份冷启动样本和错误 14 的修复对照。正式下载的源提交、运行号和归档摘要以发行附件为准。[候选运行](https://github.com/ionize1080/Folio/actions/runs/44871390695) · [主线发布记录](https://github.com/ionize1080/Folio/actions/workflows/release-284.yml?query=branch%3Amain) · [验证说明](VALIDATION.md)
+
+各测试组使用独立配置和输出。文档截图使用合成样本，来源见[截图记录](SCREENSHOTS.md)。
 
 ## 历史设计：2.3.0
 

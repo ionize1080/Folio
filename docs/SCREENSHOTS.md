@@ -1,23 +1,60 @@
-# Screenshot provenance and reproduction
+# Folio 2.8.4 in screenshots
 
-The 2.8.3 gallery contains **real Folio application captures**, taken on Windows with the release source commit `fe5b6a7b52350e908da9009142bb68129f7f09c2`. The interface is Simplified Chinese and captures use a 1440 × 960 application viewport at scale factor 1. Reduced motion is enabled so a hidden window cannot be captured halfway through a dialog animation. No interface text or recognition results are painted into the screenshots afterward.
+[English](SCREENSHOTS.md) · [简体中文](SCREENSHOTS.zh-Hans.md) · [繁體中文](SCREENSHOTS.zh-Hant.md)
 
-## Public source material
+Open the six-page [Folio demo PDF](examples/Folio-Demo.pdf) to follow along. The screenshots show the Folio 2.8.4 renderer running on Windows in a Chromium test session, using Simplified Chinese controls. Select an image to see the full-size controls.
 
-- [Folio-Demo.pdf](examples/Folio-Demo.pdf): six generated pages with invented prose, bookmarks, a small table and a geometric landscape illustration.
-- [Folio-Demo-Scan.pdf](examples/Folio-Demo-Scan.pdf): a rasterized page from that same generated document, initially without a text layer.
-- All names, values and illustrations are created by [the fixture generator](../scripts/docs-fixtures.py). It reads no existing user PDFs or images. Metadata identifies the demo generator, not a person or local computer.
-- Each capture session starts with new Folio and Chatbox profiles under ignored test output. Normal user profiles, recently opened files, API credentials and personal conversations are not copied.
+[User guide](../README.md) · [Full feature tour](FEATURES.md) · [Release notes](RELEASE-2.8.4.md)
 
-## What the captures establish
+## Find a command
 
-The reader, rule preview, bookmark QC, organizer, font browser, export options, print preview and preferences are actual application UI. The paragraph screenshot shows a real editable paragraph. The image studio opens an embedded image from the demo PDF; the vector studio creates rectangles, gradients and text with real local studio commands. The OCR screenshot is taken only after local recognition completes with nonempty results.
+Press **Ctrl+Shift+P** and enter `书签` (bookmarks). Use the arrow keys to choose a command and **Enter** to run it. **Esc** closes the palette and returns you to the document.
 
-The studio capture uses the existing local test bridge in an isolated profile, without sending a model request. It demonstrates the same editor controlled by `folio_studio`, not an AI conversation. The export and print screenshots show configuration/preview, not a claim that an export or print job was completed. Screenshot capture is not a replacement for [release acceptance](VALIDATION.md).
+![Command palette filtered to bookmark commands, including automatic generation and quality checks](images/2.8.4/command-palette.webp)
 
-## Reproduce
+## Jump to a match
 
-Prepare the native runtime, OCR models and embedded editors as described in [Development](DEVELOPMENT.md), then run from the repository root:
+Press **Ctrl+F**, search for `Folio` and open the results list. Each row includes the page and surrounding words. Select a row to jump directly to that passage. Here the first of nine hits is highlighted on the page.
+
+![Search results list showing page numbers and an orange highlight in the document](images/2.8.4/search-results.webp)
+
+## Edit text where it sits
+
+Open page 3, enter page text editing and click an editable paragraph. Type in the active text box, finish the edit, then save the PDF. Reopen the saved copy and search for the replacement to check it. The image shows the editing step.
+
+![Active text box on the editable-text page of the Folio demo](images/2.8.4/paragraph-edit.webp)
+
+## Choose a reading tone
+
+Open the view options at the lower right and choose a page tone. The warm setting shown here changes the page display. Select the original paper tone again to compare it with the source colors.
+
+![Warm page tone selected in the reading options at the lower right](images/2.8.4/reading-tone.webp)
+
+## Preview a bookmark destination
+
+Open **Bookmarks → Automatic bookmarks**. Try `^0([1-6])\s+(.+)` on pages 1–6. Select a match in the preview and inspect its destination before applying the rules. The demo produces eleven matches because the contents entries and chapter headings can both match.
+
+![Bookmark workbench showing the first heading, capture groups and destination preview](images/2.8.4/bookmark-rules.webp)
+
+## Review OCR text against the page
+
+Open the OCR review tab and select a row to locate its region on the page. Compare the text, correct it if necessary and confirm it before applying the text layer. This capture uses four preset entries to demonstrate selection and confidence indicators. The [2.8.3 recognition capture](images/2.8.3/13-ocr-review.png) shows actual local engine output on the [demo scan](examples/Folio-Demo-Scan.pdf).
+
+![OCR review with one selected region and a 74% confidence sample among four preset entries](images/2.8.4/ocr-review.webp)
+
+## Where the images came from
+
+Five of the walkthroughs also run in the [2.8.4 desktop UI test](../tests/ui-polish-284.cjs). From a prepared Windows checkout, point `FOLIO_EXE` to the candidate executable, set `FOLIO_AUDIT_OUT` to an output directory and run `node tests/ui-polish-284.cjs`. The audit opens the demo in an isolated profile and captures the command palette, search results, reading tone, bookmark rules and OCR review.
+
+The public fixture generator creates the text, numbers, bookmarks, table and illustration from scratch. The 2.8.4 screenshots use this material. The image manifest gives the exact dimensions and SHA-256 of each published WebP. For saved-file rendering comparisons, Reader XI checks and timings, see the release validation.
+
+[Fixture generator](../scripts/docs-fixtures.py) · [2.8.4 image manifest](images/2.8.4/manifest.json) · [Release validation](VALIDATION-2.8.4.md)
+
+## Reproduce the archived 2.8.3 captures
+
+The archived gallery uses the Windows application at commit `fe5b6a7b52350e908da9009142bb68129f7f09c2`. Its 13 PNGs use a 1440 × 960 viewport at scale factor 1, reduced motion and isolated Folio and Chatbox profiles. The image and vector studios show edits made with local tools. The Word export and print views show the settings before execution. The OCR capture was taken after a local recognition run returned text.
+
+In a separate checkout of documentation commit `99527c9`, prepare the native runtime, OCR models and embedded editors. Run these commands from that checkout.
 
 ```powershell
 native/runtime/python.exe scripts/docs-fixtures.py
@@ -25,12 +62,6 @@ node scripts/docs-screenshots.cjs
 node scripts/check-docs.mjs
 ```
 
-The capture script writes to `docs/images/2.8.3/`; its temporary profiles stay under `tests/output/`. The detailed capture helper can be rerun separately with `node scripts/docs-screenshots-detail.cjs`. Regenerating screenshots may change rendering details across machines and requires another visual review and manifest refresh.
+The archive capture script writes to `docs/images/2.8.3/`. Profiles are created under `tests/output/`. Use `node scripts/docs-screenshots-detail.cjs` for the detailed capture set. After a visual review, refresh the archive manifest with the repository's checker for that revision. Its hashes cover 13 PNGs and both generated PDFs.
 
-After reviewing regenerated assets, run `node scripts/check-docs.mjs --refresh-manifest`, then run the checker again without that flag. Normal validation never changes the manifest.
-
-## Publication review
-
-Review every full-resolution capture for readable text, settled dialogs, clipped controls and unintended content. Publish only the generated PDFs, selected PNGs, their manifest, documentation and reproducible scripts. Do not stage test outputs, profiles, downloaded customer documents, logs or arbitrary screenshots. The [asset manifest](images/2.8.3/manifest.json) records repository-relative filenames, dimensions and SHA-256 hashes; it contains no machine-specific paths.
-
-[English tour](FEATURES.md) · [简体中文图解](FEATURES.zh-Hans.md) · [繁體中文圖解](FEATURES.zh-Hant.md)
+[Build instructions](DEVELOPMENT.md) · [2.8.3 manifest](images/2.8.3/manifest.json) · [Archive capture script at the documentation revision](https://github.com/ionize1080/Folio/blob/99527c9e0e68166489064a63814f454341b5c798/scripts/docs-screenshots.cjs)

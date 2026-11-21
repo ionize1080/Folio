@@ -3,6 +3,9 @@ from pathlib import Path
 import hashlib
 import json
 import os
+import re
+import subprocess
+from urllib.parse import quote, urlsplit
 import zipfile
 
 from release_251_checks import validate_export_review
@@ -103,6 +106,17 @@ with zipfile.ZipFile(portable) as z:
 with zipfile.ZipFile(source) as z:
     for name in ['tests/ui-polish-284.cjs','tests/preferences-ui-283.cjs','tests/surfaces-ui-283.cjs','tests/reader-ui-283.cjs','tests/performance-ui-283.cjs','tests/ui-audit-support.cjs','scripts/ui-audit-ci-283.cjs','src/app.mjs','src/modern.css','src/controls.css','src/refinements.css','src/ocr.css','src/bookmarks.css','native/pdf_writer.py','tests/bookmark-source-282.py','tests/bookmark-source-282.mjs','tests/bookmark-save-282.cjs','src/incremental-pdf.mjs','src/studio-canvas-ui.mjs','src/text-selection.mjs','src/window-chrome.mjs','update-download.cjs','font-warmup.cjs','src/page-spatial.mjs','ai-dock.cjs', 'integrations/pdf-mcp-folio.patch', 'scripts/build-chatbox-source.cjs', 'src/chrome.css', 'image-provider.cjs', 'image-config.cjs', 'native/svg_gradients.py','integrations/creative/source-lock.json','integrations/creative/folio_backdrop.rs','scripts/build-creative.py','src/creative-background.mjs','src/pdf-loading.mjs','src/blank-pages.mjs','src/page-inspection-cache.mjs','integrations/creative/folio_ui_fonts.rs','integrations/chatbox/image-provider-settings.tsx']:
         assert z.read('Folio-PDF-Studio-source/' + name) == (root / name).read_bytes()
+# Both downloads ship the same illustrated guides, screenshots and fixtures.
+tracked_guides = subprocess.check_output(
+    ['git', 'ls-files', '-z', '--', 'docs', 'README.md', 'README.zh-Hans.md', 'README.zh-Hant.md'], cwd=root
+).decode('utf-8').split('\0')
+with zipfile.ZipFile(portable) as app_zip, zipfile.ZipFile(source) as source_zip:
+    for name in filter(None, tracked_guides):
+        expected = (root / name).read_bytes()
+        for archive, directory in [(app_zip, 'Folio-PDF-Studio'), (source_zip, 'Folio-PDF-Studio-source')]:
+            if archive.read(f'{directory}/{name}') != expected:
+                raise ValueError(f'Documentation differs in {archive.filename}: {name}')
+
 manifest_public=json.loads((root/'tests/public-editing-260.json').read_text(encoding='utf-8'))['documents']
 validate_editing(manifest_public, reports)
 run = f'https://github.com/{repo}/actions/runs/{os.environ["GITHUB_RUN_ID"]}'
@@ -118,9 +132,27 @@ for file in assets:
         lines.append(hashlib.file_digest(stream, 'sha256').hexdigest() + '  ' + file.name + '\n')
 checksums.write_text(''.join(lines), encoding='utf-8')
 assets.append(checksums)
+# Local links work inside the ZIPs. The standalone GitHub release body needs
+# permanent URLs for the same files at the commit that produced the archives.
+inline_link = re.compile(r'(!?\[[^\]\n]*\]\()([^\s)]+)(\))')
+
+def published_link(match):
+    opening, target, closing = match.groups()
+    url = urlsplit(target)
+    if url.scheme or url.netloc or not url.path:
+        return match.group(0)
+    local = (root / 'docs' / url.path).resolve()
+    if not local.is_file() or not local.is_relative_to(root):
+        raise ValueError(f'Missing release-note target: {target}')
+    relative = quote(local.relative_to(root).as_posix())
+    base = f'https://raw.githubusercontent.com/{repo}/{sha}' if opening.startswith('!') else f'https://github.com/{repo}/blob/{sha}'
+    fragment = f'#{url.fragment}' if url.fragment else ''
+    return f'{opening}{base}/{relative}{fragment}{closing}'
+
 notes = []
 for lang, suffix in [('en', ''), ('zh-Hans', '.zh-Hans'), ('zh-Hant', '.zh-Hant')]:
-    notes.append(f'<!-- folio-locale:{lang} -->\n' + (root / f'docs/RELEASE-2.8.4{suffix}.md').read_text(encoding='utf-8') + '\n<!-- /folio-locale -->')
+    markdown = (root / f'docs/RELEASE-2.8.4{suffix}.md').read_text(encoding='utf-8')
+    notes.append(f'<!-- folio-locale:{lang} -->\n' + inline_link.sub(published_link, markdown) + '\n<!-- /folio-locale -->')
 notes.append(f'Source: `{sha}`. Built and tested by [Windows Actions]({run}). Real Qwen acceptance: **passed**, including independent document-state checks.')
 notes_file = out / 'release-notes.md'
 notes_file.write_text('\n\n'.join(notes), encoding='utf-8')

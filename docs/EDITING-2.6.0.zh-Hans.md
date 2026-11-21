@@ -1,4 +1,4 @@
-> Historical record / 历史记录 / 歷史記錄。Applies to the version or date named below. For Folio 2.8.3, use the [current documentation](README.md) and [feature tour](FEATURES.md).
+> Historical record / 历史记录 / 歷史記錄。Applies to the version or date named below. For current usage, see the [current documentation](README.md) and [feature tour](FEATURES.md).
 
 # PDF 编辑瓶颈、改动与验证：2.6.0
 

@@ -1,0 +1,70 @@
+{
+  "version": "2.8.4",
+  "sourceCommit": "fc5bbb846a2e8dd06fb5488756c34d859b861072",
+  "rendererGitTree": "138498d47de99b341a94b67bf7bd8d2bfd20aa0f",
+  "uiLanguage": "zh-Hans",
+  "platform": "Windows",
+  "capture": "Release renderer in a Chromium test session with a native bridge adapter. Public demonstration document. Lossless WebP screenshots.",
+  "viewport": {
+    "width": 1440,
+    "height": 960,
+    "deviceScaleFactor": 1.5
+  },
+  "fixtureGenerator": "scripts/docs-fixtures.py",
+  "assets": [
+    {
+      "path": "docs/images/2.8.4/bookmark-rules.webp",
+      "sha256": "8b4d0acfe2621814bd7ad3cfff42f7e618257a55592e780b41a25a2a41206b11",
+      "bytes": 117604,
+      "width": 2160,
+      "height": 1440,
+      "sourceFixture": "docs/examples/Folio-Demo.pdf",
+      "capture": "Automatic-bookmark rules with capture groups and a preview of the first destination"
+    },
+    {
+      "path": "docs/images/2.8.4/command-palette.webp",
+      "sha256": "8a97fcf1c17a9d8aed757afe7f47d67ee415180143ce9ebd74bc7838a625a7de",
+      "bytes": 71280,
+      "width": 2160,
+      "height": 1440,
+      "sourceFixture": "docs/examples/Folio-Demo.pdf",
+      "capture": "Command palette filtered by the Chinese term for bookmarks"
+    },
+    {
+      "path": "docs/images/2.8.4/ocr-review.webp",
+      "sha256": "f242bbb1cbf830db513e5f30b30585384a47b83918afaf430ffdc1b246c5c19b",
+      "bytes": 134292,
+      "width": 2160,
+      "height": 1440,
+      "sourceFixture": "docs/examples/Folio-Demo.pdf",
+      "capture": "OCR review list with four preset entries, including one marked for review"
+    },
+    {
+      "path": "docs/images/2.8.4/paragraph-edit.webp",
+      "sha256": "52415f7c7a91514c48cdd0df63bc47083f3c7b6166b3798e1408927e795daacb",
+      "bytes": 104678,
+      "width": 2160,
+      "height": 1440,
+      "sourceFixture": "docs/examples/Folio-Demo.pdf",
+      "capture": "A live paragraph active on page 3 of the public demo"
+    },
+    {
+      "path": "docs/images/2.8.4/reading-tone.webp",
+      "sha256": "ae54132a6c0c9e73300a313594bf8de08e22225e26b62f20ba95909b1af5300b",
+      "bytes": 59856,
+      "width": 2160,
+      "height": 1440,
+      "sourceFixture": "docs/examples/Folio-Demo.pdf",
+      "capture": "Warm paper selected in the lower-right view options"
+    },
+    {
+      "path": "docs/images/2.8.4/search-results.webp",
+      "sha256": "2e4b419d6777c6ad185b5362b8446f95b1a125258b7a692e355c81a2ece94361",
+      "bytes": 103914,
+      "width": 2160,
+      "height": 1440,
+      "sourceFixture": "docs/examples/Folio-Demo.pdf",
+      "capture": "Case-sensitive full-text results for Folio with the first of nine hits active"
+    }
+  ]
+}

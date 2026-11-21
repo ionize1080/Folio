@@ -1,10 +1,14 @@
-# Desktop interface conventions in 2.8.3
+# Desktop interface conventions in 2.8.4
 
-The current ribbon has Home, Read, Edit, Image, Vector, Bookmarks, Organize and Export categories. The title bar holds document tabs and AI; the bottom bar holds reading controls. Workbench dialogs provide separate navigation, settings and previews. Version 2.8.3 keeps focused checkbox checkmarks visible, validates preference inputs and avoids refreshing documents for unchanged preferences. [Current UI audit](UI-AUDIT-2026-11-16.zh-Hans.md) · [Screenshot tour](FEATURES.md).
+The ribbon groups document commands by task. Tabs and AI stay in the title bar, and view controls stay at the bottom of the reader. Open **Ctrl+Shift+P**, type a command or keyword, use the arrow keys to select a match, then press **Enter**. **Escape** closes the palette. The palette also exposes actions for the current document. [Command definitions](../src/command-palette.mjs) · [Illustrated feature tour](FEATURES.md)
 
-![Preferences in Folio 2.8.3](images/2.8.3/08-preferences.png)
+![Command palette with a filtered list of actions](images/2.8.4/command-palette.webp)
 
-![Dark reader with a generated PDF](images/2.8.3/09-dark-reader.png)
+**Ctrl+F** searches the current document. The results list provides text snippets and page context; the active match has a distinct on-page highlight. Returning to an indexed page can reuse its search text. The reading-tone control changes how PDF pages appear on screen while leaving exported page colors intact.
+
+![Search results and highlighted match in the reader](images/2.8.4/search-results.webp)
+
+![A reading tone applied to the sample document](images/2.8.4/reading-tone.webp)
 
 The dated 2.5/2.5.1 sections below record the design's evolution; use the current source and release audit for current measurements.
 

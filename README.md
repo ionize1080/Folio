@@ -4,13 +4,13 @@
 
 A local-first PDF workspace for Windows x64, built for **long-document bookmarks, in-page text and image editing, OCR review, and optional Chatbox AI assistance**. The portable package includes its runtime, fonts and models. No separate Python or Node.js installation is needed.
 
-**Current release: 2.8.4.** Search commands with Ctrl+Shift+P, change the page tone while reading, or use the updated OCR and bookmark workbenches. [Release history](docs/HISTORY.md).
+**Folio 2.8.4** lets you begin typing at the original text position in supported horizontal paragraphs while Folio prepares the background and font. It also fixes incremental PDF saves that could give Adobe Reader XI error 14. [Release history](docs/HISTORY.md).
 
 [Download the Windows x64 portable ZIP](https://github.com/ionize1080/Folio/releases/download/v2.8.4/Folio-PDF-Studio-2.8.4-portable-win-x64.zip) · [2.8.4 release notes](docs/RELEASE-2.8.4.md) · [AI user guide](docs/AI.en.md) · [Documentation](docs/README.md)
 
-![Folio 2.8.3 reading a synthetic demonstration PDF](docs/images/2.8.3/01-reader.png)
+![The Folio 2.8.4 command palette showing filtered bookmark commands](docs/images/2.8.4/command-palette.webp)
 
-[Feature tour with real screenshots](docs/FEATURES.md) · [Download the synthetic demo PDF](docs/examples/Folio-Demo.pdf). All new screenshots use generated documents and an isolated profile; no private files, credentials or conversations are shown.
+Open a PDF, press `Ctrl+Shift+P` and type `bookmark`. Use ↑ or ↓ to select a command and Enter to run it. Try `tone` to change the paper color while reading. [Illustrated feature tour](docs/FEATURES.md) · [Open the demo PDF](docs/examples/Folio-Demo.pdf)
 
 ## Open your first documents
 
@@ -19,7 +19,11 @@ A local-first PDF workspace for Windows x64, built for **long-document bookmarks
 3. Apply the edit, then choose **Save** to write the current PDF. With original-file protection enabled, the first save prompts for a copy. Closing an ordinary PDF with pending changes offers Save, Discard or Cancel. For continued work on paragraph structure or reviewed OCR, choose **Export → Save .folio project**.
 4. Open **Preferences** to choose Cobalt, Celadon, Amber, Mulberry, Graphite or a custom accent. Appearance supports system, light and dark modes. Interface language follows Windows by default. An explicit language choice takes precedence.
 
-The release also includes a [source archive](https://github.com/ionize1080/Folio/releases/download/v2.8.3/Folio-PDF-Studio-2.8.3-source.zip), [checksums](https://github.com/ionize1080/Folio/releases/download/v2.8.3/Folio-PDF-Studio-2.8.3-SHA256.txt) and a [validation report](https://github.com/ionize1080/Folio/releases/download/v2.8.3/Folio-PDF-Studio-2.8.3-validation.json). For an installed copy, use **About → Check for updates**.
+## Upgrade an existing copy
+
+In **About → Check for updates**, download the update and choose **Install and restart**. To upgrade manually, close Folio, extract the entire new ZIP into a separate folder, launch its `Folio.exe` and check the version in **About**.
+
+The release also includes a [source archive](https://github.com/ionize1080/Folio/releases/download/v2.8.4/Folio-PDF-Studio-2.8.4-source.zip), [checksums](https://github.com/ionize1080/Folio/releases/download/v2.8.4/Folio-PDF-Studio-2.8.4-SHA256.txt) and a [validation report](https://github.com/ionize1080/Folio/releases/download/v2.8.4/Folio-PDF-Studio-2.8.4-validation.json).
 
 ## Work with Chatbox
 
@@ -57,7 +61,7 @@ Use **Auto bookmarks** for rule-based headings and **Smart table of contents** t
 
 Review ranges and coordinates before applying. Cross-file import converts resolvable local destinations rather than copying original action dictionaries blindly.
 
-![Bookmark rule workbench](docs/images/2.8.3/02-bookmark-rules.png)
+![The 2.8.4 bookmark rule workbench](docs/images/2.8.4/bookmark-rules.webp)
 
 ### In-page text, fonts and tables
 
@@ -69,7 +73,11 @@ Paragraphs can be split, merged, linked within a page and manually structured. O
 
 Simple ruled tables support cell text, row heights, row/column insertion/deletion, widths, rectangular merging/splitting, preview and undo. CSV/XLSX export preserves text, leading zeros and merged ranges. Structural editing stays within the original bounds and is limited to 1,000 cells.
 
-![In-page editing of synthetic text](docs/images/2.8.3/10-text-editing.png)
+![A paragraph active in the 2.8.4 page editor](docs/images/2.8.4/paragraph-edit.webp)
+
+In **Edit text**, click the paragraph and make a short correction. Press `Ctrl+Enter` to finish, save a copy and reopen it to check the changed line and its neighbors.
+
+On page 23 of a 45-page Traditional Chinese interim report, a two-character replacement left 430 unaffected character positions and all sampled pixels outside the edit unchanged. In the same local comparison, preparing two tagged paragraph backgrounds took 0.420 s and 0.939 s, down from 1.468 s and 2.094 s. These timings measure background preparation. First entry into edit mode and applying a character missing from the font can still take several seconds.
 
 ### Images and selection
 
@@ -87,7 +95,7 @@ RapidOCR and ONNX Runtime CPU provide PP-OCRv6 small and PP-OCRv5 mobile profile
 
 Review text against the scan, inspect orientation candidates, confirm/defer entries and correct text or geometry. Applying creates a searchable hidden text layer and retains the scan. Unconfirmed issues require review or exclusion. Language checkboxes guide notices and do not expand model capabilities. Simplified/Traditional conversion retains original recognition text and confidence. Hidden-text corrections do not change visible text in the image.
 
-![Local OCR review of a synthetic scan](docs/images/2.8.3/13-ocr-review.png)
+![The 2.8.4 OCR review workbench](docs/images/2.8.4/ocr-review.webp)
 
 ### Export and printing
 
@@ -103,6 +111,8 @@ PDFs above **768 MiB** enter a separate file-backed workspace, up to **8 GiB**, 
 
 | Shortcut | Action |
 | --- | --- |
+| `Ctrl+Shift+P` | Open the command palette |
+| `Ctrl+B` / `Ctrl+I` | Bold / italic in the active paragraph |
 | Ctrl+O / Ctrl+S / Ctrl+Shift+S | Open / Save / Save as |
 | Ctrl+Tab / Ctrl+Shift+Tab / Ctrl+W | Next document / Previous document / Close current document |
 | Ctrl+F / F3 / Shift+F3 | Find / Next / Previous |
@@ -146,9 +156,11 @@ The original PDF remains the session baseline. Content is composed, bookmark pro
 
 ## Development and verification
 
-The Windows build uses Node.js 24, Python 3.12, pinned native resources and the Chatbox source integration. The release workflow verifies the packaged executable and exercises the exact portable ZIP in an update. The 2.8.3 release passed 38 packaged acceptance scripts across six jobs, including real Qwen workflows and independent document-state checks. Image generation and reference-image editing have separate provider configuration and real Qwen acceptance; compatibility still depends on the selected provider and protocol.
+The Windows build uses Node.js 24, Python 3.12, pinned native resources and the Chatbox source integration. The Windows workflow runs the native editing and saving tests, checks the portable ZIP and exercises the updater. The [2.8.4 pre-merge run](https://github.com/ionize1080/Folio/actions/runs/44871390695) passed all 46 acceptance jobs, including six packaged test groups. The [2.8.4 release run](https://github.com/ionize1080/Folio/actions/runs/44876808220) rebuilds and checks the merged commit. Real Qwen image generation and reference-image editing use separate provider settings.
 
-[Developer setup and test commands](docs/DEVELOPMENT.md) · [2.8.3 Windows release run](https://github.com/ionize1080/Folio/actions/runs/43830775610) · [Verification scope](docs/VALIDATION.md) · [Locale contributions](docs/LOCALIZATION.md)
+In Adobe Reader XI 11.0.10.32, the first and second incremental saves from 2.8.3 reproduced error 14 on a PDF with a cross-reference stream. Both direct 2.8.4 saves and new incremental saves of the affected old file opened and yielded the expected text. Twelve additional files covered Chinese paragraph edits, redo and linearized PDFs. [Error 14 comparison](https://github.com/ionize1080/Folio/actions/runs/44871005460/job/136745299657) · [Additional Reader XI cases](https://github.com/ionize1080/Folio/actions/runs/44870462512/job/136743594117)
+
+[Developer setup and test commands](docs/DEVELOPMENT.md) · [Verification scope](docs/VALIDATION.md) · [Locale contributions](docs/LOCALIZATION.md)
 
 ## Scope for further work
 

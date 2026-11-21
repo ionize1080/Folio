@@ -1,6 +1,6 @@
 # Folio PDF Studio 1.0 RC1 P2
 
-> Historical P2 guide. Use the [current user guide](README.md) and [documentation index](docs/README.md) for 2.8.3.
+> Historical P2 guide. Use the [current user guide](README.md) and [documentation index](docs/README.md) for the current version.
 
 
 此页是历史补丁安装说明。使用当前便携版请从[简体中文用户指南](README.zh-Hans.md)开始。
