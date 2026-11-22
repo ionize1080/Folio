@@ -59,7 +59,7 @@ const path = require('node:path');
     await page.evaluate(async () => (await import('./i18n.mjs')).setLanguage('zh-Hans'));
     await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(1440, 900));
     await h.frames();
-    checks.push('Ergonomic Ribbon dimensions (38px tabs, 36px commands, 50px deck) verified across 3 languages & 1080/1440px');
+    checks.push('Ribbon tabs, 36px commands and unclipped labels verified across three languages at 1080px and 1440px');
 
     // 2. Verify VS Code-style zero-latency pointerdown Ribbon switching & benchmark
     const pointerdownOk = await page.evaluate(() => {

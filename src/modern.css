@@ -905,7 +905,7 @@ html[lang=en] .appbar[data-ribbon].ribbon-collapsed {
   min-height: 80px;
 }
 body.studio-active .appbar[data-ribbon],
-body.studio-active html[lang=en] .appbar[data-ribbon] {
+html[lang=en] body.studio-active .appbar[data-ribbon] {
   grid-template-rows: 42px;
   min-height: 42px;
 }
@@ -1085,6 +1085,36 @@ body .ribbon-tabs button[aria-selected=true]:focus-visible::before {
   .appbar[data-ribbon] > .toolbar { margin-inline: -10px; padding-inline: 10px !important; }
   .appbar[data-ribbon].custom-titlebar > .toolbar { margin-right: 0; padding-right: 10px !important; }
   .ribbon-tabs button { min-width: 46px; padding: 0 11px; font-size: 12.5px; }
+}
+
+/* Keep the PDF work area usable on 900px-high and smaller windows. */
+@media (max-height: 900px) {
+  .appbar[data-ribbon], html[lang=en] .appbar[data-ribbon] {
+    grid-template-rows: 29px 36px 48px;
+    min-height: 113px;
+  }
+  .appbar[data-ribbon].ribbon-collapsed,
+  html[lang=en] .appbar[data-ribbon].ribbon-collapsed {
+    grid-template-rows: 29px 36px;
+    min-height: 65px;
+  }
+  body.studio-active .appbar[data-ribbon], html[lang=en] body.studio-active .appbar[data-ribbon] {
+    grid-template-rows: 29px;
+    min-height: 29px;
+  }
+  .appbar[data-ribbon] > .doc-tab, .appbar[data-ribbon] > .document-tabs,
+  .appbar[data-ribbon] .document-tab, .appbar[data-ribbon] .app-actions button,
+  .appbar[data-ribbon] .language-picker, .titlebar-quick button, .window-controls button {
+    height: 28px;
+    min-height: 28px;
+  }
+  .window-controls button { padding-block: 6px; }
+  .ribbon-tabs button { min-height: 36px; }
+  .appbar[data-ribbon] > .toolbar {
+    height: 48px;
+    min-height: 48px;
+    padding-block: 5px !important;
+  }
 }
 
 /* 14.5 Left Sidebar Mode Switcher — flat zero-nesting architectural tabs */

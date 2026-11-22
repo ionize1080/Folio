@@ -42,7 +42,7 @@ const {_electron:electron}=require('playwright'),fs=require('node:fs'),path=requ
    await app.evaluate(({BrowserWindow},w)=>{const win=BrowserWindow.getAllWindows()[0];win.setMinimumSize(780,600);win.setSize(w,900)},width);
    await host.locator('#ribbon-tab-photo').click();
    const layout=await host.evaluate(()=>{const h=document.querySelector('.appbar').getBoundingClientRect(),ai=document.querySelector('.folio-ai-open').getBoundingClientRect();const buttons=[...document.querySelectorAll('.ribbon-tabs button')].map(b=>b.getBoundingClientRect());return {height:h.height,ai:{x:ai.x,right:ai.right,width:ai.width},viewport:innerWidth,overlap:buttons.some((b,i)=>i&&b.left<buttons[i-1].right)};});
-   assert(layout.height<=114);assert(layout.ai.width>30&&layout.ai.x>=0&&layout.ai.right<=layout.viewport);assert(!layout.overlap);
+   assert(layout.height<=114,JSON.stringify({width,...layout}));assert(layout.ai.width>30&&layout.ai.x>=0&&layout.ai.right<=layout.viewport);assert(!layout.overlap);
    await require('./native-capture.cjs')(app,host,`tests/output/creative-ribbon-${width}.png`);
   }
   await host.locator('[data-ribbon-command="photo-studio"]').click();await host.waitForFunction(()=>!document.querySelector('.creative-dialog [data-open]').disabled);assert(await host.locator('.creative-dialog [data-import]').isVisible());await require('./native-capture.cjs')(app,host,'tests/output/creative-dialog.png');await host.keyboard.press('Escape');
