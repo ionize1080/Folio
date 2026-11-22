@@ -51,18 +51,39 @@ export function installRibbon() {
     if (id !== current) {
       if (current != null) {
         groups.get(current).hidden = true;
-        const previous = buttons.get(current); previous.setAttribute('aria-selected', 'false'); previous.tabIndex = -1;
+        const previous = buttons.get(current);
+        previous.setAttribute('aria-selected', 'false');
+        previous.tabIndex = -1;
       }
-      groups.get(id).hidden = false; panel.hidden = id === 'home';
-      const tab = buttons.get(id); tab.setAttribute('aria-selected', 'true'); tab.tabIndex = 0; current = id;
+      groups.get(id).hidden = false;
+      const onHome = id === 'home';
+      panel.hidden = onHome;
+      header.classList.toggle('ribbon-on-home', onHome);
+      const tab = buttons.get(id);
+      tab.setAttribute('aria-selected', 'true');
+      tab.tabIndex = 0;
+      current = id;
     }
     if (focus) buttons.get(id).focus({ preventScroll: true });
   }
+  let isCollapsed = false;
   function setCollapsed(off, persist = true) {
-    if (header.classList.contains('ribbon-collapsed') !== off) header.classList.toggle('ribbon-collapsed', off);
-    collapse.setAttribute('aria-expanded', String(!off));
-    if (persist) { try { localStorage.setItem('folio-ribbon-collapsed', String(off)); } catch {} }
+    const next = !!off;
+    const changed = isCollapsed !== next || header.classList.contains('ribbon-collapsed') !== next;
+    isCollapsed = next;
+    if (changed) {
+      header.classList.toggle('ribbon-collapsed', next);
+      collapse.setAttribute('aria-expanded', String(!next));
+      // Only hit synchronous localStorage when collapsed state actually changed.
+      if (persist) { try { localStorage.setItem('folio-ribbon-collapsed', String(next)); } catch {} }
+    } else if (!collapse.hasAttribute('aria-expanded')) {
+      collapse.setAttribute('aria-expanded', String(!next));
+    }
   }
+  const activate = id => {
+    if (isCollapsed) setCollapsed(false);
+    choose(id);
+  };
   for (const [id, , , commands] of definitions) {
     // Keep controls mounted: switching never moves the reading toolbar through
     // the document or re-runs localization on a detached command subtree.
@@ -77,7 +98,13 @@ export function installRibbon() {
     const b = document.createElement('button'); b.id = 'ribbon-tab-' + id; b.dataset.category = id;
     b.setAttribute('role', 'tab'); b.setAttribute('aria-controls', groups.get(id).id);
     b.setAttribute('aria-selected', 'false'); b.tabIndex = -1;
-    b.onclick = () => { setCollapsed(false); choose(id); }; tabs.append(b); buttons.set(id, b);
+    // VS Code-style zero-latency activation on primary pointer press; click remains
+    // idempotent for keyboard Enter/Space, touch taps, and scripted clicks.
+    b.onpointerdown = e => {
+      if (e.button === 0 && e.pointerType !== 'touch') activate(id);
+    };
+    b.onclick = () => activate(id);
+    tabs.append(b); buttons.set(id, b);
   }
   const labels = () => {
     for (const [id, zh, en] of definitions) buttons.get(id).textContent = getLanguage() === 'en' ? en : t(zh);

@@ -66,7 +66,7 @@ body.dark {
 /* ───────────── 2. Base ───────────── */
 body {
   -webkit-font-smoothing: antialiased;
-  text-rendering: optimizeLegibility;
+  text-rendering: auto;
   font-feature-settings: "tnum" 0, "kern";
   background: var(--bg);
 }
@@ -725,10 +725,11 @@ label:has(> input[type=color]) { flex-direction: row !important; align-items: ce
 
 /* ═════════ 13. 2.8.4 Precision UX, Reading Tone, Search, Quickbar & Command Palette ═════════ */
 
-/* Avoid duplicating Save/Undo/Redo in titlebar when Ribbon Home or Creative Studio already shows them. */
+/* Avoid duplicating Save/Undo/Redo in titlebar when Ribbon Home or Creative Studio already shows them.
+   Uses O(1) .ribbon-on-home class set by ribbon.mjs instead of expensive :has() invalidation. */
 body.studio-active .titlebar-quick,
-.appbar.custom-titlebar:not(.ribbon-collapsed):has(#ribbon-tab-home[aria-selected="true"]) .titlebar-quick {
-  opacity: 0; pointer-events: none; width: 0; overflow: hidden; margin: 0; padding: 0; border: 0;
+.appbar.custom-titlebar.ribbon-on-home:not(.ribbon-collapsed) .titlebar-quick {
+  display: none;
 }
 
 /* Tab strip "+" open button */
@@ -886,3 +887,533 @@ body.studio-active .titlebar-quick,
 .page-edit-move { left: -26px !important; top: 0 !important; opacity: .78; }
 .page-edit-move:hover, .page-edit-move:focus-visible { opacity: 1; }
 .page-edit-bar #pe-font { padding-right: 22px; background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%); background-position: calc(100% - 11px) 50%, calc(100% - 7px) 50%; background-size: 4px 4px; background-repeat: no-repeat; }
+
+/* ═════════ 14. Ergonomic Ribbon, VS Code Zero-Latency UI & Left Thumbnail Sidebar ═════════ */
+
+/* 14.1 Layout containment firewalls: header changes never trigger main/canvas reflow. */
+main { contain: layout style; }
+.outline-panel, .inspector { contain: layout style; }
+#canvas-host { contain: layout style paint; }
+.appbar[data-ribbon], html[lang=en] .appbar[data-ribbon] {
+  contain: layout style;
+  grid-template-rows: 42px 38px 50px;
+  min-height: 130px;
+}
+.appbar[data-ribbon].ribbon-collapsed,
+html[lang=en] .appbar[data-ribbon].ribbon-collapsed {
+  grid-template-rows: 42px 38px;
+  min-height: 80px;
+}
+body.studio-active .appbar[data-ribbon],
+body.studio-active html[lang=en] .appbar[data-ribbon] {
+  grid-template-rows: 42px;
+  min-height: 42px;
+}
+.appbar[data-ribbon] > .doc-tab,
+.appbar[data-ribbon] > .document-tabs { height: 36px; }
+.appbar[data-ribbon] .app-actions { gap: 5px; }
+.appbar[data-ribbon] .app-actions button { min-height: 32px; height: 32px; font-size: 12.5px; }
+.appbar[data-ribbon] .app-actions [data-action=settings] { width: 34px; }
+.titlebar-quick button { width: 32px; height: 32px; min-height: 32px; }
+.window-controls button { min-width: 44px; width: 44px; height: 42px; min-height: 42px; }
+
+/* 14.2 Ergonomic Ribbon Category Strip (38px full-cell hit targets, refined 32px pill) */
+.ribbon-tab-row {
+  contain: layout style;
+  align-items: stretch;
+  gap: 10px;
+}
+.ribbon-tabs { gap: 2px; align-items: stretch; }
+.ribbon-tabs button {
+  min-height: 38px;
+  min-width: 60px;
+  padding: 0 18px;
+  font-size: 13px;
+  letter-spacing: .005em;
+  color: var(--muted);
+  font-weight: 550;
+}
+.ribbon-tabs button::before {
+  inset: 3px 2px;
+  border-radius: 999px;
+}
+/* Never paint the rectangular hit-cell background on click/active/hover; keep all visual fill inside the rounded ::before pill. */
+body .ribbon-tabs button:enabled:hover,
+body .ribbon-tabs button:enabled:active,
+body .ribbon-tabs button[aria-selected=true] {
+  background: transparent !important;
+}
+body .ribbon-tabs button:enabled:active::before {
+  background: var(--selected);
+}
+/* Keyboard focus draws a clean rounded ring inside the pill instead of a clipped rectangular outline that looked like vertical divider lines. */
+body .ribbon-tabs button:focus-visible {
+  outline: none;
+}
+body .ribbon-tabs button:focus-visible::before {
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+.ribbon-tabs button[aria-selected=true] {
+  color: var(--accent);
+  font-weight: 650;
+}
+.ribbon-tabs button[aria-selected=true]::before {
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px var(--selected-line);
+}
+body .ribbon-tabs button[aria-selected=true]:focus-visible::before {
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+.ribbon-tab-row .more-tools summary {
+  min-height: 32px;
+  height: 32px;
+  padding: 0 12px;
+  font-size: 12.5px;
+  border-radius: 8px;
+  align-self: center;
+}
+.ribbon-collapse {
+  width: 32px;
+  height: 32px;
+  min-height: 32px;
+  padding: 6px;
+  border-radius: 8px;
+  align-self: center;
+  color: var(--muted);
+}
+.ribbon-collapse:hover { background: var(--hover); color: var(--text); }
+
+/* 14.3 Ergonomic Ribbon Command Deck (50px subtle elevated surface, 36px crisp buttons) */
+.appbar[data-ribbon] > .toolbar {
+  contain: strict;
+  height: 50px;
+  min-height: 50px;
+  margin-inline: -16px;
+  padding: 6px 16px !important;
+  gap: 8px;
+  background: color-mix(in oklab, var(--panel2) 68%, var(--panel));
+  border-top: 1px solid var(--line);
+}
+.appbar[data-ribbon].custom-titlebar > .toolbar {
+  margin-right: 0;
+  padding-right: 16px !important;
+}
+.appbar[data-ribbon] .toolbar .toolgroup { gap: 3px; }
+.appbar[data-ribbon] .toolbar .toolgroup:not(:last-child)::after {
+  height: 22px;
+  margin-left: 8px;
+}
+.appbar[data-ribbon] .toolbar button {
+  height: 36px;
+  min-height: 36px;
+  padding: 0 12px;
+  gap: 7px;
+  font-size: 13px;
+  border-radius: 9px;
+  font-weight: 520;
+  transition: background-color 60ms ease, color 60ms ease;
+}
+.appbar[data-ribbon] .toolbar button svg {
+  width: 18px;
+  height: 18px;
+  stroke-width: 1.65;
+  transition: none;
+}
+.appbar[data-ribbon] .toolbar button:enabled:hover svg { transform: none; }
+.appbar[data-ribbon] .toolbar button:enabled:active { transform: scale(.985); }
+.appbar[data-ribbon] .toolbar button.primary { padding-inline: 16px; font-weight: 600; }
+.appbar[data-ribbon] .toolbar [data-action=undo],
+.appbar[data-ribbon] .toolbar [data-action=redo],
+.appbar[data-ribbon] .toolbar [data-ribbon-command=undo],
+.appbar[data-ribbon] .toolbar [data-ribbon-command=redo] {
+  width: 36px;
+  min-width: 36px;
+  padding: 0;
+}
+.ribbon-context .selection-toolbar {
+  min-height: 36px;
+  gap: 4px;
+}
+.ribbon-category { gap: 6px; }
+
+/* 14.4 VS Code-style zero box-tree teardown on Ribbon submenu switch (content-visibility deck) */
+.appbar[data-ribbon] > .ribbon-context {
+  display: grid;
+  align-items: center;
+}
+.appbar[data-ribbon] > .ribbon-context > .ribbon-category {
+  grid-area: 1 / 1;
+  justify-self: start;
+}
+.appbar[data-ribbon]:not(.ribbon-collapsed) > .ribbon-home[hidden] {
+  display: flex !important;
+  content-visibility: hidden;
+  visibility: hidden;
+  pointer-events: none;
+  z-index: -1;
+}
+.appbar[data-ribbon]:not(.ribbon-collapsed) > .ribbon-context[hidden] {
+  display: grid !important;
+  content-visibility: hidden;
+  visibility: hidden;
+  pointer-events: none;
+  z-index: -1;
+}
+.appbar[data-ribbon] > .ribbon-context > .ribbon-category[hidden] {
+  display: flex !important;
+  content-visibility: hidden;
+  visibility: hidden;
+  pointer-events: none;
+  z-index: -1;
+}
+.appbar[data-ribbon].ribbon-collapsed > .toolbar {
+  display: none !important;
+}
+
+/* Snap-open dropdowns without sluggish 200ms fade lag */
+.more-tools-menu { animation: none; }
+
+@media (max-width: 1200px) {
+  .appbar[data-ribbon] .toolbar { gap: 6px; }
+  .appbar[data-ribbon] .toolbar button { padding: 0 9px; gap: 6px; font-size: 12.5px; }
+  .appbar[data-ribbon] .toolbar button.primary { padding-inline: 13px; }
+  .appbar[data-ribbon] .toolbar .toolgroup:not(:last-child)::after { margin-left: 5px; }
+  .ribbon-tabs button { min-width: 52px; padding: 0 14px; }
+}
+@media (max-width: 1000px) {
+  .appbar[data-ribbon] > .toolbar { margin-inline: -10px; padding-inline: 10px !important; }
+  .appbar[data-ribbon].custom-titlebar > .toolbar { margin-right: 0; padding-right: 10px !important; }
+  .ribbon-tabs button { min-width: 46px; padding: 0 11px; font-size: 12.5px; }
+}
+
+/* 14.5 Left Sidebar Mode Switcher — flat zero-nesting architectural tabs */
+.outline-panel { container-type: inline-size; }
+.outline-panel .panel-heading {
+  padding: 0;
+  gap: 0;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+}
+.sidebar-mode-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  padding: 0;
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.sidebar-mode-tabs button {
+  position: relative;
+  height: 40px;
+  min-height: 40px;
+  padding: 0 8px;
+  gap: 6px;
+  border: 0;
+  border-radius: 0;
+  font-size: 13px;
+  font-weight: 550;
+  color: var(--muted);
+  background: transparent;
+  box-shadow: none;
+  min-width: 0;
+  transition: none;
+}
+body .sidebar-mode-tabs button:enabled:active {
+  transform: none;
+  background: var(--hover);
+}
+body .sidebar-mode-tabs button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -3px;
+  border-radius: 4px;
+}
+.sidebar-mode-tabs button svg {
+  width: 15px;
+  height: 15px;
+  stroke-width: 1.7;
+  flex: none;
+}
+.sidebar-mode-tabs button > span:first-of-type {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sidebar-mode-tabs button:hover:not([aria-selected="true"]) {
+  background: var(--hover);
+  color: var(--text);
+}
+.sidebar-mode-tabs button[aria-selected="true"] {
+  background: transparent;
+  color: var(--text);
+  font-weight: 650;
+  box-shadow: none;
+}
+.sidebar-mode-tabs button[aria-selected="true"]::after {
+  content: "";
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: 0;
+  height: 2px;
+  border-radius: 2px 2px 0 0;
+  background: var(--accent);
+}
+.sidebar-mode-tabs button[aria-selected="true"] svg { color: var(--accent); }
+.sidebar-badge,
+.sidebar-mode-tabs #node-count {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  color: color-mix(in oklab, var(--muted) 80%, transparent);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  flex: none;
+}
+.sidebar-mode-tabs button[aria-selected="true"] .sidebar-badge,
+.sidebar-mode-tabs button[aria-selected="true"] #node-count {
+  background: transparent;
+  color: var(--accent);
+}
+@container (max-width: 280px) {
+  html[lang=en] .sidebar-mode-tabs button i[data-icon] { display: none; }
+  html[lang=en] .sidebar-mode-tabs button { font-size: 12.5px; gap: 4px; padding: 0 6px; }
+}
+@container (max-width: 225px) {
+  .sidebar-mode-tabs button i[data-icon] { display: none; }
+}
+.tree-tools .tree-add-btn {
+  width: 28px;
+  height: 28px;
+  min-height: 28px;
+  padding: 0;
+  margin-left: 4px;
+  border-radius: 8px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  flex: none;
+}
+.tree-tools .tree-add-btn:enabled:hover {
+  background: var(--selected);
+  color: var(--accent);
+}
+.tree-tools .tree-add-btn svg { width: 15px; height: 15px; }
+.outline-panel .filter-wrap {
+  margin-top: 10px;
+  border-color: var(--line);
+}
+
+.outline-panel[data-sidebar-mode="thumbnails"] > :is(.filter-wrap, .filter-actions, #filter-status, .tree-tools, #tree, .outline-bottom) {
+  display: none !important;
+}
+.outline-panel[data-sidebar-mode="bookmarks"] > #thumb-panel {
+  display: none !important;
+}
+
+/* 14.6 Left Sidebar Thumbnail Mode */
+.thumb-panel {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  contain: layout style;
+}
+.thumb-panel[hidden] { display: none !important; }
+.thumb-tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+  flex: none;
+}
+.thumb-status {
+  font-size: 12px;
+  font-weight: 550;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.thumb-zoom {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+}
+.thumb-zoom button {
+  width: 24px;
+  height: 24px;
+  min-height: 24px;
+  padding: 0;
+  border-radius: 6px;
+  font-size: 14px;
+  line-height: 1;
+  color: var(--muted);
+  background: transparent;
+}
+.thumb-zoom button:enabled:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+.thumb-zoom input[type="range"] {
+  width: 64px;
+  height: 18px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  cursor: pointer;
+}
+.thumb-zoom input[type="range"]:focus {
+  border: 0;
+  box-shadow: none;
+}
+.thumb-list {
+  position: relative;
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  outline: none;
+  contain: strict;
+  background: color-mix(in oklab, var(--panel2) 48%, var(--panel));
+  overscroll-behavior: contain;
+}
+#thumb-rows {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+}
+.thumb-row {
+  position: absolute;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 0 12px;
+}
+.thumb-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 6px;
+  border-radius: 10px;
+  background: transparent;
+  border: 1px solid transparent;
+  flex: none;
+  transition: background-color 70ms ease, border-color 70ms ease;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.thumb-card:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+.thumb-card.active {
+  background: var(--selected);
+  border-color: var(--selected-line);
+}
+.thumb-card:enabled:active { transform: scale(.985); }
+.thumb-frame {
+  display: block;
+  border-radius: 4px;
+  overflow: hidden;
+  background: #ffffff;
+  box-shadow: 0 1px 3px #101a2a1c, 0 0 0 1px var(--line-strong);
+  position: relative;
+  flex: none;
+}
+.thumb-card.active .thumb-frame {
+  box-shadow: 0 2px 10px color-mix(in oklab, var(--accent) 28%, transparent), 0 0 0 2px var(--accent);
+}
+.thumb-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.thumb-label {
+  font-size: 11.5px;
+  font-weight: 550;
+  line-height: 18px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  padding: 1px 8px;
+  border-radius: 99px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.thumb-card.active .thumb-label {
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 650;
+}
+#thumb-empty {
+  text-align: center;
+  padding: 72px 18px;
+  color: var(--muted);
+  line-height: 1.7;
+}
+#thumb-empty[hidden] { display: none; }
+#thumb-empty svg {
+  width: 30px;
+  height: 30px;
+  color: color-mix(in oklab, var(--accent) 55%, var(--muted));
+}
+#thumb-empty p {
+  color: var(--text);
+  font-weight: 650;
+  font-size: 14px;
+  margin: 10px 0 4px;
+}
+#thumb-empty small { font-size: 12px; }
+.thumb-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px;
+  border-top: 1px solid var(--line);
+  background: var(--panel);
+  font-size: 12px;
+  color: var(--muted);
+  flex: none;
+}
+.thumb-bottom button {
+  height: 30px;
+  min-height: 30px;
+  padding: 0 10px;
+  gap: 6px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 550;
+  background: var(--panel2);
+  border: 1px solid var(--line);
+  color: var(--text);
+}
+.thumb-bottom button:enabled:hover {
+  background: var(--accent-soft);
+  border-color: var(--selected-line);
+  color: var(--accent);
+}
+.thumb-bottom button svg { width: 15px; height: 15px; }
+
+/* Keep thumbnails harmonious with reading tone */
+:root[data-page-tone="warm"] .thumb-canvas { filter: sepia(0.18) brightness(0.97) contrast(0.98); }
+:root[data-page-tone="soft"] .thumb-canvas { filter: brightness(0.93) contrast(0.96); }
+:root[data-page-tone="dark"] .thumb-canvas { filter: invert(0.88) hue-rotate(180deg) contrast(0.96); }
+:root[data-page-tone="dark"] .thumb-frame { background: #1e2128; }
+

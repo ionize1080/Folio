@@ -1,5 +1,9 @@
 # Folio PDF Studio — release validation
 
+## Folio 2.8.5
+
+The [Windows release workflow](https://github.com/ionize1080/Folio/actions/workflows/release-285.yml) runs the editor corpus, native regressions and exact-archive desktop tests. The packaged thumbnail audit records ribbon timings, sidebar navigation and fixed-zoom canvas reuse. [Published validation JSON](https://github.com/ionize1080/Folio/releases/download/v2.8.5/Folio-PDF-Studio-2.8.5-validation.json).
+
 ## Folio 2.8.4
 
 [English validation](VALIDATION-2.8.4.md) · [简体中文验证报告](VALIDATION-2.8.4.zh-Hans.md) · [繁體中文驗證報告](VALIDATION-2.8.4.zh-Hant.md)

@@ -2,11 +2,11 @@
 
 [English](README.md) · **简体中文** · [繁體中文](README.zh-Hant.md)
 
-Folio PDF Studio 2.8.4 是 Windows x64 上的本地 PDF 工作台。可以同时打开多份文档，整理长篇书签、编辑页面文字与图片，或把扫描件处理成可检索 PDF。需要模型协助时，从工具栏打开 Chatbox。
+Folio PDF Studio 2.8.5 是 Windows x64 上的本地 PDF 工作台。可以同时打开多份文档，整理长篇书签、编辑页面文字与图片，或把扫描件处理成可检索 PDF。需要模型协助时，从工具栏打开 Chatbox。
 
-**Folio 2.8.4** 支持在横排段落的原字位开始输入，后台同时准备段落背景和字体。本版也修复了部分增量保存的 PDF 在 Adobe Reader XI 中出现错误 14 的问题。[历史版本](docs/HISTORY.md)
+**Folio 2.8.5** 新增页面缩略图侧栏。按 **Ctrl+T** 打开，在缩略图上按住 **Ctrl** 滚动可调整预览大小。固定页面缩放时，拖动侧栏宽度可以复用已渲染的页面。[历史版本](docs/HISTORY.md)
 
-[下载 Windows x64 便携包](https://github.com/ionize1080/Folio/releases/download/v2.8.4/Folio-PDF-Studio-2.8.4-portable-win-x64.zip) · [本版说明](docs/RELEASE-2.8.4.zh-Hans.md) · [AI 使用指南](docs/AI.md) · [文档索引](docs/README.md)
+[下载 Windows x64 便携包](https://github.com/ionize1080/Folio/releases/download/v2.8.5/Folio-PDF-Studio-2.8.5-portable-win-x64.zip) · [本版说明](docs/RELEASE-2.8.5.zh-Hans.md) · [AI 使用指南](docs/AI.md) · [文档索引](docs/README.md)
 
 ![Folio 2.8.4 命令面板列出筛选后的书签命令](docs/images/2.8.4/command-palette.webp)
 
@@ -23,7 +23,7 @@ Folio PDF Studio 2.8.4 是 Windows x64 上的本地 PDF 工作台。可以同时
 
 打开「关于与使用说明 → 检查更新」，下载完成后选择「安装并重启」。手动升级时，退出 Folio，把新版 ZIP 完整解压到单独的文件夹，运行其中的 `Folio.exe`，在「关于」中核对版本。
 
-同一发布页也提供[源码包](https://github.com/ionize1080/Folio/releases/download/v2.8.4/Folio-PDF-Studio-2.8.4-source.zip)、[校验值](https://github.com/ionize1080/Folio/releases/download/v2.8.4/Folio-PDF-Studio-2.8.4-SHA256.txt)和[验收报告](https://github.com/ionize1080/Folio/releases/download/v2.8.4/Folio-PDF-Studio-2.8.4-validation.json)。
+同一发布页也提供[源码包](https://github.com/ionize1080/Folio/releases/download/v2.8.5/Folio-PDF-Studio-2.8.5-source.zip)、[校验值](https://github.com/ionize1080/Folio/releases/download/v2.8.5/Folio-PDF-Studio-2.8.5-SHA256.txt)和[验收报告](https://github.com/ionize1080/Folio/releases/download/v2.8.5/Folio-PDF-Studio-2.8.5-validation.json)。
 
 ## 用 AI 阅读与编辑
 

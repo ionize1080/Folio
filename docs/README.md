@@ -1,15 +1,15 @@
-# Folio PDF Studio 2.8.4 documentation
+# Folio PDF Studio 2.8.5 documentation
 
-Download the complete Windows x64 portable ZIP, or use **Check for updates** in Folio. The release also includes the source ZIP, checksums and the build’s validation report. [Folio 2.8.4 downloads](https://github.com/ionize1080/Folio/releases/tag/v2.8.4).
+Download the complete Windows x64 portable ZIP, or use **Check for updates** in Folio. The release also includes the source ZIP, checksums and the build’s validation report. [Folio 2.8.5 downloads](https://github.com/ionize1080/Folio/releases/tag/v2.8.5).
 
 | Start here | English | 简体中文 | 繁體中文 |
 | --- | --- | --- | --- |
 | Installation, editing, saving and limitations | [User guide](../README.md) | [使用指南](../README.zh-Hans.md) | [使用指南](../README.zh-Hant.md) |
 | Real interface screenshots and workflows | [Feature tour](FEATURES.md) | [功能图解](FEATURES.zh-Hans.md) | [功能圖解](FEATURES.zh-Hant.md) |
 | Screenshot gallery and sample files | [Gallery](SCREENSHOTS.md) | [界面图库](SCREENSHOTS.zh-Hans.md) | [介面圖庫](SCREENSHOTS.zh-Hant.md) |
-| Release validation and timings | [Results](VALIDATION-2.8.4.md) | [测试结果](VALIDATION-2.8.4.zh-Hans.md) | [測試結果](VALIDATION-2.8.4.zh-Hant.md) |
+| 2.8.4 paragraph timings and Reader XI validation | [Results](VALIDATION-2.8.4.md) | [测试结果](VALIDATION-2.8.4.zh-Hans.md) | [測試結果](VALIDATION-2.8.4.zh-Hant.md) |
 | AI reading, artwork and document tools | [Chatbox and MCP](AI.en.md) | [Chatbox 与 MCP](AI.md) | [Chatbox 與 MCP](AI.zh-Hant.md) |
-| Changes in the current release | [Release notes](RELEASE-2.8.4.md) | [发布说明](RELEASE-2.8.4.zh-Hans.md) | [發行說明](RELEASE-2.8.4.zh-Hant.md) |
+| Changes in the current release | [Release notes](RELEASE-2.8.5.md) | [发布说明](RELEASE-2.8.5.zh-Hans.md) | [發行說明](RELEASE-2.8.5.zh-Hant.md) |
 
 ## Find a tool and edit a paragraph
 

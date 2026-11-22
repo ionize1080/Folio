@@ -138,9 +138,14 @@ function renderAttributes(el) {
     if(current!==output)el.setAttribute(attr,output);
   }
 }
+let hasTranslated = language !== 'zh-Hans';
+const fastSkipTags = new Set(['SCRIPT','STYLE','SVG','PATH','CANVAS','IMG','BR']);
 export function localizeTree(root) {
   if(root.nodeType===3){renderText(root);return;}
-  if(root.nodeType!==1 || excluded(root))return;
+  if(root.nodeType!==1 || fastSkipTags.has(root.tagName))return;
+  const cl = root.classList;
+  if(cl && (cl.contains('textLayer') || cl.contains('page-tiles') || cl.contains('thumb-canvas') || cl.contains('thumb-frame')))return;
+  if(excluded(root))return;
   renderAttributes(root);
   for(const child of root.childNodes) {
     if(child.nodeType===3)renderText(child);
@@ -153,9 +158,10 @@ export function languagePicker(id='language-select') {
 export function installLocalization() {
   const root=document.documentElement;
   function refresh(){
+    if(language !== 'zh-Hans') hasTranslated = true;
     root.lang=language;
     root.dir='ltr';
-    localizeTree(document.body);
+    if(hasTranslated) localizeTree(document.body);
     document.querySelectorAll('[data-language-select]').forEach(el=>{el.value=preference;el.options[0].textContent={en:'Follow system','zh-Hans':'跟随系统','zh-Hant':'跟隨系統'}[language]});
     const live=document.getElementById('language-announcement');
     if(live)live.textContent={en:'Language: English','zh-Hans':'语言：简体中文','zh-Hant':'語言：繁體中文'}[language];
@@ -177,7 +183,9 @@ export function installLocalization() {
   onLanguageChange(refresh);
   refresh();
   const observer=new MutationObserver(records=>{
-    // Process only changed subtrees. Never traverse PDF text layers per keystroke.
+    // Fast path: source UI is authored in zh-Hans. Until another language is activated,
+    // skip all DOM mutation scanning during PDF/bookmark/thumbnail scrolling.
+    if(language==='zh-Hans' && !hasTranslated) return;
     for(const r of records){
       if(r.type==='characterData')renderText(r.target);
       else if(r.type==='attributes')renderAttributes(r.target);

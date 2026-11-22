@@ -15,6 +15,7 @@ import {
   setLanguage,
 } from "./i18n.mjs";
 import { installCommandPalette } from "./command-palette.mjs";
+import { installThumbnailSidebar } from "./thumbnail-sidebar.mjs";
 import { installObjectSelection } from "./object-selection-ui.mjs";
 import { installPageImages } from "./image-page-ui.mjs";
 import { updateDialog } from "./update-ui.mjs";
@@ -349,6 +350,19 @@ function fitPanels() {
   document.documentElement.style.setProperty("--inspector-width", right + "px");
 }
 window.addEventListener("resize", fitPanels);
+let thumbnailSidebar = null;
+function applyPanelLayout(refreshViewer = true) {
+  document.documentElement.style.setProperty("--sidebar", settings.sidebar + "px");
+  document.documentElement.style.setProperty("--inspector-width", settings.inspectorWidth + "px");
+  document.body.dataset.left = settings.leftMode;
+  document.body.dataset.right = settings.rightMode;
+  fitPanels();
+  try {
+    localStorage.setItem("folio-settings", JSON.stringify(settings));
+  } catch {}
+  thumbnailSidebar?.onVisibilityChange();
+  if (refreshViewer && S.pdf) renderPage();
+}
 function applySettings(redraw = true, rebuildTree = true) {
   applyAppearance(settings);
   document.documentElement.style.setProperty("--text-selection", settings.selectionColor);
@@ -368,6 +382,7 @@ function applySettings(redraw = true, rebuildTree = true) {
   fitPanels();
   document.body.classList.toggle("wrap-titles", settings.wrap);
   localStorage.setItem("folio-settings", JSON.stringify(settings));
+  thumbnailSidebar?.onVisibilityChange();
   if (S.pdf) {
     if (rebuildTree) rebuild();
     if (redraw) renderPage();
@@ -743,6 +758,7 @@ async function loadPDF(
     surface.gaps = settings.gaps;
     setDirty(!!restoredState);
     rebuild();
+    thumbnailSidebar?.syncDocument({ resetScroll: true });
     const remembered = restoreView
       ? safeJSON(localStorage.getItem("folio-view-" + S.fingerprint))
       : null;
@@ -1055,18 +1071,19 @@ function rebuild() {
 }
 let treeFrame = 0,
   rowCache = new Map();
-let treeLayout=null,treeLayoutNodes=null,treeLayoutKey='',treeTitleWidths=new Map();
+let treeLayout=null,treeLayoutNodes=null,treeLayoutKey='',treeTitleWidths=new Map(),treeFontFamily='';
 const treeMeasure=document.createElement('canvas').getContext('2d');
 function updateTreeLayout(){
-  const tree=$("#tree"),style=getComputedStyle(tree),width=tree.clientWidth;
-  const key=[width,settings.wrap,settings.row,style.fontFamily].join(':');
+  const tree=$("#tree"),width=tree.clientWidth;
+  const fontFamily = settings.wrap ? (treeFontFamily ||= getComputedStyle(tree).fontFamily) : '';
+  const key=[width,settings.wrap,settings.row,fontFamily].join(':');
   if(treeLayout&&treeLayoutNodes===S.visible&&treeLayoutKey===key)return treeLayout;
   treeLayoutNodes=S.visible;treeLayoutKey=key;
   const measure=(text,font)=>{const key=font+'\0'+text;let value=treeTitleWidths.get(key);if(value===undefined){treeMeasure.font=font;value=treeMeasure.measureText(text).width;if(treeTitleWidths.size>50000)treeTitleWidths.clear();treeTitleWidths.set(key,value);}return value;};
   treeLayout=bookmarkRowLayout(S.visible.length,i=>{
     if(!settings.wrap)return settings.row;
-    const n=S.visible[i],depth=Math.min(S.depth.get(n.id)||0,24),font=`${n.italic?'italic':'normal'} ${n.bold?700:400} 12px ${style.fontFamily}`;
-    const pageWidth=Math.max(28,16+measure(String(n.target.page||'↗'),`11px ${style.fontFamily}`));
+    const n=S.visible[i],depth=Math.min(S.depth.get(n.id)||0,24),font=`${n.italic?'italic':'normal'} ${n.bold?700:400} 12px ${fontFamily}`;
+    const pageWidth=Math.max(28,16+measure(String(n.target.page||'↗'),`11px ${fontFamily}`));
     const available=Math.max(20,width-77-depth*16-pageWidth);
     return measure(n.title.replace(/\s+/g,' '),font)>available+.25?Math.max(48,settings.row):settings.row;
   });
@@ -1421,13 +1438,15 @@ async function jump(n) {
 }
 function syncZoom() {
   const select = $("#zoom");
-  if (![...select.options].some((o) => o.value === String(S.zoom))) {
+  const target = String(S.zoom);
+  if (select.value === target) return;
+  if (![...select.options].some((o) => o.value === target)) {
     const o = document.createElement("option");
-    o.value = String(S.zoom);
+    o.value = target;
     o.textContent = Math.round(Number(S.zoom) * 100) + "%";
     select.append(o);
   }
-  select.value = S.zoom;
+  select.value = target;
 }
 function capture() {
   if (!S.view || !selectedNode()) return;
@@ -2192,6 +2211,7 @@ function pagesDialog() {
         r[i + 1] = ((r[i + 1] ?? S.info.pages[i].rotation) + 90) % 360;
       commit(S.nodes, { rotation: r });
       closeModal();
+      thumbnailSidebar?.invalidate();
       renderPage();
     });
   $("#pages-extract").onclick = () =>
@@ -2266,7 +2286,13 @@ function metadataDialog() {
 }
 function renderMarksOnPage(page, layer, view) {
   if (!layer || !view) return;
-  layer.replaceChildren();
+  const hasAnnotations = S.annotations.length > 0;
+  const hasHits = S.hits.length > 0;
+  if (!hasAnnotations && !hasHits) {
+    if (layer.childElementCount) layer.replaceChildren();
+    return;
+  }
+  if (layer.childElementCount) layer.replaceChildren();
   for (const a of S.annotations.filter((a) => a.page === page)) {
     const rect = view.convertToViewportRectangle(a.rect),
       el = document.createElement("div");
@@ -2898,6 +2924,7 @@ const surface = new PageSurface(
     nativeUI?.overlay();
     S.imageEdit?.overlay();
     S.objectSelection?.overlay();
+    thumbnailSidebar?.syncActivePage(S.page);
     clearTimeout(viewTimer);
     viewTimer = setTimeout(saveView, 350);
   },
@@ -3263,7 +3290,7 @@ function panelMode(side) {
   if (side === "right" && document.body.classList.contains("ai-sidebar-open")) {
     window.desktop.aiOpen();
     settings.rightMode = "full";
-    applySettings();
+    applyPanelLayout();
     return;
   }
   const key = side === "left" ? "leftMode" : "rightMode";
@@ -3273,7 +3300,7 @@ function panelMode(side) {
       : settings[key] === "narrow"
         ? "hidden"
         : "full";
-  applySettings();
+  applyPanelLayout();
 }
 async function fullscreen() {
   if (window.desktop) S.fullscreen = await window.desktop.fullscreen();
@@ -4148,6 +4175,7 @@ const actions = {
     surface.zoom(String(Math.max(0.1, S.scale / 1.2))).then(syncZoom),
   rotate: () => {
     surface.viewRotation = (surface.viewRotation + 90) % 360;
+    thumbnailSidebar?.invalidate();
     return surface.refresh();
   },
   pages: pagesDialog,
@@ -4598,6 +4626,7 @@ async function refreshNative(
       throw e;
     }
     await disposePreview(old);
+    thumbnailSidebar?.invalidate();
   } finally {
     setBusy(false);
   }
@@ -4736,23 +4765,33 @@ Object.assign(actions, {
   "ocr-preview": nativeUI.toggleOCR,
   "left-expand": () => {
     settings.leftMode = "full";
-    applySettings();
+    thumbnailSidebar?.setMode("bookmarks");
+    applyPanelLayout();
   },
   "right-expand": () => {
     settings.rightMode = "full";
-    applySettings();
+    applyPanelLayout();
   },
   "toggle-bookmarks": () => {
     settings.leftMode = settings.leftMode === "hidden" ? "full" : "hidden";
-    applySettings();
+    applyPanelLayout();
   },
   "toggle-inspector": () => {
     settings.rightMode = settings.rightMode === "hidden" ? "full" : "hidden";
-    applySettings();
+    applyPanelLayout();
   },
   "left-mode": () => panelMode("left"),
   "right-mode": () => panelMode("right"),
-  "toggle-thumbnails": thumbnailDialog,
+  "select-page-range": thumbnailDialog,
+  "toggle-thumbnails": () => {
+    if (settings.leftMode !== "full" || thumbnailSidebar?.mode() !== "thumbnails") {
+      settings.leftMode = "full";
+      thumbnailSidebar?.setMode("thumbnails");
+      applyPanelLayout();
+    } else {
+      thumbnailSidebar?.setMode("bookmarks");
+    }
+  },
   shortcuts: () =>
     shortcutDialog({
       settings,
@@ -4900,7 +4939,7 @@ $("#canvas-host").addEventListener("contextmenu", (e) => {
     ["当前视图设置为目标", () => setCurrentTarget()],
     ["适合宽度", actions.width],
     ["适合页面", actions.fit],
-    ["页面缩略图", thumbnailDialog],
+    ["页面缩略图", actions["toggle-thumbnails"]],
   ]);
 });
 $("#layout").onchange = () =>
@@ -4958,22 +4997,15 @@ for (const side of ["left", "right"]) {
     handle.setPointerCapture(e.pointerId);
     handle.classList.add("drag");
   };
+  let moveFrame = 0;
   handle.onpointermove = (e) => {
     if (!handle.hasPointerCapture(e.pointerId)) return;
     const value = side === "left" ? e.clientX : innerWidth - e.clientX;
-    settings[side === "left" ? "sidebar" : "inspectorWidth"] = Math.max(
-      220,
-      Math.min(520, value),
-    );
+    settings[widthKey] = Math.max(220, Math.min(520, value));
     document.documentElement.style.setProperty(
       side === "left" ? "--sidebar" : "--inspector-width",
-      settings[side === "left" ? "sidebar" : "inspectorWidth"] + "px",
+      settings[widthKey] + "px",
     );
-  };
-  const originalMove = handle.onpointermove;
-  let moveFrame = 0;
-  handle.onpointermove = (e) => {
-    originalMove(e);
     if (moveFrame) return;
     moveFrame = requestAnimationFrame(() => {
       moveFrame = 0;
@@ -4981,11 +5013,16 @@ for (const side of ["left", "right"]) {
       handle.setAttribute("aria-valuenow", settings[widthKey]);
     });
   };
-  handle.onpointerup = (e) => {
+  const endResize = (e) => {
+    const dragging = handle.classList.contains("drag");
     handle.classList.remove("drag");
-    handle.releasePointerCapture(e.pointerId);
-    applySettings();
+    if (e && handle.hasPointerCapture(e.pointerId)) {
+      handle.releasePointerCapture(e.pointerId);
+    }
+    if (dragging) applyPanelLayout();
   };
+  handle.onpointerup = endResize;
+  handle.onpointercancel = endResize;
 }
 window.addEventListener("pagehide", saveView);
 async function recoveryDialog() {
@@ -5100,11 +5137,14 @@ document.addEventListener(
   true,
 );
 
-// Overflow menu supports keyboard traversal and returns focus on Escape.
+// Overflow menu & view-options popover support outside-click close and keyboard traversal.
 document.addEventListener("click", (e) => {
   const menu = document.querySelector(".more-tools");
-  if (menu && (!menu.contains(e.target) || e.target.closest("[data-action]")))
+  if (menu?.open && (!menu.contains(e.target) || e.target.closest("[data-action]")))
     menu.open = false;
+  const viewOpts = document.querySelector(".view-options");
+  if (viewOpts?.open && !viewOpts.contains(e.target))
+    viewOpts.open = false;
 });
 document.addEventListener("keydown", (e) => {
   if (e.isComposing || e.keyCode === 229) return;
@@ -5125,6 +5165,11 @@ document.addEventListener("keydown", (e) => {
     if (menu?.open) {
       menu.open = false;
       menu.querySelector("summary").focus();
+    }
+    const viewOpts = document.querySelector(".view-options");
+    if (viewOpts?.open) {
+      viewOpts.open = false;
+      viewOpts.querySelector("summary")?.focus();
     }
   }
 });
@@ -5241,7 +5286,23 @@ $("#find-results")?.addEventListener("click", (e) => {
     const entry = surface.entries.get(page);
     if (!entry?.viewport) return;
     const pageRect = pageEl.getBoundingClientRect();
-    const rawRects = [...range.getClientRects()].filter((r) => r.width >= 2 && r.height >= 2);
+    const rawRects = [...range.getClientRects()]
+      .filter((r) => r.width >= 2 && r.height >= 2)
+      .filter(
+        (r) =>
+          r.right > pageRect.left &&
+          r.left < pageRect.right &&
+          r.bottom > pageRect.top &&
+          r.top < pageRect.bottom,
+      )
+      .map((r) => {
+        const left = Math.max(pageRect.left, r.left);
+        const right = Math.min(pageRect.right, r.right);
+        const top = Math.max(pageRect.top, r.top);
+        const bottom = Math.min(pageRect.bottom, r.bottom);
+        return { left, right, top, bottom, width: right - left, height: bottom - top };
+      })
+      .filter((r) => r.width >= 2 && r.height >= 2);
     if (!rawRects.length) return;
     // Merge adjacent rects on the same line to avoid fragmented annotation boxes.
     const merged = [];
@@ -5297,7 +5358,16 @@ $("#find-results")?.addEventListener("click", (e) => {
     }
   });
   $("#canvas-host")?.addEventListener("pointerup", (e) => {
-    if (!qb || !S.pdf || S.busy || document.body.classList.contains("page-edit-mode") || e.button !== 0) {
+    if (
+      !qb ||
+      !S.pdf ||
+      S.busy ||
+      surface.hand ||
+      document.body.classList.contains("page-edit-mode") ||
+      document.body.classList.contains("image-edit-mode") ||
+      document.body.classList.contains("object-select-mode") ||
+      e.button !== 0
+    ) {
       hideQuickbar();
       return;
     }
@@ -5373,6 +5443,26 @@ $("#welcome-recents-clear")?.addEventListener("click", () => {
   window.desktop?.removeRecentFile?.("*").then(renderWelcomeRecents).catch(() => {});
 });
 void renderWelcomeRecents();
+
+// ── Left Sidebar Page Thumbnail Mode ──
+thumbnailSidebar = installThumbnailSidebar({
+  S,
+  surface,
+  goPage,
+  contextMenu,
+  actions,
+  guarded,
+  createBookmark,
+  setRangeMark: (which, page) => {
+    if (which === "start") {
+      S.rangeStart = page;
+      toast(`范围起点：第 ${page} 页`);
+    } else {
+      S.rangeEnd = page;
+      toast(`范围终点：第 ${page} 页`);
+    }
+  },
+});
 
 // ── Global Command Palette (Ctrl+Shift+P) ──
 installCommandPalette({ S, actions, guarded, toast });
