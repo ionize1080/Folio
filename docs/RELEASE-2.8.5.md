@@ -10,4 +10,6 @@ Press **Ctrl+T** or open **Thumbnails** in the left sidebar. Click a preview to 
 
 The ribbon selects a desktop tab on pointer press and supports keyboard navigation. At a fixed page zoom, dragging the sidebar repositions mounted pages and reuses their canvases. Zoom anchors account for mixed page sizes, rotated pages and two-page spreads.
 
+Both Chatbox page-image tools now describe the same crop coordinates for requests such as viewing only the top half of a page.
+
 The Windows release workflow builds the portable ZIP once, checks that archive in six parallel jobs, and runs the public editing corpus in four shards. The validation JSON and SHA-256 manifest accompany both archives.
