@@ -1,9 +1,10 @@
 # Documentation archive
 
-[Current documentation](README.md) · [2.8.4 release notes](RELEASE-2.8.4.md). Versioned records preserve their original evidence and scope; old setup commands and downloads are historical.
+[Current documentation](README.md) · [2.8.5 release notes](RELEASE-2.8.5.md). Versioned records preserve their original evidence and scope; old setup commands and downloads are historical.
 
 | Record | Original topic |
 | --- | --- |
+| [Folio 2.8.4](RELEASE-2.8.4.md) | In-place paragraph input and Reader XI incremental-save compatibility |
 | [ARCHITECTURE-0.6.md](ARCHITECTURE-0.6.md) | 0.6.0 架构增量 |
 | [ARCHITECTURE-0.7.md](ARCHITECTURE-0.7.md) | 0.7 页面编辑架构 |
 | [BOOKMARK-VALIDATION-1.9.0.md](BOOKMARK-VALIDATION-1.9.0.md) | Folio 1.9.0 书签补充验收 |

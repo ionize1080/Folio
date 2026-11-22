@@ -42,7 +42,13 @@ export function installDocumentTabs({open, confirmClose, toast}) {
         const title = document.createElement("span");
         title.translate = false;
         tab.append(title);
-        tab.onclick = () => select(documentId);
+        const selectTab = () => {
+          if (state?.activeDocumentId !== documentId) select(documentId);
+        };
+        tab.onpointerdown = e => {
+          if (e.button === 0 && e.pointerType !== "touch") selectTab();
+        };
+        tab.onclick = selectTab;
         const x = document.createElement("button");
         x.className = "tab-close";
         x.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 7 10 10M17 7 7 17"/></svg>';

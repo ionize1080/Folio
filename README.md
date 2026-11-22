@@ -4,9 +4,9 @@
 
 A local-first PDF workspace for Windows x64, built for **long-document bookmarks, in-page text and image editing, OCR review, and optional Chatbox AI assistance**. The portable package includes its runtime, fonts and models. No separate Python or Node.js installation is needed.
 
-**Folio 2.8.4** lets you begin typing at the original text position in supported horizontal paragraphs while Folio prepares the background and font. It also fixes incremental PDF saves that could give Adobe Reader XI error 14. [Release history](docs/HISTORY.md).
+**Folio 2.8.5** adds a thumbnail sidebar for moving around long PDFs. Use **Ctrl+T** to open it and **Ctrl+wheel** over the thumbnails to resize the previews. At a fixed page zoom, resizing the sidebar reuses the rendered PDF canvases. [Release history](docs/HISTORY.md).
 
-[Download the Windows x64 portable ZIP](https://github.com/ionize1080/Folio/releases/download/v2.8.4/Folio-PDF-Studio-2.8.4-portable-win-x64.zip) · [2.8.4 release notes](docs/RELEASE-2.8.4.md) · [AI user guide](docs/AI.en.md) · [Documentation](docs/README.md)
+[Download the Windows x64 portable ZIP](https://github.com/ionize1080/Folio/releases/download/v2.8.5/Folio-PDF-Studio-2.8.5-portable-win-x64.zip) · [2.8.5 release notes](docs/RELEASE-2.8.5.md) · [AI user guide](docs/AI.en.md) · [Documentation](docs/README.md)
 
 ![The Folio 2.8.4 command palette showing filtered bookmark commands](docs/images/2.8.4/command-palette.webp)
 
@@ -23,7 +23,7 @@ Open a PDF, press `Ctrl+Shift+P` and type `bookmark`. Use ↑ or ↓ to select a
 
 In **About → Check for updates**, download the update and choose **Install and restart**. To upgrade manually, close Folio, extract the entire new ZIP into a separate folder, launch its `Folio.exe` and check the version in **About**.
 
-The release also includes a [source archive](https://github.com/ionize1080/Folio/releases/download/v2.8.4/Folio-PDF-Studio-2.8.4-source.zip), [checksums](https://github.com/ionize1080/Folio/releases/download/v2.8.4/Folio-PDF-Studio-2.8.4-SHA256.txt) and a [validation report](https://github.com/ionize1080/Folio/releases/download/v2.8.4/Folio-PDF-Studio-2.8.4-validation.json).
+The release also includes a [source archive](https://github.com/ionize1080/Folio/releases/download/v2.8.5/Folio-PDF-Studio-2.8.5-source.zip), [checksums](https://github.com/ionize1080/Folio/releases/download/v2.8.5/Folio-PDF-Studio-2.8.5-SHA256.txt) and a [validation report](https://github.com/ionize1080/Folio/releases/download/v2.8.5/Folio-PDF-Studio-2.8.5-validation.json).
 
 ## Work with Chatbox
 

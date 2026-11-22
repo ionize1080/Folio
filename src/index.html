@@ -7,7 +7,7 @@
       http-equiv="Content-Security-Policy"
       content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' blob: data:; connect-src 'self' blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'none'"
     />
-    <title>Folio PDF Studio 2.8.4</title>
+    <title>Folio PDF Studio 2.8.5</title>
     <link rel="stylesheet" href="style.css" />
     <link rel="stylesheet" href="vendor/pdf_viewer.css" />
     <link rel="stylesheet" href="chrome.css" />
@@ -25,7 +25,7 @@
       <div class="brand">
         <img class="logo" src="brand.svg" alt="Folio">
         <div>Folio <b>PDF Studio</b></div>
-        <span class="version">2.8.4</span>
+        <span class="version">2.8.5</span>
       </div>
       <div class="doc-tab">
         <i data-icon="file"></i><span id="doc-name">未打开文档</span
@@ -152,14 +152,32 @@
     </header>
 
     <main>
-      <aside class="outline-panel">
+      <aside class="outline-panel" data-sidebar-mode="bookmarks">
         <div class="panel-heading">
-          <div>
-            <h2>书签 <span id="node-count">0</span></h2>
+          <div class="sidebar-mode-tabs" role="tablist" aria-label="侧栏视图">
+            <button
+              type="button"
+              id="sidebar-tab-bookmarks"
+              role="tab"
+              data-sidebar-tab="bookmarks"
+              aria-selected="true"
+              aria-controls="tree"
+              title="书签大纲"
+            >
+              <i data-icon="bookmark"></i><span>书签</span><span id="node-count" class="sidebar-badge">0</span>
+            </button>
+            <button
+              type="button"
+              id="sidebar-tab-thumbnails"
+              role="tab"
+              data-sidebar-tab="thumbnails"
+              aria-selected="false"
+              aria-controls="thumb-panel"
+              title="页面缩略图 Ctrl+T"
+            >
+              <i data-icon="thumbs"></i><span>缩略图</span><span id="thumb-page-count" class="sidebar-badge">0</span>
+            </button>
           </div>
-          <button data-action="add" title="新增同级书签 Ctrl+Shift+B" data-doc>
-            <i data-icon="plus"></i>
-          </button>
         </div>
         <div class="filter-wrap">
           <i data-icon="search"></i
@@ -197,6 +215,9 @@
           ><span class="spacer"></span
           ><button data-action="tree-menu" data-doc>
             整理 <i data-icon="chevron"></i>
+          </button
+          ><button data-action="add" class="tree-add-btn" title="新增同级书签 Ctrl+Shift+B" data-doc>
+            <i data-icon="plus"></i>
           </button>
         </div>
         <div
@@ -226,9 +247,74 @@
             <i data-icon="trash"></i>
           </button>
         </div>
+        <section
+          id="thumb-panel"
+          class="thumb-panel"
+          role="tabpanel"
+          aria-labelledby="sidebar-tab-thumbnails"
+          hidden
+        >
+          <div class="thumb-tools">
+            <span id="thumb-status" class="thumb-status">未打开文档</span>
+            <span class="spacer"></span>
+            <div class="thumb-zoom" role="group" aria-label="缩略图缩放">
+              <button
+                type="button"
+                data-thumb-zoom="out"
+                title="缩小缩略图（Ctrl+滚轮）"
+                aria-label="缩小缩略图"
+              >−</button>
+              <input
+                type="range"
+                id="thumb-zoom-slider"
+                min="72"
+                max="240"
+                step="4"
+                value="156"
+                title="调整缩略图大小（Ctrl+滚轮）"
+                aria-label="缩略图大小"
+              />
+              <button
+                type="button"
+                data-thumb-zoom="in"
+                title="放大缩略图（Ctrl+滚轮）"
+                aria-label="放大缩略图"
+              >+</button>
+            </div>
+          </div>
+          <div
+            id="thumb-list"
+            class="thumb-list"
+            role="list"
+            aria-label="页面缩略图"
+            tabindex="0"
+          >
+            <div id="thumb-spacer"></div>
+            <div id="thumb-rows"></div>
+            <div id="thumb-empty">
+              <i data-icon="thumbs"></i>
+              <p>直观浏览每一页</p>
+              <small>打开 PDF 后，在此快速跳转或切换页序</small>
+            </div>
+          </div>
+          <div class="thumb-bottom">
+            <span id="thumb-foot-info">打开 PDF 浏览页面</span>
+            <button type="button" data-action="select-page-range" data-doc>选择页面</button>
+            <button
+              type="button"
+              data-thumb-action="organize"
+              title="打开页面组织器"
+              disabled
+            >
+              <i data-icon="page-grid"></i><span>组织页面</span>
+            </button>
+          </div>
+        </section>
         <div class="panel-rail">
           <button data-action="left-expand" title="展开书签">
             <i data-icon="bookmark"></i></button
+          ><button data-action="toggle-thumbnails" title="页面缩略图 Ctrl+T" data-doc>
+            <i data-icon="thumbs"></i></button
           ><button
             data-action="range-start"
             data-doc
@@ -241,8 +327,6 @@
             title="标记当前页为处理范围终点"
           >
             终点</button
-          ><button data-action="toggle-thumbnails" title="页面缩略图" data-doc>
-            <i data-icon="pages"></i></button
           ><span>书签</span>
         </div>
       </aside>

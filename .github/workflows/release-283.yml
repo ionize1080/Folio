@@ -24,7 +24,7 @@ jobs:
       with:
         python-version: '3.12'
     - name: Check the release version
-      run: node -e "if (require('./package.json').version !== '2.8.4') process.exit(1)"
+      run: node -e "if (require('./package.json').version !== '2.8.5') process.exit(1)"
     - run: npm ci --ignore-scripts
     - run: npm run test:quick
     - run: python tests/ci-reports.py
@@ -830,7 +830,7 @@ jobs:
         python-version: '3.12'
     - uses: actions/download-artifact@v4
       with:
-        name: release-284-package
+        name: release-285-package
         path: deliverables
     - name: Verify native1 provenance
       run: python scripts/ci-reports.py import native1
@@ -992,10 +992,10 @@ jobs:
     - run: python scripts/publish-283-ci.py
     - uses: actions/upload-artifact@v4
       with:
-        name: release-284-evidence
+        name: release-285-evidence
         path: |
-          deliverables/Folio-PDF-Studio-2.8.4-validation.json
-          deliverables/Folio-PDF-Studio-2.8.4-SHA256.txt
+          deliverables/Folio-PDF-Studio-2.8.5-validation.json
+          deliverables/Folio-PDF-Studio-2.8.5-SHA256.txt
           deliverables/release-notes.md
         if-no-files-found: error
         retention-days: 3
@@ -1082,7 +1082,7 @@ jobs:
     - run: python scripts/archive-release.py deliverables
     - uses: actions/upload-artifact@v4
       with:
-        name: release-284-package
+        name: release-285-package
         path: deliverables/*
         compression-level: 0
         retention-days: 3
@@ -1109,7 +1109,7 @@ jobs:
         creative: 'true'
     - uses: actions/download-artifact@v4
       with:
-        name: release-284-package
+        name: release-285-package
         path: deliverables
     - run: python scripts/extract-package-283.py
     - run: native\runtime\python.exe tests/creative-native.py
@@ -1145,7 +1145,7 @@ jobs:
         creative: 'true'
     - uses: actions/download-artifact@v4
       with:
-        name: release-284-package
+        name: release-285-package
         path: deliverables
     - run: python scripts/extract-package-283.py
     - run: native\runtime\python.exe tests/creative-native.py
@@ -1181,7 +1181,7 @@ jobs:
         creative: 'true'
     - uses: actions/download-artifact@v4
       with:
-        name: release-284-package
+        name: release-285-package
         path: deliverables
     - run: python scripts/extract-package-283.py
     - run: native\runtime\python.exe tests/creative-native.py
@@ -1217,7 +1217,7 @@ jobs:
         creative: 'true'
     - uses: actions/download-artifact@v4
       with:
-        name: release-284-package
+        name: release-285-package
         path: deliverables
     - run: python scripts/extract-package-283.py
     - run: native\runtime\python.exe tests/creative-native.py
@@ -1253,13 +1253,13 @@ jobs:
         creative: 'true'
     - uses: actions/download-artifact@v4
       with:
-        name: release-284-package
+        name: release-285-package
         path: deliverables
     - run: python scripts/extract-package-283.py
     - run: node scripts/verify-editing-260-package.cjs && node tests/update-health-v162.cjs && node tests/update-201.cjs
       env:
         FOLIO_EXE: ${{ github.workspace }}\dist\Folio-PDF-Studio-win-x64\Folio.exe
-        FOLIO_UPDATE_ZIP: ${{ github.workspace }}\deliverables\Folio-PDF-Studio-2.8.4-portable-win-x64.zip
+        FOLIO_UPDATE_ZIP: ${{ github.workspace }}\deliverables\Folio-PDF-Studio-2.8.5-portable-win-x64.zip
     - id: results
       run: python scripts/ci-reports.py export packageupdate
   saveintegrity:
@@ -1341,7 +1341,7 @@ jobs:
         creative: 'true'
     - uses: actions/download-artifact@v4
       with:
-        name: release-284-package
+        name: release-285-package
         path: deliverables
     - run: python scripts/extract-package-283.py
     - run: native\runtime\python.exe tests/creative-native.py
@@ -1521,6 +1521,7 @@ jobs:
         fixtures: 'false'
     - run: native\runtime\python.exe tests/save-281-native.py prepare
     - run: node tests/reader-ui-283.cjs
+    - run: node tests/ui-ergonomics-thumbnails.cjs
     - run: node scripts/ui-audit-ci-283.cjs reader
     - id: results
       run: python scripts/ci-reports.py export uireader283
@@ -1545,7 +1546,7 @@ jobs:
         creative: 'true'
     - uses: actions/download-artifact@v4
       with:
-        name: release-284-package
+        name: release-285-package
         path: deliverables
     - run: python scripts/extract-package-283.py
     - run: native\runtime\python.exe tests/save-281-native.py prepare
