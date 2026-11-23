@@ -2946,5 +2946,11 @@
   "上一页 PageUp": "Previous page PageUp",
   "下一页 PageDown": "Next page PageDown",
   "缩小 Ctrl+−": "Zoom out Ctrl+−",
-  "放大 Ctrl++": "Zoom in Ctrl++"
+  "放大 Ctrl++": "Zoom in Ctrl++",
+  "高亮选中文字": "Highlight selection",
+  "下划线": "Underline",
+  "删除线": "Strikethrough",
+  "复制标题": "Copy title",
+  "旋转视图": "Rotate view",
+  "转到页面…": "Go to page…"
 }

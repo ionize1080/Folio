@@ -17,6 +17,7 @@ import {
 import { installCommandPalette } from "./command-palette.mjs";
 import { installThumbnailSidebar } from "./thumbnail-sidebar.mjs";
 import { showContextMenu, installTextContextMenu } from "./context-menu.mjs";
+import { selectionLineRects } from "./selection-rects.mjs";
 import { installObjectSelection } from "./object-selection-ui.mjs";
 import { installPageImages } from "./image-page-ui.mjs";
 import { updateDialog } from "./update-ui.mjs";
@@ -4823,6 +4824,7 @@ $("#tree").addEventListener("contextmenu", (e) => {
     cannotPaste = noClipboard || !!invalidCut;
   contextMenu(e, [
     ["编辑标题 · F2", renameInline, empty],
+    ["复制标题", () => copyPageText(selectedNode().title), empty],
     ["新增同级书签", () => createBookmark()],
     ["新增子书签", () => createBookmark("child"), empty],
     null,
@@ -4877,6 +4879,11 @@ $("#canvas-host").addEventListener("contextmenu", (e) => {
             "复制为单行",
             () => copyPageText(selection.text.replace(/\s+/gu, " ").trim()),
           ],
+          null,
+          ["高亮选中文字", () => document.querySelector('#selection-quickbar [data-sq="highlight"]')?.click()],
+          ["下划线", () => document.querySelector('#selection-quickbar [data-sq="underline"]')?.click()],
+          ["删除线", () => document.querySelector('#selection-quickbar [data-sq="strikeout"]')?.click()],
+          null,
         ]
       : []),
     [
@@ -4907,8 +4914,13 @@ $("#canvas-host").addEventListener("contextmenu", (e) => {
         }),
     ],
     ["当前视图设置为目标", () => setCurrentTarget()],
+    null,
+    ["上一页", () => document.querySelector('[data-action="prev"]').click(), S.page <= 1],
+    ["下一页", () => document.querySelector('[data-action="next"]').click(), S.page >= (S.info?.pageCount || 1)],
+    ["转到页面…", gotoDialog],
     ["适合宽度", actions.width],
     ["适合页面", actions.fit],
+    ["旋转视图", actions.rotate],
     ["页面缩略图", actions["toggle-thumbnails"]],
   ]);
 });
@@ -5290,19 +5302,9 @@ $("#find-results")?.addEventListener("click", (e) => {
       })
       .filter((r) => r.width >= 2 && r.height >= 2);
     if (!rawRects.length) return;
-    // Merge adjacent rects on the same line to avoid fragmented annotation boxes.
-    const merged = [];
-    for (const r of rawRects) {
-      const last = merged.at(-1);
-      if (last && Math.abs(last.top - r.top) < 4 && Math.abs(last.height - r.height) < 6 && r.left <= last.right + 6) {
-        last.left = Math.min(last.left, r.left);
-        last.right = Math.max(last.right, r.right);
-        last.top = Math.min(last.top, r.top);
-        last.bottom = Math.max(last.bottom, r.bottom);
-      } else {
-        merged.push({ left: r.left, right: r.right, top: r.top, bottom: r.bottom, height: r.height });
-      }
-    }
+    // One continuous band per line: no stacked translucency, no seams between runs or lines.
+    const merged = selectionLineRects(rawRects);
+    if (!merged.length) return;
     const text = sel.toString().trim().slice(0, 400);
     const added = merged.map((r) => {
       const a = entry.viewport.convertToPdfPoint(r.left - pageRect.left, r.top - pageRect.top);
