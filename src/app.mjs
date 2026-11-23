@@ -1049,6 +1049,7 @@ function rebuild() {
   S.visible = visible;
   updateTreeLayout();
   $("#tree-empty").hidden = !!visible.length;
+  $("#tree-empty .tree-empty-actions").hidden = !!S.nodes.length;
   $("#node-count").textContent = S.nodes.length.toLocaleString();
   $("#selection-count").textContent = S.selected.size
     ? `已选 ${S.selected.size.toLocaleString()} 项`

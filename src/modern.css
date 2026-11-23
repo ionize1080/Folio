@@ -1422,3 +1422,10 @@ body .sidebar-mode-tabs button:focus-visible {
 #findbar:has(#find-text[aria-invalid="true"]) #find-count { color: var(--danger); }
 .find-result-item .fr-snippet mark { background: color-mix(in oklab, var(--accent) 24%, transparent); color: inherit; border-radius: 3px; padding: 0 1px; font-weight: 650; }
 .find-results-note { padding: 6px 8px; font-size: 11.5px; color: var(--muted); text-align: center; }
+
+/* Viewer toolbar: real icons instead of text glyphs; the forward arrow mirrors the back icon. */
+.viewer-toolbar .nav-icon svg { width: 16px; height: 16px; }
+.viewer-toolbar .nav-forward svg { transform: scaleX(-1); }
+.tree-empty-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; width: min(220px, 100%); }
+.tree-empty-actions button { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 34px; }
+#tree-empty .tree-empty-actions svg { width: 16px; height: 16px; }

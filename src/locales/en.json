@@ -2942,5 +2942,9 @@
   "复制识别文字": "Copy recognised text",
   "编辑校对文字": "Edit corrected text",
   "复制批注文字": "Copy annotation text",
-  "删除批注": "Delete annotation"
+  "删除批注": "Delete annotation",
+  "上一页 PageUp": "Previous page PageUp",
+  "下一页 PageDown": "Next page PageDown",
+  "缩小 Ctrl+−": "Zoom out Ctrl+−",
+  "放大 Ctrl++": "Zoom in Ctrl++"
 }
