@@ -71,10 +71,65 @@ assert reports['ui-performance-283.json']['pdfRefreshes']==0
 thumbnail = reports['thumbnail-workspace-285.json']
 assert thumbnail['status'] == 'passed' and thumbnail['checks'] and thumbnail['errors'] == []
 assert thumbnail['ribbonBench']['mutations'] == 0 and thumbnail['ribbonBench']['resizes'] == 0
-assert packaged['status'] == 'passed' and len(packaged['checks']) == 42
-assert {'tests/squircle.cjs','tests/context-menus.cjs'} <= {c['task'] for c in packaged['checks']}
+expected_packaged_tasks = {
+    'tests/bookmark-save-282.cjs',
+    'tests/close-251.cjs',
+    'tests/context-menus.cjs',
+    'tests/conversion-scan.cjs',
+    'tests/creative-embedded.cjs',
+    'tests/creative-engines.cjs',
+    'tests/creative-experience.cjs',
+    'tests/creative-ui.cjs',
+    'tests/design-251.cjs',
+    'tests/engineering-ui.cjs',
+    'tests/export-review-251.cjs',
+    'tests/font-tools-281.cjs',
+    'tests/graphics-220.cjs',
+    'tests/image-provider-settings.cjs',
+    'tests/image-studio-ui.cjs',
+    'tests/interaction-281.cjs',
+    'tests/modern-280.cjs',
+    'tests/organizer-features.cjs',
+    'tests/organizer-geometry.cjs',
+    'tests/organizer-ui.cjs',
+    'tests/package-ai.cjs',
+    'tests/pdf-loading-packaged.cjs',
+    'tests/performance-281.cjs',
+    'tests/performance-ui-283.cjs',
+    'tests/preferences-ui-283.cjs',
+    'tests/printing-270.cjs',
+    'tests/reader-ui-283.cjs',
+    'tests/refinements-251.cjs',
+    'tests/ribbon-280.cjs',
+    'tests/save-multitab-281.cjs',
+    'tests/selection-270.cjs',
+    'tests/squircle.cjs',
+    'tests/studio-270-ui.cjs',
+    'tests/studio-canvas-270.cjs',
+    'tests/surfaces-ui-283.cjs',
+    'tests/tabs-280.cjs',
+    'tests/ui-ergonomics-thumbnails.cjs',
+    'tests/ui-polish-284.cjs',
+    'tests/window-frame-286.cjs',
+    'tests/workbench-ui.cjs',
+    'tests/workflow-250-verify.py',
+    'tests/workflow-250.cjs',
+    'tests/workspace-210.cjs',
+}
+packaged_tasks = [check['task'] for check in packaged['checks']]
+assert packaged['status'] == 'passed'
+assert len(packaged_tasks) == len(set(packaged_tasks)), 'Duplicate packaged test report'
+actual_packaged_tasks = set(packaged_tasks)
+assert actual_packaged_tasks == expected_packaged_tasks, (
+    f'Missing packaged tests {sorted(expected_packaged_tasks - actual_packaged_tasks)}, '
+    f'unexpected tests {sorted(actual_packaged_tasks - expected_packaged_tasks)}'
+)
 assert reports['corners-tools-286.json']['status'] == 'passed' and len(reports['corners-tools-286.json']['cases']) == 3
-assert {c['task'] for c in packaged['checks']} == {'tests/ui-ergonomics-thumbnails.cjs','tests/ui-polish-284.cjs','tests/preferences-ui-283.cjs','tests/surfaces-ui-283.cjs','tests/reader-ui-283.cjs','tests/performance-ui-283.cjs','tests/bookmark-save-282.cjs','tests/save-multitab-281.cjs','tests/interaction-281.cjs','tests/performance-281.cjs','tests/font-tools-281.cjs','tests/ribbon-280.cjs','tests/tabs-280.cjs','tests/modern-280.cjs','tests/organizer-features.cjs','tests/printing-270.cjs','tests/studio-canvas-270.cjs','tests/design-251.cjs','tests/close-251.cjs','tests/export-review-251.cjs','tests/refinements-251.cjs','tests/workspace-210.cjs','tests/graphics-220.cjs','tests/package-ai.cjs','tests/creative-engines.cjs','tests/creative-embedded.cjs','tests/workbench-ui.cjs','tests/engineering-ui.cjs','tests/conversion-scan.cjs','tests/creative-ui.cjs','tests/organizer-ui.cjs','tests/image-provider-settings.cjs','tests/image-studio-ui.cjs','tests/creative-experience.cjs','tests/workflow-250.cjs','tests/workflow-250-verify.py','tests/organizer-geometry.cjs','tests/pdf-loading-packaged.cjs','tests/studio-270-ui.cjs','tests/selection-270.cjs'}
+frame = json.loads((root / 'tests/output/window-frame-286.json').read_text(encoding='utf-8'))
+assert frame['status'] == 'passed' and set(frame['moves']) == {'emptyDocument', 'oneDocument', 'secondDocument', 'fromMaximized'}
+assert set(frame['controls']) == {'minimize', 'maximize', 'restore', 'close-cancel', 'close'}
+assert set(frame['resize']) == {'top', 'bottom', 'left', 'right', 'top-left', 'top-right', 'bottom-left', 'bottom-right'}
+reports['window-frame-286.json'] = frame
 assert all(c['status']=='passed' for c in packaged['checks'])
 assert packaged['sourceCommit'] == sha and packaged['runId'] == os.environ['GITHUB_RUN_ID']
 assert reports['graphics-220-live.json']['savedPDF']['nativeShadings']>=1

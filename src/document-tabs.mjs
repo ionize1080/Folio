@@ -25,6 +25,7 @@ export function installDocumentTabs({open, confirmClose, toast}) {
     if (!value) return;
     const previousActive = state?.activeDocumentId;
     state = value;
+    document.body.classList.toggle("inactive-document-view", !!state.self && state.self !== state.activeDocumentId);
     strip.hidden = !state.documents.length;
     document.body.classList.toggle("has-tabs", !strip.hidden);
     const labels = {en:["Open documents","Close","Unsaved changes"],"zh-Hans":["打开的文档","关闭","有未保存更改"],"zh-Hant":["開啟的文件","關閉","有未儲存變更"]}[getLanguage()];

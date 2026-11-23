@@ -1521,6 +1521,7 @@ jobs:
         fixtures: 'false'
     - run: native\runtime\python.exe tests/save-281-native.py prepare
     - run: node tests/squircle.cjs
+    - run: node tests/window-frame-286.cjs
     - run: node tests/reader-ui-283.cjs
     - run: node tests/ui-ergonomics-thumbnails.cjs
     - run: node scripts/ui-audit-ci-283.cjs reader

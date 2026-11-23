@@ -8,7 +8,7 @@ const groups=[
  ['ribbon-280.cjs','refinements-251.cjs','creative-ui.cjs','graphics-220.cjs','selection-270.cjs','package-ai.cjs','organizer-geometry.cjs','export-review-251.cjs'],
  ['tabs-280.cjs','creative-experience.cjs','creative-engines.cjs','image-provider-settings.cjs','workflow-250.cjs','workflow-250-verify.py','workspace-210.cjs','studio-270-ui.cjs','image-studio-ui.cjs'],
  ['save-multitab-281.cjs','interaction-281.cjs','performance-281.cjs','font-tools-281.cjs','bookmark-save-282.cjs'],
- ['squircle.cjs','context-menus.cjs','preferences-ui-283.cjs','surfaces-ui-283.cjs','reader-ui-283.cjs','performance-ui-283.cjs','ui-polish-284.cjs','ui-ergonomics-thumbnails.cjs'],
+ ['squircle.cjs','context-menus.cjs','window-frame-286.cjs','preferences-ui-283.cjs','surfaces-ui-283.cjs','reader-ui-283.cjs','performance-ui-283.cjs','ui-polish-284.cjs','ui-ergonomics-thumbnails.cjs'],
 ];
 async function main(){const shard=Number(process.argv[2]);if(!Number.isInteger(shard)||!groups[shard-1])throw Error('Invalid package shard');if(!process.env.FOLIO_EXE)throw Error('Packaged executable is required');
  const checks=[];for(const name of groups[shard-1]){const start=Date.now(),task='tests/'+name,python=process.env.FOLIO_PYTHON||path.resolve('native/runtime/python.exe');const p=spawnSync(name.endsWith('.py')?python:process.execPath,[task],{stdio:'inherit',windowsHide:true,env:process.env,timeout:name==='creative-embedded.cjs'?1200000:600000});checks.push({task,status:!p.error&&p.status===0?'passed':'failed',elapsedMs:Date.now()-start});}
