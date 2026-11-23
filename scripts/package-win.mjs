@@ -239,8 +239,13 @@ for (const name of await fs.readdir(out))
 for (const entry of await fs.readdir(path.join(root, "dist"), { withFileTypes: true })) {
   const full = path.join(root, "dist", entry.name);
   if (entry.isDirectory() && full !== out && /^Folio-PDF-Studio-.+-win-x64$/.test(entry.name)) {
-    await fs.rm(full, { recursive: true, force: true });
-    console.log("removed old build:", entry.name);
+    try {
+      await fs.rm(full, { recursive: true, force: true, maxRetries: 3, retryDelay: 200 });
+      console.log("removed old build:", entry.name);
+    } catch (error) {
+      // A build that is still running (or open in Explorer) cannot be deleted on Windows.
+      console.warn(`old build kept (in use): ${entry.name} (${error.code || error.message}); close it and rebuild or delete it manually`);
+    }
   }
 }
 console.log(out);
