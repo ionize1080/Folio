@@ -4,6 +4,8 @@ import { icon } from "./icons.mjs";
 
 // Icon / emphasis for context-menu rows, keyed by label. Unlisted rows stay text-only.
 export const MENU_META = {
+  "确认并下一处": ["check", "accent"], "下一处待复核": ["target", ""], "不写入此条": ["close", ""], "恢复写入此条": ["undo", ""], "复制识别文字": ["copy", ""], "编辑校对文字": ["pen", ""],
+  "复制批注文字": ["copy", ""], "删除批注": ["trash", "danger"],
   "转到此处": ["target", ""], "复制匹配文字": ["copy", ""], "复制所在片段": ["copy-line", ""], "复制全部结果": ["copy", ""], "从匹配创建书签": ["bookmark-plus", "accent"],
   "切换到此标签页": ["file", ""], "关闭标签页": ["close", ""], "关闭其他标签页": ["close", ""], "关闭右侧标签页": ["close", ""],
   "复制文件名": ["copy", ""], "复制文件路径": ["copy", ""], "打开": ["file", "accent"], "从最近记录移除": ["trash", "danger"],
@@ -29,7 +31,7 @@ export const MENU_META = {
 };
 export function menuMeta(label) {
   // "名称 · F2" and "名称 Ctrl+C" carry their shortcut; show it as a quiet right-aligned hint.
-  const m = /^(.*?)(?:\s·\s|\s)((?:Ctrl|Alt|Shift|Del|Space|F\d+)[\w+ ]*)$/.exec(label);
+  const m = /^(.*?)(?:\s·\s|\s)((?:Ctrl|Alt|Shift|Del|Space|F\d+)[\w+ ↑↓←→]*)$/.exec(label);
   const text = m ? m[1].trim() : label, kbd = m ? m[2].trim() : "";
   const [name, tone] = MENU_META[text] || MENU_META[label] || (/^转到第 d+ 页$/.test(text) ? ["fit-page", ""] : []);
   return { text, kbd, icon: name || "", tone: tone || "" };

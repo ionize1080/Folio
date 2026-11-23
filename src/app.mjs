@@ -2331,11 +2331,20 @@ function renderMarksOnPage(page, layer, view) {
       el.style.opacity = a.opacity ?? 1;
     } else el.style.background = color;
     el.title = a.text ? `${a.text}（双击删除）` : "双击删除此批注";
-    el.ondblclick = () => {
+    const removeAnnotation = () => {
       commit(S.nodes, {
         annotations: S.annotations.filter((x) => x.id !== a.id),
       });
       renderMarks();
+    };
+    el.ondblclick = removeAnnotation;
+    el.oncontextmenu = (e) => {
+      e.stopPropagation();
+      contextMenu(e, [
+        ["复制批注文字", () => copyPageText(a.text), !a.text],
+        null,
+        ["删除批注", removeAnnotation],
+      ]);
     };
     layer.append(el);
   }

@@ -4,6 +4,7 @@ import { selectRegion } from "./region-select.mjs";
 import { ocrPage } from "./ocr-data.mjs";
 import { installPagePicker } from "./page-picker.mjs";
 import { pageRange } from "./generation.mjs";
+import { showContextMenu } from "./context-menu.mjs";
 export async function ocrDialogV4(ctx) {
   const {
       S,
@@ -726,6 +727,27 @@ export async function ocrDialogV4(ctx) {
   $("#ocr-results-list").onclick = (e) => {
     const row = e.target.closest(".ocr-row");
     if (row) guarded(() => select(+row.dataset.index));
+  };
+  // Right-click a recognised line: confirm, skip, exclude or copy without reaching for the side buttons.
+  $("#ocr-results-list").oncontextmenu = (e) => {
+    const row = e.target.closest(".ocr-row");
+    if (!row) return;
+    const index = +row.dataset.index;
+    if (index !== selected) guarded(() => select(index));
+    const excluded = !!pageBlocks[index]?.excluded;
+    const text = pageBlocks[index]?.text || "";
+    showContextMenu(
+      e,
+      [
+        ["确认并下一处 Ctrl+Enter", () => $("#ocr-reviewed").click()],
+        ["下一处待复核 Alt+↓", () => $("#ocr-low").click()],
+        null,
+        [excluded ? "恢复写入此条" : "不写入此条", () => $("#ocr-exclude").click()],
+        ["复制识别文字", () => (window.desktop?.copyText ? window.desktop.copyText(text) : navigator.clipboard.writeText(text)).then(() => toast("已复制文字"))],
+        ["编辑校对文字", () => $("#ocr-correction").focus()],
+      ],
+      { guard: guarded },
+    );
   };
   $("#ocr-results-list").onkeydown = (e) => {
     const visible = [...$("#ocr-results-list").children].filter((r) => !r.hidden);

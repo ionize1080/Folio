@@ -2937,5 +2937,10 @@
   "复制匹配文字": "Copy matched text",
   "复制所在片段": "Copy surrounding snippet",
   "复制全部结果": "Copy all results",
-  "从匹配创建书签": "Create bookmark from match"
+  "从匹配创建书签": "Create bookmark from match",
+  "恢复写入此条": "Include this line again",
+  "复制识别文字": "Copy recognised text",
+  "编辑校对文字": "Edit corrected text",
+  "复制批注文字": "Copy annotation text",
+  "删除批注": "Delete annotation"
 }
