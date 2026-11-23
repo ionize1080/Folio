@@ -18,7 +18,7 @@ import { installCommandPalette } from "./command-palette.mjs";
 import { installThumbnailSidebar } from "./thumbnail-sidebar.mjs";
 import { showContextMenu, installTextContextMenu } from "./context-menu.mjs";
 import { findPattern, findRanges, regexPages } from "./find-matches.mjs";
-import { selectionLineRects } from "./selection-rects.mjs";
+import { selectedPageBands } from "./selection-rects.mjs";
 import { installObjectSelection } from "./object-selection-ui.mjs";
 import { installPageImages } from "./image-page-ui.mjs";
 import { updateDialog } from "./update-ui.mjs";
@@ -5311,49 +5311,22 @@ $("#find-results")?.addEventListener("click", (e) => {
     const sel = window.getSelection();
     if (!sel?.rangeCount || sel.isCollapsed || !S.pdf) return;
     const range = sel.getRangeAt(0);
-    const pageEl = (range.startContainer.nodeType === 1 ? range.startContainer : range.startContainer.parentElement)?.closest(".pdf-page");
-    if (!pageEl) return;
-    const page = Number(pageEl.dataset.page);
-    const entry = surface.entries.get(page);
-    if (!entry?.viewport) return;
-    const pageRect = pageEl.getBoundingClientRect();
-    const rawRects = [...range.getClientRects()]
-      .filter((r) => r.width >= 2 && r.height >= 2)
-      .filter(
-        (r) =>
-          r.right > pageRect.left &&
-          r.left < pageRect.right &&
-          r.bottom > pageRect.top &&
-          r.top < pageRect.bottom,
-      )
-      .map((r) => {
-        const left = Math.max(pageRect.left, r.left);
-        const right = Math.min(pageRect.right, r.right);
-        const top = Math.max(pageRect.top, r.top);
-        const bottom = Math.min(pageRect.bottom, r.bottom);
-        return { left, right, top, bottom, width: right - left, height: bottom - top };
-      })
-      .filter((r) => r.width >= 2 && r.height >= 2);
-    if (!rawRects.length) return;
-    // One continuous band per line: no stacked translucency, no seams between runs or lines.
-    const merged = selectionLineRects(rawRects);
-    if (!merged.length) return;
-    const text = sel.toString().trim().slice(0, 400);
-    const added = merged.map((r) => {
-      const a = entry.viewport.convertToPdfPoint(r.left - pageRect.left, r.top - pageRect.top);
-      const b = entry.viewport.convertToPdfPoint(r.right - pageRect.left, r.bottom - pageRect.top);
-      return {
-        id: uid(),
-        page,
-        type,
-        text,
-        rect: [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[0], b[0]), Math.max(a[1], b[1])],
-        color,
-        opacity,
-        width: type === "highlight" ? 2 : 1.5,
-        dash: "solid",
-      };
-    });
+    const added = [];
+    for (const [page, entry] of [...surface.entries].sort(([a], [b]) => a - b)) {
+      if (!entry.viewport || !range.intersectsNode(entry.text)) continue;
+      const bounds = entry.shell.getBoundingClientRect();
+      const { text, bands } = selectedPageBands(range, entry.text, bounds);
+      for (const band of bands) {
+        const a = entry.viewport.convertToPdfPoint(band.left - bounds.left, band.top - bounds.top);
+        const b = entry.viewport.convertToPdfPoint(band.right - bounds.left, band.bottom - bounds.top);
+        added.push({
+          id: uid(), page, type, text, color, opacity,
+          rect: [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[0], b[0]), Math.max(a[1], b[1])],
+          width: type === "highlight" ? 2 : 1.5, dash: "solid",
+        });
+      }
+    }
+    if (!added.length) return;
     commit(S.nodes, { annotations: [...S.annotations, ...added] });
     sel.removeAllRanges();
     hideQuickbar();

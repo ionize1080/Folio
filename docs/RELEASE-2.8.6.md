@@ -13,3 +13,5 @@ Open **Preferences → General → Corner radius**. Use the slider from **0 to 1
 ## Work with selections and search results
 
 Right-click a PDF text selection to highlight or underline it, or use a result’s menu to copy the matched text or create a bookmark. Full-text search supports regular expressions and whole words. Editing a query cancels the previous scan. Closing multiple document tabs stops when you cancel an unsaved-document prompt.
+
+A selection that crosses pages now highlights the selected text on each page. In the page organizer, Space previews the focused page and the arrow keys move between previews.

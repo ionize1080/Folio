@@ -17,7 +17,7 @@ export function installToolLibrary(){
  menu.replaceChildren(search,grid,empty);
  const details=menu.closest('details'), input=search.querySelector('input');
  function fitMenu(){
-   if(!details.open)return;
+   if(!details.getClientRects().length)return;
    const box=details.getBoundingClientRect();
    menu.style.setProperty('--tool-room-x', Math.max(0,box.right-8)+'px');
    menu.style.setProperty('--tool-room-y', Math.max(0,document.documentElement.clientHeight-box.bottom-14)+'px');

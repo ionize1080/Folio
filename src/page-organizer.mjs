@@ -598,8 +598,7 @@ export function installPageOrganizer({S, session, run, exportPDF, replaceDocumen
       if (i !== undefined) {
         // Acting on an unselected page selects only that page, as file managers do.
         if (!selected.has(order[i].key)) choose(i);
-        tiles.get(order[i].key).el.focus({preventScroll: true});
-        focusKey = order[i].key;
+        focusTile(i);
         if (!e.clientX && !e.clientY) {
           const r = tiles.get(order[i].key).el.getBoundingClientRect();
           point = {clientX: r.left + r.width / 2, clientY: r.top + r.height / 2, preventDefault() {}};
@@ -631,8 +630,15 @@ export function installPageOrganizer({S, session, run, exportPDF, replaceDocumen
         ['删除所选页面 Del', () => q('[data-org=delete]').click(), !some || all],
       ]);
     });
+    grid.addEventListener('focusin', e => {
+      const i = tileIndex(e.target);
+      if (i === undefined || order[i].key === focusKey) return;
+      tiles.get(focusKey)?.el.setAttribute('tabindex', '-1');
+      focusKey = order[i].key;
+      tiles.get(focusKey).el.tabIndex = 0;
+    });
     grid.addEventListener('keydown', e => {
-      const i = index.get(focusKey);
+      const i = tileIndex(e.target) ?? index.get(focusKey);
       if (i === undefined || busy || !peekLayer.hidden) return;
       const step = {ArrowLeft: -1, ArrowRight: 1, ArrowUp: -columns(), ArrowDown: columns()}[e.key];
       if (step !== undefined && e.altKey) {
@@ -767,9 +773,10 @@ export function installPageOrganizer({S, session, run, exportPDF, replaceDocumen
       peekAt = i;
       const token = ++peekToken;
       peekLayer.hidden = false;
+      peekLayer.setAttribute('aria-busy', 'true');
       peekLayer.querySelector('figcaption').textContent = `第 ${i + 1} / ${order.length} 页`;
       const canvas = peekLayer.querySelector('canvas'), box = peekLayer.getBoundingClientRect();
-      const size = Math.round(Math.min(box.width - 96, box.height - 96) * dpr);
+      const size = Math.max(1, Math.round(Math.min(box.width - 96, box.height - 96) * dpr));
       try {
         let source = null;
         if (!item.blank) {
@@ -783,12 +790,15 @@ export function installPageOrganizer({S, session, run, exportPDF, replaceDocumen
           try { await task.promise; } finally { renderTasks.delete(task); }
           source = {bitmap: c, page};
         }
+        const geometry = await geometryOf(item, source?.page);
         if (token !== peekToken || peekLayer.hidden) return;
-        compose(canvas, item, await geometryOf(item, source?.page), source, size, marks(), i + 1);
+        compose(canvas, item, geometry, source, size, marks(), i + 1);
         canvas.style.width = canvas.width / dpr + 'px';
         canvas.style.height = canvas.height / dpr + 'px';
       } catch (e) {
-        if (e.name !== 'RenderingCancelledException') setStatus(e.message);
+        if (token === peekToken && e.name !== 'RenderingCancelledException') setStatus(e.message);
+      } finally {
+        if (token === peekToken) peekLayer.setAttribute('aria-busy', 'false');
       }
     }
     function closePeek() {

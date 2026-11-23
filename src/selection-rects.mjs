@@ -47,3 +47,24 @@ export function selectionLineRects(rects, { gapRatio = 1.5, lineGapRatio = 0.9 }
   }
   return out;
 }
+
+// Read only the selected glyphs on this page. Block and canvas client rects can cover a whole page.
+export function selectedPageBands(range, textLayer, bounds) {
+  if (!range.intersectsNode(textLayer)) return { text: "", bands: [] };
+  const walker = document.createTreeWalker(textLayer, NodeFilter.SHOW_TEXT);
+  const piece = document.createRange(), rects = [], fragments = [];
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+    if (!range.intersectsNode(node)) continue;
+    piece.selectNodeContents(node);
+    if (node === range.startContainer) piece.setStart(node, range.startOffset);
+    if (node === range.endContainer) piece.setEnd(node, range.endOffset);
+    if (piece.collapsed) continue;
+    fragments.push(piece.toString());
+    for (const rect of piece.getClientRects()) {
+      const left = Math.max(bounds.left, rect.left), right = Math.min(bounds.right, rect.right);
+      const top = Math.max(bounds.top, rect.top), bottom = Math.min(bounds.bottom, rect.bottom);
+      if (right > left && bottom > top) rects.push({ left, right, top, bottom });
+    }
+  }
+  return { text: fragments.join("").trim().slice(0, 400), bands: selectionLineRects(rects) };
+}

@@ -1,13 +1,9 @@
 // Right-click menus: text fields, document tabs, thumbnails.
 const path=require('node:path'),assert=require('node:assert/strict');
 (async()=>{
- const {app,page}=await require('./creative-harness.cjs')(),errors=[],checks=[];
- page.on('pageerror',e=>errors.push(e.message));
+ const h=await require('./ui-audit-support.cjs')('context-menus'), {app,page}=h, errors=h.errors,checks=[];
  try{
-  await page.evaluate(async()=>(await import('./i18n.mjs')).setLanguage('zh-Hans'));
-  await app.evaluate(({dialog},file)=>{dialog.showOpenDialog=async()=>({canceled:false,filePaths:[file]})},path.resolve('tests/output/organizer-source.pdf'));
-  await page.locator('[data-action=open]').first().click();
-  await page.waitForFunction(()=>document.querySelector('#doc-name').textContent.includes('organizer-source'));await page.locator('#busy').waitFor({state:'hidden'});
+  await h.openPDF(path.resolve('tests/output/organizer-source.pdf'));
   const menu=page.locator('#context-menu');
   // Text field: copy/cut/paste/select all.
   const input=page.locator('.filter-wrap input').first();
@@ -42,8 +38,30 @@ const path=require('node:path'),assert=require('node:assert/strict');
   assert(rects.length>=1,'highlight created');
   for(let i=0;i<rects.length;i++)for(let j=i+1;j<rects.length;j++){const [a,b]=[rects[i],rects[j]];assert(!(Math.min(a[2],b[2])>Math.max(a[0],b[0])+.01&&Math.min(a[3],b[3])>Math.max(a[1],b[1])+.01),'highlight rects overlap');}
   checks.push('context-menu highlight yields non-overlapping line bands ('+rects.length+')');
+  // Select actual glyphs across two rendered pages. Both pages must receive annotation geometry.
+  await page.waitForFunction(()=>document.querySelectorAll('.pdf-page .textLayer span').length>=2);
+  const pages=await page.evaluate(async()=>{
+    const {S,surface}=await import('./app.mjs');
+    await surface.zoom(.5);
+    await surface.update();
+    await Promise.all([...surface.entries.values()].map(entry=>entry.promise));
+    const entries=[...surface.entries].sort((a,b)=>a[0]-b[0]).filter(([,e])=>e.text.querySelector('span'));
+    if(entries.length<2)throw Error('Two visible PDF text layers are required');
+    const [[first,a],[second,b]]=entries;
+    const walker=el=>document.createTreeWalker(el,NodeFilter.SHOW_TEXT);
+    const start=walker(a.text).nextNode(), end=walker(b.text).nextNode();
+    const range=document.createRange();range.setStart(start,1);range.setEnd(end,end.length-1);
+    const selection=getSelection();selection.removeAllRanges();selection.addRange(range);
+    const before=S.annotations.length;
+    document.querySelector('#selection-quickbar [data-sq=underline]').click();
+    const added=S.annotations.slice(before);
+    return {expected:[first,second],actual:[...new Set(added.map(mark=>mark.page))].sort((a,b)=>a-b),
+      small:added.every(mark=>(mark.rect[2]-mark.rect[0])<200 && (mark.rect[3]-mark.rect[1])<40)};
+  });
+  assert.deepEqual(pages.actual,pages.expected);assert(pages.small,'Only glyph bands may be annotated');
+  checks.push('Cross-page selection creates separate annotations in each PDF coordinate system');
  }catch(e){errors.push(e.stack||e.message)}
- await app.close();
+ await h.close();
  console.log(JSON.stringify({checks,errors},null,2));
  if(errors.length)process.exit(1);
 })();

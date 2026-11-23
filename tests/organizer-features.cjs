@@ -46,8 +46,18 @@ const path=require('node:path'),fs=require('node:fs'),assert=require('node:asser
 
   // Quick look opens with Space and closes with Escape without closing the organizer.
   await tiles.nth(1).focus();await page.keyboard.press(' ');
-  await page.waitForFunction(()=>{const p=document.querySelector('.organizer-peek');return !p.hidden&&p.querySelector('canvas').width>300;});
-  await page.keyboard.press('ArrowRight');await page.waitForFunction(()=>document.querySelector('.organizer-peek figcaption').textContent.includes('3'));
+  const preview=d.locator('.organizer-peek[aria-busy="false"]');
+  await preview.waitFor({state:'visible'});
+  assert.match(await preview.locator('figcaption').innerText(),/^第 2 \/ 3 页$/);
+  const bitmap=await preview.locator('canvas').evaluate(canvas=>{
+    const pixels=canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height).data;
+    let painted=false;
+    for(let i=0;i<pixels.length;i+=4){if(pixels[i+2]>pixels[i]+30){painted=true;break;}}
+    return {width:canvas.width,height:canvas.height,painted};
+  });
+  assert(bitmap.painted && Math.abs(bitmap.width / bitmap.height - .75)<.02, JSON.stringify(bitmap));
+  await page.keyboard.press('ArrowRight');
+  await page.waitForFunction(()=>document.querySelector('.organizer-peek figcaption').textContent==='第 3 / 3 页');
   await page.keyboard.press('Escape');assert(await page.locator('.organizer-peek').isHidden());assert.equal(await d.count(),1);
   checks.push('Space quick look, arrow navigation and Escape return to the grid');
 
