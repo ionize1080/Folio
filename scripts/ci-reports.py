@@ -65,7 +65,7 @@ for shard in range(1,6):
     SUITES['packaged283'+str(shard)] = [f'packaged-{shard}-283.json',*SUITES['packaged282'+str(shard)][1:]]
 for suite in ['preferences','surfaces','reader']:
     SUITES['ui'+suite+'283'] = [f'ui-{suite}-283.json']
-SUITES['packaged2836'] = ['packaged-6-283.json','thumbnail-workspace-285.json',*[f'ui-{suite}-283.json' for suite in ['preferences','surfaces','reader','performance']]]
+SUITES['packaged2836'] = ['packaged-6-283.json','corners-tools-286.json','window-frame-286.json','thumbnail-workspace-285.json',*[f'ui-{suite}-283.json' for suite in ['preferences','surfaces','reader','performance']]]
 
 def valid(name, value):
     if name in {f'ui-{suite}-283.json' for suite in ['preferences','surfaces','reader','performance']}:

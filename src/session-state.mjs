@@ -41,6 +41,7 @@ export function readSettings(defaults, text) {
     whitespaceUnit: ["pt", "mm", "cm", "in"],
   };
   const ranges = {
+    cornerRadius: [0, 16],
     undo: [1, 200],
     sidebar: [180, 520],
     inspectorWidth: [220, 520],

@@ -1,4 +1,5 @@
 import { icon } from "./icons.mjs";
+import { showContextMenu } from "./context-menu.mjs";
 import { getLanguage, onLanguageChange } from "./i18n.mjs";
 
 export function installDocumentTabs({open, confirmClose, toast}) {
@@ -24,6 +25,7 @@ export function installDocumentTabs({open, confirmClose, toast}) {
     if (!value) return;
     const previousActive = state?.activeDocumentId;
     state = value;
+    document.body.classList.toggle("inactive-document-view", !!state.self && state.self !== state.activeDocumentId);
     strip.hidden = !state.documents.length;
     document.body.classList.toggle("has-tabs", !strip.hidden);
     const labels = {en:["Open documents","Close","Unsaved changes"],"zh-Hans":["打开的文档","关闭","有未保存更改"],"zh-Hant":["開啟的文件","關閉","有未儲存變更"]}[getLanguage()];
@@ -53,6 +55,26 @@ export function installDocumentTabs({open, confirmClose, toast}) {
         x.className = "tab-close";
         x.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 7 10 10M17 7 7 17"/></svg>';
         x.onclick = () => close(documentId);
+        group.addEventListener('contextmenu', e => {
+          const docs = state.documents, at = docs.findIndex(d => d.documentId === documentId);
+          const closeMany = async list => {
+            try {
+              for (const item of list) {
+                if (await api.tabClose(item.documentId) === false) break;
+              }
+            } catch (err) { toast(err.message); }
+          };
+          const name = docs[at]?.name || '';
+          showContextMenu(e, [
+            ['切换到此标签页', () => select(documentId), state.activeDocumentId === documentId],
+            null,
+            ['关闭标签页', () => close(documentId)],
+            ['关闭其他标签页', () => closeMany(docs.filter(d => d.documentId !== documentId)), docs.length < 2],
+            ['关闭右侧标签页', () => closeMany(docs.slice(at + 1)), at < 0 || at >= docs.length - 1],
+            null,
+            ['复制文件名', () => (api.copyText ? api.copyText(name) : navigator.clipboard.writeText(name)).then(() => toast('已复制文件名'))],
+          ]);
+        });
         group.addEventListener('auxclick', e => { if (e.button === 1) { e.preventDefault(); close(documentId); } });
         group.append(tab, x);
         strip.insertBefore(group, addBtn);

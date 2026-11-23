@@ -449,7 +449,13 @@ export class PageSurface {
     const tileLayer = document.createElement("div");
     tileLayer.className = "page-tiles";
     shell.append(tileLayer, text, marks, draw);
-    this.stage.append(shell);
+    // Render the nearest page first, but keep native text selection and reading
+    // order aligned with PDF page numbers when cached pages remount.
+    let before = null;
+    for (let node = this.stage.lastElementChild; node && Number(node.dataset.page) > b.page; node = node.previousElementSibling) {
+      before = node;
+    }
+    this.stage.insertBefore(shell, before);
     const e = {
       shell,
       canvas,

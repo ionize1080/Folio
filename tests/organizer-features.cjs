@@ -31,10 +31,33 @@ const path=require('node:path'),fs=require('node:fs'),assert=require('node:asser
   assert.match(await tiles.nth(0).innerText(),/90°/);
   checks.push('Ctrl+] rotates and swaps thumbnail proportions');
 
+  // Right-click selects the page under the pointer and opens an icon menu inside the dialog.
+  await tiles.nth(2).click({button:'right'});
+  const menu=page.locator('#context-menu');await menu.waitFor();
+  assert.equal(await d.locator('#context-menu').count(),1,'menu must live inside the modal dialog');
+  assert(await menu.locator('button svg').count()>=10,'menu rows carry icons');
+  assert.equal(await tiles.nth(2).getAttribute('aria-selected'),'true');
+  await menu.getByRole('menuitem',{name:/复制所选页面/}).click();
+  assert.equal(await tiles.count(),4);
+  await page.keyboard.press('Control+z');assert.equal(await tiles.count(),3);
+  await tiles.nth(1).click({button:'right'});await page.keyboard.press('Escape');
+  assert.equal(await menu.count(),0);assert.equal(await d.count(),1);
+  checks.push('right-click page menu: selection, icons, action, Escape');
+
   // Quick look opens with Space and closes with Escape without closing the organizer.
   await tiles.nth(1).focus();await page.keyboard.press(' ');
-  await page.waitForFunction(()=>{const p=document.querySelector('.organizer-peek');return !p.hidden&&p.querySelector('canvas').width>300;});
-  await page.keyboard.press('ArrowRight');await page.waitForFunction(()=>document.querySelector('.organizer-peek figcaption').textContent.includes('3'));
+  const preview=d.locator('.organizer-peek[aria-busy="false"]');
+  await preview.waitFor({state:'visible'});
+  assert.match(await preview.locator('figcaption').innerText(),/^第 2 \/ 3 页$/);
+  const bitmap=await preview.locator('canvas').evaluate(canvas=>{
+    const pixels=canvas.getContext('2d').getImageData(0,0,canvas.width,canvas.height).data;
+    let painted=false;
+    for(let i=0;i<pixels.length;i+=4){if(pixels[i+2]>pixels[i]+30){painted=true;break;}}
+    return {width:canvas.width,height:canvas.height,painted};
+  });
+  assert(bitmap.painted && Math.abs(bitmap.width / bitmap.height - .75)<.02, JSON.stringify(bitmap));
+  await page.keyboard.press('ArrowRight');
+  await page.waitForFunction(()=>document.querySelector('.organizer-peek figcaption').textContent==='第 3 / 3 页');
   await page.keyboard.press('Escape');assert(await page.locator('.organizer-peek').isHidden());assert.equal(await d.count(),1);
   checks.push('Space quick look, arrow navigation and Escape return to the grid');
 

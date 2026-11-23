@@ -29,7 +29,7 @@ for i,r in enumerate(native_reports,1):
     assert [c['capability'] for c in r['checks']]==[c['capability'] for n,c in enumerate(manifest) if n%6==i-1]
     assert all(c['status']=='passed' for c in r['checks'])
 (root/'tests/output/native-regression-report.json').write_text(json.dumps({'status':'passed','shards':native_reports}))
-for name in ['thumbnail-workspace-285.json','ui-preferences-283.json','ui-surfaces-283.json','ui-reader-283.json','ui-performance-283.json','bookmark-source-282.json','bookmark-save-282.json','save-corpus-281.json','save-multitab-281.json','interaction-281.json','performance-281.json','font-tools-281.json','ribbon-280.json','tabs-280.json','modern-280.json','organizer-features.json','printing-270.json','printing-270-render-checks.json','incremental-corpus-270.json','save-performance-270.json','studio-canvas-270.json','studio-270-native.json','studio-270-ui.json','selection-270.json','editing-260-package.json','editing-260-ui.json','editing-260-native.json',*[f'editing-{i}-260.json' for i in range(1,5)],'design-251.json','close-251.json','export-review-251.json','refinements-251.json','workflow-250.json','workflow-live-250.json','organizer-geometry.json','image-provider-ui.json','image-provider-live.json','image-studio-ui.json','pdf-loading-report.json','pdf-loading-packaged-report.json','creative-live.json','creative-engines.json','creative-embedded.json','creative-ui.json','organizer-ui.json','creative-experience.json','native-regression-report.json','mcp-regression-report.json','ci-packaged-report.json','conversion-native-report.json','conversion-scan-report.json','conversion-public-report.json','conversion-live-report.json','engineering-native-report.json','engineering-ui-report.json','workbench-ui-report.json','context-live-report.json','document-utilities-report.json', 'document-tools-ui.json', 'document-live-report.json', 'chatbox-completion-220.json', 'graphics-220-native.json', 'graphics-220-ui.json', 'graphics-220-live.json', 'ai-workflows-210.json', 'workspace-210.json', 'live-202.json', 'hosted-202.json', 'chrome-202.json', 'ai-settings.json',
+for name in ['corners-tools-286.json','thumbnail-workspace-285.json','ui-preferences-283.json','ui-surfaces-283.json','ui-reader-283.json','ui-performance-283.json','bookmark-source-282.json','bookmark-save-282.json','save-corpus-281.json','save-multitab-281.json','interaction-281.json','performance-281.json','font-tools-281.json','ribbon-280.json','tabs-280.json','modern-280.json','organizer-features.json','printing-270.json','printing-270-render-checks.json','incremental-corpus-270.json','save-performance-270.json','studio-canvas-270.json','studio-270-native.json','studio-270-ui.json','selection-270.json','editing-260-package.json','editing-260-ui.json','editing-260-native.json',*[f'editing-{i}-260.json' for i in range(1,5)],'design-251.json','close-251.json','export-review-251.json','refinements-251.json','workflow-250.json','workflow-live-250.json','organizer-geometry.json','image-provider-ui.json','image-provider-live.json','image-studio-ui.json','pdf-loading-report.json','pdf-loading-packaged-report.json','creative-live.json','creative-engines.json','creative-embedded.json','creative-ui.json','organizer-ui.json','creative-experience.json','native-regression-report.json','mcp-regression-report.json','ci-packaged-report.json','conversion-native-report.json','conversion-scan-report.json','conversion-public-report.json','conversion-live-report.json','engineering-native-report.json','engineering-ui-report.json','workbench-ui-report.json','context-live-report.json','document-utilities-report.json', 'document-tools-ui.json', 'document-live-report.json', 'chatbox-completion-220.json', 'graphics-220-native.json', 'graphics-220-ui.json', 'graphics-220-live.json', 'ai-workflows-210.json', 'workspace-210.json', 'live-202.json', 'hosted-202.json', 'chrome-202.json', 'ai-settings.json',
              'browser-regression-report.json', 'update-python-201.json', 'packaged-ai.json', 'v201-updater-report.json',
              'v162-health-report.json', 'package-report.json']:
     reports[name] = json.loads((root / 'tests/output' / name).read_text(encoding='utf-8'))
@@ -71,8 +71,65 @@ assert reports['ui-performance-283.json']['pdfRefreshes']==0
 thumbnail = reports['thumbnail-workspace-285.json']
 assert thumbnail['status'] == 'passed' and thumbnail['checks'] and thumbnail['errors'] == []
 assert thumbnail['ribbonBench']['mutations'] == 0 and thumbnail['ribbonBench']['resizes'] == 0
-assert packaged['status'] == 'passed' and len(packaged['checks']) == 40
-assert {c['task'] for c in packaged['checks']} == {'tests/ui-ergonomics-thumbnails.cjs','tests/ui-polish-284.cjs','tests/preferences-ui-283.cjs','tests/surfaces-ui-283.cjs','tests/reader-ui-283.cjs','tests/performance-ui-283.cjs','tests/bookmark-save-282.cjs','tests/save-multitab-281.cjs','tests/interaction-281.cjs','tests/performance-281.cjs','tests/font-tools-281.cjs','tests/ribbon-280.cjs','tests/tabs-280.cjs','tests/modern-280.cjs','tests/organizer-features.cjs','tests/printing-270.cjs','tests/studio-canvas-270.cjs','tests/design-251.cjs','tests/close-251.cjs','tests/export-review-251.cjs','tests/refinements-251.cjs','tests/workspace-210.cjs','tests/graphics-220.cjs','tests/package-ai.cjs','tests/creative-engines.cjs','tests/creative-embedded.cjs','tests/workbench-ui.cjs','tests/engineering-ui.cjs','tests/conversion-scan.cjs','tests/creative-ui.cjs','tests/organizer-ui.cjs','tests/image-provider-settings.cjs','tests/image-studio-ui.cjs','tests/creative-experience.cjs','tests/workflow-250.cjs','tests/workflow-250-verify.py','tests/organizer-geometry.cjs','tests/pdf-loading-packaged.cjs','tests/studio-270-ui.cjs','tests/selection-270.cjs'}
+expected_packaged_tasks = {
+    'tests/bookmark-save-282.cjs',
+    'tests/close-251.cjs',
+    'tests/context-menus.cjs',
+    'tests/conversion-scan.cjs',
+    'tests/creative-embedded.cjs',
+    'tests/creative-engines.cjs',
+    'tests/creative-experience.cjs',
+    'tests/creative-ui.cjs',
+    'tests/design-251.cjs',
+    'tests/engineering-ui.cjs',
+    'tests/export-review-251.cjs',
+    'tests/font-tools-281.cjs',
+    'tests/graphics-220.cjs',
+    'tests/image-provider-settings.cjs',
+    'tests/image-studio-ui.cjs',
+    'tests/interaction-281.cjs',
+    'tests/modern-280.cjs',
+    'tests/organizer-features.cjs',
+    'tests/organizer-geometry.cjs',
+    'tests/organizer-ui.cjs',
+    'tests/package-ai.cjs',
+    'tests/pdf-loading-packaged.cjs',
+    'tests/performance-281.cjs',
+    'tests/performance-ui-283.cjs',
+    'tests/preferences-ui-283.cjs',
+    'tests/printing-270.cjs',
+    'tests/reader-ui-283.cjs',
+    'tests/refinements-251.cjs',
+    'tests/ribbon-280.cjs',
+    'tests/save-multitab-281.cjs',
+    'tests/selection-270.cjs',
+    'tests/squircle.cjs',
+    'tests/studio-270-ui.cjs',
+    'tests/studio-canvas-270.cjs',
+    'tests/surfaces-ui-283.cjs',
+    'tests/tabs-280.cjs',
+    'tests/ui-ergonomics-thumbnails.cjs',
+    'tests/ui-polish-284.cjs',
+    'tests/window-frame-286.cjs',
+    'tests/workbench-ui.cjs',
+    'tests/workflow-250-verify.py',
+    'tests/workflow-250.cjs',
+    'tests/workspace-210.cjs',
+}
+packaged_tasks = [check['task'] for check in packaged['checks']]
+assert packaged['status'] == 'passed'
+assert len(packaged_tasks) == len(set(packaged_tasks)), 'Duplicate packaged test report'
+actual_packaged_tasks = set(packaged_tasks)
+assert actual_packaged_tasks == expected_packaged_tasks, (
+    f'Missing packaged tests {sorted(expected_packaged_tasks - actual_packaged_tasks)}, '
+    f'unexpected tests {sorted(actual_packaged_tasks - expected_packaged_tasks)}'
+)
+assert reports['corners-tools-286.json']['status'] == 'passed' and len(reports['corners-tools-286.json']['cases']) == 3
+frame = json.loads((root / 'tests/output/window-frame-286.json').read_text(encoding='utf-8'))
+assert frame['status'] == 'passed' and set(frame['moves']) == {'emptyDocument', 'oneDocument', 'secondDocument', 'fromMaximized'}
+assert set(frame['controls']) == {'minimize', 'maximize', 'restore', 'close-cancel', 'close'}
+assert set(frame['resize']) == {'top', 'bottom', 'left', 'right', 'top-left', 'top-right', 'bottom-left', 'bottom-right'}
+reports['window-frame-286.json'] = frame
 assert all(c['status']=='passed' for c in packaged['checks'])
 assert packaged['sourceCommit'] == sha and packaged['runId'] == os.environ['GITHUB_RUN_ID']
 assert reports['graphics-220-live.json']['savedPDF']['nativeShadings']>=1
@@ -107,7 +164,7 @@ with zipfile.ZipFile(portable) as z:
     for name in ['profile.cjs', 'tool-schema.cjs', 'result-cache.cjs', 'network.cjs']:
         assert z.read('Folio-PDF-Studio/resources/Chatbox/' + name) == (root / 'integrations/chatbox' / name).read_bytes()
 with zipfile.ZipFile(source) as z:
-    for name in ['src/thumbnail-sidebar.mjs','tests/ui-ergonomics-thumbnails.cjs','tests/viewer-anchor-285.test.mjs','tests/ui-polish-284.cjs','tests/preferences-ui-283.cjs','tests/surfaces-ui-283.cjs','tests/reader-ui-283.cjs','tests/performance-ui-283.cjs','tests/ui-audit-support.cjs','scripts/ui-audit-ci-283.cjs','src/app.mjs','src/modern.css','src/controls.css','src/refinements.css','src/ocr.css','src/bookmarks.css','native/pdf_writer.py','tests/bookmark-source-282.py','tests/bookmark-source-282.mjs','tests/bookmark-save-282.cjs','src/incremental-pdf.mjs','src/studio-canvas-ui.mjs','src/text-selection.mjs','src/window-chrome.mjs','update-download.cjs','font-warmup.cjs','src/page-spatial.mjs','ai-dock.cjs', 'integrations/pdf-mcp-folio.patch', 'scripts/build-chatbox-source.cjs', 'src/chrome.css', 'image-provider.cjs', 'image-config.cjs', 'native/svg_gradients.py','integrations/creative/source-lock.json','integrations/creative/folio_backdrop.rs','scripts/build-creative.py','src/creative-background.mjs','src/pdf-loading.mjs','src/blank-pages.mjs','src/page-inspection-cache.mjs','integrations/creative/folio_ui_fonts.rs','integrations/chatbox/image-provider-settings.tsx']:
+    for name in ['src/squircle.css','src/context-menu.mjs','src/find-worker.mjs','src/find-matches.mjs','tests/squircle.cjs','tests/context-menus.cjs','src/thumbnail-sidebar.mjs','tests/ui-ergonomics-thumbnails.cjs','tests/viewer-anchor-285.test.mjs','tests/ui-polish-284.cjs','tests/preferences-ui-283.cjs','tests/surfaces-ui-283.cjs','tests/reader-ui-283.cjs','tests/performance-ui-283.cjs','tests/ui-audit-support.cjs','scripts/ui-audit-ci-283.cjs','src/app.mjs','src/modern.css','src/controls.css','src/refinements.css','src/ocr.css','src/bookmarks.css','native/pdf_writer.py','tests/bookmark-source-282.py','tests/bookmark-source-282.mjs','tests/bookmark-save-282.cjs','src/incremental-pdf.mjs','src/studio-canvas-ui.mjs','src/text-selection.mjs','src/window-chrome.mjs','update-download.cjs','font-warmup.cjs','src/page-spatial.mjs','ai-dock.cjs', 'integrations/pdf-mcp-folio.patch', 'scripts/build-chatbox-source.cjs', 'src/chrome.css', 'image-provider.cjs', 'image-config.cjs', 'native/svg_gradients.py','integrations/creative/source-lock.json','integrations/creative/folio_backdrop.rs','scripts/build-creative.py','src/creative-background.mjs','src/pdf-loading.mjs','src/blank-pages.mjs','src/page-inspection-cache.mjs','integrations/creative/folio_ui_fonts.rs','integrations/chatbox/image-provider-settings.tsx']:
         assert z.read('Folio-PDF-Studio-source/' + name) == (root / name).read_bytes()
 # Both downloads ship the same illustrated guides, screenshots and fixtures.
 tracked_guides = subprocess.check_output(

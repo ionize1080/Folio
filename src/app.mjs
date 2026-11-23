@@ -16,6 +16,9 @@ import {
 } from "./i18n.mjs";
 import { installCommandPalette } from "./command-palette.mjs";
 import { installThumbnailSidebar } from "./thumbnail-sidebar.mjs";
+import { showContextMenu, installTextContextMenu } from "./context-menu.mjs";
+import { findPattern, findRanges, regexPages } from "./find-matches.mjs";
+import { selectedPageBands } from "./selection-rects.mjs";
 import { installObjectSelection } from "./object-selection-ui.mjs";
 import { installPageImages } from "./image-page-ui.mjs";
 import { updateDialog } from "./update-ui.mjs";
@@ -105,6 +108,7 @@ const settings = readSettings(
     cover: true,
     shortcuts: {},
     theme: "system",
+    cornerRadius: 8,
     palette:"cobalt", customAccent:"#165DDB", selectionColor:"#5370f5", selectionBorder:false, targetThumb:true, showTargetMarker:true, targetMarkerColor:"#db8c36",
     sidebar: 250,
     row: 34,
@@ -684,7 +688,7 @@ async function loadPDF(
     S.flowEdit?.destroy();
     S.imageEdit?.destroy();
     S.objectSelection?.destroy();
-    findToken++;
+    cancelFind();
     renderToken++;
     renderTask?.cancel();
     textTask?.cancel();
@@ -1058,6 +1062,7 @@ function rebuild() {
   S.visible = visible;
   updateTreeLayout();
   $("#tree-empty").hidden = !!visible.length;
+  $("#tree-empty .tree-empty-actions").hidden = !!S.nodes.length;
   $("#node-count").textContent = S.nodes.length.toLocaleString();
   $("#selection-count").textContent = S.selected.size
     ? `已选 ${S.selected.size.toLocaleString()} 项`
@@ -2340,11 +2345,20 @@ function renderMarksOnPage(page, layer, view) {
       el.style.opacity = a.opacity ?? 1;
     } else el.style.background = color;
     el.title = a.text ? `${a.text}（双击删除）` : "双击删除此批注";
-    el.ondblclick = () => {
+    const removeAnnotation = () => {
       commit(S.nodes, {
         annotations: S.annotations.filter((x) => x.id !== a.id),
       });
       renderMarks();
+    };
+    el.ondblclick = removeAnnotation;
+    el.oncontextmenu = (e) => {
+      e.stopPropagation();
+      contextMenu(e, [
+        ["复制批注文字", () => copyPageText(a.text), !a.text],
+        null,
+        ["删除批注", removeAnnotation],
+      ]);
     };
     layer.append(el);
   }
@@ -2516,30 +2530,72 @@ function renderFindResults() {
     const snippet = document.createElement("span");
     snippet.className = "fr-snippet";
     snippet.setAttribute("translate", "no");
-    snippet.textContent = h.snippet || "";
+    if (h.snip) {
+      const mark = document.createElement("mark");
+      mark.textContent = h.snip[1];
+      snippet.append(h.snip[0], mark, h.snip[2]);
+    } else snippet.textContent = h.snippet || "";
     btn.append(pageSpan, snippet);
     frag.append(btn);
   });
+  if (S.hits.length > 200) {
+    const note = document.createElement("div");
+    note.className = "find-results-note";
+    note.textContent = "仅列出前 200 处，其余可用 F3 / Shift+F3 逐个浏览";
+    frag.append(note);
+  }
   list.replaceChildren(frag);
 }
+let lastFindKey = "", findTimer = 0, findController;
+function cancelFind() {
+  clearTimeout(findTimer);
+  findToken++;
+  findController?.abort();
+  lastFindKey = "";
+}
+function currentFindKey() {
+  const p = (id) => $("#" + id)?.getAttribute("aria-pressed") === "true";
+  return [$("#find-text").value.trim(), p("find-case"), p("find-regex"), p("find-word")].join("\0");
+}
 async function searchText() {
-  const rawQuery = $("#find-text").value.trim();
+  cancelFind();
+  const input = $("#find-text"), rawQuery = input.value.trim();
   if (!rawQuery || !S.pdf) return;
-  const caseSensitive = $("#find-case")?.getAttribute("aria-pressed") === "true";
-  const useRegex = $("#find-regex")?.getAttribute("aria-pressed") === "true";
-  let regex = null;
-  if (useRegex) {
-    try {
-      regex = new RegExp(rawQuery, caseSensitive ? "gu" : "gui");
-    } catch (e) {
-      $("#find-count").textContent = "正则语法错误";
-      return;
-    }
-  }
-  const query = caseSensitive ? rawQuery : rawQuery.toLocaleLowerCase();
-  const token = ++findToken;
+  const pressed = id => $("#" + id).getAttribute("aria-pressed") === "true";
+  const useRegex = pressed("find-regex");
+  const key = currentFindKey(), token = findToken;
   S.hits = [];
   S.hitIndex = -1;
+  input.removeAttribute("aria-invalid");
+  let pattern;
+  try {
+    pattern = findPattern(rawQuery, { useRegex, caseSensitive: pressed("find-case"), wholeWord: pressed("find-word") });
+  } catch (error) {
+    input.setAttribute("aria-invalid", "true");
+    $("#find-count").textContent = "正则语法错误：" + error.message.replace(/^Invalid regular expression:\s*/, "").slice(0, 80);
+    renderFindResults();
+    renderMarks();
+    return;
+  }
+  const controller = new AbortController();
+  findController = controller;
+  try {
+    const getRanges = useRegex ? regexPages(pattern, controller.signal) : text => findRanges(text, pattern, true);
+    await scanText(getRanges, token);
+    if (token === findToken) lastFindKey = key;
+  } catch (error) {
+    if (controller.signal.aborted) return;
+    S.hits = [];
+    S.hitIndex = -1;
+    $("#find-count").textContent = error.message;
+    renderFindResults();
+    renderMarks();
+  } finally {
+    controller.abort();
+    if (findController === controller) findController = null;
+  }
+}
+async function scanText(getRanges, token) {
   const cache = getDocSearchCache();
   let yielded = performance.now();
   for (let page = 1; page <= S.info.pageCount; page++) {
@@ -2564,38 +2620,36 @@ async function searchText() {
         text += str;
         if (str) prev = item;
       }
-      entry = { text, lower: text.toLocaleLowerCase(), items };
+      entry = { text, items };
       cache?.set(page, entry);
     }
-    const haystack = caseSensitive ? entry.text : entry.lower;
+    let firstItem = 0;
     const pushHit = (at, len) => {
-      const range = entry.items.filter((x) => x.end > at && x.start < at + len);
+      // Matches and PDF text runs are ordered. Advance once through the page.
+      while (firstItem < entry.items.length && entry.items[firstItem].end <= at) firstItem++;
+      const range = [];
+      for (let i = firstItem; i < entry.items.length && entry.items[i].start < at + len; i++) {
+        if (entry.items[i].end > entry.items[i].start) range.push(entry.items[i]);
+      }
       if (!range.length) return;
       const item = range[0].item;
-      const sStart = Math.max(0, at - 24), sEnd = Math.min(entry.text.length, at + len + 44);
-      const snippet = (sStart > 0 ? "…" : "") + entry.text.slice(sStart, sEnd).trim() + (sEnd < entry.text.length ? "…" : "");
+      const start = Math.max(0, at - 24), end = Math.min(entry.text.length, at + len + 44);
+      const match = entry.text.slice(at, at + len);
+      const snip = [(start ? "…" : "") + entry.text.slice(start, at).trimStart(), match,
+        entry.text.slice(at + len, end).trimEnd() + (end < entry.text.length ? "…" : "")];
       S.hits.push({
-        page,
+        page, match, snip,
         x: item.transform[4],
         y: item.transform[5] + (item.height || 10) + 12,
         items: range.map((x) => x.item),
-        snippet,
+        snippet: snip.join(""),
       });
     };
-    if (regex) {
-      regex.lastIndex = 0;
-      let m;
-      while ((m = regex.exec(entry.text)) !== null) {
-        if (!m[0].length) { regex.lastIndex++; continue; }
-        pushHit(m.index, m[0].length);
-        if (S.hits.length >= 20000) break;
-      }
-    } else {
-      let at = -1;
-      while ((at = haystack.indexOf(query, at + 1)) >= 0) {
-        pushHit(at, query.length);
-        if (S.hits.length >= 20000) break;
-      }
+    const ranges = await getRanges(entry.text, 20000 - S.hits.length);
+    if (token !== findToken) return;
+    for (const [at, length] of ranges) {
+      pushHit(at, length);
+      if (S.hits.length >= 20000) break;
     }
     if (S.hits.length >= 20000) break;
     if (performance.now() - yielded > 24) {
@@ -2603,7 +2657,8 @@ async function searchText() {
       yielded = performance.now();
     }
   }
-  $("#find-count").textContent = `${S.hits.length} 处匹配`;
+  if (token !== findToken) return;
+  $("#find-count").textContent = S.hits.length >= 20000 ? `${S.hits.length} 处匹配（已达上限）` : S.hits.length ? `${S.hits.length} 处匹配` : "无匹配";
   renderFindResults();
   if (S.hits.length) {
     S.hitIndex = -1;
@@ -2613,8 +2668,9 @@ async function searchText() {
 async function jumpToHit(index) {
   if (!S.hits.length) return;
   S.hitIndex = ((index % S.hits.length) + S.hits.length) % S.hits.length;
-  const h = S.hits[S.hitIndex];
+  const h = S.hits[S.hitIndex], token = findToken;
   await surface.go(h.page, { mode: "XYZ", args: [h.x, h.y, null] });
+  if (token !== findToken || S.hits[S.hitIndex] !== h) return;
   $("#find-count").textContent = `${S.hitIndex + 1}/${S.hits.length} 处匹配`;
   renderMarks();
   const list = $("#find-results");
@@ -2672,7 +2728,7 @@ async function settingsDialog() {
   try { initialLangPref = localStorage.getItem("folio-language") || "system"; } catch {}
   modal(
     "偏好设置",
-    `<div class="prefs"><nav class="prefs-nav" aria-label="偏好设置分类"><input type="search" id="prefs-search" class="prefs-search" placeholder="搜索设置…" aria-label="搜索偏好设置" autocomplete="off"><button type="button" data-pref-nav="general" aria-current="true">${icon("settings")}<span>通用</span></button><button type="button" data-pref-nav="reading" aria-current="false">${icon("book")}<span>阅读与滚动</span></button><button type="button" data-pref-nav="bookmarks" aria-current="false">${icon("bookmark")}<span>书签</span></button><button type="button" data-pref-nav="saving" aria-current="false">${icon("save")}<span>保存与文件</span></button><button type="button" data-pref-nav="performance" aria-current="false">${icon("sliders")}<span>性能与缓存</span></button>${ai ? `<button type="button" data-pref-nav="ai" aria-current="false">${icon("spark")}<span>AI 文档辅助</span></button>` : ""}<button type="button" data-pref-nav="advanced" aria-current="false">${icon("globe")}<span>网络与快捷键</span></button></nav><div class="prefs-scroll"><section class="pref-section" data-pref-section="general"><h3>通用</h3><div class="pref-row"><div class="pref-label"><b>界面语言</b><small>实时预览，点击「应用设置」保存；取消将恢复原语言。</small></div><div class="pref-control">${languagePicker("settings-language")}</div></div><div class="pref-row"><div class="pref-label"><b>外观主题</b></div><div class="pref-control"><select id="set-theme"><option value="system">跟随系统</option><option value="light">浅色</option><option value="dark">深色</option></select></div></div>${paletteControls()}<div class="pref-color-row"><div><b>文字选取颜色</b><small>划选 PDF 文字时的高亮色</small></div><div class="selection-presets">${["#5370f5","#0a84ff","#30b0a0","#34c759","#ffb020","#ff6b57","#bf5af2"].map(c=>`<button type="button" class="cp-swatch" data-sel="${c}" style="--c:${c}" aria-label="${c}"></button>`).join("")}<input id="set-selection-color" type="color" aria-label="自定义文字选取颜色" value="${settings.selectionColor}"></div></div><div class="pref-row"><div class="pref-label"><b>默认留白单位</b></div><div class="pref-control"><select id="set-whitespace-unit"><option value="mm">毫米 mm</option><option value="pt">点 pt</option></select></div></div></section><section class="pref-section" data-pref-section="reading"><h3>阅读与滚动</h3><label class="check"><input id="set-selection-border" type="checkbox" ${settings.selectionBorder?"checked":""}>显示文本选区边框</label><p class="hint">在选区底色外显示深色轮廓，不影响复制内容。</p><div class="pref-row"><div class="pref-label"><b>滚轮滚动量</b></div><div class="pref-control"><select id="set-wheel-preset"><option value="1">精细 · 1 行</option><option value="3">标准 · 3 行（推荐）</option><option value="6">快速 · 6 行</option><option value="custom">自定义</option></select></div></div><div class="pref-row"><div class="pref-label"><b>每次滚动行数</b></div><div class="pref-control"><input id="set-wheel-lines" type="number" min="1" max="30" value="${settings.wheelLines||3}"></div></div><div class="pref-row"><div class="pref-label"><b>渲染像素倍率上限</b></div><div class="pref-control"><select id="set-quality"><option value="1">1× · 节省内存</option><option value="2">2× · 推荐</option><option value="3">3× · 高清</option></select></div></div><label class="check"><input id="set-restore" type="checkbox" ${settings.restoreView?"checked":""} >记住每本文档的阅读位置、缩放和布局（关闭后尊重文档初始视图）</label></section><section class="pref-section" data-pref-section="bookmarks"><h3>书签</h3><div class="pref-row"><div class="pref-label"><b>书签侧栏宽度（px）</b></div><div class="pref-control"><input id="set-sidebar" type="number" min="220" max="520" value="${settings.sidebar}"></div></div><div class="pref-row"><div class="pref-label"><b>书签行高</b></div><div class="pref-control"><select id="set-row"><option value="28">紧凑 · 28 px</option><option value="34">标准 · 34 px</option><option value="40">宽松 · 40 px</option></select></div></div><label class="check"><input id="set-wrap" type="checkbox" ${settings.wrap?"checked":""} >长书签标题显示两行</label><label class="check"><input id="set-ignore-zoom" type="checkbox" ${settings.ignoreZoom?"checked":""} >忽略书签的缩放要求（不修改 PDF 目标）</label><label class="check"><input id="set-outline" type="checkbox" ${settings.showBookmarks?"checked":""} >保存后建议阅读器显示书签面板</label><label class="check"><input id="set-target-thumb" type="checkbox" ${settings.targetThumb!==false?"checked":""} >在属性栏显示跳转目标页缩略图（实时预览落点）</label><label class="check"><input id="set-target-marker" type="checkbox" ${settings.showTargetMarker!==false?"checked":""} >跳转后在页面上显示定位线</label><div class="pref-row"><div class="pref-label"><b>定位线颜色</b></div><div class="pref-control"><input id="set-target-color" type="color" value="${/^#[0-9a-f]{6}$/i.test(settings.targetMarkerColor||"")?settings.targetMarkerColor:"#db8c36"}"></div></div></section><section class="pref-section" data-pref-section="saving"><h3>保存与文件</h3><div class="pref-row"><div class="pref-label"><b>保存方式</b></div><div class="pref-control"><select id="set-save-mode"><option value="auto">快速增量保存</option><option value="compact">完整重写（兼容模式）</option></select></div></div><label class="check"><input id="set-protect" type="checkbox" ${settings.protect?"checked":""} >原文件保护：首次保存为副本，之后更新副本</label><label class="check"><input id="set-summary" type="checkbox" ${settings.saveSummary?"checked":""} >保存前显示修改摘要</label></section><section class="pref-section" data-pref-section="performance"><h3>性能与缓存</h3><div class="pref-row"><div class="pref-label"><b>磁盘缓存上限（MB，默认2048）</b></div><div class="pref-control"><input id="set-disk-budget" type="number" min="64" max="262144" value="${diskBudget?.limitMB||2048}"></div></div><div class="pref-row"><div class="pref-label"><b>撤销步数上限</b></div><div class="pref-control"><input id="set-undo" type="number" min="5" max="100" value="${settings.undo}"></div></div><label class="check"><input id="set-gpu" type="checkbox" ${software?"checked":""} ${window.desktop?.graphics ? "" : "disabled"}>显卡兼容：关闭硬件加速（重新启动后生效）</label><button id="ocr-cache-open">OCR 任务记录与缓存…</button><p class="hint">撤销快照受 32 MB 预算限制；画布按可见范围加载，高清画布与分块按约 128 MB 预算回收，当前可见区域优先，缩放期间保留已完成画面。恢复快照在编辑停止 0.7 秒后保存在本机。缓存超限按最近使用时间轮替；大文件处理中临时扩容，当前文档、原子保存及未保存草稿受保护。</p></section>${ai ? `<section class="pref-section" data-pref-section="ai"><h3>AI 文档辅助</h3><div class="pref-block"><p class="hint">API、服务商和模型在 Chatbox 原生设置中配置；以下选项管理 Folio 文档操作。</p><div class="form-grid"><label>操作审批<select id="set-ai-approval"><option value="manual">手动审批</option><option value="auto">自动审批</option></select></label><label>Chatbox 显示方式<select id="set-ai-display"><option value="sidebar">侧栏</option><option value="window">独立窗口</option></select></label><label>OCR 低置信度复核阈值（%）<input id="set-ai-threshold" type="number" min="0" max="100" step="1" value="${ai.threshold}"></label></div><p class="hint">优先本地 Paddle；低于阈值的结果可按需交给所选模型复核。默认 95%。自动审批仅在本次会话生效，启用需二次确认，顶部 AI 按钮将显示醒目标识。</p></div></section>` : ""}<section class="pref-section" data-pref-section="advanced"><h3>网络与快捷键</h3><div class="pref-row"><div class="pref-label"><b>HTTP 代理（更新共用）</b></div><div class="pref-control"><input id="set-http-proxy" placeholder="留空使用系统代理"></div></div><button data-action="shortcuts">自定义快捷键…</button></section></div></div>`,
+    `<div class="prefs"><nav class="prefs-nav" aria-label="偏好设置分类"><input type="search" id="prefs-search" class="prefs-search" placeholder="搜索设置…" aria-label="搜索偏好设置" autocomplete="off"><button type="button" data-pref-nav="general" aria-current="true">${icon("settings")}<span>通用</span></button><button type="button" data-pref-nav="reading" aria-current="false">${icon("book")}<span>阅读与滚动</span></button><button type="button" data-pref-nav="bookmarks" aria-current="false">${icon("bookmark")}<span>书签</span></button><button type="button" data-pref-nav="saving" aria-current="false">${icon("save")}<span>保存与文件</span></button><button type="button" data-pref-nav="performance" aria-current="false">${icon("sliders")}<span>性能与缓存</span></button>${ai ? `<button type="button" data-pref-nav="ai" aria-current="false">${icon("spark")}<span>AI 文档辅助</span></button>` : ""}<button type="button" data-pref-nav="advanced" aria-current="false">${icon("globe")}<span>网络与快捷键</span></button></nav><div class="prefs-scroll"><section class="pref-section" data-pref-section="general"><h3>通用</h3><div class="pref-row"><div class="pref-label"><b>界面语言</b><small>实时预览，点击「应用设置」保存；取消将恢复原语言。</small></div><div class="pref-control">${languagePicker("settings-language")}</div></div><div class="pref-row"><div class="pref-label"><b>外观主题</b></div><div class="pref-control"><select id="set-theme"><option value="system">跟随系统</option><option value="light">浅色</option><option value="dark">深色</option></select></div></div><div class="pref-row"><label class="pref-label" for="set-corner-radius"><b>界面圆角大小</b></label><div class="pref-control corner-control"><input id="set-corner-radius" type="range" min="0" max="16" step="1" value="${settings.cornerRadius}"><output for="set-corner-radius" id="corner-radius-value" translate="no">${settings.cornerRadius} px</output></div></div>${paletteControls()}<div class="pref-color-row"><div><b>文字选取颜色</b><small>划选 PDF 文字时的高亮色</small></div><div class="selection-presets">${["#5370f5","#0a84ff","#30b0a0","#34c759","#ffb020","#ff6b57","#bf5af2"].map(c=>`<button type="button" class="cp-swatch" data-sel="${c}" style="--c:${c}" aria-label="${c}"></button>`).join("")}<input id="set-selection-color" type="color" aria-label="自定义文字选取颜色" value="${settings.selectionColor}"></div></div><div class="pref-row"><div class="pref-label"><b>默认留白单位</b></div><div class="pref-control"><select id="set-whitespace-unit"><option value="mm">毫米 mm</option><option value="pt">点 pt</option></select></div></div></section><section class="pref-section" data-pref-section="reading"><h3>阅读与滚动</h3><label class="check"><input id="set-selection-border" type="checkbox" ${settings.selectionBorder?"checked":""}>显示文本选区边框</label><p class="hint">在选区底色外显示深色轮廓，不影响复制内容。</p><div class="pref-row"><div class="pref-label"><b>滚轮滚动量</b></div><div class="pref-control"><select id="set-wheel-preset"><option value="1">精细 · 1 行</option><option value="3">标准 · 3 行（推荐）</option><option value="6">快速 · 6 行</option><option value="custom">自定义</option></select></div></div><div class="pref-row"><div class="pref-label"><b>每次滚动行数</b></div><div class="pref-control"><input id="set-wheel-lines" type="number" min="1" max="30" value="${settings.wheelLines||3}"></div></div><div class="pref-row"><div class="pref-label"><b>渲染像素倍率上限</b></div><div class="pref-control"><select id="set-quality"><option value="1">1× · 节省内存</option><option value="2">2× · 推荐</option><option value="3">3× · 高清</option></select></div></div><label class="check"><input id="set-restore" type="checkbox" ${settings.restoreView?"checked":""} >记住每本文档的阅读位置、缩放和布局（关闭后尊重文档初始视图）</label></section><section class="pref-section" data-pref-section="bookmarks"><h3>书签</h3><div class="pref-row"><div class="pref-label"><b>书签侧栏宽度（px）</b></div><div class="pref-control"><input id="set-sidebar" type="number" min="220" max="520" value="${settings.sidebar}"></div></div><div class="pref-row"><div class="pref-label"><b>书签行高</b></div><div class="pref-control"><select id="set-row"><option value="28">紧凑 · 28 px</option><option value="34">标准 · 34 px</option><option value="40">宽松 · 40 px</option></select></div></div><label class="check"><input id="set-wrap" type="checkbox" ${settings.wrap?"checked":""} >长书签标题显示两行</label><label class="check"><input id="set-ignore-zoom" type="checkbox" ${settings.ignoreZoom?"checked":""} >忽略书签的缩放要求（不修改 PDF 目标）</label><label class="check"><input id="set-outline" type="checkbox" ${settings.showBookmarks?"checked":""} >保存后建议阅读器显示书签面板</label><label class="check"><input id="set-target-thumb" type="checkbox" ${settings.targetThumb!==false?"checked":""} >在属性栏显示跳转目标页缩略图（实时预览落点）</label><label class="check"><input id="set-target-marker" type="checkbox" ${settings.showTargetMarker!==false?"checked":""} >跳转后在页面上显示定位线</label><div class="pref-row"><div class="pref-label"><b>定位线颜色</b></div><div class="pref-control"><input id="set-target-color" type="color" value="${/^#[0-9a-f]{6}$/i.test(settings.targetMarkerColor||"")?settings.targetMarkerColor:"#db8c36"}"></div></div></section><section class="pref-section" data-pref-section="saving"><h3>保存与文件</h3><div class="pref-row"><div class="pref-label"><b>保存方式</b></div><div class="pref-control"><select id="set-save-mode"><option value="auto">快速增量保存</option><option value="compact">完整重写（兼容模式）</option></select></div></div><label class="check"><input id="set-protect" type="checkbox" ${settings.protect?"checked":""} >原文件保护：首次保存为副本，之后更新副本</label><label class="check"><input id="set-summary" type="checkbox" ${settings.saveSummary?"checked":""} >保存前显示修改摘要</label></section><section class="pref-section" data-pref-section="performance"><h3>性能与缓存</h3><div class="pref-row"><div class="pref-label"><b>磁盘缓存上限（MB，默认2048）</b></div><div class="pref-control"><input id="set-disk-budget" type="number" min="64" max="262144" value="${diskBudget?.limitMB||2048}"></div></div><div class="pref-row"><div class="pref-label"><b>撤销步数上限</b></div><div class="pref-control"><input id="set-undo" type="number" min="5" max="100" value="${settings.undo}"></div></div><label class="check"><input id="set-gpu" type="checkbox" ${software?"checked":""} ${window.desktop?.graphics ? "" : "disabled"}>显卡兼容：关闭硬件加速（重新启动后生效）</label><button id="ocr-cache-open">OCR 任务记录与缓存…</button><p class="hint">撤销快照受 32 MB 预算限制；画布按可见范围加载，高清画布与分块按约 128 MB 预算回收，当前可见区域优先，缩放期间保留已完成画面。恢复快照在编辑停止 0.7 秒后保存在本机。缓存超限按最近使用时间轮替；大文件处理中临时扩容，当前文档、原子保存及未保存草稿受保护。</p></section>${ai ? `<section class="pref-section" data-pref-section="ai"><h3>AI 文档辅助</h3><div class="pref-block"><p class="hint">API、服务商和模型在 Chatbox 原生设置中配置；以下选项管理 Folio 文档操作。</p><div class="form-grid"><label>操作审批<select id="set-ai-approval"><option value="manual">手动审批</option><option value="auto">自动审批</option></select></label><label>Chatbox 显示方式<select id="set-ai-display"><option value="sidebar">侧栏</option><option value="window">独立窗口</option></select></label><label>OCR 低置信度复核阈值（%）<input id="set-ai-threshold" type="number" min="0" max="100" step="1" value="${ai.threshold}"></label></div><p class="hint">优先本地 Paddle；低于阈值的结果可按需交给所选模型复核。默认 95%。自动审批仅在本次会话生效，启用需二次确认，顶部 AI 按钮将显示醒目标识。</p></div></section>` : ""}<section class="pref-section" data-pref-section="advanced"><h3>网络与快捷键</h3><div class="pref-row"><div class="pref-label"><b>HTTP 代理（更新共用）</b></div><div class="pref-control"><input id="set-http-proxy" placeholder="留空使用系统代理"></div></div><button data-action="shortcuts">自定义快捷键…</button></section></div></div>`,
     [
       { text: "取消", run: closeModal },
       {
@@ -2721,6 +2777,7 @@ async function settingsDialog() {
             restoreView: $("#set-restore").checked,
             ignoreZoom: $("#set-ignore-zoom").checked,
             wrap: $("#set-wrap").checked,
+            cornerRadius: $("#set-corner-radius").valueAsNumber,
             theme: $("#set-theme").value,wheelLines:Math.max(1,Math.min(30,Number($("#set-wheel-lines").value)||3)),
             palette: $('input[name="palette"]:checked').value,
             customAccent: $("#custom-accent").value,
@@ -2764,8 +2821,6 @@ async function settingsDialog() {
     title.replaceWith(label);
   }
   // Sanitization intentionally removes inline SVG. Add trusted icons afterward.
-  const prefIcons = {general:"settings",reading:"book",bookmarks:"bookmark",saving:"save",performance:"sliders",ai:"spark",advanced:"globe"};
-  for (const button of $$("[data-pref-nav]")) button.insertAdjacentHTML("afterbegin", icon(prefIcons[button.dataset.prefNav]));
   const prefsPane = $(".prefs-scroll"), prefsNav = [...$$("[data-pref-nav]")];
   const sections = [...$$("[data-pref-section]")];
   const mark = (id) => prefsNav.forEach((b) => b.setAttribute("aria-current", String(b.dataset.prefNav === id)));
@@ -2801,7 +2856,12 @@ async function settingsDialog() {
   $('input[name="palette"][value="'+palette+'"]').checked = true;
   $("#custom-accent").value = settings.customAccent;
   $("#set-theme").value = settings.theme;$("#set-save-mode").value=settings.saveMode||"auto";
-  const preview = () => applyAppearance({...settings, theme:$("#set-theme").value,
+  const radiusInput = $("#set-corner-radius");
+  radiusInput.oninput = () => {
+    $("#corner-radius-value").value = radiusInput.value + " px";
+    document.documentElement.style.setProperty("--corner-radius", radiusInput.value + "px");
+  };
+  const preview = () => applyAppearance({...settings, cornerRadius:radiusInput.valueAsNumber, theme:$("#set-theme").value,
     palette:$('input[name="palette"]:checked').value, customAccent:$("#custom-accent").value});
   const selInput=$("#set-selection-color"),livesel=()=>document.documentElement.style.setProperty("--text-selection",selInput.value);
   selInput.oninput=livesel;
@@ -3147,106 +3207,10 @@ function treeNavigate(e) {
       tree.scrollTop = pos + height - tree.clientHeight;
   }
 }
-// Icon / emphasis for context-menu rows, keyed by label. Unlisted rows stay text-only.
-const MENU_META = {
-  "编辑标题": ["pen", ""], "新增同级书签": ["bookmark-plus", "accent"], "新增子书签": ["bookmark-child", "accent"],
-  "剪切": ["cut", ""], "复制": ["copy", ""], "粘贴为子书签": ["paste", ""], "粘贴到前面": ["paste", ""], "粘贴到后面": ["paste", ""],
-  "更改书签缩放…": ["zoom", ""], "切换标题大小写…": ["case", ""], "设置当前视图为目标": ["target", "accent"],
-  "展开所选子树": ["unfold", ""], "折叠所选子树": ["fold", ""],
-  "删除所选与子项": ["trash", "danger"], "仅删除所选，保留子项": ["trash", "danger"], "仅删除子书签": ["trash", "danger"],
-  "调整跳转留白…": ["spacing", ""], "按标题校准目标…": ["crosshair", ""], "查找重复书签…": ["dedupe", ""], "正则拆分书签…": ["split", ""],
-  "属性": ["sliders", ""], "底层字典": ["code", ""],
-  "复制 Ctrl+C": ["copy", ""], "复制为单行": ["copy-line", ""], "从选中文字创建书签": ["bookmark-plus", "accent"],
-  "用选中文字位置设置目标": ["target", "accent"], "框选文字并复制…": ["select-text", ""], "当前视图设置为目标": ["target", "accent"],
-  "适合宽度": ["fit-width", ""], "适合页面": ["fit-page", ""], "页面缩略图": ["thumbs", ""],
-};
-function menuMeta(label) {
-  // "名称 · F2" and "名称 Ctrl+C" carry their shortcut; show it as a quiet right-aligned hint.
-  const m = /^(.*?)(?:\s·\s|\s)((?:Ctrl|Alt|Shift|F\d+)[\w+ ]*)$/.exec(label);
-  const text = m ? m[1].trim() : label, kbd = m ? m[2].trim() : "";
-  const [name, tone] = MENU_META[text] || MENU_META[label] || [];
-  return { text, kbd, icon: name || "", tone: tone || "" };
-}
-function contextMenu(e, items) {
-  e.preventDefault();
-  $("#context-menu")?.dispatchEvent(new Event("dismiss"));
-  const box = document.createElement("div");
-  box.id = "context-menu";
-  box.role = "menu";
-  const previousFocus = document.activeElement;
-  const listeners = new AbortController();
-  const dismiss = () => {
-    listeners.abort();
-    box.remove();
-    previousFocus?.focus?.({ preventScroll: true });
-  };
-  box.addEventListener("dismiss", dismiss, { signal: listeners.signal });
-  box.onkeydown = (e) => {
-    if (e.isComposing || e.keyCode === 229) return;
-    if (e.key === "Escape") {
-      e.preventDefault();
-      e.stopPropagation();
-      dismiss();
-      return;
-    }
-    if (e.key === "Tab") {
-      dismiss();
-      return;
-    }
-    if (!["ArrowDown", "ArrowUp", "Home", "End"].includes(e.key)) return;
-    e.preventDefault();
-    e.stopPropagation();
-    const buttons = [...box.querySelectorAll("button:not(:disabled)")],
-      at = buttons.indexOf(document.activeElement);
-    const next =
-      e.key === "Home"
-        ? 0
-        : e.key === "End"
-          ? buttons.length - 1
-          : (at + (e.key === "ArrowDown" ? 1 : -1) + buttons.length) %
-            buttons.length;
-    buttons[next]?.focus();
-  };
-  for (const item of items) {
-    if (!item) {
-      const separator = document.createElement("div");
-      separator.role = "separator";
-      box.append(separator);
-      continue;
-    }
-    const [label, fn, disabled = false] = item;
-    const b = document.createElement("button");
-    const meta = menuMeta(label);
-    b.innerHTML = (meta.icon ? icon(meta.icon) : '<i class="mi-blank"></i>') + '<span class="mi-label"></span>' + (meta.kbd ? '<kbd></kbd>' : "");
-    b.querySelector(".mi-label").textContent = meta.text;
-    if (meta.kbd) b.querySelector("kbd").textContent = meta.kbd;
-    if (meta.tone) b.dataset.tone = meta.tone;
-    b.setAttribute("aria-label", label);
-    b.role = "menuitem";
-    b.disabled = disabled;
-    b.onclick = () => {
-      dismiss();
-      guarded(fn);
-    };
-    box.append(b);
-  }
-  document.body.append(box);
-  box.querySelector("button:not(:disabled)")?.focus();
-  box.style.left =
-    Math.max(8, Math.min(e.clientX, innerWidth - box.offsetWidth - 8)) + "px";
-  box.style.top =
-    Math.max(8, Math.min(e.clientY, innerHeight - box.offsetHeight - 8)) + "px";
-  setTimeout(
-    () =>
-      document.addEventListener(
-        "pointerdown",
-        (ev) => {
-          if (!box.contains(ev.target)) dismiss();
-        },
-        { signal: listeners.signal },
-      ),
-    0,
-  );
+// Accepts (event, items) or (x, y, items); the latter is used by the thumbnail sidebar.
+function contextMenu(a, b, c) {
+  const point = typeof a === "number" ? { clientX: a, clientY: b, preventDefault() {} } : a;
+  return showContextMenu(point, typeof a === "number" ? c : b, { guard: guarded });
 }
 function setCurrentTarget(selection = null) {
   const n = selectedNode();
@@ -4182,14 +4146,22 @@ const actions = {
   metadata: metadataDialog,
   annotate: annotateDialog,
   find: () => {
+    const input = $("#find-text"), picked = S.pdf ? surface.selection()?.text : "";
     $("#findbar").hidden = false;
-    $("#find-text").focus();
+    // Ctrl+F with page text selected searches for it, as in browsers and readers.
+    if (picked && picked.length <= 120 && !/\n/.test(picked)) {
+      input.value = picked;
+      guarded(searchText);
+    }
+    input.focus();
+    input.select();
   },
   "find-run": searchText,
   "find-next": () => nextHit(1),
   "find-prev": () => nextHit(-1),
   "find-close": () => {
-    findToken++;
+    cancelFind();
+    $("#find-text").removeAttribute("aria-invalid");
     const restoreFocus = $("#findbar").contains(document.activeElement);
     $("#findbar").hidden = true;
     $("#find-text").value = "";
@@ -4277,8 +4249,32 @@ $("#zoom").onchange = () => {
 };
 $("#find-text").onkeydown = (e) => {
   if (e.isComposing || e.keyCode === 229) return;
-  if (e.key === "Enter") guarded(searchText);
+  if (e.key !== "Enter") return;
+  e.preventDefault();
+  clearTimeout(findTimer);
+  // Enter repeats the same search by stepping to the next match; Shift+Enter goes back.
+  if (S.hits.length && lastFindKey === currentFindKey()) guarded(() => nextHit(e.shiftKey ? -1 : 1));
+  else guarded(searchText);
 };
+$("#find-text").addEventListener("input", (e) => {
+  cancelFind();
+  if (e.isComposing) return;
+  if (!$("#find-text").value.trim()) {
+    S.hits = [];
+    S.hitIndex = -1;
+    lastFindKey = "";
+    $("#find-text").removeAttribute("aria-invalid");
+    $("#find-count").textContent = "";
+    renderFindResults();
+    renderMarks();
+    return;
+  }
+  findTimer = setTimeout(() => guarded(searchText), 350);
+});
+$("#find-text").addEventListener("compositionend", () => {
+  clearTimeout(findTimer);
+  findTimer = setTimeout(() => guarded(searchText), 350);
+});
 let filterComposing = false;
 const updateFilter = () => {
   clearTimeout(filterTimer);
@@ -4853,6 +4849,7 @@ $("#tree").addEventListener("contextmenu", (e) => {
     cannotPaste = noClipboard || !!invalidCut;
   contextMenu(e, [
     ["编辑标题 · F2", renameInline, empty],
+    ["复制标题", () => copyPageText(selectedNode().title), empty],
     ["新增同级书签", () => createBookmark()],
     ["新增子书签", () => createBookmark("child"), empty],
     null,
@@ -4899,6 +4896,14 @@ async function copyPageText(text) {
 $("#canvas-host").addEventListener("contextmenu", (e) => {
   if (e.target.closest(".page-edit-layer")) return;
   const selection = surface.selection();
+  const domSelection = window.getSelection();
+  const savedRange = selection && domSelection?.rangeCount ? domSelection.getRangeAt(0).cloneRange() : null;
+  const annotateSelection = type => {
+    if (!savedRange || !savedRange.startContainer.isConnected) return;
+    domSelection.removeAllRanges();
+    domSelection.addRange(savedRange);
+    document.querySelector(`#selection-quickbar [data-sq="${type}"]`)?.click();
+  };
   contextMenu(e, [
     ...(selection
       ? [
@@ -4907,6 +4912,11 @@ $("#canvas-host").addEventListener("contextmenu", (e) => {
             "复制为单行",
             () => copyPageText(selection.text.replace(/\s+/gu, " ").trim()),
           ],
+          null,
+          ["高亮选中文字", () => annotateSelection("highlight")],
+          ["下划线", () => annotateSelection("underline")],
+          ["删除线", () => annotateSelection("strikeout")],
+          null,
         ]
       : []),
     [
@@ -4937,8 +4947,13 @@ $("#canvas-host").addEventListener("contextmenu", (e) => {
         }),
     ],
     ["当前视图设置为目标", () => setCurrentTarget()],
+    null,
+    ["上一页", () => document.querySelector('[data-action="prev"]').click(), S.page <= 1],
+    ["下一页", () => document.querySelector('[data-action="next"]').click(), S.page >= (S.info?.pageCount || 1)],
+    ["转到页面…", gotoDialog],
     ["适合宽度", actions.width],
     ["适合页面", actions.fit],
+    ["旋转视图", actions.rotate],
     ["页面缩略图", actions["toggle-thumbnails"]],
   ]);
 });
@@ -5140,7 +5155,7 @@ document.addEventListener(
 // Overflow menu & view-options popover support outside-click close and keyboard traversal.
 document.addEventListener("click", (e) => {
   const menu = document.querySelector(".more-tools");
-  if (menu?.open && (!menu.contains(e.target) || e.target.closest("[data-action]")))
+  if (menu?.open && (!menu.contains(e.target) || e.target.closest(".more-tools-menu button")))
     menu.open = false;
   const viewOpts = document.querySelector(".view-options");
   if (viewOpts?.open && !viewOpts.contains(e.target))
@@ -5255,7 +5270,7 @@ function applyPageTone(tone) {
 }
 
 // ── Enhanced findbar toggles & clickable snippet results ──
-for (const id of ["find-case", "find-regex"]) {
+for (const id of ["find-case", "find-regex", "find-word"]) {
   const btn = $("#" + id);
   if (btn) btn.onclick = () => {
     btn.setAttribute("aria-pressed", String(btn.getAttribute("aria-pressed") !== "true"));
@@ -5266,6 +5281,22 @@ $("#find-list-toggle")?.addEventListener("click", () => {
   const list = $("#find-results"), btn = $("#find-list-toggle");
   list.hidden = !list.hidden;
   btn.setAttribute("aria-expanded", String(!list.hidden));
+});
+$("#find-results")?.addEventListener("contextmenu", (e) => {
+  const item = e.target.closest("[data-hit-index]");
+  if (!item) return;
+  const index = +item.dataset.hitIndex, h = S.hits[index];
+  if (!h) return;
+  const line = (x) => `p.${x.page}\t${(x.snippet || "").replace(/\s+/g, " ")}`;
+  contextMenu(e, [
+    ["转到此处", () => jumpToHit(index)],
+    null,
+    ["复制匹配文字", () => copyPageText(h.match || "")],
+    ["复制所在片段", () => copyPageText((h.snippet || "").replace(/^…|…$/g, ""))],
+    ["复制全部结果", () => copyPageText(S.hits.map(line).join("\n"))],
+    null,
+    ["从匹配创建书签", () => createBookmark("after", { page: h.page, text: (h.match || "").replace(/\s+/g, " ").trim().slice(0, 120), point: [h.x, h.y] })],
+  ]);
 });
 $("#find-results")?.addEventListener("click", (e) => {
   const item = e.target.closest("[data-hit-index]");
@@ -5280,59 +5311,22 @@ $("#find-results")?.addEventListener("click", (e) => {
     const sel = window.getSelection();
     if (!sel?.rangeCount || sel.isCollapsed || !S.pdf) return;
     const range = sel.getRangeAt(0);
-    const pageEl = (range.startContainer.nodeType === 1 ? range.startContainer : range.startContainer.parentElement)?.closest(".pdf-page");
-    if (!pageEl) return;
-    const page = Number(pageEl.dataset.page);
-    const entry = surface.entries.get(page);
-    if (!entry?.viewport) return;
-    const pageRect = pageEl.getBoundingClientRect();
-    const rawRects = [...range.getClientRects()]
-      .filter((r) => r.width >= 2 && r.height >= 2)
-      .filter(
-        (r) =>
-          r.right > pageRect.left &&
-          r.left < pageRect.right &&
-          r.bottom > pageRect.top &&
-          r.top < pageRect.bottom,
-      )
-      .map((r) => {
-        const left = Math.max(pageRect.left, r.left);
-        const right = Math.min(pageRect.right, r.right);
-        const top = Math.max(pageRect.top, r.top);
-        const bottom = Math.min(pageRect.bottom, r.bottom);
-        return { left, right, top, bottom, width: right - left, height: bottom - top };
-      })
-      .filter((r) => r.width >= 2 && r.height >= 2);
-    if (!rawRects.length) return;
-    // Merge adjacent rects on the same line to avoid fragmented annotation boxes.
-    const merged = [];
-    for (const r of rawRects) {
-      const last = merged.at(-1);
-      if (last && Math.abs(last.top - r.top) < 4 && Math.abs(last.height - r.height) < 6 && r.left <= last.right + 6) {
-        last.left = Math.min(last.left, r.left);
-        last.right = Math.max(last.right, r.right);
-        last.top = Math.min(last.top, r.top);
-        last.bottom = Math.max(last.bottom, r.bottom);
-      } else {
-        merged.push({ left: r.left, right: r.right, top: r.top, bottom: r.bottom, height: r.height });
+    const added = [];
+    for (const [page, entry] of [...surface.entries].sort(([a], [b]) => a - b)) {
+      if (!entry.viewport || !range.intersectsNode(entry.text)) continue;
+      const bounds = entry.shell.getBoundingClientRect();
+      const { text, bands } = selectedPageBands(range, entry.text, bounds);
+      for (const band of bands) {
+        const a = entry.viewport.convertToPdfPoint(band.left - bounds.left, band.top - bounds.top);
+        const b = entry.viewport.convertToPdfPoint(band.right - bounds.left, band.bottom - bounds.top);
+        added.push({
+          id: uid(), page, type, text, color, opacity,
+          rect: [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[0], b[0]), Math.max(a[1], b[1])],
+          width: type === "highlight" ? 2 : 1.5, dash: "solid",
+        });
       }
     }
-    const text = sel.toString().trim().slice(0, 400);
-    const added = merged.map((r) => {
-      const a = entry.viewport.convertToPdfPoint(r.left - pageRect.left, r.top - pageRect.top);
-      const b = entry.viewport.convertToPdfPoint(r.right - pageRect.left, r.bottom - pageRect.top);
-      return {
-        id: uid(),
-        page,
-        type,
-        text,
-        rect: [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[0], b[0]), Math.max(a[1], b[1])],
-        color,
-        opacity,
-        width: type === "highlight" ? 2 : 1.5,
-        dash: "solid",
-      };
-    });
+    if (!added.length) return;
     commit(S.nodes, { annotations: [...S.annotations, ...added] });
     sel.removeAllRanges();
     hideQuickbar();
@@ -5431,6 +5425,13 @@ async function renderWelcomeRecents() {
         e.stopPropagation();
         window.desktop?.removeRecentFile?.(item.path).then(renderWelcomeRecents).catch(() => {});
       };
+      row.oncontextmenu = (e) =>
+        contextMenu(e, [
+          ["打开", () => window.desktop?.openDocumentPaths?.([item.path])],
+          ["复制文件路径", () => copyPageText(item.path)],
+          null,
+          ["从最近记录移除", () => window.desktop?.removeRecentFile?.(item.path).then(renderWelcomeRecents)],
+        ]);
       row.append(openBtn, delBtn);
       frag.append(row);
     }
@@ -5443,6 +5444,7 @@ $("#welcome-recents-clear")?.addEventListener("click", () => {
   window.desktop?.removeRecentFile?.("*").then(renderWelcomeRecents).catch(() => {});
 });
 void renderWelcomeRecents();
+installTextContextMenu({ guard: guarded });
 
 // ── Left Sidebar Page Thumbnail Mode ──
 thumbnailSidebar = installThumbnailSidebar({

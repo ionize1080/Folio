@@ -105,8 +105,13 @@ body .tree-row {border-radius:6px;}
   #tree:focus-visible .tree-row.keyboard-current {outline-color:Highlight;}
 }
 /* One compact window strip: document actions, tabs and window controls. */
-.appbar[data-ribbon].custom-titlebar,html[lang=en] .appbar[data-ribbon].custom-titlebar{grid-template-columns:auto auto minmax(80px,1fr) auto auto;padding-right:0;column-gap:8px;-webkit-app-region:drag;}
-.custom-titlebar>nav,.custom-titlebar button,.custom-titlebar input,.custom-titlebar select,.custom-titlebar details,.custom-titlebar .document-tabs,.custom-titlebar .doc-tab,.custom-titlebar .studio-identity,.custom-titlebar .ribbon-tab-row{-webkit-app-region:no-drag;}
+.appbar[data-ribbon].custom-titlebar,html[lang=en] .appbar[data-ribbon].custom-titlebar{grid-template-columns:auto auto minmax(80px,1fr) auto auto;padding-right:0;column-gap:8px;}
+/* Only the visible editor contributes a native caption. The title and the unused
+   tab strip can move the window. Interactive controls keep their own hit areas. */
+body:not(.inactive-document-view) .appbar.custom-titlebar { app-region: drag; user-select: none; }
+.custom-titlebar > nav,
+.custom-titlebar :is(button, input, select, details, .document-tab, .ribbon-tab-row) { app-region: no-drag; }
+.appbar[data-ribbon].custom-titlebar > .document-tabs { margin-inline-end: 40px; }
 .appbar.custom-titlebar>.document-tabs,.appbar.custom-titlebar>.doc-tab,.custom-titlebar>.studio-identity{grid-column:3;}
 .appbar.custom-titlebar>.app-actions{grid-column:4;}
 .custom-titlebar>.titlebar-quick{grid-column:2;grid-row:1;display:flex;gap:2px;align-items:center;border-right:1px solid var(--line);padding-right:8px;}

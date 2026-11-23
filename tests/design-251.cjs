@@ -28,7 +28,9 @@ const path=require('node:path'),fs=require('node:fs'),assert=require('node:asser
    for(const m of metrics)assert.equal(m.gap,'8px',JSON.stringify(m));
    await page.locator('.tree-row').first().click();
    const selection=await page.locator('.tree-row.selected').first().evaluate(e=>({shadow:getComputedStyle(e).boxShadow,radius:getComputedStyle(e).borderRadius}));
-   assert.equal(selection.shadow,'none');assert.equal(selection.radius,'8px');
+   assert.equal(selection.shadow,'none');
+   const inset = parseFloat(selection.radius) * (1 - 2 ** (-1 / 3));
+   assert(Math.abs(inset - 8 * (1 - 2 ** (-.5))) < .01, 'Selected rows retain the default optical radius');
 
    if(lang==='zh-Hans'&&size[0]===800&&!dark){
    await page.locator('#tree').focus();await page.keyboard.press('ArrowDown');
