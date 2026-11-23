@@ -75,7 +75,7 @@ const path = require("node:path");
     await settings.click();
     assert.equal(await slider.inputValue(), "16");
     const swatch = page.locator(".cp-swatch").first();
-    assert.equal(await swatch.evaluate(el => getComputedStyle(el).cornerTopLeftShape), "round");
+    assert.match(await swatch.evaluate(el => getComputedStyle(el).cornerTopLeftShape), /^(round|superellipse\(1\))$/);
     await h.capture("corner-preferences.png");
     assert.deepEqual(h.errors, []);
     fs.writeFileSync(path.resolve("tests/output/corners-tools-286.json"), JSON.stringify({ status: "passed", cases, shape, gain, errors: h.errors }));

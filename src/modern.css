@@ -162,7 +162,7 @@ button.secondary:enabled:hover { background: var(--selected); color: var(--accen
 .ribbon-tab-row { box-shadow: none; gap: 8px; }
 /* Layout containment gives the tab row its own stacking context. Raise that
    context while the menu overlaps the independently contained command deck. */
-.ribbon-tab-row:has(> .more-tools[open]) { z-index: 2; }
+.ribbon-tab-row:has(> .more-tools[open]) { z-index: 60; }
 .ribbon-tabs { gap: 2px; }
 .ribbon-tabs button {
   height: 28px; min-height: 28px; margin-block: 1px; padding: 0 14px;
