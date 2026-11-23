@@ -759,12 +759,12 @@ body.studio-active .titlebar-quick,
 
 /* Enhanced Findbar & Results List */
 .findbar-row { display: flex; align-items: center; gap: 4px; }
-#findbar #find-case, #findbar #find-regex {
+#findbar #find-case, #findbar #find-regex, #findbar #find-word {
   min-width: 28px; height: 28px; min-height: 28px; padding: 0 6px;
   font: 600 11.5px/1 ui-monospace, "Cascadia Mono", Consolas, monospace;
   color: var(--muted); background: transparent;
 }
-#findbar #find-case[aria-pressed="true"], #findbar #find-regex[aria-pressed="true"] {
+#findbar #find-case[aria-pressed="true"], #findbar #find-regex[aria-pressed="true"], #findbar #find-word[aria-pressed="true"] {
   background: var(--accent-soft); color: var(--accent); box-shadow: inset 0 0 0 1px var(--selected-line);
 }
 #findbar #find-list-toggle { height: 28px; min-height: 28px; padding: 0 8px; font-size: 11.5px; color: var(--muted); }
@@ -1417,3 +1417,8 @@ body .sidebar-mode-tabs button:focus-visible {
 :root[data-page-tone="dark"] .thumb-canvas { filter: invert(0.88) hue-rotate(180deg) contrast(0.96); }
 :root[data-page-tone="dark"] .thumb-frame { background: #1e2128; }
 
+
+#find-text[aria-invalid="true"] { border-color: var(--danger); box-shadow: 0 0 0 3px color-mix(in oklab, var(--danger) 18%, transparent); }
+#findbar:has(#find-text[aria-invalid="true"]) #find-count { color: var(--danger); }
+.find-result-item .fr-snippet mark { background: color-mix(in oklab, var(--accent) 24%, transparent); color: inherit; border-radius: 3px; padding: 0 1px; font-weight: 650; }
+.find-results-note { padding: 6px 8px; font-size: 11.5px; color: var(--muted); text-align: center; }

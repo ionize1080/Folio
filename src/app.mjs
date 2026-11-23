@@ -2507,26 +2507,52 @@ function renderFindResults() {
     const snippet = document.createElement("span");
     snippet.className = "fr-snippet";
     snippet.setAttribute("translate", "no");
-    snippet.textContent = h.snippet || "";
+    if (h.snip) {
+      const mark = document.createElement("mark");
+      mark.textContent = h.snip[1];
+      snippet.append(h.snip[0], mark, h.snip[2]);
+    } else snippet.textContent = h.snippet || "";
     btn.append(pageSpan, snippet);
     frag.append(btn);
   });
+  if (S.hits.length > 200) {
+    const note = document.createElement("div");
+    note.className = "find-results-note";
+    note.textContent = "仅列出前 200 处，其余可用 F3 / Shift+F3 逐个浏览";
+    frag.append(note);
+  }
   list.replaceChildren(frag);
+}
+let lastFindKey = "", findTimer = 0;
+function currentFindKey() {
+  const p = (id) => $("#" + id)?.getAttribute("aria-pressed") === "true";
+  return [$("#find-text").value.trim(), p("find-case"), p("find-regex"), p("find-word")].join("\0");
 }
 async function searchText() {
   const rawQuery = $("#find-text").value.trim();
   if (!rawQuery || !S.pdf) return;
   const caseSensitive = $("#find-case")?.getAttribute("aria-pressed") === "true";
   const useRegex = $("#find-regex")?.getAttribute("aria-pressed") === "true";
+  const wholeWord = $("#find-word")?.getAttribute("aria-pressed") === "true";
+  const input = $("#find-text");
   let regex = null;
-  if (useRegex) {
+  input.removeAttribute("aria-invalid");
+  if (useRegex || wholeWord) {
     try {
-      regex = new RegExp(rawQuery, caseSensitive ? "gu" : "gui");
+      const source = useRegex ? rawQuery : rawQuery.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const wrapped = wholeWord ? "(?<![\\p{L}\\p{N}_])(?:" + source + ")(?![\\p{L}\\p{N}_])" : source;
+      regex = new RegExp(wrapped, caseSensitive ? "gu" : "gui");
     } catch (e) {
-      $("#find-count").textContent = "正则语法错误";
+      input.setAttribute("aria-invalid", "true");
+      $("#find-count").textContent = "正则语法错误：" + String(e.message).replace(/^Invalid regular expression:\s*/, "").slice(0, 80);
+      S.hits = [];
+      S.hitIndex = -1;
+      renderFindResults();
+      renderMarks();
       return;
     }
   }
+  lastFindKey = [rawQuery, caseSensitive, useRegex, wholeWord].join("\0");
   const query = caseSensitive ? rawQuery : rawQuery.toLocaleLowerCase();
   const token = ++findToken;
   S.hits = [];
@@ -2565,8 +2591,16 @@ async function searchText() {
       const item = range[0].item;
       const sStart = Math.max(0, at - 24), sEnd = Math.min(entry.text.length, at + len + 44);
       const snippet = (sStart > 0 ? "…" : "") + entry.text.slice(sStart, sEnd).trim() + (sEnd < entry.text.length ? "…" : "");
+      const cut = entry.text.slice(sStart, sEnd);
+      const lead = cut.length - cut.trimStart().length, rel = at - sStart - lead;
+      const trimmed = cut.trim();
       S.hits.push({
         page,
+        match: entry.text.slice(at, at + len),
+        snip:
+          rel >= 0 && rel + len <= trimmed.length
+            ? [(sStart > 0 ? "…" : "") + trimmed.slice(0, rel), trimmed.slice(rel, rel + len), trimmed.slice(rel + len) + (sEnd < entry.text.length ? "…" : "")]
+            : null,
         x: item.transform[4],
         y: item.transform[5] + (item.height || 10) + 12,
         items: range.map((x) => x.item),
@@ -2594,7 +2628,7 @@ async function searchText() {
       yielded = performance.now();
     }
   }
-  $("#find-count").textContent = `${S.hits.length} 处匹配`;
+  $("#find-count").textContent = S.hits.length >= 20000 ? `${S.hits.length} 处匹配（已达上限）` : S.hits.length ? `${S.hits.length} 处匹配` : "无匹配";
   renderFindResults();
   if (S.hits.length) {
     S.hitIndex = -1;
@@ -4077,8 +4111,15 @@ const actions = {
   metadata: metadataDialog,
   annotate: annotateDialog,
   find: () => {
+    const input = $("#find-text"), picked = S.pdf ? surface.selection()?.text : "";
     $("#findbar").hidden = false;
-    $("#find-text").focus();
+    // Ctrl+F with page text selected searches for it, as in browsers and readers.
+    if (picked && picked.length <= 120 && !/\n/.test(picked)) {
+      input.value = picked;
+      guarded(searchText);
+    }
+    input.focus();
+    input.select();
   },
   "find-run": searchText,
   "find-next": () => nextHit(1),
@@ -4172,8 +4213,33 @@ $("#zoom").onchange = () => {
 };
 $("#find-text").onkeydown = (e) => {
   if (e.isComposing || e.keyCode === 229) return;
-  if (e.key === "Enter") guarded(searchText);
+  if (e.key !== "Enter") return;
+  e.preventDefault();
+  clearTimeout(findTimer);
+  // Enter repeats the same search by stepping to the next match; Shift+Enter goes back.
+  if (S.hits.length && lastFindKey === currentFindKey()) guarded(() => nextHit(e.shiftKey ? -1 : 1));
+  else guarded(searchText);
 };
+$("#find-text").addEventListener("input", (e) => {
+  clearTimeout(findTimer);
+  if (e.isComposing) return;
+  if (!$("#find-text").value.trim()) {
+    findToken++;
+    S.hits = [];
+    S.hitIndex = -1;
+    lastFindKey = "";
+    $("#find-text").removeAttribute("aria-invalid");
+    $("#find-count").textContent = "";
+    renderFindResults();
+    renderMarks();
+    return;
+  }
+  findTimer = setTimeout(() => guarded(searchText), 350);
+});
+$("#find-text").addEventListener("compositionend", () => {
+  clearTimeout(findTimer);
+  findTimer = setTimeout(() => guarded(searchText), 350);
+});
 let filterComposing = false;
 const updateFilter = () => {
   clearTimeout(filterTimer);
@@ -5149,7 +5215,7 @@ function applyPageTone(tone) {
 }
 
 // ── Enhanced findbar toggles & clickable snippet results ──
-for (const id of ["find-case", "find-regex"]) {
+for (const id of ["find-case", "find-regex", "find-word"]) {
   const btn = $("#" + id);
   if (btn) btn.onclick = () => {
     btn.setAttribute("aria-pressed", String(btn.getAttribute("aria-pressed") !== "true"));
@@ -5160,6 +5226,22 @@ $("#find-list-toggle")?.addEventListener("click", () => {
   const list = $("#find-results"), btn = $("#find-list-toggle");
   list.hidden = !list.hidden;
   btn.setAttribute("aria-expanded", String(!list.hidden));
+});
+$("#find-results")?.addEventListener("contextmenu", (e) => {
+  const item = e.target.closest("[data-hit-index]");
+  if (!item) return;
+  const index = +item.dataset.hitIndex, h = S.hits[index];
+  if (!h) return;
+  const line = (x) => `p.${x.page}\t${(x.snippet || "").replace(/\s+/g, " ")}`;
+  contextMenu(e, [
+    ["转到此处", () => jumpToHit(index)],
+    null,
+    ["复制匹配文字", () => copyPageText(h.match || "")],
+    ["复制所在片段", () => copyPageText((h.snippet || "").replace(/^…|…$/g, ""))],
+    ["复制全部结果", () => copyPageText(S.hits.map(line).join("\n"))],
+    null,
+    ["从匹配创建书签", () => createBookmark("after", { page: h.page, text: (h.match || "").replace(/\s+/g, " ").trim().slice(0, 120), point: [h.x, h.y] })],
+  ]);
 });
 $("#find-results")?.addEventListener("click", (e) => {
   const item = e.target.closest("[data-hit-index]");

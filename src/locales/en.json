@@ -2927,5 +2927,15 @@
   "已复制文件名": "File name copied",
   "复制文件路径": "Copy file path",
   "粘贴": "Paste",
-  "从最近记录移除": "Remove from recent"
+  "从最近记录移除": "Remove from recent",
+  "整词匹配": "Whole word",
+  "无匹配": "No matches",
+  "正则语法错误：{0}": "Invalid regular expression: {0}",
+  "{0} 处匹配（已达上限）": "{0} matches (limit reached)",
+  "仅列出前 200 处，其余可用 F3 / Shift+F3 逐个浏览": "Showing the first 200; use F3 / Shift+F3 to step through the rest",
+  "转到此处": "Go to match",
+  "复制匹配文字": "Copy matched text",
+  "复制所在片段": "Copy surrounding snippet",
+  "复制全部结果": "Copy all results",
+  "从匹配创建书签": "Create bookmark from match"
 }

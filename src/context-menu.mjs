@@ -4,6 +4,7 @@ import { icon } from "./icons.mjs";
 
 // Icon / emphasis for context-menu rows, keyed by label. Unlisted rows stay text-only.
 export const MENU_META = {
+  "转到此处": ["target", ""], "复制匹配文字": ["copy", ""], "复制所在片段": ["copy-line", ""], "复制全部结果": ["copy", ""], "从匹配创建书签": ["bookmark-plus", "accent"],
   "切换到此标签页": ["file", ""], "关闭标签页": ["close", ""], "关闭其他标签页": ["close", ""], "关闭右侧标签页": ["close", ""],
   "复制文件名": ["copy", ""], "复制文件路径": ["copy", ""], "打开": ["file", "accent"], "从最近记录移除": ["trash", "danger"],
   "粘贴": ["paste", ""],
