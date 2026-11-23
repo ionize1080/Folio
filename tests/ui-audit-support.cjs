@@ -25,6 +25,7 @@ module.exports = async function auditHarness(name) {
   const frames = () => page.evaluate(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))));
   const capture = file => require('./native-capture.cjs')(app, page, path.join(out, file));
   const openPDF = async (file = 'tests/output/save-281/fixture.pdf') => {
+    await fs.promises.access(path.resolve(file), fs.constants.R_OK);
     await app.evaluate(({ dialog }, file) => { dialog.showOpenDialog = async () => ({ canceled: false, filePaths: [file] }); }, path.resolve(file));
     const start = performance.now();
     await page.locator('[data-action=open]').first().click();

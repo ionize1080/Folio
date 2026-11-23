@@ -39,7 +39,6 @@ const path=require('node:path'),assert=require('node:assert/strict');
   for(let i=0;i<rects.length;i++)for(let j=i+1;j<rects.length;j++){const [a,b]=[rects[i],rects[j]];assert(!(Math.min(a[2],b[2])>Math.max(a[0],b[0])+.01&&Math.min(a[3],b[3])>Math.max(a[1],b[1])+.01),'highlight rects overlap');}
   checks.push('context-menu highlight yields non-overlapping line bands ('+rects.length+')');
   // Select actual glyphs across two rendered pages. Both pages must receive annotation geometry.
-  await page.waitForFunction(()=>document.querySelectorAll('.pdf-page .textLayer span').length>=2);
   const pages=await page.evaluate(async()=>{
     const {S,surface}=await import('./app.mjs');
     await surface.zoom(.5);

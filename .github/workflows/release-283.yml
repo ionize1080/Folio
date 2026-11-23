@@ -1551,6 +1551,8 @@ jobs:
         path: deliverables
     - run: python scripts/extract-package-283.py
     - run: native\runtime\python.exe tests/save-281-native.py prepare
+    - name: Prepare the three-page PDF for selection and context menus
+      run: native\runtime\python.exe tests/page-organization.py
     - run: node scripts/package-shard-283.cjs 6
       env:
         FOLIO_EXE: ${{ github.workspace }}\dist\Folio-PDF-Studio-win-x64\Folio.exe

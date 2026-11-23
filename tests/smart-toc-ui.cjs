@@ -100,8 +100,15 @@ const errors = [],
     await page.evaluate(() => window.__qa.actions["smart-toc"]());
     await page.waitForSelector("#st-start");
   }
-  await open();
-  assert.equal(await page.locator('[data-action="smart-toc"] svg').count(), 1);
+  const toolbarEntry = page.locator('.toolbar [data-action="smart-toc"]');
+  const emptyBookmarksEntry = page.locator('.tree-empty-actions [data-action="smart-toc"]');
+  assert.equal(await toolbarEntry.locator("svg").count(), 1);
+  assert.equal(await emptyBookmarksEntry.locator("svg").count(), 1);
+  await toolbarEntry.click();
+  await page.waitForSelector("#st-start");
+  await page.locator("#modal-close").click();
+  await emptyBookmarksEntry.click();
+  await page.waitForSelector("#st-start");
   await page.locator("#st-start").click();
   await page.waitForFunction(
     () => !document.querySelector("#st-start").disabled,
