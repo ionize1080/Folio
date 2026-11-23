@@ -7,28 +7,42 @@ export async function installWindowChrome(){
   const state=await api.windowState();if(!state.custom)return;
   const header=document.querySelector('.appbar');header.classList.add('custom-titlebar');
   const quick=document.createElement('nav');quick.className='titlebar-quick';quick.setAttribute('aria-label','常用文档操作');
+  const quickSyncs=[];
   for(const [action,label,key] of [['save','保存','Ctrl+S'],['undo','撤销','Ctrl+Z'],['redo','重做','Ctrl+Y']]){
     const original=document.querySelector(`.ribbon-home [data-action=${action}]`),button=document.createElement('button');button.dataset.quickAction=action;button.innerHTML=icon(action);quick.append(button);
     const studioButton=()=>action==='save'?null:document.querySelector(`.studio-history [data-history="edit.${action}"]`);
     const studioAction=()=>document.body.classList.contains('studio-active')&&action!=='save'?studioButton():original;
     button.onclick=()=>studioAction()?.click();
-    let studioObserver=null,observedStudio=null;
-    const sync=()=>{
+    let studioObserver=null,observedStudio=null,lastLabel='';
+    const sync=(forceLabel=false)=>{
+      const inStudio=document.body.classList.contains('studio-active');
       const target=studioAction();
-      if(document.body.classList.contains('studio-active')&&action!=='save'&&target&&target!==observedStudio){
+      if(inStudio&&action!=='save'&&target&&target!==observedStudio){
         studioObserver?.disconnect();
         observedStudio=target;
-        studioObserver=new MutationObserver(sync);
+        studioObserver=new MutationObserver(()=>sync(false));
         studioObserver.observe(target,{attributes:true,attributeFilter:['disabled']});
+      }else if(!inStudio&&studioObserver){
+        studioObserver.disconnect();studioObserver=null;observedStudio=null;
       }
-      button.disabled=!!target?.disabled;
-      button.title=t(label)+' · '+key;
-      button.setAttribute('aria-label',t(label));
+      const nextDisabled=!!target?.disabled;
+      if(button.disabled!==nextDisabled)button.disabled=nextDisabled;
+      if(forceLabel||!lastLabel){
+        const text=t(label);
+        if(text!==lastLabel){lastLabel=text;button.title=text+' · '+key;button.setAttribute('aria-label',text);}
+      }
     };
-    new MutationObserver(sync).observe(original,{attributes:true,attributeFilter:['disabled']});
-    new MutationObserver(sync).observe(document.body,{attributes:true,attributeFilter:['class']});
-    onLanguageChange(sync);sync();
+    new MutationObserver(()=>sync(false)).observe(original,{attributes:true,attributeFilter:['disabled']});
+    quickSyncs.push(sync);
+    onLanguageChange(()=>sync(true));sync(true);
   }
+  let wasStudio=document.body.classList.contains('studio-active');
+  new MutationObserver(()=>{
+    const nowStudio=document.body.classList.contains('studio-active');
+    if(nowStudio===wasStudio)return;
+    wasStudio=nowStudio;
+    for(const fn of quickSyncs)fn(false);
+  }).observe(document.body,{attributes:true,attributeFilter:['class']});
   const controls=document.createElement('nav');controls.className='window-controls';controls.setAttribute('aria-label','窗口控制');
   for(const [action,shape] of [['minimize','<path d="M4 10h12"/>'],['maximize','<rect x="5" y="5" width="10" height="10" rx="1"/>'],['close','<path d="m5 5 10 10M15 5 5 15"/>']]){
     const b=document.createElement('button');b.dataset.window=action;b.innerHTML=`<svg viewBox="0 0 20 20" aria-hidden="true">${shape}</svg>`;b.onclick=()=>api.windowCommand(action).catch(console.error);controls.append(b);

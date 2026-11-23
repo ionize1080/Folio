@@ -23,7 +23,7 @@ const {_electron:electron}=require('playwright'),path=require('node:path'),fs=re
    });
    assert(!geometry.overflow,JSON.stringify({language,width,dark,geometry}));
    assert(geometry.rects.length>=8,'the active Home commands must remain visible');
-   geometry.rects.forEach(r=>assert(r.x>=0&&r.right<=geometry.width&&r.h===32,JSON.stringify({language,width,dark,r})));
+   geometry.rects.forEach(r=>assert(r.x>=0&&r.right<=geometry.width&&r.h===36,JSON.stringify({language,width,dark,r})));
    const ribbon=await p.evaluate(()=>{
     const tabs=document.querySelector('.ribbon-tab-row').getBoundingClientRect(),commands=document.querySelector('#ribbon-home').getBoundingClientRect();
     const summary=document.querySelector('.more-tools > summary'),r=summary.getBoundingClientRect();

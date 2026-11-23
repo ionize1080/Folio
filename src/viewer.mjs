@@ -12,6 +12,10 @@ export class PageSurface {
     this.fallback = new Map();
     this.tileSerial = 0;
     this.boxes = [];
+    this.boxByPage = new Map();
+    this.renderSignature = "";
+    this.wheelZoomFrame = 0;
+    this.wheelZoomTarget = null;
     this.epoch = 0;
     this.navigation = 0;
     this.past = [];
@@ -52,7 +56,10 @@ export class PageSurface {
     this.future = [];
     this.viewRotation = 0;
     this.boxes = [];
+    this.boxByPage = new Map();
     this.signature = "";
+    this.renderSignature = "";
+    this.activated = null;
     this.host.querySelector("#page-shell")?.remove();
     this.host.querySelector("#page-stage")?.remove();
     this.stage = document.createElement("div");
@@ -92,6 +99,7 @@ export class PageSurface {
       } else this.dispose(e);
     }
     this.entries.clear();
+    this.activated = null;
     if (!keep) {
       for (const e of this.fallback.values()) this.dispose(e);
       this.fallback.clear();
@@ -120,9 +128,31 @@ export class PageSurface {
       sy = clientY === undefined ? this.host.clientHeight / 2 : clientY - r.top;
     const x = this.host.scrollLeft + sx,
       y = this.host.scrollTop + sy;
-    let b = this.boxes.reduce((a, b) =>
-      this.distance(b, x, y) < this.distance(a, x, y) ? b : a,
-    );
+    // Binary-search along the layout axis instead of scanning every page in large PDFs.
+    const boxes = this.boxes,
+      axis = this.boxAxis || "y",
+      coord = axis === "x" ? x : y,
+      extent = this.boxExtent ?? Infinity;
+    let lo = 0,
+      hi = boxes.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (boxes[mid][axis] + extent >= coord) hi = mid;
+      else lo = mid + 1;
+    }
+    let b = boxes[Math.min(lo, boxes.length - 1)];
+    let bestD = this.distance(b, x, y);
+    for (
+      let i = Math.max(0, lo - 2);
+      i < Math.min(boxes.length, lo + 6);
+      i++
+    ) {
+      const d = this.distance(boxes[i], x, y);
+      if (d < bestD) {
+        bestD = d;
+        b = boxes[i];
+      }
+    }
     const e = this.entries.get(b.page);
     const rx = (x - b.x) / b.w,
       ry = (y - b.y) / b.h;
@@ -146,7 +176,7 @@ export class PageSurface {
   }
   restoreAnchor(a) {
     if (!a) return;
-    const b = this.boxes.find((b) => b.page === a.page);
+    const b = this.boxByPage.get(a.page);
     if (!b) return;
     this.host.scrollLeft = b.x + a.rx * b.w - a.sx;
     this.host.scrollTop = b.y + a.ry * b.h - a.sy;
@@ -200,22 +230,23 @@ export class PageSurface {
       this.cover ? (p === 1 ? 0 : Math.floor(p / 2)) : Math.floor((p - 1) / 2);
     if (this.layout === "two")
       pages = pages.filter((p) => spread(p) === spread(s.page));
-    const key = JSON.stringify([
+    const renderKey = JSON.stringify([
       this.layout,
       this.cover,
       this.gaps,
       scale,
-      host.clientWidth,
-      host.clientHeight,
       devicePixelRatio || 1,
       this.settings.quality || 2,
       s.rotation,
       this.viewRotation,
       single ? s.page : 0,
     ]);
+    const key = `${renderKey}|${host.clientWidth}x${host.clientHeight}`;
     if (key !== this.signature) {
+      const needsRerender = !this.signature || renderKey !== this.renderSignature;
       this.signature = key;
-      this.cancel(true);
+      this.renderSignature = renderKey;
+      if (needsRerender) this.cancel(true);
       let rows = [];
       for (const page of pages) {
         let row = rows.at(-1);
@@ -224,6 +255,7 @@ export class PageSurface {
         row.push(page);
       }
       this.boxes = [];
+      this.boxByPage = new Map();
       let y = margin,
         x = margin,
         totalW = host.clientWidth,
@@ -243,6 +275,7 @@ export class PageSurface {
             h: sizes[i].h * scale,
           };
           this.boxes.push(b);
+          this.boxByPage.set(b.page, b);
           xx += b.w + gap;
           totalW = Math.max(totalW, xx - gap + margin);
         }
@@ -263,9 +296,24 @@ export class PageSurface {
         (v, b) => Math.max(v, horizontal ? b.w : b.h),
         0,
       );
+      if (!needsRerender) {
+        // Viewport resized without changing render scale/layout: reposition
+        // mounted pages in place without discarding or re-rendering canvases.
+        for (const [p, e] of this.entries) {
+          const b = this.boxByPage.get(p);
+          if (!b) {
+            this.dispose(e);
+            this.entries.delete(p);
+            continue;
+          }
+          e.b = { ...b };
+          e.shell.style.left = b.x + "px";
+          e.shell.style.top = b.y + "px";
+        }
+      }
     }
     for (const [p, e] of this.fallback) {
-      const b = this.boxes.find((b) => b.page === p);
+      const b = this.boxByPage.get(p);
       if (!b) {
         this.dispose(e);
         this.fallback.delete(p);
@@ -343,7 +391,7 @@ export class PageSurface {
     // pasteboard. Scroll position must not silently select the next PDF page.
     const editingPage = this.s.flowEdit?.editing ? this.s.flowEdit.page : null;
     const editingBox =
-      editingPage && this.boxes.find((b) => b.page === editingPage);
+      editingPage && this.boxByPage.get(editingPage);
     if (editingBox && !wanted.some((b) => b.page === editingPage))
       wanted.push(editingBox);
     const keep = new Set(wanted.map((b) => b.page));
@@ -590,6 +638,8 @@ export class PageSurface {
         }
         e.tileLayer.append(c);
         t.ready = true;
+        // Yield a frame after offscreen prefetch tiles so UI clicks & scrolling stay instant.
+        if (q.priority > 0) await new Promise((r) => requestAnimationFrame(r));
       } catch (err) {
         e.tiles.delete(key);
         c.width = 0;
@@ -673,17 +723,21 @@ export class PageSurface {
   activate(page) {
     const e = this.entries.get(page);
     if (!e?.viewport || e.cancelled) return;
-    this.activated = { entry: e, page };
-    for (const a of this.entries.values())
-      for (const el of [a.shell, a.canvas, a.text, a.marks, a.draw])
+    const prev = this.activated?.entry;
+    if (prev && prev !== e) {
+      for (const el of [prev.shell, prev.canvas, prev.text, prev.marks, prev.draw])
         el.removeAttribute("id");
-    [e.shell.id, e.canvas.id, e.text.id, e.marks.id, e.draw.id] = [
-      "page-shell",
-      "pdf-canvas",
-      "text-layer",
-      "mark-layer",
-      "draw-layer",
-    ];
+    }
+    this.activated = { entry: e, page };
+    if (e.shell.id !== "page-shell") {
+      [e.shell.id, e.canvas.id, e.text.id, e.marks.id, e.draw.id] = [
+        "page-shell",
+        "pdf-canvas",
+        "text-layer",
+        "mark-layer",
+        "draw-layer",
+      ];
+    }
     this.s.page = page;
     this.s.view = e.viewport;
     this.s.currentText = e.content;
@@ -708,7 +762,7 @@ export class PageSurface {
       // to b.y, paint, and then scroll another 16 px for a page-top destination.
       const pdfPage=await this.s.pdf.getPage(page);if(nav!==this.navigation)return;
       this.s.page=page;await this.refresh(null,false);if(nav!==this.navigation)return;
-      const b=this.boxes.find(b=>b.page===page);if(!b)return;
+      const b=this.boxByPage.get(page);if(!b)return;
       const vp=pdfPage.getViewport({scale:this.s.scale,rotation:this.rotation(page)}),v=pdfPage.view,a=target?.args||[];
       let point;
       if(target?.mode==='XYZ')point=vp.convertToViewportPoint(a[0]??v[0],a[1]??v[3]);
@@ -735,16 +789,23 @@ export class PageSurface {
     this.lastWheel = now;
     if (e.ctrlKey) {
       e.preventDefault();
-      this.zoom(
-        String(
-          Math.max(
-            0.1,
-            Math.min(12, this.s.scale * Math.exp(-e.deltaY * 0.002)),
-          ),
-        ),
-        e.clientX,
-        e.clientY,
-      ).catch(this.onError);
+      const baseScale = this.wheelZoomTarget ? this.wheelZoomTarget.scale : this.s.scale;
+      const nextScale = Math.max(
+        0.1,
+        Math.min(12, baseScale * Math.exp(-e.deltaY * 0.002)),
+      );
+      this.wheelZoomTarget = { scale: nextScale, cx: e.clientX, cy: e.clientY };
+      if (!this.wheelZoomFrame) {
+        this.wheelZoomFrame = requestAnimationFrame(() => {
+          this.wheelZoomFrame = 0;
+          const target = this.wheelZoomTarget;
+          this.wheelZoomTarget = null;
+          if (target)
+            this.zoom(String(target.scale), target.cx, target.cy).catch(
+              this.onError,
+            );
+        });
+      }
       return;
     }
     const delta=scrollDelta(e,this.settings.wheelLines||3);

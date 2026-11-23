@@ -11,6 +11,7 @@ import {pageRange} from './generation.mjs';
 import * as pdfjs from './vendor/pdf.mjs';
 import {pdfLoadingOptions} from './pdf-loading.mjs';
 import {icon} from './icons.mjs';
+import {showContextMenu} from './context-menu.mjs';
 import {chooseBlankPages} from './blank-pages-ui.mjs';
 import {readPageBoxes, organizerGeometry} from './page-organization-geometry.mjs';
 import {nativeRequest, releaseSource} from './native-source.mjs';
@@ -588,6 +589,48 @@ export function installPageOrganizer({S, session, run, exportPDF, replaceDocumen
       focusTile(i);
     });
     grid.addEventListener('dblclick', e => { const i = tileIndex(e.target); if (i !== undefined) peek(i); });
+    // Right-click (or the Menu key / Shift+F10) opens page actions for the selection, like the other menus.
+    grid.addEventListener('contextmenu', e => {
+      e.preventDefault();
+      if (busy || !peekLayer.hidden) return;
+      const i = tileIndex(e.target) ?? (e.target === grid ? undefined : index.get(focusKey));
+      let point = e;
+      if (i !== undefined) {
+        // Acting on an unselected page selects only that page, as file managers do.
+        if (!selected.has(order[i].key)) choose(i);
+        tiles.get(order[i].key).el.focus({preventScroll: true});
+        focusKey = order[i].key;
+        if (!e.clientX && !e.clientY) {
+          const r = tiles.get(order[i].key).el.getBoundingClientRect();
+          point = {clientX: r.left + r.width / 2, clientY: r.top + r.height / 2, preventDefault() {}};
+        }
+      }
+      const some = selected.size > 0, all = selected.size >= order.length;
+      const at = which => () => { q('[data-insert-position]').value = which; };
+      showContextMenu(point, [
+        ...(i !== undefined ? [['预览页面 Space', () => peek(i)], null] : []),
+        ['逆时针旋转 Ctrl+[', () => rotate(270), !some],
+        ['顺时针旋转 Ctrl+]', () => rotate(90), !some],
+        ['旋转 180°', () => rotate(180), !some],
+        null,
+        ['在此页之前插入文件…', () => { at('before')(); q('[data-org=insert]').click(); }, !some],
+        ['在此页之后插入文件…', () => { at('after')(); q('[data-org=insert]').click(); }, !some],
+        ['在此处插入空白页…', () => q('[data-org=blank]').click()],
+        ['替换为文件页面…', () => q('[data-org=replace]').click(), !some],
+        null,
+        ['复制所选页面 Ctrl+D', () => q('[data-org=copy]').click(), !some],
+        ['提取所选页面…', () => q('[data-org=extract]').click(), !some],
+        ['逆序排列所选页面', () => q('[data-org=reverse]').click(), selected.size < 2],
+        null,
+        ['全选 Ctrl+A', () => selectWhere(() => true), all],
+        ['反选', () => selectWhere(o => !selected.has(o.key)), !order.length],
+        null,
+        ['撤销 Ctrl+Z', () => q('[data-org=undo]').click(), !history.length],
+        ['重做 Ctrl+Y', () => q('[data-org=redo]').click(), !future.length],
+        null,
+        ['删除所选页面 Del', () => q('[data-org=delete]').click(), !some || all],
+      ]);
+    });
     grid.addEventListener('keydown', e => {
       const i = index.get(focusKey);
       if (i === undefined || busy || !peekLayer.hidden) return;

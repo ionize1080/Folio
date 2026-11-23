@@ -1,4 +1,5 @@
 import { icon } from "./icons.mjs";
+import { t } from "./i18n.mjs";
 
 export function installCommandPalette({ S, actions, guarded, toast }) {
   let dialog = null;
@@ -9,7 +10,18 @@ export function installCommandPalette({ S, actions, guarded, toast }) {
     const add = (id, label, group, run, { shortcut = "", doc = false, symbol = "sliders", keywords = "" } = {}) => {
       if (seen.has(id)) return;
       seen.add(id);
-      items.push({ id, label, group, run, shortcut, doc, symbol, search: `${label} ${group} ${id} ${keywords}`.toLowerCase() });
+      const localLabel = t(label);
+      const localGroup = t(group);
+      items.push({
+        id,
+        label,
+        group,
+        run,
+        shortcut,
+        doc,
+        symbol,
+        search: `${label} ${localLabel} ${group} ${localGroup} ${id} ${keywords}`.toLowerCase(),
+      });
     };
 
     const clickEl = (sel) => () => {
@@ -25,7 +37,7 @@ export function installCommandPalette({ S, actions, guarded, toast }) {
     add("print", "打印 / 小册子 / 多页讲义", "文件", clickEl("#print-document"), { shortcut: "Ctrl+P", doc: true, symbol: "print", keywords: "print booklet nup" });
     add("find", "全文搜索", "阅读", () => actions.find?.(), { shortcut: "Ctrl+F", doc: true, symbol: "search", keywords: "find search text" });
     add("goto", "跳转到指定页", "阅读", () => actions.goto?.(), { shortcut: "Ctrl+Shift+N", doc: true, symbol: "page-target", keywords: "goto page jump" });
-    add("toggle-thumbnails", "页面缩略图", "阅读", () => actions["toggle-thumbnails"]?.(), { shortcut: "Ctrl+T", doc: true, symbol: "pages", keywords: "thumbnails" });
+    add("toggle-thumbnails", "页面缩略图", "阅读", () => actions["toggle-thumbnails"]?.(), { shortcut: "Ctrl+T", symbol: "thumbs", keywords: "thumbnails sidebar pages preview" });
     add("toggle-bookmarks", "切换书签侧栏", "阅读", () => actions["toggle-bookmarks"]?.(), { shortcut: "Ctrl+B", symbol: "bookmark", keywords: "sidebar outline" });
     add("toggle-inspector", "切换属性侧栏", "阅读", () => actions["toggle-inspector"]?.(), { shortcut: "Ctrl+`", symbol: "sidebar-right", keywords: "inspector properties" });
     add("theme", "切换明暗外观", "视图", () => actions.theme?.(), { symbol: "sun", keywords: "dark light theme mode" });
