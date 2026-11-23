@@ -34,6 +34,7 @@ export function colors(name, custom, dark) {
   return {accent,ink:contrast(accent,"#FFFFFF")>=4.5?"#FFFFFF":"#101318",canvas:dark?p.night:p.paper};
 }
 export function applyAppearance(settings) {
+  document.documentElement.style.setProperty("--corner-radius", (settings.cornerRadius ?? 8) + "px");
   const dark=settings.theme==="dark" || (settings.theme==="system" && matchMedia("(prefers-color-scheme: dark)").matches);
   const {accent,ink,canvas}=colors(settings.palette,settings.customAccent,dark);
   document.body.classList.toggle("dark",dark);

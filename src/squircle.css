@@ -1,0 +1,32 @@
+/* A cubic superellipse has zero curvature where it meets each straight edge.
+ * At 45 degrees its inset is r * (1 - 2^(-1/3)). Match the inset of the
+ * circular radius chosen in Preferences: (1 - 2^(-1/2)) / (1 - 2^(-1/3)).
+ * Standard CSS radius overlap rules cap the footprint on short controls. */
+@supports (corner-shape: superellipse(1.5849625)) {
+  :root { --control-footprint: calc(var(--corner-radius) * 1.4197478); }
+  :where(
+    button, select, input:not([type=radio], [type=checkbox], [type=range], [type=color]), textarea, summary,
+    kbd, mark, output, [role=tab], [role=menuitem], [role=option], [role=radio], [role=switch],
+    .document-tab, .doc-tab, .tab-close, .tab-add,
+    .ribbon-tab, .ribbon-category, .ribbon-command, [data-ribbon-tab], [data-ribbon-command],
+    .sidebar-badge, .ocr-count, .fr-page, .cmd-item, .cmd-group, .st-state, .ft-badge,
+    #target-badge, .tree-row .page, .tree-row, .tree-tools button, .selection-quickbar,
+    .filter-wrap, .more-tools-menu, .view-options > div, .studio-view-popover, .studio-placement > div,
+    #context-menu, #toast, .toast, .organizer-label b, .organizer-options > div,
+    .choice-chips button, .pattern-chips button, .rules-view-tabs button, .palette-options label
+  ) {
+    corner-shape: superellipse(1.5849625);
+  }
+  /* The pill drawn behind each ribbon category (its hit cell is the full rectangle). */
+  .ribbon-tabs button::before { corner-shape: superellipse(1.5849625); }
+  /* Circles stay circles. */
+  :where(
+    input[type=radio], .selection-quickbar .sq-swatch, .cp-swatch, .cp-knob, .cp-now, .palette-options i,
+    #dirty-dot, .status-led, .spinner, .empty-orbit, .rg-dot, .tt-mark, .st-steps li i,
+    .st-state::before, .document-tab .modified::after
+  ) {
+    corner-shape: round;
+  }
+  /* Thin bars and tracks look identical either way; keep them on the cheapest path. */
+  :where(progress, .ocr-bar, .st-meter, .cp-hue, ::-webkit-scrollbar-thumb) { corner-shape: round; }
+}

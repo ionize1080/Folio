@@ -95,6 +95,7 @@ contextBridge.exposeInMainWorld("desktop", {
   droppedFile: (file) =>
     ipcRenderer.invoke("open-drop", webUtils.getPathForFile(file)),
   open: (kind) => ipcRenderer.invoke("open", kind),
+  editTextField: command => ipcRenderer.invoke("edit-text-field", command),
   copyText: (text) => ipcRenderer.invoke("copy-text", text),
   prepareSave: (data) => ipcRenderer.invoke("save-prepare", data),
   beginSaveStream: (data) => ipcRenderer.invoke("save-stream-begin", data),

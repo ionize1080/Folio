@@ -1,5 +1,9 @@
 # Folio PDF Studio — release validation
 
+## Folio 2.8.6
+
+The packaged UI tests hit-test the top, middle and bottom of the More Tools search field, scroll the results, and exercise collapsed ribbon, display zoom and three interface languages. Corner-radius checks cover live preview, cancel, apply and renderer reload. [Windows Actions](https://github.com/ionize1080/Folio/actions/workflows/release-286.yml) · [Release evidence](https://github.com/ionize1080/Folio/releases/download/v2.8.6/Folio-PDF-Studio-2.8.6-validation.json).
+
 ## Folio 2.8.5
 
 The [Windows release workflow](https://github.com/ionize1080/Folio/actions/workflows/release-285.yml) runs the editor corpus, native regressions and exact-archive desktop tests. The packaged thumbnail audit records ribbon timings, sidebar navigation and fixed-zoom canvas reuse. [Published validation JSON](https://github.com/ionize1080/Folio/releases/download/v2.8.5/Folio-PDF-Studio-2.8.5-validation.json).

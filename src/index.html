@@ -7,7 +7,7 @@
       http-equiv="Content-Security-Policy"
       content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' blob: data:; connect-src 'self' blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'none'"
     />
-    <title>Folio PDF Studio 2.8.5</title>
+    <title>Folio PDF Studio 2.8.6</title>
     <link rel="stylesheet" href="style.css" />
     <link rel="stylesheet" href="vendor/pdf_viewer.css" />
     <link rel="stylesheet" href="chrome.css" />
@@ -19,13 +19,14 @@
     <link rel="stylesheet" href="ocr.css" />
     <link rel="stylesheet" href="bookmarks.css" />
     <link rel="stylesheet" href="organizer.css" />
+    <link rel="stylesheet" href="squircle.css" />
   </head>
   <body>
     <header class="appbar">
       <div class="brand">
         <img class="logo" src="brand.svg" alt="Folio">
         <div>Folio <b>PDF Studio</b></div>
-        <span class="version">2.8.5</span>
+        <span class="version">2.8.6</span>
       </div>
       <div class="doc-tab">
         <i data-icon="file"></i><span id="doc-name">未打开文档</span
@@ -233,6 +234,10 @@
             <i data-icon="bookmark"></i>
             <p>把长文档变得有条理</p>
             <small>打开 PDF 后，创建或生成书签</small>
+            <div class="tree-empty-actions">
+              <button type="button" data-action="generate" data-doc class="primary"><i data-icon="bookmark-plus"></i>自动生成书签</button>
+              <button type="button" data-action="smart-toc" data-doc><i data-icon="contents"></i>智能目录识别</button>
+            </div>
           </div>
         </div>
         <div class="outline-bottom">
@@ -357,11 +362,9 @@
           <button data-action="left-mode" title="书签侧栏：展开 / 窄列 / 隐藏">
             <i data-icon="sidebar"></i>
           </button>
-          <button data-action="back" title="上一视图 Alt+←" data-doc>←</button
-          ><button data-action="forward" title="下一视图 Alt+→" data-doc>
-            →
-          </button>
-          <button data-action="prev" title="上一页" data-doc>‹</button
+          <button data-action="back" class="nav-icon" title="上一视图 Alt+←" aria-label="上一视图" data-doc><i data-icon="back"></i></button
+          ><button data-action="forward" class="nav-icon nav-forward" title="下一视图 Alt+→" aria-label="下一视图" data-doc><i data-icon="back"></i></button>
+          <button data-action="prev" class="nav-icon" title="上一页 PageUp" aria-label="上一页" data-doc><i data-icon="chevron-left"></i></button
           ><input
             id="page-number"
             value="1"
@@ -369,9 +372,9 @@
             min="1"
             aria-label="页码"
           /><span id="page-total">/ —</span
-          ><button data-action="next" title="下一页" data-doc>›</button
+          ><button data-action="next" class="nav-icon" title="下一页 PageDown" aria-label="下一页" data-doc><i data-icon="chevron-right"></i></button
           ><span class="separator"></span
-          ><button data-action="zoom-out" data-doc>−</button
+          ><button data-action="zoom-out" class="nav-icon" title="缩小 Ctrl+−" aria-label="缩小" data-doc><i data-icon="minus"></i></button
           ><select id="zoom" aria-label="缩放">
             <option value="fit">适合页面</option>
             <option value="width">适合宽度</option>
@@ -382,7 +385,7 @@
             <option value="1.5">150%</option>
             <option value="2">200%</option>
             <option value="3">300%</option></select
-          ><button data-action="zoom-in" data-doc>+</button
+          ><button data-action="zoom-in" class="nav-icon" title="放大 Ctrl++" aria-label="放大" data-doc><i data-icon="plus"></i></button
           ><select id="layout" aria-label="页面布局">
             <option value="single">单页</option>
             <option value="continuous" selected>连续 · 纵向</option>
@@ -427,6 +430,7 @@
           <div class="findbar-row">
             <input id="find-text" placeholder="在全文中查找…" aria-label="全文查找" />
             <button type="button" id="find-case" aria-pressed="false" title="区分大小写" aria-label="区分大小写">Aa</button>
+            <button type="button" id="find-word" aria-pressed="false" title="整词匹配" aria-label="整词匹配">ab</button>
             <button type="button" id="find-regex" aria-pressed="false" title="正则表达式" aria-label="正则表达式">.*</button>
             <button data-action="find-run">搜索</button>
             <button data-action="find-prev" title="上一处 Shift+F3" aria-label="上一处">‹</button>

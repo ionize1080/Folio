@@ -194,6 +194,12 @@ const path = require('node:path');
     await page.waitForFunction(async () => (await import('./app.mjs')).S.page === 4);
     await h.frames();
     assert.equal(await page.locator('#thumb-rows .thumb-card[data-page="4"]').getAttribute('aria-current'), 'page');
+    await page.locator('#thumb-rows .thumb-card[data-page="4"]').click({ button: 'right' });
+    await page.locator('#context-menu').waitFor();
+    assert((await page.locator('#context-menu button svg').count()) >= 4, 'thumbnail menu rows carry icons');
+    await page.keyboard.press('Escape');
+    assert.equal(await page.locator('#context-menu').count(), 0);
+    checks.push('Thumbnail right-click menu opens with icons and closes on Escape');
     checks.push('Thumbnail sidebar 1-col renders PDF pages & clicking page 4 navigates viewer + syncs active ring');
 
     // Test commercial Ctrl+Wheel zoom out on thumbnails -> auto reflows to 2 columns without zooming main PDF!

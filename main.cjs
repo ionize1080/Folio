@@ -447,6 +447,16 @@ app.whenReady().then(async () => {
   ipc("save", (data) => {const owner=sender();return fileStore.save(data,progress=>{if(!owner.isDestroyed())owner.send('save-progress',progress);});});
   ipc('bookmark-links',items=>require('./bookmark-links.cjs').checkLinks(items,(url,options)=>require('electron').net.fetch(url,options)));
   ipc("save-prepare", (data) => fileStore.prepare(data));
+  ipc("edit-text-field", command => {
+    const target = sender();
+    switch (command) {
+      case "cut": return target.cut();
+      case "copy": return target.copy();
+      case "paste": return target.paste();
+      case "selectAll": return target.selectAll();
+      default: throw Error("Unknown text editing command");
+    }
+  });
   ipc("copy-text", (text) => {
     if (typeof text !== "string" || text.length > 16000000)
       throw Error("复制文字过长");

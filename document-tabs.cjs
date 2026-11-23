@@ -197,9 +197,11 @@ class DocumentTabs {
   async closeOne(id) {
     const tab = this.byId(id);
     // Unsaved state died with the renderer; there is nothing left to confirm.
-    if (tab.gone) return this.remove(tab);
+    if (tab.gone) { this.remove(tab); return true; }
     if (tab.dirty || tab.busy) this.select(tab);
-    if (await this.request(tab, "confirm-close")) this.remove(tab);
+    if (!await this.request(tab, "confirm-close")) return false;
+    this.remove(tab);
+    return true;
   }
   async confirmWindow() {
     for (const tab of this.documents()) {
