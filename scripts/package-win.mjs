@@ -234,4 +234,13 @@ await fs.rm(stage, { recursive: true, force: true });
 for (const name of await fs.readdir(out))
   if (name.startsWith(".Folio.exe."))
     await fs.rm(path.join(out, name), { force: true });
+// A successful build replaces every earlier build: remove other packaged folders in dist/.
+// Done last so a failed build never leaves you without a working older one.
+for (const entry of await fs.readdir(path.join(root, "dist"), { withFileTypes: true })) {
+  const full = path.join(root, "dist", entry.name);
+  if (entry.isDirectory() && full !== out && /^Folio-PDF-Studio-.+-win-x64$/.test(entry.name)) {
+    await fs.rm(full, { recursive: true, force: true });
+    console.log("removed old build:", entry.name);
+  }
+}
 console.log(out);

@@ -1,0 +1,34 @@
+/* Continuous ("squircle") corners for small controls, in the style of Apple's icon shape.
+ *
+ * `corner-shape` only changes how the existing border-radius is drawn: no layout, no extra
+ * layers, and the hit area stays the element's border box. It is applied to small controls and
+ * floating surfaces only; large clipped containers (dialogs, panels, thumbnail grids) keep plain
+ * radii so scrolling content never needs a per-frame path clip.
+ * Browsers without support ignore this whole block. */
+@supports (corner-shape: squircle) {
+  :where(
+    button, select, input:not([type=radio], [type=checkbox], [type=range], [type=color]), textarea, summary,
+    kbd, mark, output, [role=tab], [role=menuitem], [role=option], [role=radio], [role=switch],
+    .document-tab, .doc-tab, .tab-close, .tab-add,
+    .ribbon-tab, .ribbon-category, .ribbon-command, [data-ribbon-tab], [data-ribbon-command],
+    .sidebar-badge, .ocr-count, .fr-page, .cmd-item, .cmd-group, .st-state, .ft-badge,
+    #target-badge, .tree-row .page, .tree-row, .tree-tools button, .selection-quickbar,
+    .filter-wrap, .more-tools-menu, .view-options > div, .studio-view-popover, .studio-placement > div,
+    #context-menu, #toast, .toast, .organizer-label b, .organizer-options > div,
+    .choice-chips button, .pattern-chips button, .rules-view-tabs button, .palette-options label
+  ) {
+    corner-shape: squircle;
+  }
+  /* The pill drawn behind each ribbon category (its hit cell is the full rectangle). */
+  .ribbon-tabs button::before { corner-shape: squircle; }
+  /* Circles stay circles. */
+  :where(
+    input[type=radio], .selection-quickbar .sq-swatch, .cp-swatch, .cp-knob, .cp-now, .palette-options i,
+    #dirty-dot, .status-led, .spinner, .empty-orbit, .rg-dot, .tt-mark, .st-steps li i,
+    .st-state::before, .document-tab .modified::after
+  ) {
+    corner-shape: round;
+  }
+  /* Thin bars and tracks look identical either way; keep them on the cheapest path. */
+  :where(progress, .ocr-bar, .st-meter, .cp-hue, ::-webkit-scrollbar-thumb) { corner-shape: round; }
+}
