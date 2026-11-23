@@ -4,6 +4,9 @@ import { icon } from "./icons.mjs";
 
 // Icon / emphasis for context-menu rows, keyed by label. Unlisted rows stay text-only.
 export const MENU_META = {
+  "切换到此标签页": ["file", ""], "关闭标签页": ["close", ""], "关闭其他标签页": ["close", ""], "关闭右侧标签页": ["close", ""],
+  "复制文件名": ["copy", ""], "复制文件路径": ["copy", ""], "打开": ["file", "accent"], "从最近记录移除": ["trash", "danger"],
+  "粘贴": ["paste", ""],
   // Page organizer and thumbnail sidebar.
   "预览页面": ["eye", ""], "逆时针旋转": ["rotate-left", ""], "顺时针旋转": ["rotate", ""], "旋转 180°": ["rotate-half", ""],
   "在此页之前插入文件…": ["insert-page", ""], "在此页之后插入文件…": ["insert-page", ""], "在此处插入空白页…": ["new-page", ""],
@@ -110,4 +113,27 @@ export function showContextMenu(e, items, { guard = fn => fn(), parent } = {}) {
       ),
     0,
   );
+}
+// Electron has no native edit menu; give text fields and editable areas cut / copy / paste / select all.
+export function installTextContextMenu({ guard } = {}) {
+  document.addEventListener("contextmenu", (e) => {
+    if (e.defaultPrevented) return;
+    const field = e.target.closest?.("input, textarea, [contenteditable=''], [contenteditable='true']");
+    if (!field) return;
+    if (field.matches("input")) {
+      const t = field.type;
+      if (["checkbox", "radio", "range", "button", "submit", "color", "file"].includes(t)) return;
+    }
+    const text = field.matches("input, textarea");
+    const selected = text ? field.selectionStart !== field.selectionEnd : !!getSelection()?.toString();
+    const editable = !field.readOnly && !field.disabled;
+    const run = (cmd) => () => { field.focus(); document.execCommand(cmd); };
+    showContextMenu(e, [
+      ["剪切 Ctrl+X", run("cut"), !selected || !editable],
+      ["复制 Ctrl+C", run("copy"), !selected],
+      ["粘贴 Ctrl+V", run("paste"), !editable],
+      null,
+      ["全选 Ctrl+A", run("selectAll")],
+    ], { guard });
+  });
 }

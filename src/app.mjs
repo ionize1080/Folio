@@ -16,7 +16,7 @@ import {
 } from "./i18n.mjs";
 import { installCommandPalette } from "./command-palette.mjs";
 import { installThumbnailSidebar } from "./thumbnail-sidebar.mjs";
-import { showContextMenu } from "./context-menu.mjs";
+import { showContextMenu, installTextContextMenu } from "./context-menu.mjs";
 import { installObjectSelection } from "./object-selection-ui.mjs";
 import { installPageImages } from "./image-page-ui.mjs";
 import { updateDialog } from "./update-ui.mjs";
@@ -5325,6 +5325,13 @@ async function renderWelcomeRecents() {
         e.stopPropagation();
         window.desktop?.removeRecentFile?.(item.path).then(renderWelcomeRecents).catch(() => {});
       };
+      row.oncontextmenu = (e) =>
+        contextMenu(e, [
+          ["打开", () => window.desktop?.openDocumentPaths?.([item.path])],
+          ["复制文件路径", () => copyPageText(item.path)],
+          null,
+          ["从最近记录移除", () => window.desktop?.removeRecentFile?.(item.path).then(renderWelcomeRecents)],
+        ]);
       row.append(openBtn, delBtn);
       frag.append(row);
     }
@@ -5337,6 +5344,7 @@ $("#welcome-recents-clear")?.addEventListener("click", () => {
   window.desktop?.removeRecentFile?.("*").then(renderWelcomeRecents).catch(() => {});
 });
 void renderWelcomeRecents();
+installTextContextMenu({ guard: guarded });
 
 // ── Left Sidebar Page Thumbnail Mode ──
 thumbnailSidebar = installThumbnailSidebar({

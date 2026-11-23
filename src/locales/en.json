@@ -2918,5 +2918,14 @@
   "复制所选页面": "Duplicate selected pages",
   "提取所选页面…": "Extract selected pages…",
   "逆序排列所选页面": "Reverse selected pages",
-  "删除所选页面": "Delete selected pages"
+  "删除所选页面": "Delete selected pages",
+  "切换到此标签页": "Switch to this tab",
+  "关闭标签页": "Close tab",
+  "关闭其他标签页": "Close other tabs",
+  "关闭右侧标签页": "Close tabs to the right",
+  "复制文件名": "Copy file name",
+  "已复制文件名": "File name copied",
+  "复制文件路径": "Copy file path",
+  "粘贴": "Paste",
+  "从最近记录移除": "Remove from recent"
 }
